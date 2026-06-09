@@ -1,0 +1,188 @@
+<!doctype html>
+<!-- kt_integrated_iot_fe · 테마·레이아웃 커스터마이징 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>테마·레이아웃 커스터마이징 — kt_integrated_iot_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT 통합 IoT 관제 FE</a><span class="sep">›</span>
+      <span class="here">테마·레이아웃 커스터마이징</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관제 콘솔 (React SPA)</span>
+    </div>
+    <h1>테마·레이아웃 커스터마이징</h1>
+    <p class="one-liner">MUI 테마(palette·typography·components) 커스터마이징과 사이트별 메뉴 구성(<code>SITE_MENU</code>), 라이트/다크 모드·배경색·로고 설정 등 운영 환경에 맞춘 외형 조정을 지원합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>themes/</code> · <code>ConfigContext</code> · <code>SITE_MENU</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">MUI ThemeProvider · mode 토글</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>ThemeCustomization</code>(<code>themes/index.tsx</code>)은 <code>ConfigContext</code>의 <code>mode</code>(라이트/다크)를 읽어 <code>createTheme</code>로 MUI 테마를 생성합니다. 색상은 <code>palette(mode)</code>, 글꼴·타이포는 <code>typography</code>, 컴포넌트 기본 스타일은 <code>getComponents(theme, mode)</code>로 분리해 주입합니다. 생성된 테마는 <code>ThemeProvider</code>로 전체 앱에 적용되고 <code>CssBaseline</code>로 기본 스타일을 초기화합니다.</p>
+    <p>테마는 <code>mode</code>가 바뀔 때만 재생성되도록 <code>useMemo</code>로 메모이즈됩니다. <code>ThemeCustomization</code>은 <code>main.tsx</code>의 Provider 트리에서 <code>ConfigProvider</code>·<code>HeaderProvider</code> 아래에 위치해, 설정 상태가 테마에 즉시 반영됩니다. 사용자가 라이트/다크를 전환하면 지도 틴트 레이어(기능 02)나 로그인 로고(<code>getLogo(type, mode)</code>)처럼 모드에 의존하는 화면 요소도 함께 바뀝니다.</p>
+    <p>레이아웃·메뉴는 <code>config.ts</code> 상수가 결정합니다. <code>SITE_MENU</code>는 서비스 그룹(Air Map·AI산업안전DX·SafeMate·SMART GREEN·한전 AMI)별 하위 메뉴를 정의하고, <code>DRAWER_FULL_WIDTH</code>·<code>HEADER_HEIGHT</code>·<code>FOOTER_HEIGHT</code> 등 레이아웃 치수와 <code>GRID_LAYOUT_*</code> 위젯 격자 상수도 함께 둡니다. 테마 설정 화면(<code>pages/theme/ThemeSetting</code>)에서 외형 옵션을 조정할 수 있습니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      palette·typography·components를 파일로 분리하고 <code>mode</code>를 인자로 받는 팩토리 형태로 둬서, 라이트/다크 두 모드를 같은 테마 구성으로 일관되게 생성합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Cfg as ConfigContext (mode)
+    participant TC as ThemeCustomization
+    participant Pal as palette / typography / components
+    participant MUI as MUI ThemeProvider
+    participant UI as 화면 컴포넌트
+
+    UI-&gt;&gt;Cfg: 라이트/다크 토글
+    Cfg-&gt;&gt;TC: mode 변경 전달
+    TC-&gt;&gt;Pal: palette(mode) / typography / getComponents
+    Pal--&gt;&gt;TC: 테마 옵션
+    TC-&gt;&gt;MUI: createTheme(...) (useMemo)
+    MUI--&gt;&gt;UI: ThemeProvider 적용(전역 재렌더)
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>ConfigContext</code>의 <code>mode</code>가 바뀌면 <code>ThemeCustomization</code>이 테마를 재생성해 <code>ThemeProvider</code>로 전역에 반영합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ThemeCustomization {
+        -mode
+        +theme = createTheme()
+        +render() Element
+    }
+    class ConfigContext {
+        +mode
+        +miniDrawer
+        +savedWidgets
+    }
+    class palette {
+        +palette(mode) PaletteOptions
+    }
+    class typography {
+        +font / sizes
+    }
+    class getComponents {
+        +getComponents(theme, mode)
+    }
+    class config {
+        +SITE_MENU
+        +DRAWER_FULL_WIDTH
+        +HEADER_HEIGHT
+        +GRID_LAYOUT_COLS
+    }
+
+    ThemeCustomization ..&gt; ConfigContext : mode 구독
+    ThemeCustomization ..&gt; palette : 색상
+    ThemeCustomization ..&gt; typography : 글꼴
+    ThemeCustomization ..&gt; getComponents : 컴포넌트 스타일
+    ThemeCustomization ..&gt; config : 레이아웃·메뉴 상수
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>ThemeCustomization</code>이 <code>ConfigContext</code>의 <code>mode</code>를 구독해 palette·typography·components로 테마를 조립하고, 레이아웃·메뉴는 <code>config</code> 상수가 결정합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/themes/index.tsx</code> — mode 기반 MUI 테마 생성</div>
+<pre><code>export default function ThemeCustomization({ children }: Props) {
+  const { mode } = useContext(ConfigContext);
+  const theme = useMemo(
+    () =&gt; createTheme({ palette: { mode, ...palette(mode) }, typography }),
+    [mode],
+  );
+  theme.components = getComponents(theme, mode);
+  return (
+    &lt;ThemeProvider theme={theme}&gt;
+      &lt;CssBaseline /&gt;
+      {children}
+    &lt;/ThemeProvider&gt;
+  );
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/config.ts</code> — 사이트별 메뉴와 레이아웃 상수</div>
+<pre><code>export const HEADER_HEIGHT = 66;
+export const FOOTER_HEIGHT = 40;
+export const DRAWER_FULL_WIDTH = 270;
+
+export const SITE_MENU = [
+  { title: 'Air Map', children: [
+      { code: '001ENV301', title: 'Air Map', path: 'air' },
+      { code: 'GWACHEON', title: '과천 관제 센터', path: 'gwacheon' } ] },
+  { title: 'AI산업안전DX', children: [ /* ... */ ] },
+  { title: 'SafeMate', children: [ /* 4종 */ ] },
+  // SMART GREEN / 한전 AMI ...
+];</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/themes/index.tsx" target="_blank" rel="noopener">src/themes/index.tsx</a><span class="src">mode 기반 createTheme · ThemeProvider 전역 적용</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/themes/palette.ts" target="_blank" rel="noopener">src/themes/palette.ts</a><span class="src">라이트/다크 색상 팔레트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/themes/typography.ts" target="_blank" rel="noopener">src/themes/typography.ts</a><span class="src">타이포그래피(Pretendard 등)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">SITE_MENU · 레이아웃/그리드 치수 상수</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/theme/ThemeSetting.tsx" target="_blank" rel="noopener">src/pages/theme/ThemeSetting.tsx</a><span class="src">테마 설정 화면</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f13.html">과천 관제센터 특화 화면</a>
+      <a href="index.html#features">주요 기능 목록 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_integrated_iot_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

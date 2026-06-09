@@ -1,0 +1,183 @@
+<!doctype html>
+<!-- remote_solution · 라이브 채널/미니 EPG 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>라이브 채널 · 미니 EPG — remote_solution 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Remote Solution PoC App</a><span class="sep">›</span>
+      <span class="here">라이브 채널 · 미니 EPG</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Altimedia PoC</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Kotlin</span>
+    </div>
+    <h1>라이브 채널 · 미니 EPG</h1>
+    <p class="one-liner">라이브 채널 재생과 함께 미니 EPG(<code>MiniEpgAdapter</code>), 미니 가이드(<code>MiniguideAdapter</code>)를 제공하며, <code>InfiniteAdapterWrapper</code>로 무한 스크롤을 구현합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/remote_solution" target="_blank" rel="noopener"><code>remote_solution</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ChannelFragment</code> · <code>ChannelViewModel</code></div></div>
+      <div class="item"><div class="k">상태 관리</div><div class="v"><code>ChannelUiState</code> StateFlow</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>라이브 채널 화면은 ExoPlayer로 채널 콘텐츠를 재생하면서, 세로 방향 미니 가이드(채널 목록, <code>rvMiniguide</code>)와 가로 방향 미니 EPG(프로그램 편성, <code>rvMiniEpg</code>)를 동시에 보여 줍니다. 데이터는 <code>ChannelDataRepository</code>가 <code>ChannelDataSource</code>(15개 채널)와 <code>ProgramDataSource</code>(채널별 편성)에서 만들어 옵니다.</p>
+    <p><code>ChannelViewModel</code>은 화면 상태를 <code>ChannelUiState</code>(Loading / Success.ChannelUpdated / Success.ProgramUpdated / Error) StateFlow로 노출합니다. <code>ChannelFragment</code>는 <code>flowWithLifecycle</code>로 이 상태를 구독해, 채널이 바뀌면 미니 가이드를 갱신·스크롤하고 선택 채널의 편성을 미니 EPG에 반영하며 <code>tuneContents()</code>로 0.5초 디바운스 후 재생을 시작합니다.</p>
+    <p>채널 미니 가이드는 끝없이 위아래로 돌릴 수 있도록 <code>InfiniteAdapterWrapper</code>로 감싸집니다. 이 래퍼는 <code>getItemCount()</code>를 <code>Int.MAX_VALUE</code>로 반환하고 <code>position % 실제크기</code>로 데이터를 매핑해 순환 스크롤을 구현합니다. ViewModel은 시작 채널을 가운데(<code>Int.MAX_VALUE / size / 2</code> 부근)로 잡아 양방향 무한 스크롤이 자연스럽게 동작하게 합니다.</p>
+    <div class="callout">
+      <div class="ct">스로틀·디바운스</div>
+      채널 전환은 <code>updateSelectedChannelIndex</code>에서 100ms 스로틀로 과도한 전환을 막고, 실제 재생 전환은 <code>tuneContents</code>에서 500ms 디바운스로 빠른 채널 넘김 중 불필요한 재생을 건너뜁니다. 미니 가이드/EPG는 D-pad 입력 후 5초 뒤 자동으로 숨겨집니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자(D-pad 상/하)
+    participant CF as ChannelFragment
+    participant CVM as ChannelViewModel
+    participant REPO as ChannelDataRepository
+    participant MG as InfiniteAdapterWrapper(MiniguideAdapter)
+    participant EP as ExoPlayer
+
+    U-&gt;&gt;CF: KEYCODE_DPAD_DOWN
+    CF-&gt;&gt;CVM: updateSelectedChannelIndex(next)
+    CVM-&gt;&gt;REPO: getChannelRing(channelCode)
+    REPO--&gt;&gt;CVM: List~ChannelUiData~
+    CVM--&gt;&gt;CF: uiState = Success.ChannelUpdated
+    CF-&gt;&gt;MG: submitList(channelList) + 스크롤 보정
+    CF-&gt;&gt;CF: miniEpgAdapter.submitList(programList)
+    CF-&gt;&gt;EP: tuneContents() 500ms 디바운스 후 재생
+      </div>
+      <p class="cap"><strong>흐름.</strong> 채널 이동 → ViewModel이 채널 링 데이터로 상태 갱신 → 미니 가이드 무한 스크롤·미니 EPG 갱신 → 디바운스 후 재생.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ChannelFragment {
+        +observeUiState()
+        +tuneContents(ChannelUiData)
+        +showMiniguide()
+        +onKeyDown(KeyEvent)
+    }
+    class ChannelViewModel {
+        +StateFlow~ChannelUiState~ uiState
+        +int channelScrollPosition
+        +updateSelectedChannelIndex(index)
+        +updateSelectedProgramIndex(index)
+    }
+    class ChannelUiState {
+        &lt;&lt;sealed&gt;&gt;
+        Loading
+        Success
+        Error
+    }
+    class ChannelDataRepository {
+        +getChannelRing(code, startTime) List~ChannelUiData~
+    }
+    class InfiniteAdapterWrapper~T~ {
+        +getItemCount() Int
+        +submitList(list, predicate, callback)
+    }
+    class MiniguideAdapter
+    class MiniEpgAdapter
+
+    ChannelFragment --&gt; ChannelViewModel : viewModels()
+    ChannelViewModel --&gt; ChannelDataRepository : 주입(Hilt)
+    ChannelViewModel ..&gt; ChannelUiState : 방출
+    ChannelFragment o-- InfiniteAdapterWrapper~T~ : 미니 가이드 래핑
+    InfiniteAdapterWrapper~T~ o-- MiniguideAdapter : 위임
+    ChannelFragment o-- MiniEpgAdapter
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>ChannelFragment</code>가 <code>ChannelViewModel</code>의 상태를 구독하고, 미니 가이드는 <code>InfiniteAdapterWrapper</code>가 <code>MiniguideAdapter</code>를 감싸 무한 스크롤을 제공합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/util/component/InfiniteAdapterWrapper.kt</code> — 순환 매핑으로 무한 스크롤</div>
+<pre><code>override fun getItemCount(): Int =
+    if (dataAdapter.currentList.isEmpty()) 0 else Int.MAX_VALUE
+
+override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+    val realIndex = position % dataAdapter.currentList.size
+    dataAdapter.onBindViewHolder(holder, realIndex)
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/channel/ChannelViewModel.kt</code> — 시작 위치를 가운데로, 인덱스 모듈로 매핑</div>
+<pre><code>val selectedChannelIndex get() = channelScrollPosition % channelDataRepository.getAllChannels().size
+
+init {
+    val allChannels = channelDataRepository.getAllChannels()
+    val firstChannelIndex = allChannels.indexOfFirst { it.channelCode == "256" }
+    channelScrollPosition = firstChannelIndex * (Int.MAX_VALUE / allChannels.size / 2)
+    getChannelRing("256")
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/ui/channel/ChannelFragment.kt" target="_blank" rel="noopener">ui/channel/ChannelFragment.kt</a><span class="src">미니 가이드/EPG RecyclerView · uiState 구독 · tuneContents 재생 · 자동 숨김</span></li>
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/ui/channel/ChannelViewModel.kt" target="_blank" rel="noopener">ui/channel/ChannelViewModel.kt</a><span class="src">ChannelUiState StateFlow · 무한 스크롤 위치 계산 · 채널/프로그램 인덱스 갱신</span></li>
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/ui/util/component/InfiniteAdapterWrapper.kt" target="_blank" rel="noopener">ui/util/component/InfiniteAdapterWrapper.kt</a><span class="src">Int.MAX_VALUE 아이템 수 · % 모듈로 순환 매핑 무한 스크롤</span></li>
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/ui/channel/miniepg/MiniEpgAdapter.kt" target="_blank" rel="noopener">ui/channel/miniepg/MiniEpgAdapter.kt</a><span class="src">미니 EPG 편성 어댑터 · 진행 바 코루틴</span></li>
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/data/channel/ChannelDataRepository.kt" target="_blank" rel="noopener">data/channel/ChannelDataRepository.kt</a><span class="src">채널 링/편성 하드코딩 데이터 조립</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f08.html">← 캡처 영역 비트맵 추출</a>
+      <a href="f10.html">인터랙션 튜토리얼 오버레이 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">remote_solution 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

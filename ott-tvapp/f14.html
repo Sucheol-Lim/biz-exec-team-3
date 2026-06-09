@@ -1,0 +1,186 @@
+<!doctype html>
+<!-- ott-tvapp · RCU·블루투스 연동 기능 상세 — IETP(JNI RCU 프로토콜) + Bluetooth BLE -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RCU·블루투스 연동 — ott-tvapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KCTV 제주 OTT Android TV 앱 (ott-tvapp)</a><span class="sep">›</span>
+      <span class="here">RCU·블루투스 연동</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KCTV 제주</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>RCU·블루투스 연동</h1>
+    <p class="one-liner"><code>ctrl/IETP</code>가 JNI 기반 RCU 프로토콜(<code>IetpManager</code>, <code>libtvcoietp.so</code>)로 리모컨 디바이스 등록·메시지를 처리하고, <code>ctrl/Bluetooth</code>가 BLE 스캔·페어링·연결로 블루투스 RCU/단말을 연동합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/ott-tvapp" target="_blank" rel="noopener"><code>ott-tvapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>android14/marusys</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ctrl/IETP</code> · <code>ctrl/Bluetooth</code></div></div>
+      <div class="item"><div class="k">네이티브</div><div class="v"><code>libtvcoietp.so</code> · <code>libAesJni.so</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>IETP</code>는 <code>IetpMessageHandler</code>를 구현한 RCU 프로토콜 처리기입니다. <code>init()</code>에서 <code>IetpManager.init()</code> 후 자기 자신을 핸들러로 등록(<code>addHandler</code>)합니다. 단말과 모바일/리모컨 간 통신은 디바이스 등록(<code>onRegister</code>)·해제(<code>onUnregister</code>)와 메시지 메서드(<code>getStbStatus</code>·<code>tuneChannel</code>·<code>pushVodDetail</code>·<code>reserveProgram</code>)로 이뤄지며, 등록 시 hint/암호화 검증과 내 디바이스 목록 확인을 거쳐 <code>IetpClientInfo</code>를 추가하고 암호화된 client id를 돌려줍니다. 암복호는 JNI 라이브러리(<code>libtvcoietp.so</code>, <code>libAesJni.so</code>)가 수행합니다.</p>
+    <p><code>Bluetooth</code>는 BLE 기반 RCU/단말 연동을 담당합니다. <code>init()</code>으로 <code>BluetoothAdapter</code>를 준비하고, <code>startScanning()</code>이 <code>BluetoothLeScanner.startScan()</code>으로 KCTV BLE RCU를 탐색합니다. 페어링(<code>startPairing</code>)·연결(<code>connectGatt</code>)을 거쳐 디바이스 정보(소프트웨어 버전)·배터리 레벨 GATT 서비스를 읽고, 연결된 디바이스 목록을 관리합니다. 디바이스 삭제(<code>deleteDevice</code>/<code>deleteAllDevices</code>)도 지원합니다.</p>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant ACT as PlaybackActivity
+    participant IETP as ctrl/IETP
+    participant IM as IetpManager (JNI)
+    participant DEV as RCU / 모바일
+    participant BT as ctrl/Bluetooth
+    participant SC as BluetoothLeScanner
+
+    ACT-&gt;&gt;IETP: init(handler)
+    IETP-&gt;&gt;IM: IetpManager.init() + addHandler(this)
+    DEV-&gt;&gt;IM: 등록 요청 (hint, encrypted)
+    IM-&gt;&gt;IETP: onRegister(hint, encrypted)
+    IETP-&gt;&gt;IETP: 유효성/내 디바이스 목록 확인
+    IETP-&gt;&gt;IM: addClientInfo(IetpClientInfo) → IetpRegisterResult
+    ACT-&gt;&gt;BT: init(context) / startScanning()
+    BT-&gt;&gt;SC: startScan(scanCallback)
+    SC--&gt;&gt;BT: KCTV BLE RCU 발견
+    BT-&gt;&gt;DEV: connectGatt(...) (페어링/연결, 배터리/버전 읽기)
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>IETP</code>가 JNI 매니저에 핸들러를 등록해 RCU 등록/메시지를 처리하고, <code>Bluetooth</code>가 BLE 스캔·연결로 물리적 RCU/단말을 연동합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class IetpMessageHandler {
+        &lt;&lt;interface&gt;&gt;
+        +onRegister(hint, encrypted) IetpRegisterResult
+        +onUnregister(hint, encrypted) IetpUnregisterResult
+    }
+    class IETP {
+        +init(Handler handler)
+        +destroy()
+        +onRegister(hint, encrypted) IetpRegisterResult
+        +onUnregister(hint, encrypted) IetpUnregisterResult
+    }
+    class IetpManager {
+        +init()
+        +getInstance() IetpManager
+        +addHandler(handler)
+        +addClientInfo(IetpClientInfo)
+    }
+    class Bluetooth {
+        +init(Context context)
+        +startScanning()
+        +startPairing(String addr)
+        +findRCU()
+        +deleteDevice(JSONArray dataArray)
+    }
+    class BluetoothAdapter
+    class BluetoothLeScanner
+
+    IETP ..|&gt; IetpMessageHandler
+    IETP --&gt; IetpManager : addHandler / addClientInfo
+    Bluetooth --&gt; BluetoothAdapter
+    Bluetooth --&gt; BluetoothLeScanner : startScan
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>IETP</code>는 <code>IetpMessageHandler</code>를 구현해 <code>IetpManager</code>(JNI)에 등록되고, <code>Bluetooth</code>는 <code>BluetoothAdapter</code>/<code>BluetoothLeScanner</code>로 BLE 디바이스를 연동합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ctrl/IETP.java</code> — JNI RCU 매니저에 핸들러 등록 / 디바이스 등록 처리</div>
+<pre><code>public static void init(Handler handler) {
+    if (ietpHandler == null) ietpHandler = new IETP();
+    IETP.handler = handler;
+    IetpManager.init();
+    IetpManager.getInstance().addHandler(ietpHandler);
+}
+
+public IetpRegisterResult onRegister(byte[] hint, byte[] encrypted) {
+    String deviceId = new String(hint);
+    byte[] sharedKey = getSharedKey(hint);
+    if (!isValidDeviceId(hint, encrypted, sharedKey))
+        return new IetpRegisterResult(false, IETP_ERROR_ENC_VALUE, -1);
+    if (!isInMyDeviceList(deviceId))
+        return new IetpRegisterResult(false, IETP_ERROR_NOT_REGISTER_DEVICE, -1);
+
+    int clientId = (int) (SystemClock.uptimeMillis() % Integer.MAX_VALUE);
+    IetpManager.getInstance().addClientInfo(new IetpClientInfo(clientId, sharedKey));
+    clientIDs.put(hint, clientId);
+    return new IetpRegisterResult(true, IETP_SUCCESS, getEncryptClientId(clientId, sharedKey));
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ctrl/Bluetooth.java</code> — BLE 스캐너로 RCU 탐색</div>
+<pre><code>public static void startScanning() {
+    BluetoothLeScanner bluetoothLeScanner = btAdapter.getBluetoothLeScanner();
+    // ... 필터/설정 구성
+    bluetoothLeScanner.startScan(scanCallback);   // KCTV BLE RCU 탐색
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/IETP.java" target="_blank" rel="noopener">ctrl/IETP.java</a><span class="src">JNI 기반 RCU 프로토콜 처리 · 디바이스 등록/해제/메시지</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/Bluetooth.java" target="_blank" rel="noopener">ctrl/Bluetooth.java</a><span class="src">BLE 스캔/페어링/연결 · RCU 배터리·버전·디바이스 관리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/jniLibs" target="_blank" rel="noopener">app/src/main/jniLibs/</a><span class="src">RCU 네이티브 라이브러리(libtvcoietp.so · libAesJni.so)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/AndroidManifest.xml" target="_blank" rel="noopener">app/src/main/AndroidManifest.xml</a><span class="src">BLUETOOTH_SCAN/CONNECT 등 블루투스 권한 선언</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f13.html">3rd Party 앱 모드 제어</a>
+      <a href="f15.html">다국어 · 호텔 모드 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>android14/marusys</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">ott-tvapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

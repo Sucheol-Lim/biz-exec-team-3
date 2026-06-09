@@ -1,0 +1,178 @@
+<!doctype html>
+<!-- skylife-ux3.0 · 설정·마이페이지 기능 상세 — ui/setting + ui/mypage + 시청시간 제한/잠금 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>설정 · 마이페이지 — Skylife ATV EPG 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Skylife ATV EPG (UX3.0)</a><span class="sep">›</span>
+      <span class="here">설정 · 마이페이지</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT SkyLife</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV(Leanback) STB · Java</span>
+    </div>
+    <h1>설정 · 마이페이지</h1>
+    <p class="one-liner"><code>ui/setting</code>과 <code>ui/mypage</code>에서 환경 설정, 시청시간 제한, 잠금/비밀번호, 가입 정보 등을 관리합니다. 설정 진입은 <code>SettingMainActivity</code>(매니페스트 선언) 또는 <code>TTUIManager.UI_UTIL_SETTINGS</code> 경로로 이루어집니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skylife-ux3.0" target="_blank" rel="noopener"><code>skylife-ux3.0</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feat/lw-voice-api</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>setting/CommonSettingFragment</code> · <code>mypage/TTMyPageFragment2</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">환경 설정 · 잠금 · 가입 정보</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>설정 화면은 <code>ui/setting/fragment</code>의 <code>CommonSettingFragment</code>(<code>TTListViewSupportFragment</code> 상속)를 베이스로 하는 다수의 화면으로 구성됩니다. 환경 설정(preference)으로 해상도(<code>TTSettingResolutionFragment</code>), 사운드(<code>TTSettingSoundFragment</code>), 자동 전원/대기(<code>TTSettingAutoPower</code>·<code>AutoStandby</code>), 언어(<code>BasicLanguage</code>·<code>AudioLanguage</code>), 시스템 정보·업그레이드 등을 제공하고, 자녀보호(parental)로 성인 메뉴, 채널/시간 차단, 시청 등급, PIN 변경(<code>TTSettingPinChangeFragment</code>)을 관리합니다. 설정 진입점인 <code>SettingMainActivity</code>는 매니페스트에 선언되어 있으며, 앱 내부에서는 <code>TTUIManager.goToScreen(UI_UTIL_SETTINGS)</code> → <code>showSettingFragment()</code> 경로로도 진입합니다.</p>
+    <p>마이페이지는 <code>ui/mypage</code>의 <code>TTMyPageFragment2</code>(+<code>TTMyPageViewModel2</code>)가 담당합니다. <code>TTMyPageMenuType</code> enum으로 VOD 구매내역·소장용·찜·무비초이스·쿠폰·VOD/TV 포인트·가입내역(<code>PRODUCTS</code>)·시청예약 목록(<code>RESERVATIONS</code>)·녹화 목록(<code>RECORDINGS</code>)·공지(<code>NOTICES</code>) 메뉴를 정의합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      잠금/비밀번호와 자녀보호는 PIN 기반으로 동작하며, FCM 푸시(<code>FCMService</code>)나 음성 명령으로 트리거되는 시스템 동작(재부팅·해상도 변경·전원)도 결국 <code>SettingHandler</code>를 거칩니다. 즉 사용자 설정 UI와 원격 제어가 동일한 <code>SettingHandler</code> 진입점을 공유합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant UIM as TTUIManager
+    participant SF as CommonSettingFragment
+    participant VM as TTSettingViewModel
+    participant SH as SettingHandler
+
+    U-&gt;&gt;UIM: goToScreen(UI_UTIL_SETTINGS)
+    UIM-&gt;&gt;SF: showSettingFragment()
+    SF-&gt;&gt;VM: 설정 항목 로드
+    VM--&gt;&gt;SF: 현재 값 (해상도/사운드/잠금 등)
+    U-&gt;&gt;SF: 항목 변경 (예: 해상도)
+    SF-&gt;&gt;SH: setVideoResolution(...) / PIN 검증
+    SH--&gt;&gt;SF: 적용 결과
+    SF--&gt;&gt;U: UI 갱신
+      </div>
+      <p class="cap"><strong>흐름.</strong> 설정 진입 후 항목을 변경하면 <code>SettingHandler</code>가 실제 시스템 설정을 적용하고 화면이 갱신됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class TTListViewSupportFragment
+    class CommonSettingFragment {
+        &lt;&lt;abstract&gt;&gt;
+    }
+    class TTSettingResolutionFragment
+    class TTSettingPinChangeFragment
+    class TTSettingViewModel
+    class TTMyPageFragment2
+    class TTMyPageMenuType {
+        &lt;&lt;enumeration&gt;&gt;
+        VOD_BUYS
+        PRODUCTS
+        RESERVATIONS
+        RECORDINGS
+        NOTICES
+    }
+    class SettingHandler {
+        +setVideoResolution(int)
+        +reboot()
+        +poweroff()
+    }
+
+    CommonSettingFragment --|&gt; TTListViewSupportFragment
+    TTSettingResolutionFragment --|&gt; CommonSettingFragment
+    TTSettingPinChangeFragment --|&gt; CommonSettingFragment
+    CommonSettingFragment --&gt; TTSettingViewModel : 데이터
+    CommonSettingFragment --&gt; SettingHandler : 시스템 설정 적용
+    TTMyPageFragment2 --&gt; TTMyPageMenuType : 메뉴 구성
+      </div>
+      <p class="cap"><strong>관계.</strong> 설정 화면들이 <code>CommonSettingFragment</code>를 공통 베이스로 두고 <code>SettingHandler</code>로 시스템 설정을 적용하며, 마이페이지는 <code>TTMyPageMenuType</code>으로 메뉴를 구성합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/mypage/TTMyPageMenuType.java</code> — 마이페이지 메뉴 enum</div>
+<pre><code>public enum TTMyPageMenuType {
+    VOD_BUYS(R.string.mp_vod_buy, R.drawable.icon_my_menu_buyvod),
+    VOD_COLLECTIONS(R.string.mp_vod_collection, R.drawable.icon_my_menu_collection),
+    VOD_LIKES(R.string.mp_vod_like, R.drawable.icon_my_menu_likevod),
+    COUPON(R.string.mp_coupon, R.drawable.icon_coupon),
+    VOD_POINT(R.string.mp_vod_point, R.drawable.icon_point),
+    PRODUCTS(R.string.mp_products, R.drawable.icon_my_menu_join),       // 가입내역
+    RESERVATIONS(R.string.mp_reservations, R.drawable.icon_my_menu_reserve), // 시청예약
+    RECORDINGS(R.string.mp_recordings, R.drawable.icon_my_menu_rec),    // 녹화목록
+    NOTICES(R.string.mp_notices, R.drawable.icon_my_menu_noti);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/TTUIManager.java</code> — 설정/마이페이지 화면 라우팅</div>
+<pre><code>switch(uiType){
+    case UI_UTIL_MYPAGE:   showMyPageFragment();  break;
+    case UI_UTIL_SEARCH_M: showSearchFragment(args); break;
+    case UI_UTIL_SETTINGS: showSettingFragment(); break;   // 설정 화면 진입
+    case UI_GUIDE:         showChannelGuideFragment(args); break;
+    // ...
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/setting/fragment/CommonSettingFragment.java" target="_blank" rel="noopener">ui/setting/fragment/CommonSettingFragment.java</a><span class="src">설정 화면 공통 베이스 — 항목 리스트/포커스/적용</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/setting/fragment/parental/TTSettingPinChangeFragment.java" target="_blank" rel="noopener">ui/setting/fragment/parental/TTSettingPinChangeFragment.java</a><span class="src">잠금/비밀번호(PIN) 변경 — 자녀보호·시청 제한</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/mypage/menu/TTMyPageFragment2.java" target="_blank" rel="noopener">ui/mypage/menu/TTMyPageFragment2.java</a><span class="src">마이페이지 — 구매·포인트·가입내역·예약·녹화 메뉴</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/mypage/TTMyPageMenuType.java" target="_blank" rel="noopener">ui/mypage/TTMyPageMenuType.java</a><span class="src">마이페이지 메뉴 enum 정의</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/fifth/AndroidManifest.xml" target="_blank" rel="noopener">app/src/fifth/AndroidManifest.xml</a><span class="src">SettingMainActivity(.ui.setting.SettingMainActivity) 진입점 선언</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f05.html">← 통합 검색</a>
+      <a href="index.html#features">목록</a>
+      <a href="f07.html">LW Voice 음성 어시스턴트 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feat/lw-voice-api</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">Skylife ATV EPG 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

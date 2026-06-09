@@ -1,0 +1,186 @@
+<!doctype html>
+<!-- skb_cloud_local_android · 미니 EPG / 채널 리스트 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>미니 EPG / 채널 리스트 — skb_cloud_local_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local EPG (Android)</a><span class="sep">›</span>
+      <span class="here">미니 EPG / 채널 리스트</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>미니 EPG / 채널 리스트</h1>
+    <p class="one-liner"><code>ui/miniepg</code> 패키지가 미니 EPG, 채널 리스트(<code>ChannelListView</code>), 오디오 채널(<code>AudioChannelFragment</code>), DCA(채널 직접 입력, <code>DcaFragment</code>) 화면을 제공하며, 키 롱프레스 처리와 차단 채널 표시 정책을 다룹니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_android" target="_blank" rel="noopener"><code>skb_cloud_local_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>UC500_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>MiniEpgFragment</code> · <code>DcaFragment</code> · <code>AudioChannelFragment</code> · <code>ChannelListView</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">채널 탐색 OSD · 직접 입력 튠</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>미니 EPG는 EPG 레이어(<code>LAYER_EPG_VIEW</code>)에 올라가는 OSD 형태의 채널 가이드입니다. <code>MiniEpgFragment</code>가 채널 항목을 <code>ChannelListView</code>로 리스트업하고, 각 항목은 <code>ChannelView</code>/<code>EpgItemView</code>/<code>ProgramView</code>로 채널 번호·이름·현재 프로그램(<code>ExProgram</code>)을 표시합니다. 오디오 전용 채널은 <code>AudioChannelFragment</code>가 <code>AudioDataManager.SongChangedListener</code>로 곡 정보를 받아 시각화합니다.</p>
+    <p>DCA(Direct Channel Access, 채널 직접 입력)는 <code>DcaFragment</code>가 담당합니다. 사용자가 숫자를 입력하면 <code>DcaItemView</code> 자동완성 리스트가 표시되고, 입력이 완료되면 <code>ChannelDataManager.findChannelByChannelNumber()</code>로 대상 채널을 찾아 튠합니다. 자동완성 리스트에는 차단(파이/제한) 채널이 노출되지 않도록 필터링됩니다.</p>
+    <p>키 입력 처리는 <code>MiniEpgFragment.onKeyPad()</code>가 받습니다. <code>ACTION_DOWN</code>이 아닌 이벤트는 무시하며, 채널 항목이 <code>isRestricted</code>·<code>PERM_CA_BLOCKED</code>·<code>NULL PROGRAM</code> 상태인지 점검해 OSD 표시와 튠 동작을 분기합니다. UP/DOWN 키 롱프레스 중 발생하는 추가 이벤트는 키 처리 중 무시하도록 보정되어 있습니다.</p>
+    <div class="callout">
+      <div class="ct">UI 검수 반영 사항</div>
+      분석 기준 브랜치에서 DCA 자동완성 리스트의 차단 채널 미표시, miniEpg up/down 롱프레스 시 키 처리 중 올라오는 이벤트 무시 등 UI 검수 항목이 반영되었습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant USR as 사용자
+    participant MEF as MiniEpgFragment
+    participant CLV as ChannelListView
+    participant CDM as ChannelDataManager
+    participant CA as CaManagerImpl
+    participant CC as ChannelController
+
+    USR-&gt;&gt;MEF: DPAD UP/DOWN / 숫자 입력
+    MEF-&gt;&gt;MEF: onKeyPad() (ACTION_DOWN만 처리)
+    Note over MEF: 롱프레스 중 추가 이벤트는 무시
+    MEF-&gt;&gt;CLV: 채널 항목 갱신 / 포커스 이동
+    CLV-&gt;&gt;CDM: 채널/프로그램 데이터 조회
+    MEF-&gt;&gt;CA: isRestricted / PERM_CA_BLOCKED 점검
+    alt 차단 채널
+        MEF-&gt;&gt;MEF: 차단 표시 / 튠 보류
+    else 정상 채널
+        USR-&gt;&gt;MEF: 선택(OK)
+        MEF-&gt;&gt;CC: tune(선택 채널)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>onKeyPad()</code>가 ACTION_DOWN만 처리하고 롱프레스 중복 이벤트를 무시하며, 차단 채널은 표시·튠을 분기한 뒤 정상 채널만 <code>ChannelController.tune()</code>으로 넘어갑니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class BaseFragment {
+        &lt;&lt;abstract&gt;&gt;
+    }
+    class MiniEpgFragment {
+        -ArrayList~ChannelListView~ vChListItems
+        +onKeyPad(v, keyCode, event) boolean
+    }
+    class DcaFragment {
+        -ArrayList~DcaItemView~ vDcaItems
+        +findChannel(int) ExChannel
+    }
+    class AudioChannelFragment {
+        +newInstance() AudioChannelFragment
+        +show()
+    }
+    class ChannelListView {
+        +update()
+    }
+    class DcaItemView {
+        +setChannel(ExChannel)
+    }
+    class ChannelDataManager {
+        +findChannelByChannelNumber(int) ExChannel
+        +isPay(ExChannel) boolean
+    }
+    class CaManagerImpl {
+        +getAuthorityClosed() boolean
+    }
+
+    MiniEpgFragment --|&gt; BaseFragment
+    DcaFragment --|&gt; BaseFragment
+    AudioChannelFragment --|&gt; BaseFragment
+    MiniEpgFragment o-- ChannelListView : 항목 리스트
+    DcaFragment o-- DcaItemView : 자동완성 항목
+    DcaFragment --&gt; ChannelDataManager : 채널 조회
+    MiniEpgFragment ..&gt; CaManagerImpl : 차단 점검
+      </div>
+      <p class="cap"><strong>관계.</strong> 세 화면 모두 <code>BaseFragment</code>를 상속하며, <code>MiniEpgFragment</code>는 <code>ChannelListView</code> 리스트를, <code>DcaFragment</code>는 <code>DcaItemView</code> 자동완성 리스트를 소유합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/miniepg/MiniEpgFragment.java</code> — ACTION_DOWN 외 이벤트 무시 및 차단 점검</div>
+<pre><code>public boolean onKeyPad(View v, int keyCode, KeyEvent event) {
+    Log.d(TAG, "onKey: " + keyCode);
+    if (event.getAction() != KeyEvent.ACTION_DOWN) {
+        return false;                       // 롱프레스 중 올라오는 이벤트 등 비-DOWN 무시
+    }
+    // ...
+    // onKey: CurrentChannel: isRestricted
+    // onKey: CurrentChannel: PERM_CA_BLOCKED  → 차단 채널 분기
+    // onKey: Different Channel                → 정상 채널 튠
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/miniepg/DcaFragment.java</code> — 입력 번호로 채널 조회</div>
+<pre><code>ch = ChannelDataManager.getInstance().findChannelByChannelNumber(Integer.parseInt(txtNum));
+// ...
+return cc.findChannel(chIntNum);   // ChannelController로 대상 채널 확정 후 튠</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/ui/miniepg/MiniEpgFragment.java" target="_blank" rel="noopener">ui/miniepg/MiniEpgFragment.java</a><span class="src">미니 EPG OSD · onKeyPad 키 처리 · 차단 채널 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/ui/miniepg/DcaFragment.java" target="_blank" rel="noopener">ui/miniepg/DcaFragment.java</a><span class="src">DCA 채널 직접 입력 · 자동완성 리스트 · 채널 번호 조회</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/ui/miniepg/AudioChannelFragment.java" target="_blank" rel="noopener">ui/miniepg/AudioChannelFragment.java</a><span class="src">오디오 채널 화면 · 곡 정보 시각화(SongChangedListener)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/ui/miniepg/ChannelListView.java" target="_blank" rel="noopener">ui/miniepg/ChannelListView.java</a><span class="src">채널 리스트 항목 뷰</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f02.html">← 라이브 채널 시청</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f04.html">SI · 채널맵 구성 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>UC500_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

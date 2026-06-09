@@ -1,0 +1,450 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KT Magic AI 지니숏츠 (AI 숏폼 플랫폼) — 과제 설명</title>
+<style>
+:root{
+  --accent:#d6001c;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">데스크톱 웹 (Vue 3 SPA)</span>
+      <span class="badge gray">JavaScript</span>
+    </div>
+    <h1>KT Magic AI 지니숏츠 (AI 숏폼 플랫폼)</h1>
+    <p class="one-liner">원본 영상을 입력받아 AI로 세로형 숏폼(지니 숏츠) 영상을 자동 생성하고, 결과를 타임라인 기반 웹 에디터에서 편집·재인코딩하는 프런트엔드 웹 애플리케이션입니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform" target="_blank" rel="noopener"><code>kt_magic_platform_ai_shortform</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2025-12-03 · 047ff04 version 1.0.2</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v">magic-ui / 1.1.38.35 (package.json)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>이 저장소는 KT Magic 플랫폼의 AI 숏폼(지니 숏츠) 기능을 담당하는 <strong>Vue 3 단일 페이지 애플리케이션(SPA)</strong>입니다. 사용자가 원본 영상을 업로드하면 백엔드 Magic 엔진(<code>/api/magic</code>, <code>/nms/magic</code>)이 AI 분석을 거쳐 세로형 숏폼 영상을 자동 생성하고, 이 프런트엔드는 생성 요청, 진행 상태 조회, 결과 확인, 그리고 타임라인 기반 영상 편집과 재인코딩까지의 사용자 흐름을 화면으로 제공합니다.</p>
+    <p>콘텐츠 유형은 <code>쇼핑</code>, <code>영화드라마</code>, <code>영화</code>, <code>드라마</code>, <code>예능</code>, <code>뉴스</code>로 구분됩니다(<code>shortformContentValue.js</code>의 <code>CONTENT_TYPES</code>). 유형에 따라 <code>요약형</code>, <code>테마형</code>, <code>인물형</code>, <code>예고편형</code>, <code>클립형</code>, <code>하이라이트형</code> 등 숏폼 생성 방식을 선택할 수 있으며, 예컨대 쇼핑 콘텐츠의 테마형은 "상품소개·상품강점·활용법·시연" 네 가지 테마 구간을 추출해 숏츠를 만들고, 인물형은 특정 등장인물만 찾아 숏츠로 구성합니다.</p>
+    <p>대상 플랫폼은 데스크톱 웹 브라우저입니다. 업로드 시 Safari 쿠키 처리 분기(<code>auth.js</code>의 <code>ensureSafariCookies</code>)가 존재하는 점으로 보아 Chrome·Safari 등 주요 브라우저를 함께 고려한 것으로 보입니다(추정). 영상 미리보기는 Konva 캔버스로 렌더링하며, 자막·텍스트·로고·BGM·내레이션 등 요소를 타임라인 위에서 직접 편집합니다.</p>
+    <div class="callout">
+      <div class="ct">사업 맥락 — 협업 분담</div>
+      사내 Confluence(ORGAPPDEV)에 따르면 본 과제는 KT의 AI 숏폼 고도화 사업의 일부로, <strong>AI 엔진은 KT</strong>, <strong>백엔드 및 AI 엔진 연동은 어뮤즈랩(Amuze)</strong>, <strong>편집툴 고도화(UX·개발)는 알티미디어</strong>가 담당합니다. 1차에서 어뮤즈랩이 전체를 개발했고, 고도화 단계에서 사용성이 약했던 <strong>편집툴 부분을 알티미디어가 외주 개발</strong>하는 구조입니다. 본 저장소는 그 결과물에 해당하며, 커밋 이력의 <code>amuze source update</code>는 어뮤즈랩 측 소스 반영 흔적입니다.
+    </div>
+    <div class="callout warn">
+      <div class="ct">현재 빌드 범위</div>
+      루트 <code>package.json</code>은 <code>home</code>·<code>admin</code>·<code>user</code>·<code>login</code> 네 개의 빌드 타깃을 정의하지만, 이 저장소에는 실질 애플리케이션인 <code>user/</code> 타깃만 소스로 포함되어 있습니다. <code>home/</code>·<code>admin/</code>·<code>login/</code> 디렉토리와 해당 config는 이 저장소에 없어(별도 저장소이거나 미포함, 추정) 현재 상태로는 <code>dev-user</code>/<code>build-user</code>만 동작합니다. 또한 권한(roleId) 기반 admin↔user 라우팅 가드는 대부분 주석 처리되어 비활성 상태입니다.
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">AI 숏폼 자동 생성</div><div class="d">원본 영상을 Magic 엔진에 보내 세로형 숏폼을 자동 생성합니다(<code>aiShortformGenerationE2E</code>). 콘텐츠 유형·생성 방식·클립 수·인물 수·영상 비율 등을 설정해 요청합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">콘텐츠 유형별 생성 방식</div><div class="d">쇼핑·영화·드라마·예능·뉴스 등 유형별로 테마형·인물형·예고편형·클립형·하이라이트형 등 생성 방식을 선택합니다. 유형마다 영상 비율 목록과 생성 개수 제한이 다릅니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">대용량 청크 업로드</div><div class="d">tus-js-client 기반 TUS 프로토콜로 <code>/api/magic/tus/upload/files</code>에 100MB 단위 청크 업로드합니다. 이전 업로드 이어올리기(resume)를 지원합니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">타임라인 영상 편집기</div><div class="d">저장소에서 가장 비중이 큰 모듈입니다. 비디오·이미지·텍스트·자막·로고·BGM·내레이션 요소를 타임라인 위에서 배치·이동·리사이즈하며 편집합니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">Konva 미리보기 캔버스</div><div class="d">Konva + vue-konva로 편집 미리보기 레이어를 렌더링하고, vue3-draggable-resizable·interactjs로 요소를 드래그·리사이즈합니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">텍스트·자막 편집</div><div class="d">텍스트 박스 정렬, 화면 기준 정렬, 폰트·색상·라인하이트·박스 높이 등 자막/텍스트 스타일을 세밀하게 조정합니다(최근 커밋 다수가 텍스트·자막 박스 로직 개선).</div></a>
+      <a class="card" href="f07.html"><div class="t">BGM·내레이션 사운드</div><div class="d">wavesurfer.js로 BGM·내레이션 파형을 표시하고, Typecast 음성 생성(<code>voiceGenerationTypecast</code>) 및 내레이션 샘플을 활용합니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">스타일 템플릿</div><div class="d">템플릿 탭(<code>TemplateTab.vue</code>)에서 로고·자막·팝업 스타일이 적용된 템플릿을 미리보기하고 적용합니다. 사용자 스타일 템플릿 추가도 지원합니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">실행 취소·자동 저장·세션 복구</div><div class="d">historyManager(undo/redo), autoSaveManager(자동 저장), sessionRecoveryManager(세션 복구), elementClipboardManager(요소 복사/붙여넣기) 컴포저블로 편집 안정성을 확보합니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">단일/멀티 편집기 분기</div><div class="d">진입 래퍼 <code>ShortformHighlightEdit.vue</code>가 <code>jobId</code> 유무로 멀티/팝업 편집기와 단일(Legacy) 편집기를 지연 로딩하고, 팝업 모드에서는 좌측 메뉴를 숨깁니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">결과 확인·다운로드</div><div class="d">생성 잡 결과를 폴링·표시하고 유형별로 그룹핑하며, 해시태그·설명 편집, 영상 다운로드, 편집기 진입을 제공합니다.</div></a>
+      <a class="card" href="f12.html"><div class="t">재인코딩 저장</div><div class="d">편집 결과를 NMS에 저장(<code>putEditParams</code>)하고 <code>aiShortformEncoding</code>으로 재인코딩을 요청해 최종 숏폼 영상을 산출합니다.</div></a>
+      <a class="card" href="f13.html"><div class="t">대시보드·분석 이력</div><div class="d">chart.js 기반 Bar/Doughnut 통계 대시보드와, 사용자·그룹별 숏폼 생성 잡 이력을 날짜·상태로 조회하는 분석 이력 화면을 제공합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">인증·세션 관리</div><div class="d">axios 인터셉터가 Bearer 토큰을 주입하고 <code>4010</code> 시 토큰 재발급·재시도, <code>4011</code> 시 로그인 페이지 이동을 처리합니다. 무활동 시 로그아웃되는 세션 타이머를 운용합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>저장소는 멀티 타깃 Vite 구성을 전제로 하되, 실제로는 <code>user/</code> 타깃 한 개의 SPA만 포함합니다. 애플리케이션 부트스트랩(<code>main.js</code>)에서 Pinia·Vue Router·Vuetify·VueKonva·Vue3DraggableResizable을 등록하고, 도메인별 axios 모듈을 묶은 <code>factory</code>를 <code>app.provide("$api", factory)</code>로 전역 주입합니다. 각 화면은 <code>inject("$api")</code>로 API에 접근합니다.</p>
+    <pre class="tree">kt_magic_platform_ai_shortform/
+├── package.json              # 의존성·빌드 스크립트(멀티 타깃 정의)
+├── vite.config.js            # 루트 기본 Vite 설정(plugin-vue만)
+├── README.md                 # 기존 Vue/Vite 스캐폴드 안내
+├── templates/                # 30x.html, error.html 정적 페이지
+└── user/                     # ★ user 빌드 타깃(실질 애플리케이션)
+    ├── index.html            # 엔트리 HTML (제목 "KT Magic AI")
+    ├── vite.config.user.js   # base '/user/', 포트 4013, /auth·/api·/nms·/login 프록시
+    ├── public/
+    └── src/
+        ├── main.js           # 부트스트랩(Pinia·Router·Vuetify·Konva·공통 컴포넌트 전역 등록)
+        ├── App.vue           # 로그인 검사·세션 타이머·라우트 진입 처리
+        ├── api/              # 도메인별 axios 모듈 + factory 집약
+        ├── stores/           # Pinia 스토어(auth·ref·upload)
+        ├── router/           # 라우트(admin·user·public + index)
+        ├── components/       # 공통/관리자/사용자 UI 컴포넌트
+        ├── assets/           # css·fonts(Pretendard)·images·svg·js 유틸
+        └── views/
+            ├── admin/        # 관리자 대시보드·분석 이력
+            ├── user/         # 사용자 대시보드·분석 이력
+            └── common/
+                └── api/      # 숏폼 생성·결과·편집 핵심 화면
+                    ├── ShortformHighlight.vue          # 숏폼 생성 설정
+                    ├── ShortformUpload.vue             # 파일 업로드
+                    ├── result/ShortformHighlightResult.vue  # 생성 결과
+                    └── edit/                           # ★ 영상 편집기(최대 모듈)
+                        ├── ShortformHighlightEdit.vue        # 진입 래퍼(Legacy/Multi 분기)
+                        ├── ShortformHighlightEditLegacy.vue  # 단일 편집기
+                        ├── ShortformHighlightEditMulti.vue   # 멀티/팝업 편집기
+                        ├── components/   # panels·timeline·elements·tools·tabs·popups·controls
+                        ├── composables/  # 편집 상태·히스토리·자동저장·세션복구 로직
+                        └── assets/js/    # 타임라인·BGM·내레이션·검증·핸들러 유틸</pre>
+
+    <h3>주요 모듈 · 클래스</h3>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>모듈 / 파일</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td><code>src/api/factory.js</code></td><td>auth·group·user·job·token·role·service·style·font·bgm·logo·narration·shortform·api 등 도메인 모듈을 공통 request 인스턴스로 주입해 하나의 factory로 집약</td></tr>
+        <tr><td><code>src/api/api.js</code></td><td>Magic 엔진 AI 잡 호출 모음. 숏폼 전용 <code>shortform</code>(E2E 생성·인코딩·추가 타이틀·내레이션 샘플)과 얼굴/텍스트/장면/음악 분석, LLM, aiPoster 등을 <code>requestJob</code>/<code>getResult</code>로 노출</td></tr>
+        <tr><td><code>src/api/shortform.js</code></td><td>NMS 편집 파라미터 조회·저장(<code>getEditParams</code>/<code>putEditParams</code>) 및 사용자·그룹별 잡 이력 조회</td></tr>
+        <tr><td><code>src/api/index.js</code></td><td>axios 인스턴스·인터셉터(Bearer 주입, 4010 재발급·재시도, 4011 로그인 이동) + axios-retry(최대 2회, 5xx·네트워크 오류)</td></tr>
+        <tr><td><code>src/stores/auth.js</code></td><td>로그인/세션 검증, Safari 쿠키 처리, LoginSessionTimer(300분) 운용</td></tr>
+        <tr><td><code>src/stores/upload.js</code></td><td>tus.Upload 인스턴스 구성(100MB 청크, 이어올리기), 생성 요청 파라미터 조립(<code>generateRequest</code>)</td></tr>
+        <tr><td><code>edit/ShortformHighlightEdit.vue</code></td><td>편집기 진입 래퍼. <code>jobId</code> 유무로 Multi/Legacy 편집기 지연 로딩, 팝업 모드 전환</td></tr>
+        <tr><td><code>edit/composables/</code></td><td>editDataManager·historyManager·autoSaveManager·sessionRecoveryManager·elementClipboardManager·useLayerManager·useTimelineOperations·useTimelineConstraints·useElementConstraints·useShortCuts 등 편집 로직 분리</td></tr>
+        <tr><td><code>edit/components/elements/</code></td><td>Base·Video·Image·Text·Subtitle·Logo·Bgm·Narration ElementBar (타임라인 요소 바)</td></tr>
+        <tr><td><code>edit/components/tools/</code></td><td>요소별 편집 툴(Video·Image·Text·Subtitle·Logo·Bgm·Narration·Keyword EditTools)</td></tr>
+        <tr><td><code>edit/components/tabs/</code></td><td>Media·Text·Bgm·Element·Template 탭 + MainTabs</td></tr>
+        <tr><td><code>edit/components/popups/</code></td><td>저장·초기화·복구·재시도·다운로드·스타일추가·줌·에러 확인 팝업</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>계층 · 외부 연동</h3>
+    <p>프런트엔드는 개발 서버에서 <code>vite.config.user.js</code>의 프록시를 통해 <code>https://amuzlab98.synology.me/</code>로 <code>/auth</code>·<code>/api</code>·<code>/nms</code>·<code>/login</code> 요청을 전달합니다. <code>/api/magic</code> 계열은 어뮤즈랩이 연동한 KT AI 엔진의 잡 생성·결과 조회·인코딩을 담당하고, <code>/nms/magic</code> 계열은 편집 파라미터 저장·잡 이력·결과 상태·스트리밍을 담당합니다. <code>/nms</code> 프록시는 쿼리스트링의 <code>token</code>을 <code>Authorization: Bearer</code> 헤더로 변환하고 영상 스트리밍을 위해 <code>Range</code> 헤더를 전달합니다.</p>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>언어/런타임</td><td>JavaScript (ES Modules) / Node.js</td><td>-</td><td>Node 기반 빌드</td></tr>
+        <tr><td>프레임워크</td><td>Vue 3</td><td>^3.3.4</td><td>Composition API, <code>&lt;script setup&gt;</code></td></tr>
+        <tr><td>빌드</td><td>Vite + @vitejs/plugin-vue</td><td>^5.0.12 / ^5.0.3</td><td>멀티 타깃 config(현재 user만 포함)</td></tr>
+        <tr><td>상태 관리</td><td>Pinia</td><td>^2.1.7</td><td>auth·ref·upload 스토어</td></tr>
+        <tr><td>라우팅</td><td>Vue Router</td><td>^4.2.4</td><td>createWebHistory, import() 지연 로딩</td></tr>
+        <tr><td>UI</td><td>Vuetify / FontAwesome</td><td>^3.3.21 / ^6.5.1</td><td>Material UI + 아이콘</td></tr>
+        <tr><td>HTTP</td><td>axios / axios-retry</td><td>^1.6.1 / ^4.1.0</td><td>인터셉터·재시도(최대 2회)</td></tr>
+        <tr><td>편집 캔버스</td><td>Konva / vue-konva</td><td>^9.2.2 / ^3.0.2</td><td>미리보기 레이어 렌더링</td></tr>
+        <tr><td>드래그·리사이즈</td><td>vue3-draggable-resizable / interactjs</td><td>^1.6.5 / ^1.10.27</td><td>요소 이동·크기 조절</td></tr>
+        <tr><td>오디오 파형</td><td>wavesurfer.js</td><td>^7.9.0</td><td>BGM·내레이션 파형</td></tr>
+        <tr><td>대용량 업로드</td><td>tus-js-client</td><td>^4.3.1</td><td>TUS 청크 업로드(100MB, 이어올리기)</td></tr>
+        <tr><td>미디어 메타</td><td>mediainfo.js</td><td>^0.3.5</td><td>업로드 영상 메타데이터</td></tr>
+        <tr><td>차트</td><td>chart.js / vue-chartjs</td><td>^4.4.0 / ^5.2.0</td><td>대시보드 통계</td></tr>
+        <tr><td>폼 검증</td><td>vee-validate / yup</td><td>^4.12.5 / ^1.3.3</td><td>입력 검증</td></tr>
+        <tr><td>이미지 캡처</td><td>html2canvas</td><td>^1.4.1</td><td>썸네일/캡처</td></tr>
+        <tr><td>암호화/식별자</td><td>crypto-js / jsencrypt / ulid</td><td>^4.2.0 / ^3.3.2 / ^2.3.0</td><td>토큰·식별자 처리</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+
+    <h3>숏폼 생성 → 편집 → 재인코딩 흐름</h3>
+    <ol class="steps">
+      <li><span class="st">앱 진입 · 인증</span><span class="sd">App.vue에서 authStore.login()으로 sessionStorage의 사용자/토큰을 검증합니다. 로그인 사용자가 없으면 <code>/login</code>으로 이동하고, 루트 접근 시 분석 이력 화면으로 보냅니다. 세션 타이머가 무활동을 감시합니다.</span></li>
+      <li><span class="st">생성 설정</span><span class="sd">ShortformHighlight.vue에서 콘텐츠 유형과 생성 방식(테마형·인물형·클립형 등), 클립 수·인물 수·영상 비율·로고·자막·BGM·인트로 등 파라미터를 설정합니다. 진행 중 작업이 있으면 분석 이력으로 이동을 안내합니다.</span></li>
+      <li><span class="st">업로드</span><span class="sd">upload 스토어가 tus 프로토콜로 <code>/api/magic/tus/upload/files</code>에 100MB 청크 단위로 영상을 올립니다. 이탈 시 이어올리기를 지원하며 진행률을 표시합니다.</span></li>
+      <li><span class="st">생성 잡 요청</span><span class="sd">generateRequest가 조립한 파라미터로 <code>aiShortformGenerationE2E</code> 잡을 요청합니다. 어뮤즈랩이 연동한 KT AI 엔진이 영상을 분석해 세로형 숏폼을 생성합니다.</span></li>
+      <li><span class="st">결과 폴링·확인</span><span class="sd">ShortformHighlightResult.vue가 <code>getResult</code>/<code>getNmsResult</code>로 잡 결과를 폴링·표시하고 유형별로 그룹핑합니다. 해시태그·설명 편집, 다운로드, 편집기 진입 버튼을 제공합니다.</span></li>
+      <li><span class="st">타임라인 편집</span><span class="sd">편집기 진입 래퍼가 jobId 유무로 Multi/Legacy 편집기를 로딩합니다. 비디오·텍스트·자막·로고·BGM·내레이션 요소를 타임라인에서 배치·편집하고, undo/redo·자동 저장·세션 복구로 작업을 보호합니다.</span></li>
+      <li><span class="st">저장 · 재인코딩</span><span class="sd">편집 결과를 <code>putEditParams</code>로 NMS에 저장하고 <code>aiShortformEncoding</code>으로 재인코딩을 요청해 최종 숏폼 영상을 산출합니다.</span></li>
+    </ol>
+
+    <h3>API 토큰 인터셉터 흐름</h3>
+    <ol class="steps">
+      <li><span class="st">요청 인터셉터</span><span class="sd">모든 요청에 <code>Authorization: Bearer &lt;token&gt;</code> 헤더를 주입합니다.</span></li>
+      <li><span class="st">응답 코드 분기</span><span class="sd">응답 <code>resultCode</code>가 <code>4010</code>이면 토큰을 재발급하고 원요청을 재시도하며, <code>4011</code>이면 로그인 페이지로 이동시킵니다.</span></li>
+      <li><span class="st">재시도</span><span class="sd">axios-retry가 5xx·네트워크 오류에 대해 최대 2회까지 재시도합니다.</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>빌드 명령은 루트 <code>package.json</code>의 <code>scripts</code>에 근거합니다. 이 저장소에 포함된 <code>user</code> 타깃 스크립트를 사용합니다.</p>
+    <pre><code># 1. 의존성 설치
+npm install
+
+# 2. user 개발 서버 실행 (Vite, --host 0.0.0.0, 포트 4013)
+npm run dev-user
+
+# 3. user 프로덕션 빌드 (출력: dist/user)
+npm run build-user
+
+# 빌드 결과 미리보기
+npm run preview</code></pre>
+    <ul>
+      <li><strong>환경 설정 파일</strong> — <code>user/vite.config.user.js</code> (base <code>/user/</code>, 포트 4013, <code>@</code> 별칭 → <code>user/src</code>, <code>/auth</code>·<code>/api</code>·<code>/nms</code>·<code>/login</code> 프록시 → <code>https://amuzlab98.synology.me/</code>). 루트 <code>vite.config.js</code>는 plugin-vue만 설정된 기본 개발 서버용입니다.</li>
+      <li><strong>산출물</strong> — <code>dist/user/</code> 디렉토리에 정적 SPA 번들(HTML/JS/CSS)이 생성됩니다.</li>
+      <li><code>dev-home</code>/<code>build-home</code>, <code>dev-admin</code>/<code>build-admin</code>, <code>dev-login</code>/<code>build-login</code> 스크립트도 정의되어 있으나, 대응하는 <code>home/</code>·<code>admin/</code>·<code>login/</code> config 디렉토리가 이 저장소에 없어 현재 상태로는 실행되지 않습니다.</li>
+    </ul>
+    <div class="callout warn">
+      <div class="ct">버전 표기 불일치</div>
+      <code>package.json</code>의 <code>version</code>은 <code>1.1.38.35</code>이나, git 커밋 메시지에는 <code>version 1.0.2</code>까지 기록되어 있어 두 값이 일치하지 않습니다.
+    </div>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>최근 작업은 대부분 <strong>타임라인 영상 편집기의 안정화·세밀화</strong>에 집중되어 있습니다. 텍스트·자막·하이라이트 박스의 높이·라인하이트·리사이즈 로직 보정, 템플릿 미리보기·로고·팝업 타이틀의 z-index 및 스타일 버그 수정, 비디오 재생(스페이스 키)·뮤트 UI 등 재생 UX 개선이 이어졌고, <code>amuze source update</code>(어뮤즈랩 소스 반영)와 함께 1.0.0~1.0.2 버전을 태깅하는 흐름을 보입니다.</p>
+    <ul class="commits">
+      <li><span class="date">2025-12-03</span><span class="msg">version 1.0.2</span></li>
+      <li><span class="date">2025-12-02</span><span class="msg">file name bug fix</span></li>
+      <li><span class="date">2025-11-28</span><span class="msg">version 1.0.1</span></li>
+      <li><span class="date">2025-11-28</span><span class="msg">remove console log</span></li>
+      <li><span class="date">2025-11-27</span><span class="msg">modify template preview z index</span></li>
+      <li><span class="date">2025-11-27</span><span class="msg">modify preview panel z index</span></li>
+      <li><span class="date">2025-11-26</span><span class="msg">amuze source update</span></li>
+      <li><span class="date">2025-11-26</span><span class="msg">amuze source update</span></li>
+      <li><span class="date">2025-11-26</span><span class="msg">version 1.0.0</span></li>
+      <li><span class="date">2025-11-25</span><span class="msg">type update</span></li>
+      <li><span class="date">2025-11-20</span><span class="msg">fix stylePreview layer index</span></li>
+      <li><span class="date">2025-11-20</span><span class="msg">fix template logoParams bug</span></li>
+      <li><span class="date">2025-11-20</span><span class="msg">mute ui bug fix</span></li>
+      <li><span class="date">2025-11-13</span><span class="msg">fix video playing with space key</span></li>
+      <li><span class="date">2025-11-10</span><span class="msg">fix template logotext</span></li>
+      <li><span class="date">2025-11-10</span><span class="msg">fix template popup title style</span></li>
+      <li><span class="date">2025-11-06</span><span class="msg">modify logo box zIndex</span></li>
+      <li><span class="date">2025-11-06</span><span class="msg">enhence subtitle box background logic</span></li>
+      <li><span class="date">2025-11-05</span><span class="msg">fix text box height logic</span></li>
+      <li><span class="date">2025-11-05</span><span class="msg">enhence subtitle box resize logic</span></li>
+    </ul>
+    <p style="font-size:.86rem;color:var(--muted)">전체 커밋 수는 약 765개이며, 위는 최신 20개 요약입니다.</p>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li><code>README_CLAUDE.md</code> — 과제 개요·기술 스택·구조·빌드·모듈 상세를 정리한 분석 문서 <span class="src">저장소 루트 / README</span></li>
+      <li><code>README.md</code> — Vue 3 + Vite 스캐폴드 및 멀티 타깃 빌드 스크립트 안내 <span class="src">저장소 루트 / README</span></li>
+      <li><code>user/vite.config.user.js</code> · <code>package.json</code> — 빌드 타깃·프록시·의존성 근거 <span class="src">저장소 소스 / 빌드 설정</span></li>
+      <li><code>user/src/views/common/api/edit/</code> — 타임라인 영상 편집기 핵심 모듈 <span class="src">저장소 소스 / 핵심 모듈</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3897852045">AI 숏폼 고도화 — 프로젝트 개요·협업 분담(KT/어뮤즈랩/알티미디어)</a> <span class="src">Confluence ORGAPPDEV · pageId 3897852045</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3897917571">개발 범위 — 편집툴 핵심 기능 요구사항(객체·텍스트·타임라인·편의)</a> <span class="src">Confluence ORGAPPDEV · pageId 3897917571</span></li>
+      <li>Bitbucket 저장소 — <code>git@bitbucket.org:altimedia/kt_magic_platform_ai_shortform.git</code> <span class="src">형상 / Repository</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

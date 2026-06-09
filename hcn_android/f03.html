@@ -1,0 +1,197 @@
+<!doctype html>
+<!-- hcn_android · 라이브 채널 재생/튜닝 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>라이브 채널 재생 · 튜닝 — hcn_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">HCN Android EPG · 런처</a><span class="sep">›</span>
+      <span class="here">라이브 채널 재생 · 튜닝</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">HCN (현대HCN)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) STB · Java</span>
+    </div>
+    <h1>라이브 채널 재생 · 튜닝</h1>
+    <p class="one-liner"><code>TaurusLiveTuneManager</code>가 채널 전환 요청을 받아 튜닝 스레드로 정규화하고, <code>TaurusPlayerManager</code>가 CSP 플레이어(<code>csp-module</code>)로 실제 라이브 영상을 출력합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/hcn_android" target="_blank" rel="noopener"><code>hcn_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>TaurusLiveTuneManager</code> · <code>TaurusPlayerManager</code> · <code>CsPlayer</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">채널 전환·튜닝·영상 출력</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>채널 재생은 튜닝(어떤 채널로 갈지 결정)과 플레이(영상 디코드/출력)로 나뉩니다. 튜닝은 <code>epg-module</code>의 <code>TaurusLiveTuneManager</code>가 담당합니다. 채널 번호 입력, 채널 업/다운, 즐겨찾기 이동, EPG에서 채널 선택, 부팅 직후 마지막 채널 진입 등 모든 경로가 <code>tuneCh</code>·<code>tuneChUp</code>·<code>tuneChDown</code>·<code>tuneChDefault</code> 같은 진입 메서드로 들어오며, 내부적으로 모두 <code>tuneChannelImpl(tuneType, ...)</code> 한 곳으로 모입니다. tuneType은 <code>TUNE_CHANNEL_OBJECT</code>·<code>TUNE_CHANNEL_UP</code>·<code>TUNE_CHANNEL_BOOT</code> 등으로 구분됩니다.</p>
+    <p><code>tuneChannelImpl</code>은 RxJava 경로(<code>preChProcessor.onNext(...)</code>)와 스레드 경로(<code>ChannelTuneThread</code>) 두 가지로 채널 전환을 비동기 직렬화합니다. 진행 중인 튜닝이 있으면 취소하고 새 요청만 처리해, 빠른 연속 채널 전환에서 중간 채널을 건너뛰도록 설계되어 있습니다. 결정된 목적지 채널은 <code>TaurusPlayerManager.tuneLiveChannel(uri, needStop, handler)</code>로 넘어가고, 여기서 CSP 플레이어(<code>com.sk.csplayer</code>)로 라이브 스트림을 열어 영상을 출력합니다. HCN은 FCC(Fast Channel Change)를 사용하지 않으므로 관련 매니저는 stop 처리됩니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      모든 채널 전환 진입점이 <code>tuneChannelImpl</code> 하나로 수렴하는 단일 게이트 구조입니다. 덕분에 튜닝 취소·재시도(retune) 타이머, 미니EPG 표시 여부, 채널 저장(save) 정책을 한 지점에서 일관되게 적용할 수 있습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자 (리모컨)
+    participant PA as PlaybackActivity
+    participant LTM as TaurusLiveTuneManager
+    participant CTT as ChannelTuneThread
+    participant PM as TaurusPlayerManager
+    participant CP as CsPlayer (csp-module)
+
+    U-&gt;&gt;PA: 채널 번호/업·다운 키
+    PA-&gt;&gt;LTM: tuneCh(toGoChannel, handler)
+    LTM-&gt;&gt;LTM: tuneChannelImpl(TUNE_CHANNEL_OBJECT, ...)
+    LTM-&gt;&gt;CTT: ChannelTuneThread.execute(tuneType)
+    activate CTT
+    CTT-&gt;&gt;LTM: getToGoChannel() 결정
+    CTT-&gt;&gt;PM: tuneLiveChannel(uri, needStop, handler)
+    deactivate CTT
+    PM-&gt;&gt;PM: 기존 VOD/FCC stop
+    PM-&gt;&gt;CP: open / start (라이브 스트림)
+    CP--&gt;&gt;PM: STATE_PLAY
+    PM--&gt;&gt;PA: 재생 상태 콜백
+    Note over PA,CP: 영상 출력 · 미니EPG 표시
+      </div>
+      <p class="cap"><strong>흐름.</strong> 채널 전환 키는 <code>TaurusLiveTuneManager</code>로 들어와 단일 <code>tuneChannelImpl</code>을 거쳐 튜닝 스레드에서 목적지 채널을 정하고, <code>TaurusPlayerManager</code>가 CSP 플레이어로 라이브 스트림을 열어 영상을 출력합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class TaurusLiveTuneManager {
+        +tuneCh(ExChannel, PlaybackHandler)
+        +tuneChUp(handler, longPress)
+        +tuneChDown(handler, longPress)
+        +tuneChDefault(srcId, handler, showMiniEpg)
+        -tuneChannelImpl(tuneType, target, handler, save, showMiniEpg)
+    }
+    class TypeTaskListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class ChannelTuneThread {
+        +execute(tuneType)
+        +setCancelled(boolean)
+    }
+    class TaurusPlayerManager {
+        +getInstance() TaurusPlayerManager
+        +tuneLiveChannel(uri, needStop, handler)
+        +stopAllPlayer()
+        +playTrick(value)
+    }
+    class SideBandCallback {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class CsPlayer {
+        &lt;&lt;interface&gt;&gt;
+        +stop()
+        TYPE_VCS
+        STATE_PLAY
+    }
+    class ExChannel
+
+    TaurusLiveTuneManager ..|&gt; TypeTaskListener : 구현
+    TaurusLiveTuneManager o-- ChannelTuneThread : 소유
+    TaurusLiveTuneManager --&gt; TaurusPlayerManager : 재생 위임
+    TaurusLiveTuneManager ..&gt; ExChannel : 목적지 채널
+    TaurusPlayerManager ..|&gt; SideBandCallback : 구현
+    TaurusPlayerManager --&gt; CsPlayer : 스트림 open/play
+      </div>
+      <p class="cap"><strong>관계.</strong> 튜닝 매니저는 <code>ChannelTuneThread</code>로 전환을 직렬화하고 <code>TaurusPlayerManager</code>(싱글턴)에 재생을 위임하며, 플레이어 매니저는 <code>CsPlayer</code> 인터페이스로 실제 디코딩/출력을 수행합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>epg-module/.../playback/manager/TaurusLiveTuneManager.java</code> — 단일 튜닝 게이트</div>
+<pre><code>public void tuneCh(ExChannel toGoChannel, @NonNull PlaybackHandler handler) {
+    tuneChannelImpl(currentChannel == null ? TUNE_CHANNEL_BOOT : TUNE_CHANNEL_OBJECT,
+            toGoChannel, handler, true, true);
+}
+
+private void tuneChannelImpl(int tuneType, Object targetChannel,
+                             PlaybackHandler handler, boolean saveChannel, boolean showingMiniEpg) {
+    if (USE_RXJAVA) {
+        ExChannel toGoChannel = getToGoChannel(tuneType, targetChannel, handler);
+        preChProcessor.onNext(ContEventChannel.create(tuneType, toGoChannel, handler, saveChannel, showingMiniEpg));
+    } else {
+        stopRetuneTimer();
+        if (mTuneThread != null) { mTuneThread.setCancelled(true); mTuneThread = null; }
+        mTuneThread = new ChannelTuneThread(this, targetChannel, handler, saveChannel, showingMiniEpg);
+        mTuneThread.execute(tuneType);   // 진행 중 튜닝 취소 후 새 요청만 처리
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>epg-module/.../playback/manager/TaurusPlayerManager.java</code> — 라이브 재생 위임</div>
+<pre><code>public void tuneLiveChannel(String toGoUri, boolean needStop, PlaybackHandler handler) {
+    TaurusVodTuneManager.getInstance().removeUmp();   // VOD 정리
+    // ...
+    TaurusFccManager.getInstance().stop();            // HCN은 FCC 없음
+    // CSP 플레이어로 라이브 스트림 open/start
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/epg-module/src/main/java/com/altimedia/module/epg/playback/manager/TaurusLiveTuneManager.java" target="_blank" rel="noopener">epg-module/.../playback/manager/TaurusLiveTuneManager.java</a><span class="src">채널 전환 진입점 · 단일 tuneChannelImpl 게이트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/epg-module/src/main/java/com/altimedia/module/epg/playback/manager/TaurusPlayerManager.java" target="_blank" rel="noopener">epg-module/.../playback/manager/TaurusPlayerManager.java</a><span class="src">라이브/VOD 재생 매니저 · tuneLiveChannel</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/csp-module/src/main/java/com/sk/csplayer/CsPlayer.java" target="_blank" rel="noopener">csp-module/.../sk/csplayer/CsPlayer.java</a><span class="src">CS Player 인터페이스 (TYPE_VCS, STATE_PLAY 등)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/epg-module/src/main/java/com/altimedia/module/epg/playback/manager/comp/ContEventChannel.java" target="_blank" rel="noopener">epg-module/.../playback/manager/comp/ContEventChannel.java</a><span class="src">RxJava 튜닝 이벤트 모델</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">← 라이브 EPG · 채널 편성표</a>
+      <a href="f04.html">CAS 수신제한 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">hcn_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

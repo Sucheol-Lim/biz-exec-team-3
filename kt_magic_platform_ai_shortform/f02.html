@@ -1,0 +1,175 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_shortform · 콘텐츠 유형별 생성 방식 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>콘텐츠 유형별 생성 방식 — kt_magic_platform_ai_shortform 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 지니숏츠 (AI 숏폼 플랫폼)</a><span class="sep">›</span>
+      <span class="here">콘텐츠 유형별 생성 방식</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">데스크톱 웹 (Vue 3 SPA) · JavaScript</span>
+    </div>
+    <h1>콘텐츠 유형별 생성 방식</h1>
+    <p class="one-liner">쇼핑·영화·드라마·예능·뉴스 등 콘텐츠 유형마다 테마형·인물형·예고편형·클립형·하이라이트형 등 선택 가능한 생성 방식이 다르며, 유형별로 영상 비율 목록과 생성 개수 제한이 정의됩니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform" target="_blank" rel="noopener"><code>kt_magic_platform_ai_shortform</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 파일</div><div class="v"><code>assets/js/shortform/shortformContentValue.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">생성 설정 화면 데이터 소스</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>콘텐츠 유형과 생성 방식의 매핑은 <code>shortformContentValue.js</code>에 데이터로 정의되어 있습니다. <code>CONTENT_TYPES</code>는 쇼핑·영화드라마·영화·드라마·예능·뉴스·기타를 <code>value</code>와 <code>key</code>로 정의하고, <code>SHORTFORM_TYPES</code>는 각 유형 키에 대응하는 생성 방식 배열을 둡니다. 예컨대 <code>SHOPPING</code>은 <code>[summary, theme]</code>, <code>MOVIE_DRAMA</code>는 <code>[clip, review, character, preview]</code>입니다.</p>
+    <p>각 생성 방식 객체에는 화면 표기와 동작에 필요한 메타가 담깁니다. <code>theme</code>(테마형)는 "상품소개·상품강점·활용법·시연" 네 테마로 영상을 만들고 <code>videoLimit: 1</code>·<code>videoRatioList: shoppingVideoRatio</code>를 가지며, <code>character</code>(인물형)는 특정 인물만 찾아 <code>videoLimit: 10</code>·<code>movieVideoRatio</code>를, <code>clip</code>(클립형)은 <code>videoLimit: 50</code>을 갖습니다. 영상 비율 목록은 쇼핑(<code>["ALL","half","full"]</code>)과 영화·드라마류(<code>["ALL","1:1","3:4","3:5","4:3","9:16","16:9"]</code>)로 구분됩니다.</p>
+    <p>이 데이터는 <code>contentValue</code>·<code>contentFn</code>으로 가공되어 화면에서 라벨↔값 변환, 유형별 기본 스타일 생성(<code>getContentDefaultStyle</code>), 그리고 유형·방식 조합의 유효성 검증(<code>checkGenreShortformRule</code>)에 쓰입니다.</p>
+    <div class="callout">
+      <div class="ct">데이터 주도 설계</div>
+      생성 방식·비율·개수 제한이 모두 한 파일의 상수 객체로 모여 있어, UI는 이 데이터를 읽어 셀렉트·라디오·도움말을 그립니다. 일부 방식(<code>summary</code>·<code>review</code>)은 <code>disabled: true</code>로 비활성 처리되어 있고, 주석 처리된 항목(<code>highlight</code>·<code>SPORTS</code> 등)은 현재 노출 대상에서 제외되어 있습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant SH as ShortformHighlight.vue
+    participant CV as contentValue / contentFn
+    participant CVAL as shortformContentValue.js
+    participant UP as useUploadStore
+
+    U-&gt;&gt;SH: 콘텐츠 유형 선택 (예: 쇼핑)
+    SH-&gt;&gt;CV: getContentInfo(contentType)
+    CV-&gt;&gt;CVAL: SHORTFORM_TYPES[key] 조회
+    CVAL--&gt;&gt;CV: 생성 방식 배열 (summary, theme ...)
+    CV--&gt;&gt;SH: 방식 목록 + videoRatioList + videoLimit
+    U-&gt;&gt;SH: 생성 방식 선택 (예: 테마형)
+    SH-&gt;&gt;CV: getContentDefaultStyle(contentType)
+    Note over SH: 방식별 비율·개수 제한으로 입력 UI 구성
+    SH-&gt;&gt;UP: generateRequest(data) (선택된 방식만 정렬)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 유형 선택 시 해당 유형의 생성 방식 배열과 비율·개수 제한을 데이터에서 읽어 입력 UI를 구성하고, 선택값은 생성 요청 조립으로 넘어갑니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ContentType {
+        +value
+        +label
+        +key
+    }
+    class ShortformType {
+        +value
+        +label
+        +videoLimit
+        +videoRatioList
+        +typeDescription
+        +disabled
+    }
+    class contentValue {
+        +SHORTFORM_CONTENT_TYPE
+        +THEME
+        +CLIP
+        +CHARACTER
+    }
+    class contentFn {
+        +getContentInfo(contentType)
+        +getContentDefaultStyle(contentType)
+        +getContentTypeAndShortformTypeLabel()
+        +checkGenreShortformRule()
+    }
+
+    ContentType "1" o-- "*" ShortformType : SHORTFORM_TYPES 매핑
+    contentValue --&gt; ContentType : SHORTFORM_CONTENT_TYPE
+    contentFn ..&gt; contentValue : 조회/가공
+      </div>
+      <p class="cap"><strong>관계.</strong> 각 <code>ContentType</code>은 여러 <code>ShortformType</code>을 매핑으로 소유하고, <code>contentValue</code>가 이를 묶어 노출하며 <code>contentFn</code>이 라벨 변환·기본 스타일·유효성 검증 유틸을 제공합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>user/src/assets/js/shortform/shortformContentValue.js</code> — 유형·방식·비율 정의</div>
+<pre><code>const shoppingVideoRatio = ["ALL", "half", "full"]
+const movieVideoRatio = ["ALL", "1:1", "3:4", "3:5", "4:3", "9:16", "16:9"]
+
+const theme = { value: 1, label: '테마형', videoLimit: 1,
+  help: 'o "상품소개", "상품강점", "활용법", "시연" 네가지 테마로 영상이 생성됨 ...',
+  videoRatioList: shoppingVideoRatio }
+const character = { value: 1, label: '인물형', videoLimit: 10,
+  typeDescription: '콘텐츠 내의 특정 인물만 찾아서 숏츠로 만들어 줍니다.',
+  videoRatioList: movieVideoRatio }
+const clip = { value: 3, label: '클립형', videoLimit: 50, videoRatioList: movieVideoRatio }
+
+const SHORTFORM_TYPES = {
+  SHOPPING: [summary, theme],
+  MOVIE_DRAMA: [clip, review, character, preview],
+  MOVIE: [clip, review, character, highlight],
+  // ...
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/assets/js/shortform/shortformContentValue.js" target="_blank" rel="noopener">assets/js/shortform/shortformContentValue.js</a><span class="src">CONTENT_TYPES · SHORTFORM_TYPES · contentValue · contentFn</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/assets/js/shortform/shortformHighlightRef.js" target="_blank" rel="noopener">assets/js/shortform/shortformHighlightRef.js</a><span class="src">유형·방식 라벨 변환(shoppingShortformTypeToKor 등)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/ShortformHighlight.vue" target="_blank" rel="noopener">views/common/api/ShortformHighlight.vue</a><span class="src">유형/방식 선택 UI · 입력 폼 구성</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f01.html">← AI 숏폼 자동 생성</a>
+      <a href="f03.html">대용량 청크 업로드 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_shortform 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

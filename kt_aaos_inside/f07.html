@@ -1,0 +1,186 @@
+<!doctype html>
+<!-- kt_aaos_inside · 차량 공조 제어 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>차량 공조 제어 — kt_aaos_inside 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT AAOS Demokit P1 음성인식 앱</a><span class="sep">›</span>
+      <span class="here">차량 공조 제어</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive OS · Java</span>
+    </div>
+    <h1>차량 공조 제어</h1>
+    <p class="one-liner"><code>GVoiceVehicleManager</code>가 <code>android.car.permission.CONTROL_CAR_CLIMATE</code> 권한과 <code>CarPropertyManager</code>로 HVAC 에어컨 등 차량 공조 프로퍼티를 음성 명령에 따라 set 하고, 결과를 TTS로 안내합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_aaos_inside" target="_blank" rel="noopener"><code>kt_aaos_inside</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feature/support_stt</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>dialogkit/vehicle/GVoiceVehicleManager.java</code></div></div>
+      <div class="item"><div class="k">권한</div><div class="v"><code>CONTROL_CAR_CLIMATE</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>차량 제어는 DialogKit이 <code>APP_TYPE_VOICE</code> 명령을 라우팅해 <code>GVoiceVehicleManager.doVehicleAction(commandInfo)</code>로 진입합니다. 매니저는 <code>init()</code>에서 <code>Car.createCar()</code>로 <code>CarPropertyManager</code>를 얻고, <code>HVAC_TEMPERATURE_CURRENT</code> 콜백을 등록해 현재 온도를 추적합니다.</p>
+    <p><code>doVehicleAction()</code>은 service intent가 <code>INTENT_AC_ON</code>/<code>INTENT_AC_OFF</code>인지 판별해 <code>changeAC(turnOn, message)</code>를 호출합니다. <code>changeAC()</code>는 안내 메시지가 있으면 먼저 TTS로 재생하고, <code>HVAC_AC_ON</code> 프로퍼티 설정을 조회한 뒤 변경이 필요한 area id만 골라 <code>setBooleanProperty(HVAC_AC_ON, areaId, turnOn)</code>으로 에어컨을 켜거나 끕니다. 온도 증감(<code>changeTemperature</code>)·창문 잠금(<code>changeWindowLock</code>)·차속 조회(<code>getSpeedInMetersPerSecond</code>) 등 추가 제어 로직도 구현되어 있습니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      차량 프로퍼티는 단말마다 지원 여부가 다르므로, 제어 전 <code>getPropertyList()</code>로 해당 프로퍼티 설정을 확인하고 미지원이면 조용히 반환합니다. <code>CONTROL_CAR_CLIMATE</code> 등 차량 권한은 시스템/플랫폼 서명 환경에서만 부여됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant DK as InsideDialogKitManager
+    participant VM as GVoiceVehicleManager
+    participant IVM as InsideVoiceManager
+    participant CPM as CarPropertyManager
+    participant HVAC as 차량 HVAC
+
+    DK-&gt;&gt;VM: doVehicleAction(commandInfo)
+    VM-&gt;&gt;VM: serviceIntent 판별 (AC_ON / AC_OFF)
+    VM-&gt;&gt;IVM: startTTS(feedbackMessage)
+    VM-&gt;&gt;CPM: getPropertyList(HVAC_AC_ON)
+    CPM--&gt;&gt;VM: CarPropertyConfig (areaIds)
+    loop 변경 필요 area
+        VM-&gt;&gt;CPM: setBooleanProperty(HVAC_AC_ON, areaId, turnOn)
+        CPM-&gt;&gt;HVAC: 공조 프로퍼티 적용
+    end
+    Note over VM,CPM: HVAC_TEMPERATURE_CURRENT 콜백으로 현재 온도 추적
+      </div>
+      <p class="cap"><strong>흐름.</strong> 공조 명령 판별 → 안내 TTS → 프로퍼티 설정 조회 → 필요한 area만 set. 현재 온도는 등록된 콜백으로 상시 추적됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class GVoiceVehicleManager {
+        -CarPropertyManager mCarPropertyManager
+        -int current_temperature
+        +init(context)
+        +doVehicleAction(commandInfo)
+        -changeAC(turnOn, feedbackMessage)
+        -changeTemperature(up)
+        -changeWindowLock(isLock)
+        -setCurrentTemperature()
+    }
+    class VehicleConstant {
+        +INTENT_AC_ON
+        +INTENT_AC_OFF
+    }
+    class CarPropertyEventCallback {
+        &lt;&lt;interface&gt;&gt;
+        +onChangeEvent(value)
+        +onErrorEvent(propId, zone)
+    }
+    class CarPropertyManager {
+        +getPropertyList(ids) List~CarPropertyConfig~
+        +setBooleanProperty(id, areaId, value)
+        +registerCallback(cb, id, rate)
+    }
+    class InsideVoiceManager {
+        +startTTS(msg)
+    }
+
+    GVoiceVehicleManager ..&gt; VehicleConstant : intent 상수
+    GVoiceVehicleManager --&gt; CarPropertyManager : HVAC set/get
+    GVoiceVehicleManager *-- CarPropertyEventCallback : 온도 추적
+    GVoiceVehicleManager --&gt; InsideVoiceManager : 결과 TTS
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>GVoiceVehicleManager</code>는 <code>CarPropertyManager</code>로 HVAC 프로퍼티를 제어하고, <code>CarPropertyEventCallback</code>으로 현재 온도를 추적하며, 안내는 <code>InsideVoiceManager.startTTS</code>로 위임합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>dialogkit/vehicle/GVoiceVehicleManager.java</code> — service intent별 공조 분기</div>
+<pre><code>public void doVehicleAction(@NonNull CommandInfo commandInfo) {
+    String serviceIntent = commandInfo.getServiceIntent();
+    String message = commandInfo.getSystemMessage();
+    switch (serviceIntent) {
+        case VehicleConstant.INTENT_AC_ON:  changeAC(true, message);  break;
+        case VehicleConstant.INTENT_AC_OFF: changeAC(false, message); break;
+        default: break;
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>dialogkit/vehicle/GVoiceVehicleManager.java</code> — HVAC_AC_ON 프로퍼티 설정</div>
+<pre><code>private void changeAC(boolean turnOn, String feedbackMessage) {
+    if (feedbackMessage != null) InsideVoiceManager.getInstance().startTTS(feedbackMessage);
+    List&lt;CarPropertyConfig&gt; configs = mCarPropertyManager.getPropertyList(
+            new ArraySet&lt;&gt;(Collections.singletonList(VehiclePropertyIds.HVAC_AC_ON)));
+    if (configs == null || configs.size() != 1) return;       // 미지원 단말
+    int[] areaIds = configs.get(0).getAreaIds();
+    for (int areaId : areaIds) {
+        boolean on = mCarPropertyManager.getBooleanProperty(VehiclePropertyIds.HVAC_AC_ON, areaId);
+        if ((!on &amp;&amp; turnOn) || (on &amp;&amp; !turnOn)) {
+            mCarPropertyManager.setBooleanProperty(VehiclePropertyIds.HVAC_AC_ON, areaId, turnOn);
+        }
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/dialogkit/vehicle/GVoiceVehicleManager.java" target="_blank" rel="noopener">dialogkit/vehicle/GVoiceVehicleManager.java</a><span class="src">CarPropertyManager 기반 HVAC AC/온도/창문 제어·현재 온도 콜백·차속 조회</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/dialogkit/vehicle/VehicleConstant.java" target="_blank" rel="noopener">dialogkit/vehicle/VehicleConstant.java</a><span class="src">INTENT_AC_ON / INTENT_AC_OFF 등 차량 명령 intent 상수</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/AndroidManifest.xml" target="_blank" rel="noopener">AndroidManifest.xml</a><span class="src">android.car.permission.CONTROL_CAR_CLIMATE 권한 선언</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f06.html">미디어 재생 제어</a>
+      <a href="f08.html">TTS·사운드 안내 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feature/support_stt</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_aaos_inside 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

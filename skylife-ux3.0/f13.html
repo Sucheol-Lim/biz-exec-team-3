@@ -1,0 +1,267 @@
+<!doctype html>
+<!-- skylife-ux3.0 · 오버레이 UI 기능 상세 — AssistantOverlayCoordinator + WindowManager 오버레이 스택 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오버레이 UI — Skylife ATV EPG 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Skylife ATV EPG (UX3.0)</a><span class="sep">›</span>
+      <span class="here">오버레이 UI</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT SkyLife</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV(Leanback) STB · Java</span>
+    </div>
+    <h1>오버레이 UI</h1>
+    <p class="one-liner"><code>AssistantOverlayCoordinator</code>가 외부 앱(유튜브·VOD 등) 위에 <code>TYPE_APPLICATION_OVERLAY</code> 윈도우로 청취 화면·응답 카드·모바일 연결·개인화 페어링·타이머 오버레이를 띄우고, 발화 단계마다 어떤 오버레이를 먼저 치울지 한 곳에서 조율합니다. 청취 화면의 파형은 <code>HeySkyWaveformView</code>가 3겹 SVG path 애니메이션으로 그립니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skylife-ux3.0" target="_blank" rel="noopener"><code>skylife-ux3.0</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feat/lw-voice-api</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>AssistantOverlayCoordinator</code> · <code>VoiceListeningOverlay</code> · <code>AnswerCardOverlay</code> · <code>HeySkyWaveformView</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">외부 앱 위 음성 어시스턴트 화면</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>음성 어시스턴트는 EPG 홈뿐 아니라 유튜브 같은 외부 앱이 떠 있을 때도 화면 위에 떠야 합니다. 그래서 모든 어시스턴트 UI는 액티비티가 아니라 <code>WindowManager</code>에 직접 붙는 시스템 오버레이(<code>TYPE_APPLICATION_OVERLAY</code>, O 미만은 <code>TYPE_SYSTEM_ALERT</code>)로 구현되어 있습니다. <code>assistant/ui</code> 패키지의 각 오버레이는 싱글턴이며, <code>FLAG_NOT_FOCUSABLE</code>·<code>FLAG_NOT_TOUCHABLE</code>로 포커스/입력을 가로채지 않고 표시만 합니다.</p>
+    <p>문제는 청취 화면(<code>VoiceListeningOverlay</code>, 풀스크린), 응답 카드(<code>AnswerCardOverlay</code>, 화면 상단), 모바일 연결 토스트(<code>MobileConnectionOverlay</code>, 우측 상/하단), 개인화 페어링 카드(<code>PersonalizedPairingOverlay</code>)가 각자 윈도우에 붙는 구조라, 조율이 없으면 wake·청취·응답·개인화 카드가 동시에 남아 시각적으로 겹친다는 점입니다. <code>AssistantOverlayCoordinator</code>는 아직 큰 상태 머신을 도입하기 전 단계에서, 화면 전환의 입구마다 "어떤 오버레이를 먼저 치울지"를 한 곳에 모아 겹침과 오래된 TTS를 줄이는 조율 지점입니다.</p>
+    <p>코디네이터는 세 진입점을 제공합니다. <code>onListeningStarted()</code>는 새 발화(wake) 진입 시 응답 카드·개인화 카드·모바일 연결 토스트를 모두 닫고 진행 중이던 <code>SpeechManager</code> TTS를 중단합니다. <code>beforeAnswer()</code>는 답변 표시 직전 개인화 카드만 정리하되, 청취 오버레이는 TTS 상태 콜백이 "말씀드리는 중" 화면으로 전환하도록 일부러 남겨둡니다. <code>beforeLocalEnvelope()</code>는 로컬 envelope(개인화) 표시 직전 응답 카드를 닫습니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      청취 화면과 응답 카드는 각각 풀스크린 하단 panel과 화면 상단 카드라 의도적으로 동시에 표시할 수 있습니다. 그래서 <code>beforeAnswer()</code>에서 청취 오버레이를 닫지 않습니다. 닫아버리면 TTS가 도착해도 "말씀드리는 중" 상태를 보여줄 표면이 사라지기 때문입니다. 반대로 wake 진입(<code>onListeningStarted()</code>)은 화면 전체를 잡는 최우선 상태라 우측에 남은 연결 토스트까지 함께 치워 새 발화 UI와 겹치지 않게 합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant WAKE as WakeWordService (wake-lib)
+    participant VLO as VoiceListeningOverlay
+    participant COORD as AssistantOverlayCoordinator
+    participant ACO as AnswerCardOverlay
+    participant PPO as PersonalizedPairingOverlay
+    participant MCO as MobileConnectionOverlay
+    participant SM as SpeechManager
+    participant WM as WindowManager
+
+    WAKE-&gt;&gt;VLO: ACTION_WAKE_TRIGGERED (broadcast)
+    VLO-&gt;&gt;COORD: onListeningStarted(context)
+    COORD-&gt;&gt;ACO: hide()
+    COORD-&gt;&gt;PPO: hide()
+    COORD-&gt;&gt;MCO: hide()
+    COORD-&gt;&gt;SM: stop() (이전 TTS 중단)
+    VLO-&gt;&gt;WM: addView(root, TYPE_APPLICATION_OVERLAY)
+    Note over VLO,WM: 풀스크린 청취 화면 + HeySkyWaveformView(LISTENING)
+
+    Note over VLO: 응답 도착 → AnswerHandler
+    VLO-&gt;&gt;COORD: beforeAnswer(context)
+    COORD-&gt;&gt;PPO: hide() (청취 overlay는 유지)
+    VLO-&gt;&gt;ACO: show(question, answer, keepUntilExternal=true)
+    ACO-&gt;&gt;WM: addView(card, 화면 상단)
+    SM-&gt;&gt;VLO: onSpeechStarted → state ANSWER
+      </div>
+      <p class="cap"><strong>흐름.</strong> wake가 트리거되면 <code>VoiceListeningOverlay</code>가 코디네이터의 <code>onListeningStarted()</code>로 다른 오버레이를 정리한 뒤 풀스크린 청취 화면을 띄웁니다. 응답이 도착하면 <code>beforeAnswer()</code>로 개인화 카드만 닫고 응답 카드를 상단에 추가해 청취 화면과 함께 표시합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class AssistantOverlayCoordinator {
+        +onListeningStarted(Context) void
+        +beforeAnswer(Context) void
+        +beforeLocalEnvelope(Context) void
+    }
+    class VoiceListeningOverlay {
+        -State currentState
+        -boolean ttsSpeaking
+        -HeySkyWaveformView waveform
+        +start(Context) void
+        +dismiss() void
+        +setState(State) void
+        +setTranscriptStt(String) void
+        +setRoute(Route) void
+    }
+    class AnswerCardOverlay {
+        +get(Context) AnswerCardOverlay
+        +show(question, answer, accent, keepUntilExternal) void
+        +showWeather(...) void
+        +finishStreamingAnswer(...) void
+        +hideAfter(long) void
+        +hide() void
+    }
+    class HeySkyWaveformView {
+        -Path backPath
+        -Path midPath
+        -Path frontPath
+        +setAccent(int) void
+        +setState(State) void
+    }
+    class MobileConnectionOverlay {
+        +get(Context) MobileConnectionOverlay
+        +showConnected(String) void
+        +showDisconnected() void
+    }
+    class PersonalizedPairingOverlay {
+        +get(Context) PersonalizedPairingOverlay
+        +show(type, say, payload) void
+        +hide() void
+    }
+    class SpeechManager {
+        +setSpeechStateListener(listener) void
+        +stop() void
+    }
+
+    AssistantOverlayCoordinator ..&gt; AnswerCardOverlay : hide
+    AssistantOverlayCoordinator ..&gt; PersonalizedPairingOverlay : hide
+    AssistantOverlayCoordinator ..&gt; MobileConnectionOverlay : hide
+    AssistantOverlayCoordinator ..&gt; SpeechManager : stop
+    VoiceListeningOverlay --&gt; AssistantOverlayCoordinator : onListeningStarted
+    VoiceListeningOverlay o-- HeySkyWaveformView : 파형 표시
+    VoiceListeningOverlay --&gt; SpeechManager : SpeechStateListener
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>AssistantOverlayCoordinator</code>는 상태를 갖지 않는 정적 조율 지점으로, 다른 싱글턴 오버레이의 <code>hide()</code>와 <code>SpeechManager.stop()</code>만 호출합니다. <code>VoiceListeningOverlay</code>는 진입 시 코디네이터를 부르고 <code>HeySkyWaveformView</code>를 소유하며 <code>SpeechManager</code>의 발화 상태 콜백을 받습니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>assistant/ui/AssistantOverlayCoordinator.java</code> — 발화 단계별 오버레이 정리</div>
+<pre><code>public static void onListeningStarted(Context context) {
+    if (context == null) return;
+    try { AnswerCardOverlay.get(context).hide(); } catch (Exception ignored) {}
+    try { PersonalizedPairingOverlay.get(context).hide(); } catch (Exception ignored) {}
+    // wake/listening overlay는 화면 전체를 잡는 최우선 상태라, 우측에 남던
+    // 모바일 연결/elapsed 토스트도 함께 치워 새 발화 UI와 겹치지 않게 한다.
+    try { MobileConnectionOverlay.get(context).hide(); } catch (Exception ignored) {}
+    try { SpeechManager.get().stop(); } catch (Exception ignored) {}
+}
+
+public static void beforeAnswer(Context context) {
+    if (context == null) return;
+    try { PersonalizedPairingOverlay.get(context).hide(); } catch (Exception ignored) {}
+    // 답변 카드는 상단, VoiceListeningOverlay는 하단 panel이라 동시 표시 가능.
+    // voice overlay는 TTS listener가 ANSWER 상태로 전환하도록 남겨둔다.
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>assistant/ui/VoiceListeningOverlay.java</code> — wake 진입 시 코디네이터 호출 + 오버레이 추가</div>
+<pre><code>private void showListening() {
+    ui.post(() -&gt; {
+        buildIfNeeded();
+        if (transcript != null) transcript.setText("");   // 이전 발화 transcript 초기화
+        ttsSpeaking = false;
+        applyRoute(Route.NONE);
+        AssistantOverlayCoordinator.onListeningStarted(appContext);   // 다른 overlay 정리
+        try { AssistantRequestPump.invalidateCurrent(); } catch (Exception ignored) {}
+        applyState(State.LISTENING);
+        if (root.getParent() == null) {
+            wm.addView(root, makeParams());   // TYPE_APPLICATION_OVERLAY 풀스크린
+            fadeInRoot();
+        }
+        ui.postDelayed(autoHide, AUTO_HIDE_MS);   // 7s 발화 없음 보호
+    });
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>assistant/ui/HeySkyWaveformView.java</code> — 3겹 SVG path를 Canvas로 옮긴 파형 + state 애니메이션</div>
+<pre><code>public enum State { LISTENING, PROCESSING, RESULT, ERROR }
+
+private void applyState(State s) {
+    currentState = s;
+    cancelAnimators();
+    switch (s) {
+        case LISTENING:   // 3 layer 가 서로 다른 주기로 drift (scaleY + translateX 보간)
+            backAnim  = drift(5500, 1.0f, 0.85f, 0f, 8f, this::setBackTransform);
+            midAnim   = drift(4000, 1.05f, 0.92f, 0f, -6f, this::setMidTransform);
+            frontAnim = drift(3000, 1.0f, 1.10f, 0f, 4f, this::setFrontTransform);
+            backAnim.start(); midAnim.start(); frontAnim.start();
+            break;
+        case PROCESSING:  // 1.4s sin pulse, layer 마다 150ms stagger
+            backAnim = pulse(1400, 0L, this::setBackPulse);  /* ... */ break;
+        case RESULT:      // 2.4s breathe (scaleY 1↔1.04)
+            backAnim = breathe(2400, this::setBackBreathe);  /* ... */ break;
+        case ERROR:       // 정적 — scaleY 0.8, alpha 0.5
+            backScaleY = midScaleY = frontScaleY = 0.8f;
+            backAlpha = midAlpha = frontAlpha = 0.5f;
+            invalidate();
+            break;
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>assistant/handler/AnswerHandler.java</code> — 답변 직전 beforeAnswer 호출 후 카드 표시 + TTS</div>
+<pre><code>private static void showAnswer(Context appContext, String answer) {
+    String question = WakeStatusProvider.getLastSttText();
+    AssistantOverlayCoordinator.beforeAnswer(appContext);            // 개인화 카드만 정리
+    VoiceListeningOverlay.setState(VoiceListeningOverlay.State.ANSWER);
+    VoiceListeningOverlay.setTranscript(null, question);
+    AnswerCardOverlay overlay = AnswerCardOverlay.get(appContext);
+    overlay.show(question, answer, AssistantUiTokens.ACCENT_ANSWER, true);  // keepUntilExternal
+    SpeechManager.get().speak(answer, () -&gt; overlay.hideAfter(800L));        // 발화 끝나면 잔존 후 hide
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/ui/AssistantOverlayCoordinator.java" target="_blank" rel="noopener">assistant/ui/AssistantOverlayCoordinator.java</a><span class="src">발화 단계별 오버레이 정리 — onListeningStarted / beforeAnswer / beforeLocalEnvelope</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/ui/VoiceListeningOverlay.java" target="_blank" rel="noopener">assistant/ui/VoiceListeningOverlay.java</a><span class="src">풀스크린 청취 화면 — wake 브로드캐스트 수신, 5종 state(listening/processing/result/answer/error), TTS 상태 연동</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/ui/AnswerCardOverlay.java" target="_blank" rel="noopener">assistant/ui/AnswerCardOverlay.java</a><span class="src">화면 상단 응답 카드 — show/showWeather/finishStreamingAnswer, keepUntilExternal 유지·자동 숨김</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/ui/HeySkyWaveformView.java" target="_blank" rel="noopener">assistant/ui/HeySkyWaveformView.java</a><span class="src">3겹 SVG path + LinearGradient 파형 — LISTENING/PROCESSING/RESULT/ERROR state 애니메이션 (mic 비반응 decorative)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/ui/MobileConnectionOverlay.java" target="_blank" rel="noopener">assistant/ui/MobileConnectionOverlay.java</a><span class="src">우측 상/하단 모바일 연결 상태 토스트 — showConnected(ip) / showDisconnected()</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/ui/PersonalizedPairingOverlay.java" target="_blank" rel="noopener">assistant/ui/PersonalizedPairingOverlay.java</a><span class="src">페어링 개인화 카드 — pairing_greeting envelope의 표시 가능 필드만 노출</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/handler/AnswerHandler.java" target="_blank" rel="noopener">assistant/handler/AnswerHandler.java</a><span class="src">답변 표시 호출처 — beforeAnswer → AnswerCardOverlay.show → SpeechManager.speak</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f12.html">Hey Sky wake-word + STT</a>
+      <a href="f14.html">FCM 푸시 · TTS →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feat/lw-voice-api</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">Skylife ATV EPG 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

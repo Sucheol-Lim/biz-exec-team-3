@@ -1,0 +1,8 @@
+# 배포 제외 — 내부 도구/백업/생성물
+.specs/
+_verify.html
+_verify_list.json
+_template.html
+.DS_Store
+.playwright-mcp/
+*.png

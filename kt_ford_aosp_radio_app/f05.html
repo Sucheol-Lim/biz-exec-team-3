@@ -1,0 +1,172 @@
+<!doctype html>
+<!-- kt_ford_aosp_radio_app · HLS 직접 재생 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HLS 직접 재생 — kt_ford_aosp_radio_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford AOSP 라디오 앱</a><span class="sep">›</span>
+      <span class="here">HLS 직접 재생</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive (AOSP/AAOS) · Java</span>
+    </div>
+    <h1>HLS 직접 재생</h1>
+    <p class="one-liner">TBS·아리랑·BBS·FEBC·CTS·국악방송 등은 채널 데이터의 <code>.m3u8</code> URL을 별도 조회 없이 <code>MediaPlayer</code>로 그대로 재생합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app" target="_blank" rel="noopener"><code>kt_ford_aosp_radio_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>media/RadioPlayerHelper.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">사업자 API가 없는 채널 경로</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>MBC·SBS를 제외한 나머지 채널은 채널 데이터의 <code>mediaUri</code> 자체가 곧바로 재생 가능한 HLS(<code>.m3u8</code>) 스트림입니다. 따라서 <code>RadioPlayerHelper.playChannel()</code>이 채널명에서 <code>"MBC"</code>·<code>"SBS"</code>를 찾지 못하면 <code>playOtherChannel()</code>로 떨어지고, 여기서는 사업자 API 호출 없이 <code>mediaUri</code>를 그대로 <code>playFromUri()</code>에 넘깁니다.</p>
+    <p><code>playFromUri()</code>는 <code>MediaPlayer</code> 인스턴스를 준비(필요 시 <code>reset()</code>)하고 <code>setDataSource()</code> 후 <code>prepareAsync()</code>를 호출합니다. 준비가 끝나면 <code>onPrepared()</code> 콜백에서 오디오 포커스를 얻은 뒤 <code>start()</code>로 재생을 시작합니다. 동일 채널을 다시 누른 경우(<code>mediaChanged == false</code>이고 이미 재생 중)에는 데이터 소스를 다시 설정하지 않고 재생 상태/알림만 갱신해 불필요한 재버퍼링을 막습니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      세 경로(MBC/SBS/기타)가 모두 마지막에 <code>playFromUri(metadata, uri)</code>로 합류합니다. 즉 "어떤 URL을 얻느냐"만 다르고 실제 <code>MediaPlayer</code> 제어·오디오 포커스·알림 흐름은 단일 경로로 공유됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant PH as RadioPlayerHelper
+    participant MP as MediaPlayer
+    participant AM as AudioManager
+
+    PH->>PH: playChannel(metadata) (MBC/SBS 아님)
+    PH->>PH: playOtherChannel(metadata)
+    PH->>PH: playFromUri(metadata, mediaUri)
+    PH->>MP: setDataSource(.m3u8) / prepareAsync()
+    MP-->>PH: onPrepared(mp)
+    PH->>AM: tryToGetAudioFocus()
+    AM-->>PH: AUDIOFOCUS_REQUEST_GRANTED
+    PH->>MP: start()
+    Note over PH,MP: STATE_PLAYING · 알림/런처 통지
+      </div>
+      <p class="cap"><strong>흐름.</strong> 사업자 API 조회 단계 없이 <code>.m3u8</code> URL을 바로 <code>MediaPlayer</code>에 넘기고, 준비 완료 후 포커스를 얻어 재생합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class RadioPlayerHelper {
+        -MediaPlayer mediaPlayer
+        +playChannel(metadata)
+        -playOtherChannel(metadata)
+        -playFromUri(metadata, uri)
+        +onPrepared(mp)
+        +onCompletion(mp)
+    }
+    class MediaPlayer {
+        +setDataSource(url)
+        +prepareAsync()
+        +start()
+    }
+    class OnPreparedListener {
+        &lt;&lt;interface&gt;&gt;
+        +onPrepared(mp)
+    }
+    class OnCompletionListener {
+        &lt;&lt;interface&gt;&gt;
+        +onCompletion(mp)
+    }
+
+    RadioPlayerHelper ..|> OnPreparedListener : implements
+    RadioPlayerHelper ..|> OnCompletionListener : implements
+    RadioPlayerHelper o-- MediaPlayer : 제어
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>RadioPlayerHelper</code>가 <code>MediaPlayer</code>의 prepared/completion 리스너를 직접 구현해 HLS 스트림 수명을 관리합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>media/RadioPlayerHelper.java</code> — 기타 채널 직접 재생</div>
+<pre><code>private void playOtherChannel(MediaMetadataCompat metadata) {
+    // 채널 데이터의 mediaUri(.m3u8)를 그대로 재생
+    playFromUri(metadata, metadata.getDescription().getMediaUri());
+}
+
+private void playFromUri(MediaMetadataCompat metadata, Uri uri) {
+    boolean mediaChanged = (mCurrentMediaMetaData == null || getCurrentMediaChanged(metadata));
+    if (mediaPlayer == null) {
+        mediaPlayer = new MediaPlayer();
+        mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+        mediaPlayer.setOnCompletionListener(this);
+        mediaPlayer.setOnPreparedListener(this);
+        mediaPlayer.setOnErrorListener(this);
+    } else if (mediaChanged || !mediaPlayer.isPlaying()) {
+        mediaPlayer.reset();
+    }
+    if (mediaChanged || !mediaPlayer.isPlaying()) {
+        mCurrentMediaMetaData = metadata;
+        mediaPlayer.setDataSource(uri.toString());
+        mediaPlayer.prepareAsync();
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/media/RadioPlayerHelper.java" target="_blank" rel="noopener">media/RadioPlayerHelper.java</a><span class="src">playOtherChannel / playFromUri / onPrepared(MediaPlayer)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/data/ChannelListItems.java" target="_blank" rel="noopener">data/ChannelListItems.java</a><span class="src">TBS/아리랑/BBS/FEBC/CTS/국악방송의 .m3u8 URL 정의</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f04.html">← SBS 스트림 AES 복호화</a>
+      <a href="f06.html">차량 런처 연동 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_radio_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

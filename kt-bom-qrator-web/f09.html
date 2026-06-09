@@ -1,0 +1,200 @@
+<!doctype html>
+<!-- kt-bom-qrator-web · 요청-응답 메시지 라우터 기능 상세 — 메서드별 큐/인플라이트/타임아웃 직렬화 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>요청-응답 메시지 라우터 — kt-bom-qrator-web 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT BOM Qrator Web (언바운드 위젯 앱)</a><span class="sep">›</span>
+      <span class="here">요청-응답 메시지 라우터</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">olleh tv 웹 미들웨어 STB · JavaScript</span>
+    </div>
+    <h1>요청-응답 메시지 라우터</h1>
+    <p class="one-liner">메서드별 큐(<code>_queues</code>)·인플라이트(<code>_inflight</code>)·타임아웃(기본 5000ms)을 가진 비동기 메시지 라우터입니다. 옵저버/홈포탈 같은 외부 컴포넌트와의 postMessage 요청-응답을 메서드 단위로 직렬화해 응답 누락·경합을 방지합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web" target="_blank" rel="noopener"><code>kt-bom-qrator-web</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 파일</div><div class="v"><code>qrator/js/request-reply-router.js</code></div></div>
+      <div class="item"><div class="k">기본 타임아웃</div><div class="v"><code>DEFAULT_TIMEOUT = 5000ms</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>RequestReplyRouter</code>는 IIFE 싱글턴으로, postMessage가 본질적으로 "보내고 잊는" 단방향이라는 한계를 메서드별 요청-응답 큐로 보완합니다. 사용 전 <code>register(method)</code>로 허용 메서드를 등록하고, <code>setTransport(fn)</code>으로 실제 전송 경로(qrator의 <code>postMessage.send</code>)를 주입합니다. <code>qrator._initPostMessage</code>가 기동 시 <code>OBS_REQUEST_SHOW</code>·<code>OBS_IS_LOADING_UNBOUND_APP</code> 두 메서드를 등록합니다.</p>
+    <p>요청은 <code>sendSerial(opts)</code>로 등록합니다. 같은 메서드의 요청은 <code>_queues[method]</code>에 쌓이고, <code>_startNext</code>가 인플라이트가 비어 있을 때만 큐 맨 앞 항목을 꺼내 전송합니다. 전송과 동시에 <code>_scheduleTimeout</code>이 TTL(기본 5000ms) 타이머를 걸어, 응답이 오지 않으면 <code>onTimeout</code>을 호출하고 큐를 진행시킵니다. 즉 한 메서드는 동시에 하나의 in-flight 요청만 갖습니다.</p>
+    <p>응답 소비는 <code>handleResponse(event)</code>가 담당합니다. 들어온 메시지의 <code>method</code>가 등록·인플라이트 상태면 현재 항목의 <code>onReply(msg)</code>를 호출하고 큐를 한 칸 진행한 뒤 <code>true</code>(소비 완료)를 반환합니다. <code>qrator.postMessage.listener</code>는 이 반환값을 보고 소비된 메시지는 더 이상 일반 분기로 넘기지 않습니다. CMP 채널 트리거(f06)가 옵저버 표시/조회 요청에 이 라우터를 직접 사용합니다.</p>
+    <div class="callout">
+      <div class="ct">왜 직렬화가 필요한가</div>
+      여러 서브앱이 동시에 옵저버에 <code>obs_requestShow</code>를 보내면 응답이 뒤섞일 수 있습니다. 메서드별 단일 in-flight 보장으로 "어느 요청의 응답인지"가 항상 명확해지고, 타임아웃이 무응답 상황에서 큐가 멈추지 않도록 보호합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant APP as 서브앱 (예: cmpChannelTrigger)
+    participant RRR as RequestReplyRouter
+    participant TR as transport (postMessage.send)
+    participant OBS as Observer
+    participant LIS as postMessage.listener
+
+    APP-&gt;&gt;RRR: sendSerial({method, payload, onReply, onTimeout})
+    RRR-&gt;&gt;RRR: _queues[method].push(item)
+    RRR-&gt;&gt;RRR: _startNext() (인플라이트 비어있으면)
+    RRR-&gt;&gt;RRR: _scheduleTimeout(5000ms)
+    RRR-&gt;&gt;TR: _transportSend(from, to, payload)
+    TR-&gt;&gt;OBS: postMessage
+    OBS--&gt;&gt;LIS: 응답 메시지
+    LIS-&gt;&gt;RRR: handleResponse(event)
+    alt 등록 + 인플라이트
+        RRR-&gt;&gt;APP: item.onReply(msg)
+        RRR-&gt;&gt;RRR: _finishCurrent() → _startNext()
+        RRR--&gt;&gt;LIS: true (소비 완료)
+    else 타임아웃 발생
+        RRR-&gt;&gt;APP: item.onTimeout()
+        RRR-&gt;&gt;RRR: _shift / _startNext()
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>sendSerial</code>로 큐에 적재 → in-flight가 비면 transport로 전송하고 타임아웃을 건다. 응답이 오면 <code>handleResponse</code>가 <code>onReply</code>를 호출하고 다음 항목을 진행하며, 무응답이면 타임아웃이 큐를 해소합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class RequestReplyRouter {
+        -_allowed
+        -_queues
+        -_inflight
+        -_timers
+        -_transportSend
+        +register(method)
+        +unregister(method)
+        +setTransport(fn)
+        +sendSerial(opts)
+        +handleResponse(event) bool
+    }
+    class QueueItem {
+        +from
+        +to
+        +payload
+        +onReply
+        +onTimeout
+        +ttlMs
+    }
+    class qrator_postMessage {
+        +send(from, to, message, cb)
+        +listener(event)
+    }
+
+    RequestReplyRouter o-- QueueItem : _queues per method
+    qrator_postMessage --&gt; RequestReplyRouter : setTransport / handleResponse
+    RequestReplyRouter --&gt; qrator_postMessage : _transportSend 콜백
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>RequestReplyRouter</code>는 메서드별로 <code>QueueItem</code> 큐를 보관합니다. 전송은 qrator의 <code>postMessage.send</code>를 transport로 주입받아 수행하고, 수신 측 <code>listener</code>가 <code>handleResponse</code>로 응답을 소비합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>qrator/js/request-reply-router.js</code> — sendSerial / _scheduleTimeout</div>
+<pre><code>function sendSerial(opts) {
+    if (!opts || !_allowed[opts.method]) return;       // 미등록 메서드는 무시
+    _ensure(opts.method);
+    _queues[opts.method].push({
+        from: opts.from, to: opts.to, payload: opts.payload,
+        onReply: opts.onReply, onTimeout: opts.onTimeout, ttlMs: opts.ttlMs
+    });
+    _startNext(opts.method);                           // 인플라이트 없으면 즉시 전송
+}
+
+function _scheduleTimeout(method, item) {
+    var ttl = item.ttlMs &gt; 0 ? item.ttlMs : DEFAULT_TIMEOUT;   // 기본 5000ms
+    _clearTimer(method);
+    _timers[method] = setTimeout(function onTimeout() {
+        _clearTimer(method);
+        if (typeof item.onTimeout === 'function') item.onTimeout();
+        _shift(method); _endInflight(method); _startNext(method);
+    }, ttl);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>qrator/js/request-reply-router.js</code> — handleResponse: 등록+인플라이트 응답만 소비</div>
+<pre><code>function handleResponse(event) {
+    var msg = event &amp;&amp; event.data;
+    if (!msg || !_allowed[msg.method]) return false;
+    var method = msg.method;
+    _ensure(method);
+    if (!_isInflight(method)) return false;
+    var item = _peek(method);
+    if (!item) return false;
+
+    _finishCurrent(method, function () {
+        if (typeof item.onReply === 'function') item.onReply(msg);
+    });
+    return true;   // 소비 완료 → 상위로 더 넘기지 않음
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/qrator/js/request-reply-router.js" target="_blank" rel="noopener">qrator/js/request-reply-router.js</a><span class="src">라우터 본체. 큐/인플라이트/타임아웃·sendSerial·handleResponse</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/qrator/js/main.js" target="_blank" rel="noopener">qrator/js/main.js</a><span class="src"><code>_initPostMessage</code>의 transport 주입·메서드 등록, listener의 <code>_handleRequestReplyRouter</code> 소비</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/cmpChannelTrigger/main.js" target="_blank" rel="noopener">apps/cmpChannelTrigger/main.js</a><span class="src">라우터 사용처(<code>_requestShow</code>/<code>_isLoadingUnboundApp</code>의 <code>sendSerial</code>)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f08.html">← 쇼핑키 / 결제 연동</a>
+      <a href="f10.html">qDaemon 백그라운드 매니저 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt-bom-qrator-web 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

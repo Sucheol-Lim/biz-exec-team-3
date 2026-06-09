@@ -1,0 +1,185 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_shortform · Konva 미리보기 캔버스 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Konva 미리보기 캔버스 — kt_magic_platform_ai_shortform 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 지니숏츠 (AI 숏폼 플랫폼)</a><span class="sep">›</span>
+      <span class="here">Konva 미리보기 캔버스</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">데스크톱 웹 (Vue 3 SPA) · JavaScript</span>
+    </div>
+    <h1>Konva 미리보기 캔버스</h1>
+    <p class="one-liner">Konva + vue-konva를 전역 등록해 편집 미리보기 레이어 렌더링에 활용하고, 실제 요소의 드래그·리사이즈는 vue3-draggable-resizable과 interactjs로 DOM/CSS 레이어 위에서 처리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform" target="_blank" rel="noopener"><code>kt_magic_platform_ai_shortform</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>PreviewItemComponent.vue</code> · <code>StylePreviewComponent.vue</code></div></div>
+      <div class="item"><div class="k">전역 등록</div><div class="v"><code>main.js</code>의 VueKonva / Vue3DraggableResizable</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>미리보기 캔버스 스택은 <code>main.js</code>에서 전역 등록됩니다. <code>app.use(VueKonva)</code>로 Konva 컴포넌트를, <code>app.use(Vue3DraggableResizable)</code>로 드래그·리사이즈 컴포넌트를 등록하며, 편집 화면은 이들 위에 미리보기 레이어를 구성합니다.</p>
+    <p>편집기 미리보기 영역은 비디오 캡처 이미지 위에 배경·타이틀·자막·로고·이미지 레이어를 z-index로 쌓는 구조입니다. <code>StylePreviewComponent.vue</code>는 스타일 미리보기를, <code>PreviewItemComponent.vue</code>는 실제 편집 대상 요소를 렌더링하며, 요소 이동·리사이즈는 <code>vue3-draggable-resizable</code>(<code>DraggableContainerComponent</code>·<code>EditableDraggableComponent</code>)과 <code>boxUtils</code>의 move/resize 함수로 처리됩니다.</p>
+    <p>이동·리사이즈 결과는 요소의 <code>position</code> 배열(x·y·w·h)에 반영되고, 조작 출처는 <code>OperateFrom.PREVIEW</code>로 표시되어 <code>editStateStore</code>로 전달됩니다. 좌표는 원본 영상 해상도(<code>videoSource.videoWidth/Height</code>) 기준으로 계산되어 타임라인·인코딩 파라미터와 일관성을 유지합니다.</p>
+    <div class="callout">
+      <div class="ct">근거 메모</div>
+      Konva·vue-konva는 전역 플러그인으로 등록되어 미리보기 렌더링 기반으로 사용됩니다. 다만 멀티/팝업 편집기의 미리보기 레이어(<code>StylePreviewComponent</code>·<code>PreviewItemComponent</code>)는 DOM/CSS 레이어와 <code>vue3-draggable-resizable</code> 기반으로 구현되어 있어, 요소 드래그·리사이즈의 직접적인 조작은 draggable-resizable·interactjs·<code>boxUtils</code>가 담당합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant PV as PreviewItemComponent.vue
+    participant DR as DraggableContainerComponent (vue3-draggable-resizable)
+    participant BU as boxUtils
+    participant ST as editStateStore
+
+    U-&gt;&gt;DR: 미리보기 요소 드래그/리사이즈
+    DR-&gt;&gt;PV: 위치/크기 변경 이벤트
+    PV-&gt;&gt;BU: moveTitleBox / resizeSubtitleBox / moveLogoImageBox ...
+    BU-&gt;&gt;BU: param.position[x,y,w,h] 갱신 (videoSource 기준)
+    PV-&gt;&gt;ST: processDataOperation(dropData, OperateFrom.PREVIEW)
+    ST--&gt;&gt;PV: 반영된 좌표로 레이어 재렌더링
+      </div>
+      <p class="cap"><strong>흐름.</strong> 미리보기 위 드래그·리사이즈가 <code>boxUtils</code>의 박스 함수로 원본 해상도 좌표를 갱신하고, 출처 <code>PREVIEW</code>로 <code>editStateStore</code>에 반영되어 레이어가 다시 그려집니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class main_js {
+        +use(VueKonva)
+        +use(Vue3DraggableResizable)
+        +provide($api, factory)
+    }
+    class StylePreviewComponent {
+        +videoCaptureInfo
+        +titleBoxStyle
+        +subtitleBoxStyle
+        +logoTextBoxStyle
+    }
+    class PreviewItemComponent {
+        +elementType
+        +x
+        +y
+        +w
+        +h
+    }
+    class DraggableContainerComponent {
+        +draggable
+        +resizable
+        +onDrag()
+        +onResize()
+    }
+    class boxUtils {
+        +moveTitleBox()
+        +resizeSubtitleBox()
+        +moveLogoImageBox()
+        +updateAlign()
+        +updateVerticalAlign()
+    }
+
+    main_js ..&gt; DraggableContainerComponent : 전역 등록
+    PreviewItemComponent o-- DraggableContainerComponent : 요소 래핑
+    PreviewItemComponent ..&gt; boxUtils : 위치/크기 계산
+    StylePreviewComponent ..&gt; boxUtils : 미리보기 박스 스타일
+      </div>
+      <p class="cap"><strong>관계.</strong> 전역 등록된 draggable-resizable이 미리보기 요소를 감싸고, 박스 좌표 계산은 <code>boxUtils</code>가 전담합니다. <code>StylePreviewComponent</code>는 동일 박스 모델로 스타일 미리보기를 그립니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>user/src/main.js</code> — Konva / Draggable 전역 등록</div>
+<pre><code>import VueKonva from "vue-konva";
+import factory from "@/api/factory.js";
+import Vue3DraggableResizable from 'vue3-draggable-resizable'
+import 'vue3-draggable-resizable/dist/Vue3DraggableResizable.css'
+
+app
+  .use(VueKonva)
+  .use(Vue3DraggableResizable);
+
+app.provide("$api", factory);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>user/src/views/common/api/edit/assets/js/utils/boxUtils.js</code> — 미리보기 박스 정렬 계산</div>
+<pre><code>export function updateAlign(align, param, box, videoSource) {
+  let [x, y, w, h] = param.position;
+  switch (align) {
+    case 0: param.position[0] = 0; break;                                  // 좌
+    case 1: param.position[0] = Math.floor((videoSource.videoWidth - w) / 2); break;  // 중앙
+    case 2: param.position[0] = videoSource.videoWidth - w; break;         // 우
+  }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/main.js" target="_blank" rel="noopener">main.js</a><span class="src">VueKonva / Vue3DraggableResizable 전역 등록</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/components/PreviewItemComponent.vue" target="_blank" rel="noopener">edit/components/PreviewItemComponent.vue</a><span class="src">편집 대상 요소 미리보기 · 드래그/리사이즈 래핑</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/components/StylePreviewComponent.vue" target="_blank" rel="noopener">edit/components/StylePreviewComponent.vue</a><span class="src">스타일 미리보기 레이어(비디오/배경/타이틀/자막/로고)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/components/DraggableContainerComponent.vue" target="_blank" rel="noopener">edit/components/DraggableContainerComponent.vue</a><span class="src">vue3-draggable-resizable 컨테이너</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/assets/js/utils/boxUtils.js" target="_blank" rel="noopener">edit/assets/js/utils/boxUtils.js</a><span class="src">박스 생성·이동·리사이즈·정렬 좌표 계산</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f04.html">← 타임라인 영상 편집기</a>
+      <a href="f06.html">텍스트·자막 편집 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_shortform 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

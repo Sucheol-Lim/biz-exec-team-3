@@ -1,0 +1,198 @@
+<!doctype html>
+<!-- tivibu_4k · 핑거프린트 오버레이 기능 상세 — FingerPrintView/VmxFingerPrintView/FingerPrintRepository 시퀀스·클래스 다이어그램 + 코드 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>핑거프린트 오버레이 — tivibu_4k 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Tivibu 4K Android — IPTV/OTT 런처</a><span class="sep">›</span>
+      <span class="here">핑거프린트 오버레이</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV / Leanback · Kotlin</span>
+    </div>
+    <h1>핑거프린트 오버레이</h1>
+    <p class="one-liner"><code>FingerPrintView</code>와 VMX CAS 연동 <code>VmxFingerPrintView</code>가 <code>GlobalErrorNotifier</code> 이벤트를 구독해 콘텐츠 보호용 식별 문자열을 라이브 재생 위에 주기적으로 표시·숨김합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tivibu_4k" target="_blank" rel="noopener"><code>tivibu_4k</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>sprint/LS0626_release</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>livetv/fingerprint/FingerPrintView.kt</code> · <code>VmxFingerPrintView.kt</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">라이브 재생 위 콘텐츠 보호 오버레이</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>핑거프린트는 불법 재배포 추적을 위해 화면 위에 단말/사용자 식별 문자열을 잠깐씩 띄우는 콘텐츠 보호 기법입니다. 본 앱에는 두 종류의 핑거프린트 뷰가 라이브 화면 위에 올라갑니다. 일반 핑거프린트(<code>FingerPrintView</code>)와 VMX CAS가 직접 지시하는 핑거프린트(<code>VmxFingerPrintView</code>)입니다.</p>
+    <p>두 뷰 모두 화면에 붙으면(<code>onAttachedToWindow</code>) 전역 이벤트 버스 <code>GlobalErrorNotifier</code>를 구독합니다. <code>FingerPrintView</code>는 <code>observeFingerPrint()</code>의 <code>FingerPrintDescription.Show/Hide</code>를 받아 <code>startTimer()</code>/<code>stopTimer()</code>로 전환합니다. <code>startTimer()</code>는 RxJava <code>Observable.interval()</code>로 <code>showTime + interval</code> 주기를 만들어, 각 주기마다 <code>FingerPrintRepository.getFingerPrintText()</code>로 받은 문자열을 <code>showTime</code> 동안만 노출하고 다시 숨깁니다. 표시 위치·색·폰트·크기는 <code>FingerPrint</code> 설정값을 따르되 오류 시 <code>FingerPrint.Default</code>로 폴백합니다.</p>
+    <p><code>VmxFingerPrintView</code>는 추가로 채널 전환(<code>getCurrentTuningChannelIdObservable</code>)과 재생 상태(<code>state</code>) 변화를 함께 구독해, 채널이 바뀌거나 재생이 멈추면 즉시 <code>hide()</code>합니다. VMX 측 <code>VmxFingerPrintDescription.Show</code>는 메시지·노출 시간·표시 위치(<code>VmxFingerPrintPosition</code>: Center/North/East 등 9방위)를 담아 오버레이를 띄웁니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      두 뷰는 비즈니스 로직 없이 <code>GlobalErrorNotifier</code>가 흘려보내는 Show/Hide 명령만 따릅니다. 표시 정책(주기·텍스트)은 <code>FingerPrintRepository</code>가, VMX 지시는 CAS 연동 경로가 결정하므로 뷰는 표시 책임만 가지는 얇은 레이어로 유지됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant GEN as GlobalErrorNotifier
+    participant FPV as FingerPrintView
+    participant REPO as FingerPrintRepository
+    participant CAS as VMX CAS
+    participant VFP as VmxFingerPrintView
+
+    Note over GEN,REPO: (A) 일반 핑거프린트
+    GEN--&gt;>FPV: observeFingerPrint() → Show
+    FPV->>FPV: startTimer() (interval = showTime+interval)
+    loop 주기 반복
+        FPV->>REPO: getFingerPrintText()
+        REPO--&gt;>FPV: 식별 문자열
+        FPV->>FPV: showFingerPrint(text) → showTime 후 hide
+    end
+    GEN--&gt;>FPV: Hide → stopTimer()
+
+    Note over CAS,VFP: (B) VMX CAS 핑거프린트
+    CAS--&gt;>GEN: VmxFingerPrintDescription.Show(message, duration, position)
+    GEN--&gt;>VFP: observeVmxFingerPrint() → Show
+    VFP->>VFP: showVmxCasFingerPrint(text, duration, position)
+    Note over VFP: 채널 변경/재생 정지 시 hide()
+      </div>
+      <p class="cap"><strong>흐름.</strong> (A) 일반 핑거프린트는 Show 수신 시 주기 타이머를 돌려 repository 문자열을 짧게 반복 표시합니다. (B) VMX CAS 지시는 위치/시간과 함께 한 번 표시되며, 채널 전환·재생 정지를 감지하면 자동으로 숨깁니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class FingerPrintView {
+        +startTimer()
+        +stopTimer()
+        -showFingerPrint(text, fingerPrint)
+        -hideFingerPrint()
+    }
+    class VmxFingerPrintView {
+        +showVmxCasFingerPrint(text, duration, position)
+        +hide()
+    }
+    class FingerPrintRepository {
+        &lt;&lt;interface&gt;&gt;
+        +getFingerPrint() FingerPrint
+        +getFingerPrintText() Single~String~
+        +isNeedToDisplay(channelCode) boolean
+        +show() / hide()
+    }
+    class GlobalErrorNotifier {
+        +observeFingerPrint() Observable
+        +observeVmxFingerPrint() Observable
+    }
+    class FingerPrintDescription {
+        &lt;&lt;sealed&gt;&gt;
+        Show
+        Hide
+    }
+    class VmxFingerPrintPosition {
+        &lt;&lt;enumeration&gt;&gt;
+        Center
+        North
+        East
+    }
+
+    FingerPrintView ..&gt; GlobalErrorNotifier : observeFingerPrint
+    FingerPrintView --&gt; FingerPrintRepository : 텍스트/설정
+    FingerPrintView ..&gt; FingerPrintDescription
+    VmxFingerPrintView ..&gt; GlobalErrorNotifier : observeVmxFingerPrint
+    VmxFingerPrintView ..&gt; VmxFingerPrintPosition
+      </div>
+      <p class="cap"><strong>관계.</strong> 두 뷰가 <code>GlobalErrorNotifier</code>를 구독해 Show/Hide 명령을 받습니다. 일반 핑거프린트는 <code>FingerPrintRepository</code>에서 텍스트·표시 설정을 가져오고, VMX는 위치 enum과 함께 메시지를 표시합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>livetv/fingerprint/FingerPrintView.kt</code> — Show/Hide 구독 후 주기 타이머</div>
+<pre><code>override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    GlobalErrorNotifier.observeFingerPrint()
+        .observeOn(AndroidSchedulers.mainThread())
+        .subscribe { fingerPrint -&gt;
+            when (fingerPrint) {
+                FingerPrintDescription.Show -&gt; startTimer()
+                FingerPrintDescription.Hide -&gt; stopTimer()
+            }
+        }
+        .addTo(disposables)
+}
+
+fun startTimer() {
+    val fingerPrint = fingerPrintRepository.getFingerPrint()
+    showHideDisposable = Observable
+        .interval(0, fingerPrint.showTime + fingerPrint.interval, TimeUnit.MILLISECONDS)
+        .flatMap { Observable.concatArray(
+            Observable.just(true),                                    // 보이기
+            Observable.just(false).delay(fingerPrint.showTime, MILLIS)) } // showTime 뒤 숨기기
+        .concatMapSingle { isShow -&gt; if (isShow) fingerPrintRepository.getFingerPrintText().map { true to it } else Single.just(false to "") }
+        .subscribe { (isShow, text) -&gt; if (isShow) showFingerPrint(text, fingerPrint) else hideFingerPrint() }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/fingerprint/FingerPrintView.kt" target="_blank" rel="noopener">livetv/fingerprint/FingerPrintView.kt</a><span class="src">일반 핑거프린트 뷰 · Show/Hide 구독 · 주기 표시 타이머</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/fingerprint/VmxFingerPrintView.kt" target="_blank" rel="noopener">livetv/fingerprint/VmxFingerPrintView.kt</a><span class="src">VMX CAS 핑거프린트 뷰 · 9방위 위치 · 채널/상태 변화 시 hide</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/domain/src/main/java/com/altimedia/domain/repository/FingerPrintRepository.kt" target="_blank" rel="noopener">domain/repository/FingerPrintRepository.kt</a><span class="src">핑거프린트 설정/텍스트 · 표시 여부 판정 인터페이스</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/domain/src/main/java/com/altimedia/domain/model/fingerprint/FingerPrint.kt" target="_blank" rel="noopener">domain/model/fingerprint/FingerPrint.kt</a><span class="src">핑거프린트 모델(showTime/interval/색/폰트 등 + Default)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/domain/src/main/java/com/altimedia/domain/error/FingerPrintDescription.kt" target="_blank" rel="noopener">domain/error/FingerPrintDescription.kt</a><span class="src">Show/Hide 및 VMX Description 정의</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f07.html">← PIP · 모자이크</a>
+      <a href="f09.html">검색 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>sprint/LS0626_release</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tivibu_4k 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap · 방송 품질 계측(TiMS) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>방송 품질 계측 (TiMS) — skb_cloud_local_ocap 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local App OCAP</a><span class="sep">›</span>
+      <span class="here">방송 품질 계측 (TiMS)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP / MHP STB · Java</span>
+    </div>
+    <h1>방송 품질 계측 (TiMS)</h1>
+    <p class="one-liner"><code>TiMSManager</code>가 주기(<code>PeriodicCollectionHandler</code>)·일별(<code>DailyCollectionHandler</code>) 핸들러를 띄워 SNR·power level 등 방송 신호 품질을 수집하고, UDP(<code>TiMSInformSender</code>) 또는 COQP JSON(<code>CoqpManager</code>·<code>JsonUploader</code>)으로 서버에 전송합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap" target="_blank" rel="noopener"><code>skb_cloud_local_ocap</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>OCAP_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>tims/TiMSManager.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">본 브랜치(OCAP_log_2025) 최근 작업 집중 영역</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>TiMS는 STB가 수신하는 방송 신호 품질(SNR, power level 등)을 주기적으로 측정해 운영 사업자 서버로 전송하는 품질 계측 모듈입니다. 싱글톤 <code>TiMSManager.init()</code>이 진입점으로, TLS 제어 서버(<code>TLSServerController</code>)를 띄우고 주기 수집 핸들러(<code>PeriodicCollectionHandler</code>)와 일별 수집 핸들러(<code>DailyCollectionHandler</code>)를 초기화합니다. 부팅 시 <code>HomeMain.start()</code>가 가장 먼저 <code>TiMSManager.getInstance().init()</code>을 호출합니다.</p>
+    <p><code>PeriodicCollectionHandler</code>는 TVTimer 기반으로 설정된 간격(10/20/30/60초 등)마다 <code>doIntervalSend()</code>를 수행해, 튜닝 중인 ServiceContext의 신호 품질을 수집하고 <code>TiMSInformSender</code>로 UDP 패킷을 전송합니다. 전송 대상은 일반 서버(<code>PERIODIC_UDP_IP</code>)와 Adams 서버(<code>ADAMS_UDP_IP</code>) 두 곳입니다. 수집 간격은 <code>DataCenter</code>의 <code>TIMS_PERIODIC_REPORT_INTERVAL</code> 키 갱신으로 동적으로 바뀝니다.</p>
+    <p>COQP(<code>tims/coqp</code>)는 채널 단위 품질 데이터를 <code>org.json.JSONObject</code>로 직렬화해 <code>JsonUploader.uploadJson()</code>으로 HTTP multipart 업로드합니다. <code>CoqpManager</code>는 컬러키 이벤트 리스너로도 동작하며, msgSleep 스레드로 현재 채널 정보를 세팅한 뒤 접근 가능 채널 전체의 품질 JSON을 만듭니다.</p>
+    <div class="callout">
+      <div class="ct">standby · 특정 모델 제외 (최근 작업)</div>
+      OCAP_log_2025 브랜치 최근 커밋들은 TiMS 개선에 집중되어 있습니다. (1) 측정 API에 튜너 ID를 전달, (2) standby(대기) 상태에서는 품질 계측 전송을 하지 않도록 처리, (3) 일부 SMT 모델(SMT-C3022/C5010/C5011/C5012)을 계측 대상에서 제외, (4) 전송을 Inform에서 UDP로 전환하는 작업이 반영되었습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant HM as HomeMain
+    participant TM as TiMSManager
+    participant PCH as PeriodicCollectionHandler
+    participant DC as DataCenter
+    participant SND as TiMSInformSender (UDP)
+    participant SRV as 품질 계측 서버
+
+    HM-&gt;&gt;TM: init()
+    TM-&gt;&gt;TM: TLSServerController.startTLSServer()
+    TM-&gt;&gt;PCH: init()
+    PCH-&gt;&gt;DC: addDataUpdateListener(TIMS_PERIODIC_REPORT_INTERVAL)
+    PCH-&gt;&gt;PCH: startTimer()
+    loop 설정 간격마다 (10/20/30/60초)
+        PCH-&gt;&gt;PCH: timerWentOff() → doIntervalSend()
+        PCH-&gt;&gt;PCH: SNR·power level 수집 (tuner id 포함)
+        Note over PCH: standby/제외 모델이면 전송 skip
+        PCH-&gt;&gt;SND: send(inform)
+        SND-&gt;&gt;SRV: UDP 패킷 (Periodic + Adams)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>TiMSManager.init()</code>이 TLS 서버와 수집 핸들러를 띄우고, <code>PeriodicCollectionHandler</code>가 타이머마다 신호 품질을 수집해 UDP로 전송합니다. 대기 상태·제외 모델이면 전송을 건너뜁니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class TiMSManager {
+        -TLSServerController tlsServerController
+        -PeriodicCollectionHandler periodicCollectionHandler
+        -DailyCollectionHandler dailyCollectionHandler
+        +getInstance() TiMSManager
+        +init()
+        +stop()
+    }
+    class PeriodicCollectionHandler {
+        -TiMSInformSender informSender
+        -TiMSInformSender adamsInformSender
+        +getInstance() PeriodicCollectionHandler
+        +init()
+        +doIntervalSend()
+        +timerWentOff(event)
+    }
+    class DailyCollectionHandler {
+        +getInstance() DailyCollectionHandler
+        +init()
+    }
+    class DataUpdateListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class TVTimerWentOffListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class TiMSInformSender {
+        +init()
+        +send(inform)
+    }
+    class TiMSUDPSender
+    class CoqpManager {
+        +getInstance() CoqpManager
+        +startMsgSleepThread()
+    }
+    class JsonUploader {
+        +uploadJson(json, url)$
+    }
+
+    TiMSManager o-- PeriodicCollectionHandler : 보유
+    TiMSManager o-- DailyCollectionHandler : 보유
+    PeriodicCollectionHandler ..|&gt; DataUpdateListener : implements
+    PeriodicCollectionHandler ..|&gt; TVTimerWentOffListener : implements
+    PeriodicCollectionHandler o-- TiMSInformSender : UDP 전송
+    TiMSInformSender ..&gt; TiMSUDPSender : 패킷 송신
+    CoqpManager ..&gt; JsonUploader : JSON 업로드
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>TiMSManager</code>가 주기·일별 핸들러를 소유하고, <code>PeriodicCollectionHandler</code>가 타이머/데이터 리스너로 동작하며 <code>TiMSInformSender</code>로 UDP 전송합니다. COQP 경로는 <code>CoqpManager</code> → <code>JsonUploader</code>로 JSON 업로드합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>tims/TiMSManager.java</code> — 수집 핸들러 일괄 기동</div>
+<pre><code>public void init() {
+    if (Log.INCLUDE) {
+        Log.message("[TiMSManager] init");
+    }
+    TiMSPannel.getInstance().show();
+    tlsServerController.startTLSServer();   // TLS 제어 서버
+    periodicCollectionHandler.init();       // 주기 수집
+    dailyCollectionHandler.init();          // 일별 수집
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>tims/collect/PeriodicCollectionHandler.java</code> — 일반·Adams UDP 전송기 구성</div>
+<pre><code>// 생성자: Periodic / Adams 두 서버로 UDP 전송기를 준비
+informSender      = new TiMSInformSender("Periodic", TiMSDef.PERIODIC_UDP_IP, TiMSDef.PERIODIC_UDP_PORT);
+adamsInformSender = new TiMSInformSender("Adams_Periodic", TiMSDef.ADAMS_UDP_IP, TiMSDef.PERIODIC_UDP_PORT);
+
+public synchronized void init() {
+    informSender.init();
+    adamsInformSender.init();
+    // 보고 간격을 DataCenter 키로 동적 갱신
+    DataCenter.getInstance().addDataUpdateListener(DataCenterKey.TIMS_PERIODIC_REPORT_INTERVAL, this);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/tims/TiMSManager.java" target="_blank" rel="noopener">tims/TiMSManager.java</a><span class="src">TiMS 진입점 — TLS 서버·주기/일별 수집 핸들러 기동</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/tims/collect/PeriodicCollectionHandler.java" target="_blank" rel="noopener">tims/collect/PeriodicCollectionHandler.java</a><span class="src">주기 수집 — 타이머·간격 갱신·UDP 전송 (doIntervalSend)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/tims/collect/DailyCollectionHandler.java" target="_blank" rel="noopener">tims/collect/DailyCollectionHandler.java</a><span class="src">일별 수집 핸들러</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/tims/collect/TiMSInformSender.java" target="_blank" rel="noopener">tims/collect/TiMSInformSender.java</a><span class="src">Inform/UDP 전송기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/tims/collect/TiMSUDPSender.java" target="_blank" rel="noopener">tims/collect/TiMSUDPSender.java</a><span class="src">UDP 패킷 송신</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/tims/coqp/CoqpManager.java" target="_blank" rel="noopener">tims/coqp/CoqpManager.java</a><span class="src">COQP — 채널 품질 JSON 구성 (msgSleep)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/tims/coqp/JsonUploader.java" target="_blank" rel="noopener">tims/coqp/JsonUploader.java</a><span class="src">품질 JSON HTTP multipart 업로드 (uploadJson)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f04.html">← 클라우드 연동 (하이브리드)</a>
+      <a href="f06.html">STB 상태 모니터링 (Monitor) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>OCAP_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

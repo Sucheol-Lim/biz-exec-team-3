@@ -1,0 +1,201 @@
+<!doctype html>
+<!-- skylife-ux3.0 · LW Voice 음성 어시스턴트 기능 상세 — NanoWSD 8787 릴레이 + 디스커버리/세션 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LW Voice 음성 어시스턴트 — Skylife ATV EPG 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Skylife ATV EPG (UX3.0)</a><span class="sep">›</span>
+      <span class="here">LW Voice 음성 어시스턴트</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT SkyLife</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV(Leanback) STB · Java</span>
+    </div>
+    <h1>LW Voice 음성 어시스턴트</h1>
+    <p class="one-liner">모바일 앱과 STB를 페어링하여 음성 명령을 STB에서 실행합니다. <code>StbRelayServer</code>(NanoHTTPD/NanoWSD WebSocket, 8787 포트)가 릴레이 서버로 양방향 통신하고, NSD/UDP 디스커버리와 <code>MobileSession</code>으로 단일 모바일 연결을 관리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skylife-ux3.0" target="_blank" rel="noopener"><code>skylife-ux3.0</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feat/lw-voice-api</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>server/StbRelayServer</code> · <code>AssistantWebSocket</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">모바일-STB 페어링 · 8787 릴레이</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>LW Voice는 모바일 앱이 STB를 발견·페어링하고 음성 명령을 STB로 보내 실행시키는 음성 어시스턴트입니다. 전송 계층은 <code>StbRelayServer</code>(<code>NanoWSD</code> 상속)가 8787 포트 단일 listen으로 제공하며 두 가지 사양 PDF(<code>newlwvoice-connect.pdf</code> v1.3, <code>stb_assistant_response_api_spec.pdf</code> v1.3)를 근거로 구현되어 있습니다. HTTP 경로로는 <code>GET /health</code>(헬스 체크)와 <code>POST /assistant-response</code>(legacy fallback), WebSocket 경로 <code>/assistant-ws</code>로는 <code>mobile_hello</code>·<code>ping</code>/<code>pong</code>·<code>assistant_response</code>·<code>assistant_progress</code> 프레임을 처리합니다.</p>
+    <p>모바일은 NSD(mDNS, <code>_lwcompanion._tcp.</code>)와 UDP(<code>LW_COMPANION_DISCOVER_V1</code>) 디스커버리로 STB를 찾고 WebSocket으로 연결합니다. 연결마다 <code>AssistantWebSocket</code>이 생성되어 <code>MobileSession</code>을 수립하며, <code>mobile_hello</code>를 받으면 그 세션을 활성(active) 세션으로 등록하고 우측 상단에 연결 토스트(<code>MobileConnectionOverlay</code>)를 띄웁니다. STB가 STT로 받은 발화는 <code>AssistantRequestPump</code>가 <code>assistant_request</code> envelope으로 이 세션에 송신하고, 모바일/서버의 LLM이 만든 <code>assistant_response</code>가 돌아오면 <code>AssistantResponseDispatcher</code>가 <code>payload.type</code>별 핸들러로 분기합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      socket read timeout은 60초로 두되 30초마다 ping/pong heartbeat를 보내 idle 끊김을 막습니다(<code>AssistantRequestPump</code>). 활성 세션은 1개만 유지(마지막 hello를 보낸 세션이 활성)하며, 늦게 도착한 옛 응답이 새 발화 흐름을 덮어쓰지 않도록 dispatcher가 <code>requestId</code> 기반 stale guard로 거릅니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant M as Mobile App
+    participant ADV as StbDiscoveryAdvertiser (NSD)
+    participant SRV as StbRelayServer (8787)
+    participant WS as AssistantWebSocket
+    participant SES as MobileSession
+    participant DSP as AssistantResponseDispatcher
+
+    M-&gt;&gt;ADV: NSD/UDP 디스커버리
+    ADV--&gt;&gt;M: _lwcompanion._tcp. :8787
+    M-&gt;&gt;SRV: WS upgrade /assistant-ws
+    SRV-&gt;&gt;WS: openWebSocket()
+    WS-&gt;&gt;SES: new MobileSession(ip)
+    M-&gt;&gt;WS: {type: mobile_hello}
+    WS-&gt;&gt;SES: markHelloReceived() (active 등록)
+    M-&gt;&gt;WS: {type: assistant_response, ...}
+    WS-&gt;&gt;DSP: dispatch(envelope)
+    DSP-&gt;&gt;DSP: payload.type 별 handler 분기
+      </div>
+      <p class="cap"><strong>흐름.</strong> 디스커버리 → WebSocket 연결 → <code>mobile_hello</code>로 세션 활성화 → <code>assistant_response</code>를 dispatcher로 분기하는 페어링·통신 경로입니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class NanoWSD
+    class StbRelayServer {
+        +start(context)
+        +shutdown()
+        +serve(session) Response
+        +openWebSocket(handshake) WebSocket
+    }
+    class AssistantWebSocket {
+        -MobileSession session
+        +onMessage(frame)
+        +onClose(...)
+    }
+    class MobileSession {
+        -boolean helloReceived
+        +markHelloReceived()
+        +markHeartbeat()
+        +sendText(text) boolean
+        +getActive() MobileSession
+    }
+    class StbDiscoveryAdvertiser {
+        +start(context)
+    }
+    class AssistantResponseDispatcher {
+        +dispatch(ctx, envelope)
+    }
+    class AssistantConstants {
+        +int PORT
+        +String WS_PATH
+    }
+
+    StbRelayServer --|&gt; NanoWSD
+    StbRelayServer --&gt; AssistantWebSocket : openWebSocket
+    AssistantWebSocket --|&gt; NanoWSD
+    AssistantWebSocket --&gt; MobileSession : 소유
+    AssistantWebSocket ..&gt; AssistantResponseDispatcher : dispatch
+    StbRelayServer ..&gt; AssistantConstants
+    StbDiscoveryAdvertiser ..&gt; AssistantConstants
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>StbRelayServer</code>가 NanoWSD를 상속해 HTTP/WS를 한 포트로 받고, 연결마다 <code>AssistantWebSocket</code>+<code>MobileSession</code>을 만들어 응답을 dispatcher로 넘깁니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>assistant/server/StbRelayServer.java</code> — 8787 단일 listen, HTTP/WS 분기</div>
+<pre><code>public class StbRelayServer extends NanoWSD {
+    @Override
+    public Response serve(IHTTPSession session) {
+        if (isWebsocketRequested(session)) return super.serve(session);  // WS upgrade
+        String uri = session.getUri();
+        if (Method.GET == session.getMethod()
+                &amp;&amp; AssistantConstants.HEALTH_PATH.equals(uri)) return responseHealth();
+        if (Method.POST == session.getMethod()
+                &amp;&amp; AssistantConstants.LEGACY_RESPONSE_PATH.equals(uri))
+            return responseLegacyAssistant(session);                     // legacy fallback
+        return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Not Found");
+    }
+    @Override
+    protected WebSocket openWebSocket(IHTTPSession handshake) {
+        return new AssistantWebSocket(appContext, handshake);            // /assistant-ws
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>assistant/server/AssistantWebSocket.java</code> — 프레임 타입 분기</div>
+<pre><code>switch (type) {
+    case AssistantConstants.TYPE_MOBILE_HELLO:
+        session.markHelloReceived();
+        AssistantVodSnapshotSender.sendLatestTo(session);   // VOD 스냅샷 전송 시도
+        break;
+    case AssistantConstants.TYPE_PING:  session.markHeartbeat(); sendJsonPong(); break;
+    case AssistantConstants.TYPE_PONG:  session.markHeartbeat(); break;
+    case AssistantConstants.TYPE_ASSISTANT_RESPONSE:
+        AssistantResponseDispatcher.dispatch(appContext, env); break;
+    case AssistantConstants.TYPE_ASSISTANT_PROGRESS:
+        AssistantProgressDispatcher.dispatch(appContext, env); break;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/server/StbRelayServer.java" target="_blank" rel="noopener">assistant/server/StbRelayServer.java</a><span class="src">8787 NanoWSD 릴레이 — /health, POST /assistant-response, WS /assistant-ws</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/server/AssistantWebSocket.java" target="_blank" rel="noopener">assistant/server/AssistantWebSocket.java</a><span class="src">WebSocket 인스턴스 — mobile_hello/ping/pong/assistant_response 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/session/MobileSession.java" target="_blank" rel="noopener">assistant/session/MobileSession.java</a><span class="src">단일 활성 모바일 세션 추적 — hello/heartbeat/send/close</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/discovery/StbDiscoveryAdvertiser.java" target="_blank" rel="noopener">assistant/discovery/StbDiscoveryAdvertiser.java</a><span class="src">NSD(mDNS) 광고 — _lwcompanion._tcp. :8787</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/AssistantConstants.java" target="_blank" rel="noopener">assistant/AssistantConstants.java</a><span class="src">프로토콜 상수 — PORT/경로/프레임·payload 타입</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f06.html">← 설정 · 마이페이지</a>
+      <a href="index.html#features">목록</a>
+      <a href="f08.html">STB 제어 명령 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feat/lw-voice-api</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">Skylife ATV EPG 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,453 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 — HCN Android EPG/런처 과제 문서 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HCN Android EPG · 런처 — 과제 설명</title>
+<style>
+:root{
+  --accent:#6f42c1;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">HCN (현대HCN)</span>
+      <span class="badge gray">Android TV (Leanback) STB</span>
+      <span class="badge gray">Java</span>
+    </div>
+    <h1>HCN Android EPG · 런처</h1>
+    <p class="one-liner">HCN(현대HCN) 케이블/위성 셋톱박스에서 동작하는 Android TV EPG 겸 홈 런처 애플리케이션으로, 라이브 방송 편성·시청, VOD, 녹화(PVR), 수신제한(CAS), 설정, 히든 메뉴, OTA 등 셋톱박스의 사용자 경험 전반을 담당합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/hcn_android" target="_blank" rel="noopener"><code>hcn_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2025-06-26 · 4ed452b7 feat(ver): v0.52.00</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>com.altimedia.android.tv.epg</code> / v_0.52.00</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>본 프로젝트는 HCN(현대HCN) 사업자향 Android TV 셋톱박스(STB)에서 동작하는 EPG(Electronic Program Guide) 겸 홈 런처 애플리케이션입니다. 라이브 방송 채널 편성표, 채널 시청(튜닝/재생), VOD, PVR(녹화), 설정, 히든 메뉴, RCU(리모컨) OTA 등 셋톱박스의 핵심 사용자 경험 전반을 담당합니다. 사내에서는 알티미디어의 클라우드 + EPG 서비스 제품군(코드명 Alaska)을 HCN에 제공하는 과제로 분류되며, EPG·TVCore·CAS는 알티미디어가, 클라우드 백엔드는 SKP가 담당하는 구도였습니다.</p>
+    <p>애플리케이션 ID는 <code>com.altimedia.android.tv.epg</code>이며, <code>AndroidManifest.xml</code>에서 <code>PlaybackActivity</code>를 <code>HOME</code> / <code>LAUNCHER</code> 카테고리(intent-filter priority 3)로 등록합니다. 단순 EPG가 아니라 STB의 기본 홈/런처 역할을 겸하며, Google TVLauncher(priority 2)보다 높은 우선순위로 동작하도록 설계되었습니다. 대상 플랫폼은 Android TV(Leanback) 기반 STB로, <code>android.software.live_tv</code> 하드웨어 기능을 필수로 요구하고 테마는 <code>Theme.Leanback</code>을 사용합니다.</p>
+    <p>대상 단말은 크게 두 갈래입니다. 이노피아테크 CMless(케이블 모뎀 미내장) Android 11 박스와 가온미디어 CM(케이블 모뎀 내장) Android 12 박스이며, 가온박스 AOS12를 감안해 <code>compileSdk 32</code> / <code>targetSdk 31</code>로 설정되어 있습니다. 케이블 방송 백엔드 연동(OOB/SDV/MGW), 가입자 상품 기반 채널 히든 처리, 자동 7일 재부팅, 스카이라이프 RCU 정합 등 사업자/제조사 특화 요구사항이 다수 반영되어 있습니다.</p>
+    <div class="callout">
+      <div class="ct">시스템 앱 전제</div>
+      <p style="margin:0">이 앱은 <code>WRITE_SECURE_SETTINGS</code>, <code>WRITE_EPG_DATA</code>, <code>signatureOrSystem</code> 권한과 제조사 네이티브 라이브러리(<code>libtauruscorerop</code>, <code>libtvclmediaplayer_jni</code>)를 사용하므로, 실제 동작은 시스템 이미지에 프리로드된 셋톱박스 환경을 전제로 합니다. 일반 단말에서의 전체 기능 실행은 제한적입니다(추정).</p>
+    </div>
+    <p>소스는 대부분 Java로 작성되어 있으며(Kotlin 파일 없음), app 모듈에만 약 442개의 Java 소스가 있고 도메인별 라이브러리 모듈 13여 개로 분리되어 있습니다. JCN(전 CJ헬로) 환경 설정(<code>dm_config_jcn_*.ini</code>) 및 <code>SITE = CJH</code> 흔적이 자산에 일부 남아 있어, CJ헬로비전 형상을 기반으로 HCN 향으로 분기·확장된 코드베이스임을 알 수 있습니다.</p>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">홈 런처 (HOME)</div><div class="d"><code>PlaybackActivity</code>를 기본 런처(intent priority 3)로 등록해 STB 부팅 시 홈 화면 역할을 합니다. 설치 앱 목록(<code>AppListActivity</code>, ALL_APPS) 진입을 제공합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">라이브 EPG · 채널 편성표</div><div class="d">채널/프로그램 데이터 모델과 TIF(TvInputFramework) 연동을 기반으로 편성표·미니EPG를 표시합니다(<code>epg-module</code>, <code>ui/fragment/miniepg</code>).</div></a>
+      <a class="card" href="f03.html"><div class="t">라이브 채널 재생 · 튜닝</div><div class="d">CSP 플레이어(<code>csp-module</code>)와 재생 매니저(<code>epg-module/playback.manager</code>)를 통해 채널 튜닝·전환과 영상 출력을 처리합니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">CAS 수신제한</div><div class="d">NDS JCAS 기반 수신제한을 처리합니다. 가입자 상품 정보를 수신해 채널 권한·OTP·핑거프린트(FingerPrint)·시청 가능 여부를 제어합니다(<code>cas-module</code>).</div></a>
+      <a class="card" href="f05.html"><div class="t">가입 상품별 채널 히든</div><div class="d">OOB(table id 85)로 내려오는 상품별 히든 채널 목록과 CAS 가입 상품을 매칭해 채널 리스트를 Rebuild하고 비가입 채널을 히든 처리합니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">VOD 재생</div><div class="d">Castis UMP 앱 연동으로 VOD를 재생합니다. HCN은 TSID 스캔 전체 목록과 SO Code를 전달하는 방식으로 정합되어 있으며, VOD 종료 시 기본 이동 채널 처리를 포함합니다.</div></a>
+      <a class="card" href="f07.html"><div class="t">PVR 녹화 · 예약</div><div class="d">녹화/예약, 예약 충돌 처리, 스토리지 관리를 담당합니다(<code>pvr-module</code>의 <code>PvrMain</code>, <code>PvrSessionManager</code>, <code>StorageManager</code>).</div></a>
+      <a class="card" href="f08.html"><div class="t">케이블 백엔드 연동 (OOB/SDV/MGW)</div><div class="d">OOB(Out-Of-Band) 데이터·다운로드 매니저, SDV(Switched Digital Video) 세션, MGW(Media Gateway) 메시지 송수신으로 케이블 방송 인프라와 연동합니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">설정 · 사용자 환경</div><div class="d">사용자 선호도(UP), 시스템 컨트롤러, PR(시청등급) 레벨, OTA 매니저 등 설정 도메인을 제공합니다(<code>setting-module</code>).</div></a>
+      <a class="card" href="f10.html"><div class="t">히든 / 제조사 메뉴</div><div class="d">엔지니어용 진단·정합 메뉴를 다수의 <code>FragmentSub*</code> 화면으로 제공합니다. MAP_ID 입력, WIFI Hotspot, 해상도 변경, SW 강제 다운로드 등이 포함됩니다(<code>hidden_menu-module</code>).</div></a>
+      <a class="card" href="f11.html"><div class="t">RCU OTA · 블루투스</div><div class="d">리얼텍 DFU 기반 리모컨 펌웨어 OTA 업데이트(<code>rcu_ota-module</code>)와 블루투스 리모컨/헤드셋 연결 관리(<code>bt/</code>)를 처리합니다.</div></a>
+      <a class="card" href="f12.html"><div class="t">음성 UX (VUX)</div><div class="d">음성 프롬프트·STT·음성 키 매핑을 처리하는 VUX 모듈과 외부 음성 클라이언트(<code>voiceclientlib-0.9.24</code> AAR)를 연동합니다(<code>vux-module</code>).</div></a>
+      <a class="card" href="f13.html"><div class="t">자동 재부팅 · 슬립 타이머</div><div class="d">HCN 7일 주기 자동 재부팅 시나리오와 슬립 타이머를 알람 리시버(<code>RebootAlarmReceiver</code>, <code>SleepTimerAlarmReceiver</code>)로 처리합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">외부 연동 · AIDL 서비스</div><div class="d"><code>IEpgService</code> 등 AIDL로 키즈랜드·스카이앨범 등 외부 앱에 EPG/계정 정보를 제공하고, 스카이라이프 오픈포털 인텐트(<code>com.skylife.intent.*</code>)를 수신합니다.</div></a>
+      <a class="card" href="f15.html"><div class="t">USB 재생 · 외부 저장소</div><div class="d">USB 미디어 검색·재생(<code>UsbPlayActivity</code>, <code>exteranlStorage/</code>)을 지원합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>루트는 단일 애플리케이션 모듈(<code>app</code>)과 도메인별 라이브러리 모듈(<code>com.android.library</code>)로 구성된 멀티 모듈 Gradle 프로젝트입니다. <code>app</code> 모듈이 UI·런처·재생 화면과 진입점을 담당하고, 케이블 방송/단말 기능은 각각 독립 모듈로 분리되어 있습니다.</p>
+    <pre class="tree">hcn_android/
+├── app/                  # 애플리케이션 모듈 (namespace: com.altimedia.android.tv.epg)
+│   └── src/main/java/com/altimedia/android/tv/epg/
+│       ├── ui/           # 화면·런처·재생 UI (activity, fragment, dialog, view, db, pip, standAlone)
+│       ├── boot/         # 부팅/초기화 (BootManager, Stb3PLManager)
+│       ├── bt/           # 블루투스(리모컨/헤드셋)
+│       ├── mgw/          # 미디어 게이트웨이 연동
+│       ├── notice/       # 알림(Notification Listener)
+│       ├── openportal/   # 스카이라이프/HCN 오픈포털 인텐트 수신
+│       ├── pvr/ rcu/ sdv/ search/ tts/ webview/ network/ util/
+│       └── exteranlStorage/  # 외부 저장소(USB 등)
+├── common-module/        # 공통 유틸·베이스 (BaseApplication, Config, Log, TvSingletons)
+├── epg-module/           # EPG 핵심: 채널/프로그램, TIF 연동, 재생 매니저
+├── setting-module/       # 사용자 설정·시스템 컨트롤러·OTA 매니저
+├── cas-module/           # CAS(수신제한) 처리
+├── csp-module/           # CS Player(미디어 플레이어, com.sk.csplayer) 연동
+├── pvr-module/           # PVR(녹화/예약) — com.altimedia.alaska.pvr
+├── sdv-module/           # SDV(Switched Digital Video)
+├── oob-module/           # OOB(Out-Of-Band) 데이터·다운로드 매니저
+├── mgw-module/           # MGW(Media Gateway) 연동
+├── rcu_ota-module/       # 리모컨(RCU) OTA — Realtek DFU
+├── vux-module/           # VUX(음성 UX)
+├── hidden_menu-module/   # 히든/제조사 메뉴 (FragmentSub*)
+├── standalone-module/    # 스탠드얼론 동작 모드
+├── voiceclientlib-0.9.24/# 음성 클라이언트 AAR (flatDir 의존성)
+├── etc/ (hcn.jks 서명키)  etc_cjhv/ (CJ헬로비전 리소스)
+├── versions.gradle  build.gradle  settings.gradle</pre>
+
+    <h3>주요 모듈 · 컴포넌트</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>모듈 / 클래스</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td>진입점</td><td><code>ui.EpgApplication</code></td><td><code>BaseApplication</code> 상속, <code>Window.Callback</code>·<code>TvSingletons</code> 구현. 앱 전역 컨텍스트, 포그라운드/백그라운드 상태, 5분 주기 EPG 재시작 체크, 메인 액티비티 참조 관리.</td></tr>
+          <tr><td>메인 화면 / 런처</td><td><code>ui.activity.PlaybackActivity</code></td><td>기본 런처(HOME)이자 라이브 재생·EPG·PVR/CAS/CSP 연동의 중심 화면. <code>singleTask</code>, landscape, 풀스크린.</td></tr>
+          <tr><td>화면</td><td><code>NavigationActivity</code> · <code>AppListActivity</code> · <code>UsbPlayActivity</code> · <code>ThirdPartyDcaManageActivity</code></td><td>네비게이션, 설치 앱 목록(ALL_APPS), USB 재생, 3rd-party DCA 관리.</td></tr>
+          <tr><td>부팅</td><td><code>boot.BootManager</code></td><td>부팅 시퀀스 오케스트레이션. 채널 초기화 → CAS 초기화 → OOB/DataManager 초기화 이벤트를 순차 통지(소스 확인).</td></tr>
+          <tr><td>리시버</td><td><code>RebootAlarmReceiver</code> · <code>SleepTimerAlarmReceiver</code> · <code>GlobalKeyReceiver</code> · <code>EPGHotKeyHandler</code></td><td>부팅 완료·재부팅/리셋 알람, 슬립 타이머, 글로벌 핫키·standby 필터, 패키지 정보·Netflix ESN 핫키 처리.</td></tr>
+          <tr><td>서비스</td><td><code>IEpgAIDLService</code> · <code>NDSJcasBaseApiService</code> · <code>VoiceableService</code> · <code>HcnNotificationListenerService</code></td><td>외부 EPG 정보 제공 AIDL, NDS JCAS 베이스 API, 음성 기능, 알림 리스너.</td></tr>
+          <tr><td>외부 연동</td><td><code>openportal.OpenPortalReceiver</code></td><td>스카이라이프/HCN 오픈포털 인텐트(<code>CH_APPS</code>, <code>DCAKEY</code>) 수신.</td></tr>
+          <tr><td>도메인</td><td><code>epg-module</code> / <code>cas-module</code> / <code>csp-module</code> / <code>pvr-module</code></td><td>EPG 채널·재생, 수신제한, 미디어 플레이어, 녹화/예약 핵심 로직.</td></tr>
+          <tr><td>백엔드 연동</td><td><code>sdv-module</code> / <code>oob-module</code> / <code>mgw-module</code></td><td>SDV 세션, OOB 데이터·다운로드 매니저, MGW 메시지 송수신.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>계층 · 외부 연동 관계</h3>
+    <p>UI/런처 계층(<code>app</code>)은 <code>common-module</code>의 공통 베이스·설정·로그 위에서 동작하며, <code>epg-module</code>을 통해 채널·프로그램·재생을 제어합니다. 재생은 <code>csp-module</code>(CS Player)와 제조사 네이티브 라이브러리로 연결되고, 권한·시청 제어는 <code>cas-module</code>(NDS JCAS, <code>jcasaidl.jar</code>)이 담당합니다. 케이블 인프라 쪽으로는 <code>oob-module</code>(편성·상품·다운로드 데이터), <code>sdv-module</code>(스위치드 비디오), <code>mgw-module</code>(미디어 게이트웨이)이 HTTP/섹션 필터로 백엔드와 통신합니다. 외부 앱과는 AIDL 서비스(<code>IEpgService</code>)와 인텐트(오픈포털, DCA, 스카이앨범 상품 조회 등)로 연동합니다.</p>
+    <div class="callout">
+      <div class="ct">사이트 분기</div>
+      <p style="margin:0">자산 설정(<code>config.ini</code>의 <code>SITE</code>, <code>dm_config_hcn_*.ini</code> / <code>dm_config_jcn_*.ini</code>)과 코드 내 <code>Config.isKaonSTb()</code> / <code>isTechniColorSTb()</code> 분기로 사업자·제조사·환경(LIVE/TESTBED/LAB)을 구분합니다. 가온·테크니컬러 등 제조사별 인텐트·키 정합 차이를 흡수하도록 설계되어 있습니다.</p>
+    </div>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>언어</td><td>Java</td><td>-</td><td>Kotlin 미사용. app 모듈 약 442개 Java 소스</td></tr>
+          <tr><td>플랫폼</td><td>Android TV (Leanback)</td><td>minSdk 30 / compileSdk 32 / targetSdk 31</td><td>가온박스 AOS12 감안해 targetSdk 31</td></tr>
+          <tr><td>빌드</td><td>Gradle + Android Gradle Plugin</td><td>AGP 7.3.1 / Wrapper 7.6</td><td>멀티 모듈, flavor <code>uhd</code> 단일 차원</td></tr>
+          <tr><td>UI</td><td>AndroidX Leanback / AppCompat / RecyclerView / ConstraintLayout / Preference</td><td>Leanback 1.1.0-rc02, AppCompat 1.4.2, RecyclerView 1.2.1, ConstraintLayout 2.1.4, Preference 1.2.0</td><td>DataBinding / ViewBinding 활성화</td></tr>
+          <tr><td>아키텍처 보조</td><td>AndroidX Lifecycle / MultiDex</td><td>Lifecycle 2.2.0, MultiDex 2.0.1</td><td>uhd flavor에 MultiDex 적용</td></tr>
+          <tr><td>네트워크/직렬화</td><td>Retrofit + Gson converter / Volley / Gson / gson-xml-java</td><td>Retrofit 2.9.0, Volley 1.2.1, Gson 2.10, gson-xml-java 0.1.7</td><td>Protobuf 3.19.1·gRPC 1.42.1은 versions.gradle 정의만 존재(미사용 추정)</td></tr>
+          <tr><td>비동기</td><td>RxJava3 + RxAndroid</td><td>RxJava 3.1.5, RxAndroid 3.0.2</td><td>재생/채널 처리 보조</td></tr>
+          <tr><td>이미지</td><td>Glide</td><td>4.13.0</td><td>채널 로고·썸네일</td></tr>
+          <tr><td>미디어/CAS</td><td>CSP Player(<code>com.sk.csplayer</code>) / NDS JCAS</td><td><code>jcasaidl.jar</code> 내장</td><td>AIDL 인터페이스(<code>src/main/aidl</code>)</td></tr>
+          <tr><td>음성</td><td>voiceclientlib</td><td>0.9.24 (AAR, flatDir)</td><td>VUX 모듈과 연동</td></tr>
+          <tr><td>단말 연동 라이브러리</td><td><code>libtauruswatchdog.jar</code> / <code>NAT-PMPlib.jar</code> / 네이티브 <code>libtauruscorerop</code>·<code>libtvclmediaplayer_jni</code></td><td>-</td><td>uses-native-library(AOS12), uhd flavor 의존</td></tr>
+          <tr><td>서명</td><td><code>etc/hcn.jks</code> (alias SkyHCN)</td><td>v2 서명</td><td>release/debug 모두 동일 키스토어로 서명</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout warn">
+      <div class="ct">참고</div>
+      <p style="margin:0">위 버전은 <code>versions.gradle</code> 선언값 기준이며, gRPC·Protobuf·Guava·LeakCanary 등 일부 항목은 정의만 되어 있고 app 모듈 의존성에서 주석 처리되어 실제로는 참조되지 않습니다.</p>
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+
+    <h3>부팅 · 초기화 시퀀스</h3>
+    <ol class="steps">
+      <li><span class="st">부트 이벤트 수신</span><span class="sd"><code>RebootAlarmReceiver</code>가 <code>BOOT_COMPLETED</code> / <code>LOCKED_BOOT_COMPLETED</code>를 수신하고, 런처 우선순위(priority 3)에 따라 <code>PlaybackActivity</code>가 홈으로 기동됩니다.</span></li>
+      <li><span class="st">채널 초기화</span><span class="sd"><code>BootManager</code>가 <code>BootChannelLoader</code>로 채널 데이터를 초기화하고 <code>EVENT_CHANNEL_INITIALIZED</code>를 통지합니다. Barker 채널 스크램블 여부에 대비해 CAS 사용 가능 여부를 확인합니다(소스 확인).</span></li>
+      <li><span class="st">CAS 초기화</span><span class="sd">CAS 클라이언트 초기화가 완료되면 <code>EVENT_CAS_INITIALIZED</code>를, 실패 시 <code>WHAT_CAS_NOT_WORKING</code>을 통지합니다. 가입자 상품·권한 정보를 확보합니다.</span></li>
+      <li><span class="st">OOB / DataManager 초기화</span><span class="sd">OOB 섹션 필터로 편성·상품·다운로드 데이터를 수신하면 <code>EVENT_DATA_MANAGER_INITIALIZED</code>를 통지합니다. 수신 실패 시 ER-01/ER-02 에러 팝업을 표시합니다(요구사항 확인).</span></li>
+      <li><span class="st">홈 진입 · 라이브 표시</span><span class="sd">초기화 완료 후 마지막 시청 채널(LCW/Active 기준)로 진입해 라이브 영상을 출력하고 EPG·미니바를 사용할 수 있게 됩니다.</span></li>
+    </ol>
+
+    <h3>채널 시청 · 가입 상품 히든 처리</h3>
+    <ol class="steps">
+      <li><span class="st">채널 선택</span><span class="sd">리모컨 채널 입력/전환 키 또는 EPG에서 채널을 선택하면 재생 매니저가 튜닝을 요청합니다.</span></li>
+      <li><span class="st">상품 매칭 · 히든 판정</span><span class="sd">OOB(table id 85)로 내려온 상품별 히든 채널 목록과 CAS 가입 상품을 매칭해, 비가입 채널은 채널 리스트 Rebuild 시 히든 처리됩니다.</span></li>
+      <li><span class="st">CAS 권한 확인 · 재생</span><span class="sd">CSP 플레이어가 튜닝하고 CAS가 스크램블 해제·시청 권한을 확인하면 영상이 출력됩니다. 권한이 없으면 가입 안내/제한 화면을 표시합니다.</span></li>
+    </ol>
+
+    <h3>VOD 재생 흐름</h3>
+    <ol class="steps">
+      <li><span class="st">VOD 진입</span><span class="sd">VOD 메뉴/딥링크에서 콘텐츠를 선택하면 EPG가 재생 파라미터를 구성합니다.</span></li>
+      <li><span class="st">UMP 연동 호출</span><span class="sd">HCN 정합에 따라 TSID 스캔 전체 목록과 SO Code(externalSoId)를 Castis UMP 앱으로 전달해 재생을 요청합니다.</span></li>
+      <li><span class="st">종료 · 채널 복귀</span><span class="sd">VOD 종료 시 기본 이동 채널 처리로 라이브 화면에 복귀합니다(최근 수정 이력 확인).</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>Gradle Wrapper(<code>gradlew</code>)를 사용합니다. 프로덕트 플레이버는 <code>uhd</code> 단일 차원이며, 빌드 타입은 debug / debug_TB / release / release_TB / release_OTA / release_3PL / release_3PL_TB로 구분됩니다. 따라서 빌드 variant는 <code>uhd</code> + 각 빌드 타입 조합으로 생성됩니다.</p>
+    <pre><code># 클린
+./gradlew clean
+
+# 디버그 빌드 (uhd 플레이버)
+./gradlew assembleUhdDebug
+
+# 릴리스 빌드
+./gradlew assembleUhdRelease
+
+# TB(테스트벤치) 릴리스
+./gradlew assembleUhdRelease_TB
+
+# OTA 릴리스
+./gradlew assembleUhdRelease_OTA
+
+# 3PL 릴리스
+./gradlew assembleUhdRelease_3PL</code></pre>
+    <ul>
+      <li>버전은 <code>app/version.properties</code>의 <code>VERSION_MAJOR/MINOR/PATCH</code>(현재 0/52/0)로부터 <code>app/version.gradle</code>에서 <code>versionCode</code>(=major×10000+minor×100+patch)와 <code>versionName</code>(<code>v_0.52.00</code>)을 계산합니다.</li>
+      <li>출력 APK명은 <code>EPG_ANDR_&lt;빌드일자(yyyyMMdd)&gt;_v_x.yy.zz&lt;빌드타입접미사&gt;.apk</code> 형식입니다(예: release_OTA → <code>_OTA_TB</code>, 3PL → <code>_3PL</code>).</li>
+      <li>모든 빌드 타입은 <code>etc/hcn.jks</code>(alias <code>SkyHCN</code>) 키스토어로 v2 서명됩니다(빌드 스크립트에 키 정보 하드코딩).</li>
+      <li><code>minifyEnabled false</code>로 난독화는 비활성화되어 있으나 <code>proguard-rules.pro</code>는 지정되어 있습니다.</li>
+      <li>환경 설정 자산은 <code>app/src/main/assets/config/</code>에 위치하며(<code>config.ini</code>, <code>dm_config_hcn_live.ini</code>/<code>_test.ini</code>, <code>dm_config_jcn_*.ini</code> 등) 사업자·환경별로 분기됩니다.</li>
+      <li>시스템 권한(WRITE_SECURE_SETTINGS, WRITE_EPG_DATA 등)과 제조사 네이티브 라이브러리에 의존하므로, 실제 실행은 STB 시스템 이미지 프리로드 환경을 전제로 합니다(추정).</li>
+    </ul>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>최근 작업은 버전 태깅 커밋(v0.44.00 ~ v0.52.00)을 따라 진행되며, 히든/제조사 메뉴(WIFI Hotspot, 채널 전환 aging), Zapple 설정, MGW SVC_CD, VOD 종료 채널 이동, 접근성 설정 시 HCN Launcher 동작, 7일 자동 재부팅 팝업, ANR/안정성 수정, APP 목록 제외 처리 등 운영 단계의 기능 보완·버그 수정이 이어지고 있습니다. 분석 기준 최신 커밋은 2025-06-26의 v0.52.00입니다.</p>
+    <ul class="commits">
+      <li><span class="date">2025-06-26</span><span class="msg">feat(ver): v0.52.00</span></li>
+      <li><span class="date">2025-06-26</span><span class="msg">feat(ver): v0.50.00</span></li>
+      <li><span class="date">2025-06-26</span><span class="msg">feat(app): Excluded app list 항목을 추가하여 APP 목록에서 제외되도록 처리</span></li>
+      <li><span class="date">2024-09-27</span><span class="msg">feat(ver): v0.49.00</span></li>
+      <li><span class="date">2024-09-27</span><span class="msg">fix(etc): Build gradle 정리</span></li>
+      <li><span class="date">2024-09-27</span><span class="msg">feat(hidden): Hidden Menu &gt; 제조사 메뉴 &gt; WIFI - Hotspot 메뉴 추가 및 OK키 시 구글 셋팅 Hotspot 페이지로 이동</span></li>
+      <li><span class="date">2024-04-25</span><span class="msg">feat(ver): v0.48.00</span></li>
+      <li><span class="date">2024-04-24</span><span class="msg">fix(zapple): Zapple 설정 시 같은 값 설정하려고 할 때 설정되지 않도록 수정</span></li>
+      <li><span class="date">2024-04-24</span><span class="msg">fix(log): log 변경</span></li>
+      <li><span class="date">2024-02-06</span><span class="msg">feat(ver): v0.47.00</span></li>
+      <li><span class="date">2024-02-06</span><span class="msg">feat(mgw): SVC_CD값 550 들어가도록 수정</span></li>
+      <li><span class="date">2023-12-21</span><span class="msg">fix(vod): [HCN_K1157_SAT_113] VOD 종료 시 이동되는 기본이동채널 관련</span></li>
+      <li><span class="date">2023-12-11</span><span class="msg">fix(setting): [HCN_K1157_SAT] 접근성 설정에서 HCN Launcher 사용으로 변경 시 오작동 관련</span></li>
+      <li><span class="date">2023-11-24</span><span class="msg">fix(biz): ANR 관련 수정</span></li>
+      <li><span class="date">2023-11-15</span><span class="msg">fix(stabilizer): [HCN_K1157_SAT3_84] 7일 자동재부팅 팝업 관련</span></li>
+      <li><span class="date">2023-11-13</span><span class="msg">fix(boot): [HCN_K1157_SAT3_106] "방송수신 상태가 고르지 않습니다" 알림이 사라지는 이슈</span></li>
+      <li><span class="date">2023-10-27</span><span class="msg">feat(ver): v0.46.00</span></li>
+      <li><span class="date">2023-10-27</span><span class="msg">fix(quiescent): 대기모드부팅 시 오류 수정</span></li>
+      <li><span class="date">2023-10-18</span><span class="msg">feat(ver): v0.45.00 / v0.44.00, fix(zapple) 동작 true 변경</span></li>
+      <li><span class="date">2023-10-16</span><span class="msg">fix(oob): [HCN_K1157_SAT3_105] 시청시간제한 IFRAME 변경 불가 이슈</span></li>
+    </ul>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li><code>/Users/lim/Altimedia/workspace_biz_3rd/hcn_android/README.md</code><span class="src">저장소 README — 과제 개요 1차 근거</span></li>
+      <li><code>app/src/main/AndroidManifest.xml</code> · <code>app/build.gradle</code> · <code>versions.gradle</code> · <code>settings.gradle</code><span class="src">소스 검증 — 컴포넌트·빌드·의존성</span></li>
+      <li><code>app/src/main/java/.../boot/BootManager.java</code> · <code>ui/EpgApplication.java</code><span class="src">소스 검증 — 부팅 시퀀스·진입점</span></li>
+      <li><code>app/src/main/assets/config/config.ini</code> (SITE/PHASE/OOB 설정)<span class="src">소스 검증 — 사이트·환경 분기</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3269592001">HCN android cloud (pageId 3269592001)</a><span class="src">Confluence (ORGAPPDEV) — 사업 맥락·개발 범위·요구사항</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3309895722">HCN 개발상세 (pageId 3309895722)</a><span class="src">Confluence (ORGAPPDEV) — 저장소·Jira(HCNADRCMLESS/HCNADRCM)·릴리스 정보</span></li>
+      <li>Repository: <code>git@bitbucket.org:altimedia/hcn_android.git</code> (브랜치 master)<span class="src">형상 정보</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

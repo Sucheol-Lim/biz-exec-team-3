@@ -1,0 +1,208 @@
+<!doctype html>
+<!-- kt_ford_aosp_podcast_app · 오디오 재생/컨트롤 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오디오 재생 / 컨트롤 — kt_ford_aosp_podcast_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford 차량용 팟캐스트 앱</a><span class="sep">›</span>
+      <span class="here">오디오 재생 / 컨트롤</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive · Java · ExoPlayer</span>
+    </div>
+    <h1>오디오 재생 / 컨트롤</h1>
+    <p class="one-liner"><code>PlayControlFragment</code>가 미디어 세션 트랜스포트로 재생·일시정지·이전/다음·시킹을 요청하면, <code>PodcastSessionCallback</code>이 받아 <code>PodcastExoplayerHelper</code>의 ExoPlayer를 구동하고 재생 상태를 다시 UI로 흘려보냅니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app" target="_blank" rel="noopener"><code>kt_ford_aosp_podcast_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop-exoplayer</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>PlayControlFragment</code> · <code>PodcastSessionCallback</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">MediaSession 트랜스포트 ↔ ExoPlayer</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>재생 컨트롤 화면(<code>PlayControlFragment</code>)은 직접 ExoPlayer를 다루지 않고, <code>MediaControllerCompat.getTransportControls()</code>를 통해 표준 미디어 세션 명령(<code>play</code>, <code>pause</code>, <code>skipToNext</code>, <code>skipToPrevious</code>, <code>seekTo</code>, <code>playFromMediaId</code>)만 전송합니다. 명령은 서비스의 <code>PodcastSessionCallback</code>으로 전달되며, 콜백은 각각 <code>PodcastExoplayerHelper</code>의 메서드(<code>start</code>/<code>pause</code>/<code>prepareNext</code>/<code>preparePrev</code>/<code>seekTo</code>/<code>startExoplayer</code>)를 호출합니다.</p>
+    <p>재생 상태 변화는 ExoPlayer 리스너(<code>PodcastExoplayerListener</code>)가 감지해 <code>updateSessionPlaybackState()</code>로 세션 <code>PlaybackState</code>를 갱신하고, 이는 <code>PodcastControllerCallback.onPlaybackStateChanged()</code> → <code>PodcastViewModel</code>의 LiveData로 흘러 화면의 재생/일시정지 버튼·진행바·이전/다음 버튼 활성화에 반영됩니다. 시킹은 시크바 터치 종료 시점(<code>onStopTrackingTouch</code>)에 계산된 위치로 <code>seekTo()</code>를 호출하며, 좌우 스와이프 제스처로도 이전/다음 에피소드 전환이 가능합니다.</p>
+    <div class="callout">
+      <div class="ct">상태 단방향 흐름</div>
+      UI는 "명령"만 보내고 "상태"는 LiveData로 받습니다. 버튼 이미지·진행바·시크바 활성화는 모두 <code>getPlaybackState().observe()</code> 안에서 <code>STATE_PLAYING</code>/<code>STATE_PAUSED</code>/<code>STATE_BUFFERING</code>/<code>STATE_ERROR</code>를 분기해 결정합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant PCF as PlayControlFragment
+    participant MC as MediaControllerCompat
+    participant CB as PodcastSessionCallback
+    participant EXO as PodcastExoplayerHelper
+    participant LST as PodcastExoplayerListener
+    participant VM as PodcastViewModel
+
+    PCF-&gt;&gt;MC: transportControls.play() / pause() / seekTo()
+    MC-&gt;&gt;CB: onPlay() / onPause() / onSeekTo(pos)
+    CB-&gt;&gt;EXO: start() / pause() / seekTo(pos)
+    EXO-&gt;&gt;EXO: ExoPlayer.prepare() · setPlayWhenReady
+    EXO--&gt;&gt;LST: onIsPlayingChanged / onPlaybackStateChanged
+    LST-&gt;&gt;EXO: updateSessionPlaybackState(STATE_PLAYING)
+    EXO-&gt;&gt;MC: session.setPlaybackState(...)
+    MC--&gt;&gt;VM: onPlaybackStateChanged → setPlaybackState
+    VM--&gt;&gt;PCF: playbackState.observe() → 버튼/진행바 갱신
+
+    Note over PCF,CB: 다음 에피소드
+    PCF-&gt;&gt;MC: transportControls.skipToNext()
+    MC-&gt;&gt;CB: onSkipToNext()
+    CB-&gt;&gt;EXO: prepareNext() → seekToNextMediaItem()
+      </div>
+      <p class="cap"><strong>흐름.</strong> UI 명령 → 세션 콜백 → ExoPlayer 구동, 그리고 ExoPlayer 상태 → 세션 → LiveData → UI로 되돌아오는 양방향 루프입니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class PlayControlFragment {
+        -int currentPlayingIndex
+        +onViewCreated(view, state)
+        -handleClickEvent()
+        -nextPlayEpisode()
+        -prevPlayEpisode()
+        -updateProgress()
+    }
+    class PodcastSessionCallback {
+        +onPlay()
+        +onPause()
+        +onSkipToNext()
+        +onSkipToPrevious()
+        +onSeekTo(pos)
+        +onPlayFromMediaId(mediaId, extras)
+    }
+    class PodcastExoplayerHelper {
+        -ExoPlayer exoPlayer
+        +startExoplayer(list, index)
+        +start()
+        +pause()
+        +prepareNext()
+        +preparePrev()
+        +seekTo(pos)
+        +updateSessionPlaybackState(state)
+    }
+    class PodcastExoplayerListener {
+        +onIsPlayingChanged(isPlaying)
+        +onPlaybackStateChanged(state)
+        +onPlayerError(error)
+    }
+    class MediaSessionCompat_Callback {
+        &lt;&lt;abstract&gt;&gt;
+    }
+    class Player_Listener {
+        &lt;&lt;interface&gt;&gt;
+    }
+
+    PodcastSessionCallback --|&gt; MediaSessionCompat_Callback
+    PodcastExoplayerListener ..|&gt; Player_Listener
+    PlayControlFragment --&gt; PodcastSessionCallback : transportControls 경유
+    PodcastSessionCallback --&gt; PodcastExoplayerHelper : 재생 제어 위임
+    PodcastExoplayerHelper o-- PodcastExoplayerListener : ExoPlayer 리스너
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>PodcastSessionCallback</code>(세션 콜백)이 UI 명령을 받아 <code>PodcastExoplayerHelper</code>로 위임하고, <code>PodcastExoplayerListener</code>가 ExoPlayer 이벤트를 세션 상태로 되먹입니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>media/PodcastSessionCallback.java</code> — 세션 트랜스포트 명령 → ExoPlayer 위임</div>
+<pre><code>@Override
+public void onPlay() {
+    podcastPlayerHelper.start();
+    podcastPlayerHelper.setPlayerState(PodcastExoplayerHelper.PlayerState.PLAY_STATE_PLAYING);
+}
+
+@Override
+public void onSkipToNext() {
+    podcastPlayerHelper.setHelperPlayWhenReady(true);
+    podcastPlayerHelper.prepareNext();
+}
+
+@Override
+public void onSeekTo(long pos) {
+    super.onSeekTo(pos);
+    podcastPlayerHelper.seekTo(pos);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/PlayControlFragment.java</code> — 시크바 종료 시점에 seekTo 전송</div>
+<pre><code>@Override
+public void onStopTrackingTouch(SeekBar seekBar) {
+    isTracking = false;
+    MediaControllerCompat.getMediaController(requireActivity())
+            .getTransportControls().seekTo(seekPosition);
+    startProgress();
+    binding.imageSeekDim.setVisibility(View.GONE);
+    binding.textSeekTime.setVisibility(View.GONE);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/java/com/altimedia/automotive/kt/service/podcast/ui/PlayControlFragment.java" target="_blank" rel="noopener">ui/PlayControlFragment.java</a><span class="src">재생 컨트롤 UI · 트랜스포트 명령 · 시크바 · 스와이프</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/PodcastSessionCallback.java" target="_blank" rel="noopener">media/PodcastSessionCallback.java</a><span class="src">MediaSession 콜백 · onPlay/onPause/onSkip/onSeekTo</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/PodcastExoplayerHelper.java" target="_blank" rel="noopener">media/PodcastExoplayerHelper.java</a><span class="src">ExoPlayer 구성·재생 제어·세션 상태 갱신</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/PodcastExoplayerListener.java" target="_blank" rel="noopener">media/PodcastExoplayerListener.java</a><span class="src">ExoPlayer 이벤트 → 세션 PlaybackState 반영</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/java/com/altimedia/automotive/kt/service/podcast/media/PodcastControllerCallback.java" target="_blank" rel="noopener">media/PodcastControllerCallback.java</a><span class="src">세션 상태 → ViewModel LiveData 전달</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">← 채널 에피소드 목록</a>
+      <a href="f04.html">재생 목록 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop-exoplayer</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_podcast_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!doctype html>
+<!-- remote_solution · 스플래시 진입 흐름 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스플래시 진입 흐름 — remote_solution 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Remote Solution PoC App</a><span class="sep">›</span>
+      <span class="here">스플래시 진입 흐름</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Altimedia PoC</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Kotlin</span>
+    </div>
+    <h1>스플래시 진입 흐름</h1>
+    <p class="one-liner">단일 네비게이션 그래프(<code>nav_graph_main.xml</code>)의 시작 지점인 splash에서 home으로 전환합니다. <code>SplashFragment</code>/<code>SplashViewModel</code>이 담당합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/remote_solution" target="_blank" rel="noopener"><code>remote_solution</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>SplashFragment</code> · <code>SplashViewModel</code></div></div>
+      <div class="item"><div class="k">시작 목적지</div><div class="v"><code>nav_graph_main.xml @id/splash</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>앱은 단일 Activity + 단일 네비게이션 그래프 구조입니다. <code>nav_graph_main.xml</code>의 <code>startDestination</code>이 <code>@id/splash</code>이므로 진입 시 항상 <code>SplashFragment</code>가 먼저 뜹니다. 그래프에는 splash → home, home → player(VOD), home → liveTv 액션이 정의되어 있습니다.</p>
+    <p><code>SplashViewModel</code>은 <code>init</code> 블록에서 3초(<code>delay(3000)</code>) 뒤 <code>MutableSharedFlow</code>(<code>replay = 1</code>)에 전환 이벤트를 한 번 방출합니다. <code>SplashFragment</code>는 <code>flowWithLifecycle</code>로 이 이벤트를 구독하고, 현재 목적지가 여전히 splash일 때만 <code>action_splash_to_home</code>으로 내비게이션합니다.</p>
+    <p>splash → home 액션에는 <code>popUpTo="@id/splash"</code> + <code>popUpToInclusive="true"</code>가 걸려 있어, 홈으로 넘어가면서 백스택에서 splash가 제거됩니다. 따라서 홈에서 뒤로가기를 눌러도 스플래시로 돌아오지 않습니다. 화면 전환에는 enter/exit 애니메이션(<code>anim_enter</code>/<code>anim_exit</code>)이 적용됩니다.</p>
+    <div class="callout">
+      <div class="ct">replay = 1 의 이유</div>
+      이벤트를 <code>MutableSharedFlow(replay = 1)</code>로 둬, 화면 회전 등으로 구독이 늦게 시작돼도 마지막 전환 이벤트를 받아 home 전환을 보장합니다. 동시에 "현재 목적지가 splash일 때만 navigate"하는 가드로 중복 전환을 방지합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant NAV as nav_graph_main (startDestination)
+    participant SF as SplashFragment
+    participant SVM as SplashViewModel
+    participant NC as NavController
+
+    NAV-&gt;&gt;SF: splash 진입 (시작 목적지)
+    SF-&gt;&gt;SVM: navigationEvent 구독
+    SVM-&gt;&gt;SVM: init { delay(3000) }
+    SVM--&gt;&gt;SF: emit(Unit) (replay=1)
+    SF-&gt;&gt;NC: currentDestination == splash 확인
+    SF-&gt;&gt;NC: navigate(action_splash_to_home)
+    Note over NC: popUpTo splash inclusive → 백스택 제거
+      </div>
+      <p class="cap"><strong>흐름.</strong> 시작 목적지 splash 진입 → ViewModel이 3초 후 이벤트 방출 → 현재 목적지 가드 확인 후 home으로 전환하며 splash를 백스택에서 제거.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class SplashFragment {
+        +onViewCreated()
+    }
+    class SplashViewModel {
+        -MutableSharedFlow~Unit~ _navigationEvent
+        +SharedFlow~Unit~ navigationEvent
+    }
+    class TvFragment~VB~ {
+        &lt;&lt;abstract&gt;&gt;
+    }
+    class NavController {
+        +navigate(actionId)
+        +currentDestination
+    }
+
+    SplashFragment --|&gt; TvFragment~VB~
+    SplashFragment --&gt; SplashViewModel : viewModels()
+    SplashFragment --&gt; NavController : action_splash_to_home
+    SplashViewModel ..&gt; SplashFragment : navigationEvent 방출
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>SplashFragment</code>가 <code>SplashViewModel</code>의 <code>navigationEvent</code>를 구독해 <code>NavController</code>로 home 전환을 수행합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/splash/SplashViewModel.kt</code> — 3초 후 전환 이벤트 방출</div>
+<pre><code>class SplashViewModel : ViewModel() {
+    private val _navigationEvent = MutableSharedFlow&lt;Unit&gt;(replay = 1)
+    val navigationEvent = _navigationEvent.asSharedFlow()
+
+    init {
+        viewModelScope.launch {
+            delay(3000)
+            _navigationEvent.emit(Unit)
+        }
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/splash/SplashFragment.kt</code> — 가드 후 home 전환</div>
+<pre><code>viewModel.navigationEvent
+    .flowWithLifecycle(viewLifecycleOwner.lifecycle, Lifecycle.State.STARTED)
+    .onEach { event -&gt;
+        if (findNavController().currentDestination?.id == R.id.splash) {
+            findNavController().navigate(R.id.action_splash_to_home)
+        }
+    }
+    .launchIn(viewLifecycleOwner.lifecycleScope)</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/ui/splash/SplashFragment.kt" target="_blank" rel="noopener">ui/splash/SplashFragment.kt</a><span class="src">navigationEvent 구독 · 목적지 가드 후 action_splash_to_home 내비게이션</span></li>
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/ui/splash/SplashViewModel.kt" target="_blank" rel="noopener">ui/splash/SplashViewModel.kt</a><span class="src">3초 delay 후 SharedFlow(replay=1) 전환 이벤트 방출</span></li>
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/res/navigation/nav_graph_main.xml" target="_blank" rel="noopener">res/navigation/nav_graph_main.xml</a><span class="src">단일 네비 그래프 · startDestination=splash · splash→home popUpToInclusive</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f11.html">← TV 포커스 네비게이션</a>
+      <a href="f13.html">GIF 썸네일 로딩 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">remote_solution 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

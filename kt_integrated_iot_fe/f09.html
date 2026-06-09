@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- kt_integrated_iot_fe · AI 에이전트 대화 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 에이전트 대화 — kt_integrated_iot_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT 통합 IoT 관제 FE</a><span class="sep">›</span>
+      <span class="here">AI 에이전트 대화</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관제 콘솔 (React SPA)</span>
+    </div>
+    <h1>AI 에이전트 대화</h1>
+    <p class="one-liner"><code>aiagent</code> 모달에서 스레드·메시지 기반 대화를 제공합니다. WebSocket의 <code>threadId</code>·<code>isActiveAgent</code> 판별로 에이전트 응답을 관제 이벤트와 분리해 수신합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>modal/aiagent</code> · <code>api/aiAgent.ts</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">스레드/메시지 · WebSocket 라우팅</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>AI 에이전트 모달(<code>modal/aiagent/index.tsx</code>)은 드래그·리사이즈 가능한 플로팅 다이얼로그입니다. 좌측 <code>Thread</code> 패널에서 대화 스레드를 선택·추가·삭제하고, 우측 <code>Message</code> 영역에서 대화 내용을 주고받습니다. 스레드 목록은 <code>aiAgentApi.getThreads()</code>로 조회하고, 새 스레드는 <code>regiestThread('USER')</code>, 삭제는 <code>deleteThread(threadId)</code>로 처리합니다.</p>
+    <p>메시지 전송은 <code>aiAgentApi.request(threadId, message)</code>로 이뤄지며, 성공 응답을 메시지 목록에 추가합니다. 최초 질의 후 서버가 스레드 제목을 부여하면(<code>data.threadName</code>) 스레드 목록을 갱신합니다. 스레드 전환 시 <code>getMessages(threadId)</code>로 기존 대화를 불러와 역순 정렬해 표시합니다.</p>
+    <p>에이전트의 실시간 응답은 전역 <code>WebSocketProvider</code>를 통해 들어옵니다. 수신 메시지에 <code>threadId</code>가 있고 에이전트가 활성(<code>isActiveAgent</code>)인 경우에만 <code>setLastMessage</code>로 라우팅되어, 관제 이벤트(<code>lastEvent</code>)와 채널을 공유하면서도 분리 수신됩니다. <code>setActiveAgent</code>로 에이전트 모달의 활성 상태를 알립니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      에이전트 응답과 관제 이벤트가 같은 STOMP 큐로 들어오므로, <code>threadId</code> 존재 여부와 <code>isActiveAgent</code> 플래그를 함께 검사해 두 흐름을 안전하게 갈라냅니다(기능 04 참고).
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as AiAgent 모달
+    participant API as aiAgentApi
+    participant WS as WebSocketProvider
+
+    UI-&gt;&gt;API: getThreads()
+    API--&gt;&gt;UI: 스레드 목록
+    UI-&gt;&gt;UI: setActiveAgent(true)
+    UI-&gt;&gt;API: request(threadId, message)
+    API--&gt;&gt;UI: 응답(messages 추가)
+    Note over WS: 같은 STOMP 큐로 비동기 응답 도착
+    WS-&gt;&gt;WS: stompData.threadId &amp;&amp; isActiveAgent ?
+    alt 에이전트 응답
+        WS-&gt;&gt;UI: setLastMessage (lastMessage 구독 반영)
+    else 관제 이벤트
+        WS-&gt;&gt;WS: setLastEvent (다른 화면)
+    end
+    UI-&gt;&gt;API: getMessages(threadId) (스레드 전환 시)
+    API--&gt;&gt;UI: 이전 대화(역순 표시)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 모달이 스레드/메시지를 REST로 관리하고, 에이전트 실시간 응답은 WebSocket의 <code>threadId</code>·<code>isActiveAgent</code> 판별로 분리 수신됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class AiAgent {
+        -currThreadId
+        -messages
+        -title
+        +addThread()
+        +closeThread()
+        +send()
+        +resetMessages()
+    }
+    class Thread {
+        +threadList
+        +chageThread(id)
+        +addThread()
+    }
+    class Message {
+        +messages
+    }
+    class aiAgentApi {
+        +getThreads()
+        +regiestThread(origin)
+        +deleteThread(id)
+        +getMessages(id)
+        +request(id, message)
+    }
+    class WebSocketProvider {
+        +lastMessage
+        +setActiveAgent(bool)
+    }
+
+    AiAgent o-- Thread : 스레드 패널
+    AiAgent o-- Message : 메시지 영역
+    AiAgent ..&gt; aiAgentApi : 스레드/메시지 CRUD
+    AiAgent ..&gt; WebSocketProvider : 실시간 응답 수신
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>AiAgent</code> 모달이 <code>Thread</code>·<code>Message</code> 하위 컴포넌트를 조합하고, REST(<code>aiAgentApi</code>)와 WebSocket(<code>lastMessage</code>)을 함께 사용합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/api/aiAgent.ts</code> — 스레드·메시지 엔드포인트</div>
+<pre><code>export const aiAgentApi = {
+  getThreads: () =&gt; apiClient.get('/bff/monitor/threads', { params: { page: 0, size: MAX_DATA_ROW } }).then((r) =&gt; r.data),
+  regiestThread: (origin: string, threadId?: string) =&gt;
+    apiClient.post('/bff/monitor/threads', { origin, threadId }).then((r) =&gt; r.data),
+  deleteThread: (threadId: string) =&gt; apiClient.delete(`/bff/monitor/threads/${threadId}`).then((r) =&gt; r.data),
+  getMessages: (threadId: string) =&gt; apiClient.get(`/bff/monitor/threads/${threadId}/messages`, { params: { page: 0, size: MAX_DATA_ROW } }).then((r) =&gt; r.data),
+  request: (threadId: string, message: string) =&gt;
+    apiClient.post(`/bff/monitor/threads/${threadId}/messages`, { message }).then((r) =&gt; r.data),
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/contexts/WebSocketProvider.tsx</code> — 에이전트 응답 분리 수신</div>
+<pre><code>if (stompData.threadId &amp;&amp; isActiveAgent) {
+  setLastMessage(stompData);   // AI 에이전트 응답만 모달로
+} else if (stompData) {
+  setLastEvent(stompData);     // 그 외 관제 이벤트
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modal/aiagent/index.tsx" target="_blank" rel="noopener">src/modal/aiagent/index.tsx</a><span class="src">에이전트 모달 · 스레드/메시지 상태 · 전송·삭제</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modal/aiagent/Thread.tsx" target="_blank" rel="noopener">src/modal/aiagent/Thread.tsx</a><span class="src">대화 스레드 목록·선택·추가</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modal/aiagent/Message.tsx" target="_blank" rel="noopener">src/modal/aiagent/Message.tsx</a><span class="src">대화 메시지 렌더</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/aiAgent.ts" target="_blank" rel="noopener">src/api/aiAgent.ts</a><span class="src">threads/messages REST API</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/contexts/WebSocketProvider.tsx" target="_blank" rel="noopener">src/contexts/WebSocketProvider.tsx</a><span class="src">threadId·isActiveAgent 기반 응답 라우팅</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f08.html">SMS 발송 및 알림 설정</a>
+      <a href="f10.html">게시판·자료실·문의 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_integrated_iot_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

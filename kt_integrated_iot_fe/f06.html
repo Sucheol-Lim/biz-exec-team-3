@@ -1,0 +1,178 @@
+<!doctype html>
+<!-- kt_integrated_iot_fe · 이력 조회·다운로드 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>이력 조회 — kt_integrated_iot_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT 통합 IoT 관제 FE</a><span class="sep">›</span>
+      <span class="here">이력 조회</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관제 콘솔 (React SPA)</span>
+    </div>
+    <h1>이력 조회</h1>
+    <p class="one-liner">이벤트 발생 이력, 디바이스 제어·등록/삭제 이력, 문자 발송 이력 등을 조회하고, <code>downloadFileFromResponse</code>가 Content-Disposition 헤더를 해석해 CSV 등 파일로 저장합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/history</code> · <code>ApiClient.downloadFileFromResponse</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">사이트별 이력 화면 분기</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>이력 화면(<code>pages/history/HistoryMain.tsx</code>)은 세션 <code>site.code</code>로 SafeMate 4종 등 사이트별 이력 컴포넌트(<code>HistoryFire</code>, <code>HistoryBell</code>, <code>HistoryMonitor</code>, <code>HistoryRoof</code>)를 분기 렌더합니다. 각 이력 화면은 기간·서비스대상·검색어 등 필터를 받아 도메인 API로 페이지네이션 조회를 수행합니다. 이벤트 발생 이력은 <code>logEventApi.eventList()</code> 같은 로그 엔드포인트로 가져오고, 디바이스 제어/등록/삭제 이력과 문자 발송 이력도 각 도메인 모듈에서 제공합니다.</p>
+    <p>조회된 이력은 테이블로 렌더링되며, 다운로드 버튼은 <code>responseType: 'blob'</code>으로 요청한 응답을 <code>downloadFileFromResponse</code>에 넘깁니다. 이 함수는 응답의 <code>content-disposition</code> 헤더에서 <code>filename*=UTF-8''</code> 또는 <code>filename="..."</code> 패턴을 정규식으로 파싱해 실제 파일명을 추출하고, 없으면 fallback 파일명을 사용합니다.</p>
+    <p>추출된 파일명으로 임시 <code>a</code> 엘리먼트를 만들어 <code>URL.createObjectURL</code> 링크를 클릭시킨 뒤, 즉시 제거하고 <code>revokeObjectURL</code>로 자원을 해제합니다. 즉 별도 다운로드 라이브러리 없이 브라우저 기본 동작으로 파일을 저장합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      파일명 한글이 깨지지 않도록 <code>filename*=UTF-8''</code>(RFC 5987) 형태를 우선 매칭합니다. 다운로드 결과 자체에는 공통 에러 다이얼로그를 띄우지 않도록 호출부에서 <code>skipError</code>를 함께 쓰기도 합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant H as HistoryMain
+    participant Page as 사이트별 이력 화면
+    participant RQ as React Query
+    participant API as 도메인/logEvent API
+    participant DL as downloadFileFromResponse
+    participant Browser as 브라우저
+
+    H-&gt;&gt;Page: site.code 로 이력 컴포넌트 선택
+    Page-&gt;&gt;RQ: useQuery(필터: 기간/대상/검색)
+    RQ-&gt;&gt;API: GET 이력(page,size)
+    API--&gt;&gt;Page: 이력 rows
+    Page--&gt;&gt;H: 테이블 렌더
+    opt 다운로드
+        Page-&gt;&gt;API: GET 이력(responseType blob)
+        API--&gt;&gt;DL: AxiosResponse(Blob, content-disposition)
+        DL-&gt;&gt;DL: filename 정규식 파싱
+        DL-&gt;&gt;Browser: a.click() → 파일 저장 → revokeObjectURL
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 사이트별 이력 화면이 필터로 이력을 조회·표시하고, 다운로드 시 Blob 응답의 Content-Disposition을 파싱해 파일로 저장합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class HistoryMain {
+        -site
+        +SitePage(code) Element
+    }
+    class SiteHistory {
+        -filters
+        +useQuery() rows
+        +download()
+    }
+    class logEventApi {
+        +eventList(serviceTargetId)
+        +eventLevel()
+    }
+    class ApiClient {
+        +downloadFileFromResponse(res, fallback)
+    }
+
+    HistoryMain --&gt; SiteHistory : site.code 분기
+    SiteHistory ..&gt; logEventApi : 이벤트 이력 조회
+    SiteHistory ..&gt; ApiClient : Blob 다운로드
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>HistoryMain</code>이 사이트별 이력 화면으로 분기하고, 각 화면은 로그/도메인 API로 조회하며 다운로드는 공통 <code>downloadFileFromResponse</code>를 사용합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/api/ApiClient.ts</code> — Content-Disposition 기반 파일 저장</div>
+<pre><code>export function downloadFileFromResponse(res: AxiosResponse&lt;Blob&gt;, fallbackFileName = 'download.csv') {
+  const blob = new Blob([res.data], { type: res.headers['content-type'] });
+  const url = URL.createObjectURL(blob);
+  const disposition = res.headers['content-disposition'];
+  const fileName =
+    disposition
+      ?.match(/filename\*=UTF-8''([^;]+)|filename="([^"]+)"/)
+      ?.slice(1).find(Boolean) ?? fallbackFileName;
+  const link = document.createElement('a');
+  link.href = url; link.download = fileName;
+  document.body.appendChild(link); link.click();
+  link.remove(); URL.revokeObjectURL(url);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/history/HistoryMain.tsx</code> — 사이트별 이력 화면 분기</div>
+<pre><code>const SitePage = ({ code }: SitePageProp) =&gt; {
+  switch (code) {
+    case SITE_CODES.FIRE_DETECTOR:  return &lt;HistoryFire /&gt;;
+    case SITE_CODES.EMERGENCY_BELL: return &lt;HistoryBell /&gt;;
+    case SITE_CODES.FIRE_MONITORING: return &lt;HistoryMonitor /&gt;;
+    case SITE_CODES.EMERGENCY_DOOR: return &lt;HistoryRoof /&gt;;
+  }
+  return &lt;&gt;&lt;/&gt;;
+};</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/history/HistoryMain.tsx" target="_blank" rel="noopener">src/pages/history/HistoryMain.tsx</a><span class="src">site.code 기반 사이트별 이력 화면 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/ApiClient.ts" target="_blank" rel="noopener">src/api/ApiClient.ts</a><span class="src">downloadFileFromResponse · Content-Disposition 파일명 파싱</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/logEvent.ts" target="_blank" rel="noopener">src/api/logEvent.ts</a><span class="src">이벤트 발생/레벨 로그 조회</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/DownloadButton.tsx" target="_blank" rel="noopener">src/components/DownloadButton.tsx</a><span class="src">다운로드 트리거 공통 버튼</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f05.html">통계 요약·분석</a>
+      <a href="f07.html">디바이스·서비스대상·구역 관리 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_integrated_iot_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_shortform · 인증·세션 관리 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>인증·세션 관리 — kt_magic_platform_ai_shortform 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 지니숏츠 (AI 숏폼 플랫폼)</a><span class="sep">›</span>
+      <span class="here">인증·세션 관리</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">데스크톱 웹 (Vue 3 SPA) · JavaScript</span>
+    </div>
+    <h1>인증·세션 관리</h1>
+    <p class="one-liner">axios 인터셉터가 모든 요청에 Bearer 토큰을 주입하고, <code>4010</code> 응답 시 토큰 재발급·재시도, <code>4011</code> 시 로그인 페이지 이동을 처리합니다. 무활동 시 로그아웃되는 세션 타이머를 운용합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform" target="_blank" rel="noopener"><code>kt_magic_platform_ai_shortform</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 파일</div><div class="v"><code>api/index.js</code> · <code>stores/auth.js</code></div></div>
+      <div class="item"><div class="k">세션 타이머</div><div class="v"><code>LoginSessionTimer(300)</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>인증은 axios 인스턴스 인터셉터(<code>api/index.js</code>)와 인증 스토어(<code>stores/auth.js</code>)로 구성됩니다. 요청 인터셉터는 매 요청에 <code>config.headers.Authorization = `Bearer ${token}`</code>를 주입하고, 응답 인터셉터는 비-2XX 응답에서 <code>resultCode</code>를 분기합니다. <code>4010</code>(토큰 만료)이면 <code>api.auth.reissueToken()</code>으로 재발급한 토큰을 저장하고 원요청(<code>config</code>)을 재시도하며, <code>4011</code>(세션 만료)이면 <code>moveLoginPage()</code>로 스토어를 비우고 로그인 페이지로 이동합니다.</p>
+    <p>네트워크·5xx 오류에는 <code>axios-retry</code>가 최대 2회(지연 1초) 재시도합니다. 재시도 조건은 <code>isRetryableError</code>이거나 <code>status &gt;= 500</code>, 또는 응답이 없는 경우입니다.</p>
+    <p>세션 스토어는 <code>sessionStorage</code>의 <code>ak</code>(토큰)·<code>user</code>로 로그인 상태를 유지합니다. <code>login()</code>은 로그인 사용자 존재를 확인하고 <code>LoginSessionTimer(300, { timeout: logout })</code>를 시작해 무활동을 감시하며, 타임아웃 시 <code>logout()</code>이 서버 로그아웃 후 스토리지를 비우고 <code>/login</code>으로 이동합니다. 토큰 갱신은 <code>setToken()</code>이 처리합니다.</p>
+    <div class="callout warn">
+      <div class="ct">근거 메모 — 디버깅용 코드</div>
+      <code>auth.js</code>의 <code>ensureSafariCookies()</code>는 Safari 쿠키 처리를 위해 작성됐으나 현재 <code>if (true || isSafari)</code>로 항상 실행되고, 주석에 "삭제해야함 - 디버깅용"이 명시되어 있습니다. 임시 refresh token을 클라이언트에서 생성하는 부분이 있어 운영 반영 전 정리가 필요한 디버깅 잔재로 보입니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant C as 화면/스토어
+    participant REQ as axios 요청 인터셉터
+    participant SVR as 서버
+    participant RES as axios 응답 인터셉터
+    participant AUTH as api.auth / authStore
+
+    C-&gt;&gt;REQ: API 호출
+    REQ-&gt;&gt;SVR: Authorization Bearer token 주입 후 전송
+    SVR--&gt;&gt;RES: 응답 (resultCode)
+    alt resultCode 4010 (토큰 만료)
+        RES-&gt;&gt;AUTH: reissueToken()
+        AUTH--&gt;&gt;RES: accessToken
+        RES-&gt;&gt;SVR: 원요청 재시도 (instance.request(config))
+    else resultCode 4011 (세션 만료)
+        RES-&gt;&gt;AUTH: moveLoginPage() → clearStore + /login
+    else 네트워크/5xx
+        RES-&gt;&gt;SVR: axios-retry 최대 2회 재시도
+    end
+    Note over AUTH: 무활동 시 LoginSessionTimer(300) → logout
+      </div>
+      <p class="cap"><strong>흐름.</strong> 요청마다 Bearer 토큰을 주입하고, 응답 코드에 따라 재발급·재시도(4010), 로그인 이동(4011), 5xx 재시도를 처리하며 세션 타이머로 무활동을 감시합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class apiIndex {
+        +request
+        +setInterceptor(instance)
+        +moveLoginPage()
+    }
+    class useAuthStore {
+        +token
+        +loginUser
+        +login()
+        +logout()
+        +setToken()
+        +clearStore()
+        +ensureSafariCookies()
+    }
+    class authApi {
+        +reissueToken()
+        +logout(token)
+    }
+    class LoginSessionTimer {
+        +start()
+        +restart()
+        +timeout 콜백
+    }
+
+    apiIndex --&gt; useAuthStore : 토큰 read/write
+    apiIndex --&gt; authApi : reissueToken (4010)
+    useAuthStore --&gt; authApi : logout
+    useAuthStore o-- LoginSessionTimer : 무활동 감시
+      </div>
+      <p class="cap"><strong>관계.</strong> 인터셉터가 인증 스토어의 토큰을 읽고 갱신하며 <code>reissueToken</code>으로 재발급하고, 스토어는 <code>LoginSessionTimer</code>를 소유해 무활동 로그아웃을 처리합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>user/src/api/index.js</code> — Bearer 주입 · 4010/4011 분기 · 재시도</div>
+<pre><code>instance.interceptors.request.use(config =&gt; {
+  const token = useAuthStore().token
+  config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+instance.interceptors.response.use(r =&gt; r, async error =&gt; {
+  const { config, response } = error
+  const resultCode = response?.data?.resultCode
+  if (resultCode === 4010) {                                  // 토큰 만료 → 재발급·재시도
+    const { data: { accessToken, resultCode } } = await api.auth.reissueToken()
+    if (resultCode === 4011) { moveLoginPage(); return }
+    useAuthStore().setToken(accessToken)
+    return instance.request(config)
+  }
+  if (resultCode === 4011) { /* 재발급 시도 후 실패면 moveLoginPage() */ }
+  throw error
+})
+
+axiosRetry(instance, { retries: 2, retryDelay: () =&gt; 1000,
+  retryCondition: (e) =&gt; e.response ? axiosRetry.isRetryableError(e) || e.response.status &gt;= 500 : true })</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>user/src/stores/auth.js</code> — 세션 타이머 시작</div>
+<pre><code>function login() {
+  if (loginUser.value) {
+    if (loginUser.value.roleId === 1) { alert('운영관리자는 ...'); throw new Error() }
+    loginSessionTimer = new LoginSessionTimer(300, { timeout: logout }).start()  // 무활동 300분 감시
+    return 1
+  } else {
+    alert('로그인이 필요한 서비스입니다'); window.location = '/login'; throw new Error()
+  }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/api/index.js" target="_blank" rel="noopener">api/index.js</a><span class="src">Bearer 주입 · 4010 재발급·재시도 · 4011 로그인 이동 · axios-retry</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/stores/auth.js" target="_blank" rel="noopener">stores/auth.js</a><span class="src">login/logout · setToken · LoginSessionTimer · Safari 쿠키(디버깅용)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/api/auth.js" target="_blank" rel="noopener">api/auth.js</a><span class="src">reissueToken · logout API</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/assets/js/LoginSessionTimer.js" target="_blank" rel="noopener">assets/js/LoginSessionTimer.js</a><span class="src">무활동 감시 세션 타이머</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f13.html">← 대시보드·분석 이력</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_shortform 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

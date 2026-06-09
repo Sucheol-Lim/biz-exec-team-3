@@ -1,0 +1,209 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap · 푸시 메시지 처리(PMS) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>푸시 메시지 처리 (PMS) — skb_cloud_local_ocap 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local App OCAP</a><span class="sep">›</span>
+      <span class="here">푸시 메시지 처리 (PMS)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP / MHP STB · Java</span>
+    </div>
+    <h1>푸시 메시지 처리 (PMS)</h1>
+    <p class="one-liner"><code>PushMessageReceiver</code>가 서버 푸시 메시지를 수신해 <code>PushMessageEventHandlerImpl.handleEvent()</code>로 전달하면 JSON으로 파싱·이벤트 발화하고, 사용자 액션 결과는 <code>UDPSender</code>로 피드백 서버(<code>PMS_FEEDBACK_IP</code>:8800)에 전송합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap" target="_blank" rel="noopener"><code>skb_cloud_local_ocap</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>OCAP_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>pms/event/PushMessageEventHandlerImpl.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">서버 → STB 푸시 + UDP 피드백</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>PMS(Push Message System)는 운영 사업자 서버가 STB로 보내는 푸시 메시지(공지·이벤트·점검 안내 등)를 수신·표시하고, 사용자 반응을 서버로 되돌려주는 양방향 모듈입니다. 부팅 시 <code>HomeMain.start()</code>가 <code>PushMessageEventHandlerImpl.getInstance()</code>를 생성하면 내부에서 <code>PushMessageReceiver</code>와 <code>PushMessageDataManager</code>가 초기화됩니다.</p>
+    <p>수신 경로는 <code>PushMessageReceiver</code>(<code>PushEventListener</code> 구현)가 플랫폼 <code>PushManager</code>에 리스너로 등록되어, 메시지가 오면 <code>notifyPushEvent(s)</code>를 받아 <code>PushMessageEventHandlerImpl.handleEvent(message)</code>로 넘깁니다. <code>handleEvent()</code>는 원문 메시지를 <code>PushMessageDataManager</code>에 저장하고, GSON으로 <code>pms.resource.PushMessage</code> 객체로 역직렬화한 뒤, <code>messageId</code>가 유효하면 <code>fireEvent()</code>로 등록된 <code>PushMessageEventListener</code>들에게 이벤트를 발화합니다(보통 팝업 표시로 이어짐).</p>
+    <p>피드백 경로는 <code>sendFeedbackMessage(messageId, resultCode, detail)</code>입니다. PMS 팝업에 대한 사용자 액션이 발생하면 <code>PushFeedbackMessage</code>(메시지 ID·MAC 주소·시각·상세)를 만들어 GSON JSON으로 직렬화하고, <code>UDPSender</code>로 <code>Def.PMS_FEEDBACK_IP</code>의 8800 포트에 UDP 패킷을 전송합니다. 디바이스 등록(<code>PushMessageConfiguration</code>)은 별도로 HTTP(<code>PMS_FEEDBACK_IP:8080/push/api1/devices/create</code>)를 사용합니다.</p>
+    <div class="callout">
+      <div class="ct">수신은 이벤트, 피드백은 UDP</div>
+      메시지 수신은 플랫폼 <code>PushManager</code> 이벤트 리스너로, 피드백 전송은 경량 UDP 패킷으로 처리됩니다. 피드백 IP/포트는 <code>com.tb.config.Def</code>와 <code>windmill.properties</code>에서 환경별로 설정됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SRV as PMS 서버
+    participant PM as PushManager (플랫폼)
+    participant RCV as PushMessageReceiver
+    participant HDL as PushMessageEventHandlerImpl
+    participant DM as PushMessageDataManager
+    participant LIS as PushMessageEventListener (UI)
+    participant UDP as UDPSender
+
+    SRV-&gt;&gt;PM: 푸시 메시지 송신
+    PM-&gt;&gt;RCV: notifyPushEvent(s)
+    RCV-&gt;&gt;HDL: handleEvent(message)
+    HDL-&gt;&gt;DM: storePushMessage(message)
+    HDL-&gt;&gt;HDL: GSON parse → PushMessage
+    alt messageId 유효
+        HDL-&gt;&gt;LIS: fireEvent(pushMessage)
+        LIS--&gt;&gt;LIS: 팝업 표시
+    end
+    Note over LIS,UDP: 사용자 액션 발생
+    LIS-&gt;&gt;HDL: sendFeedbackMessage(id, result, detail)
+    HDL-&gt;&gt;UDP: start(PMS_FEEDBACK_IP, 8800, json)
+    UDP-&gt;&gt;SRV: UDP 피드백 패킷
+      </div>
+      <p class="cap"><strong>흐름.</strong> 서버 푸시가 <code>PushManager</code> → <code>PushMessageReceiver</code> → <code>handleEvent()</code>로 전달되어 JSON 파싱·이벤트 발화로 팝업이 뜨고, 사용자 액션은 <code>UDPSender</code>로 피드백 서버에 전송됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class PushMessageEventHandler {
+        &lt;&lt;interface&gt;&gt;
+        +handleEvent(message)
+    }
+    class PushMessageEventHandlerImpl {
+        -PushMessageReceiver receiver
+        +getInstance() PushMessageEventHandlerImpl
+        +handleEvent(message)
+        +sendFeedbackMessage(id, resultCode, detail)
+        -fireEvent(pushMessage)
+    }
+    class PushMessageReceiver {
+        +getInstance() PushMessageReceiver
+        +notifyPushEvent(s)
+    }
+    class PushEventListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class PushMessageDataManager {
+        +storePushMessage(message)
+    }
+    class PushMessage {
+        +String messageId
+    }
+    class PushFeedbackMessage {
+        +String id
+        +String address
+        +String time
+        +String detail
+    }
+    class UDPSender {
+        +start(ip, port, data)
+    }
+
+    PushMessageEventHandlerImpl ..|&gt; PushMessageEventHandler : implements
+    PushMessageReceiver ..|&gt; PushEventListener : implements
+    PushMessageEventHandlerImpl o-- PushMessageReceiver : 수신기
+    PushMessageReceiver ..&gt; PushMessageEventHandlerImpl : handleEvent
+    PushMessageEventHandlerImpl ..&gt; PushMessageDataManager : 저장
+    PushMessageEventHandlerImpl ..&gt; PushMessage : 파싱
+    PushMessageEventHandlerImpl ..&gt; PushFeedbackMessage : 피드백 구성
+    PushMessageEventHandlerImpl ..&gt; UDPSender : 피드백 전송
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>PushMessageReceiver</code>가 플랫폼 푸시를 받아 <code>PushMessageEventHandlerImpl</code>에 위임하고, 핸들러가 저장·파싱·이벤트 발화 후 <code>UDPSender</code>로 <code>PushFeedbackMessage</code>를 전송합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>pms/event/PushMessageEventHandlerImpl.java</code> — 수신 메시지 파싱·이벤트 발화</div>
+<pre><code>public void handleEvent(String message) {
+    try {
+        if (message != null) {
+            PushMessageDataManager.getInstance().storePushMessage(message);
+            PushMessage pushMessage =
+                (PushMessage) GsonUtil.parseResponse(pms.resource.PushMessage.class, message);
+            if (pushMessage.messageId != null) {
+                fireEvent(pushMessage);          // 등록 리스너에 이벤트 발화 → 팝업
+            }
+        }
+    } catch (WindmillException e) {
+        e.printStackTrace();
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>pms/event/PushMessageEventHandlerImpl.java</code> — 사용자 액션 UDP 피드백</div>
+<pre><code>public void sendFeedbackMessage(String messageId, String resultCode, String detail) {
+    PushFeedbackMessage feedback = new PushFeedbackMessage();
+    String currentTime = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ").format(new Date());
+    feedback.id      = messageId;
+    feedback.detail  = detail;
+    feedback.address = Util.getMacAddr();
+    feedback.time    = currentTime;
+
+    String jsonStr = GsonUtil.getJsonString(feedback);
+    UDPSender sender = new UDPSender();
+    sender.start(Def.PMS_FEEDBACK_IP, 8800, jsonStr);   // 피드백 서버로 UDP 전송
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/pms/event/PushMessageEventHandlerImpl.java" target="_blank" rel="noopener">pms/event/PushMessageEventHandlerImpl.java</a><span class="src">푸시 메시지 파싱·이벤트 발화·UDP 피드백 (handleEvent / sendFeedbackMessage)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/pms/PushMessageReceiver.java" target="_blank" rel="noopener">pms/PushMessageReceiver.java</a><span class="src">플랫폼 PushManager 리스너 — 메시지 수신·위임 (notifyPushEvent)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/pms/PushMessageDataManager.java" target="_blank" rel="noopener">pms/PushMessageDataManager.java</a><span class="src">수신 메시지 저장 관리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/pms/UDPSender.java" target="_blank" rel="noopener">pms/UDPSender.java</a><span class="src">피드백 UDP 패킷 송신 (Sender 스레드)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/pms/resource/PushMessage.java" target="_blank" rel="noopener">pms/resource/PushMessage.java</a><span class="src">수신 푸시 메시지 모델 (messageId 등)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/pms/resource/PushFeedbackMessage.java" target="_blank" rel="noopener">pms/resource/PushFeedbackMessage.java</a><span class="src">피드백 메시지 모델 (id·address·time·detail)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f12.html">← 쿠폰 · 부가 서비스</a>
+      <a href="f14.html">채널맵 · 플랫폼 정보 (OOB) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>OCAP_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

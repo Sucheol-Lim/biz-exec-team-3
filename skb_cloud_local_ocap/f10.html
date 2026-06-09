@@ -1,0 +1,200 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap · VOD 재생 제어 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VOD 재생 제어 — skb_cloud_local_ocap 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local App OCAP</a><span class="sep">›</span>
+      <span class="here">VOD 재생 제어</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP / MHP STB · Java</span>
+    </div>
+    <h1>VOD 재생 제어</h1>
+    <p class="one-liner"><code>VODManager</code>가 IXC로 Castis VOD 플레이어(<code>com.castis.vod.control.VODPlayer</code>)를 룩업하고, <code>VODPlayHandler</code>가 재생/정지/이벤트 수신을, <code>VODPlayBar</code>·<code>VODUIManager</code>가 재생 제어 UI를, <code>VODErrorCode</code>가 오류 코드를 다룹니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap" target="_blank" rel="noopener"><code>skb_cloud_local_ocap</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>OCAP_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>vod/manager/VODPlayHandler.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">Castis VOD 서버 IXC 연동</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>VOD(주문형 비디오) 재생은 별도의 VOD 애플리케이션(Castis)이 제공하는 <code>VODPlayer</code> 원격 인터페이스를 통해 이뤄집니다. <code>VODPlayer</code>는 <code>java.rmi.Remote</code>를 확장한 IXC(Inter-Xlet Communication) 인터페이스로, 본 로컬 앱은 <code>VODManager.lookupVOD(context)</code>에서 <code>IxcRegistry.lookup(context, WindmillConfig.VOD_APP_LOCATOR)</code>로 이 플레이어 구현을 찾아 보관합니다.</p>
+    <p>실제 재생 제어는 싱글톤 <code>VODPlayHandler</code>가 담당합니다. <code>VODPlayHandler</code>는 <code>VODEventListener</code>·<code>ServiceContextListener</code>·<code>TVTimerWentOffListener</code>를 구현해, <code>stopAndPlay(...)</code>/<code>play()</code>로 재생을 시작하고 VOD 서버에서 오는 이벤트(<code>receiveEvent(vodEvent)</code>)를 수신합니다. VOD 이벤트는 <code>VODEVENT_SESSION_NORMAL</code>(0)·<code>VODEVENT_END_OF_FILE</code>(2)·<code>VODEVENT_PAUSE_TIMEOUT</code>(3)·<code>VODEVENT_NEED_TUNE</code>(5) 등으로 정의됩니다. 재생 결과 코드는 <code>VODRESULT_SUCCESS</code>(0)·<code>VODRESULT_INVALID_FILE</code>(3)·<code>VODRESULT_MAX_SESSION_ERROR</code>(4) 등입니다.</p>
+    <p>UI는 <code>vod/ui</code>의 <code>VODPlayBar</code>(재생 진행 바)와 <code>WaterMark</code>(워터마크), 그리고 <code>VODUIManager</code>가 담당합니다. 재생 위치·트릭 플레이(되감기/빨리감기) 같은 세부 제어는 <code>VODPlayController</code>가, 재생 자체의 흐름은 <code>VODPlayHandler</code>가 다룹니다. 표준화된 오류 코드는 <code>VODErrorCode</code>에 모여 있어 UI에서 사용자에게 적절한 메시지를 노출합니다.</p>
+    <div class="callout">
+      <div class="ct">IXC 기반 분리 구조</div>
+      재생 엔진(<code>VODPlayer</code>)은 본 앱이 아니라 별도 VOD Xlet에 있으며, OCAP IXC 레지스트리로 원격 호출됩니다. 따라서 호출은 모두 <code>RemoteException</code>을 던질 수 있고, 본 앱은 핸들러 계층에서 이를 감싸 처리합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as VODUIManager / VODPlayBar
+    participant VPH as VODPlayHandler
+    participant VM as VODManager
+    participant IXC as IxcRegistry (OCAP)
+    participant VP as VODPlayer (Castis, 원격)
+
+    UI-&gt;&gt;VM: lookupVOD(context)
+    VM-&gt;&gt;IXC: lookup(VOD_APP_LOCATOR)
+    IXC--&gt;&gt;VM: VODPlayer (원격 스텁)
+    UI-&gt;&gt;VPH: stopAndPlay(fileName, ...)
+    VPH-&gt;&gt;VM: getVodPlayer()
+    VPH-&gt;&gt;VP: play(fileName, TSList, offset, requestID)
+    VP--&gt;&gt;VPH: 결과 코드 (VODRESULT_*)
+    VPH-&gt;&gt;VP: addVODEventListener(this)
+    loop 재생 중
+        VP-&gt;&gt;VPH: receiveEvent(vodEvent)
+        VPH-&gt;&gt;UI: 재생바/상태 갱신
+    end
+    UI-&gt;&gt;VPH: 정지
+    VPH-&gt;&gt;VP: stop()
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>VODManager</code>가 IXC로 원격 <code>VODPlayer</code>를 룩업하고, <code>VODPlayHandler</code>가 <code>play()</code> 호출과 이벤트 수신(<code>receiveEvent</code>)을 통해 재생을 제어하며 UI를 갱신합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class VODManager {
+        -VODPlayer vodPlayer
+        +getInstance() VODManager
+        +lookupVOD(context)
+        +getVodPlayer() VODPlayer
+        +scanTSID()
+    }
+    class VODPlayHandler {
+        +getInstance() VODPlayHandler
+        +stopAndPlay(fileName, ...) int
+        +isVOD() boolean
+        +receiveEvent(vodEvent)
+        +getPlayController() VODPlayController
+    }
+    class VODPlayer {
+        &lt;&lt;interface Remote&gt;&gt;
+        +play(fileName, TSList, offset, requestID) int
+        +stop()
+        +getDuration() int
+        +addVODEventListener(listener)
+    }
+    class VODEventListener {
+        &lt;&lt;interface Remote&gt;&gt;
+        +receiveEvent(vodEvent)
+    }
+    class VODPlayController
+    class VODUIManager
+    class VODPlayBar
+    class VODErrorCode
+
+    VODManager o-- VODPlayer : IXC 룩업 보유
+    VODPlayHandler ..|&gt; VODEventListener : implements
+    VODPlayHandler ..&gt; VODManager : getVodPlayer
+    VODPlayHandler o-- VODPlayController : 트릭플레이 제어
+    VODUIManager ..&gt; VODPlayBar : 재생바 UI
+    VODPlayHandler ..&gt; VODErrorCode : 오류 코드
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>VODManager</code>가 원격 <code>VODPlayer</code>를 보관하고, <code>VODPlayHandler</code>(<code>VODEventListener</code> 구현)가 재생·이벤트를 제어합니다. UI는 <code>VODUIManager</code>/<code>VODPlayBar</code>, 오류는 <code>VODErrorCode</code>가 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>vod/manager/VODManager.java</code> — IXC로 원격 VODPlayer 룩업</div>
+<pre><code>private VODPlayer vodPlayer;
+
+public void lookupVOD(XletContext context) {
+    // OCAP IXC 레지스트리에서 Castis VOD 플레이어 원격 스텁을 찾아 보관
+    vodPlayer = (VODPlayer) IxcRegistry.lookup(context, WindmillConfig.VOD_APP_LOCATOR);
+}
+
+public VODPlayer getVodPlayer() {
+    return vodPlayer;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>com/castis/vod/control/VODPlayer.java</code> — 원격 재생 인터페이스(결과/이벤트 코드)</div>
+<pre><code>public interface VODPlayer extends Remote {
+    public static final int VODRESULT_SUCCESS = 0;
+    public static final int VODRESULT_INVALID_FILE = 3;
+    public static final int VODRESULT_MAX_SESSION_ERROR = 4;
+
+    public static final int VODEVENT_END_OF_FILE = 2;
+    public static final int VODEVENT_PAUSE_TIMEOUT = 3;
+    public static final int VODEVENT_NEED_TUNE = 5;
+
+    public int play(String fileName, int[] TSList, long offset, int requestID) throws RemoteException;
+    public void stop() throws RemoteException;
+    public void addVODEventListener(VODEventListener eventListener) throws RemoteException;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/vod/manager/VODManager.java" target="_blank" rel="noopener">vod/manager/VODManager.java</a><span class="src">VOD 플레이어 IXC 룩업·TSID 스캔 (lookupVOD / getVodPlayer)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/vod/manager/VODPlayHandler.java" target="_blank" rel="noopener">vod/manager/VODPlayHandler.java</a><span class="src">재생/정지·이벤트 수신 (stopAndPlay / receiveEvent · VODEventListener 구현)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/vod/manager/VODPlayController.java" target="_blank" rel="noopener">vod/manager/VODPlayController.java</a><span class="src">재생 위치·트릭플레이 제어</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/castis/vod/control/VODPlayer.java" target="_blank" rel="noopener">com/castis/vod/control/VODPlayer.java</a><span class="src">Castis VOD 원격 재생 인터페이스 (play / stop / 결과·이벤트 코드)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/castis/vod/control/VODEventListener.java" target="_blank" rel="noopener">com/castis/vod/control/VODEventListener.java</a><span class="src">VOD 이벤트 수신 원격 리스너 (receiveEvent)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/vod/VODErrorCode.java" target="_blank" rel="noopener">vod/VODErrorCode.java</a><span class="src">VOD 오류 코드 정의</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/vod/ui/VODPlayBar.java" target="_blank" rel="noopener">vod/ui/VODPlayBar.java</a><span class="src">VOD 재생 진행 바 UI</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f09.html">← Mini EPG · 채널 예약</a>
+      <a href="f11.html">Windmill 데이터 연동 (cappl.dm) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>OCAP_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

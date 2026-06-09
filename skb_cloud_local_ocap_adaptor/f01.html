@@ -1,0 +1,214 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap_adaptor · 서비스 매니저 진입점 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>서비스 매니저 진입점 — skb_cloud_local_ocap_adaptor 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">SKB(TBroad) Local App OCAP Cloud Adaptor</a><span class="sep">›</span>
+      <span class="here">서비스 매니저 진입점</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP STB · Java(레거시)</span>
+    </div>
+    <h1>서비스 매니저 진입점</h1>
+    <p class="one-liner"><code>CladServiceManager</code> 가 어댑터 진입점으로서 버전(<code>getCloudAdaptorVersion()</code> = "1.0")을 제공하고, 앱별 컨텍스트를 생성·캐싱(<code>createCladContext(applicationId)</code>)하며 메인 윈도우 소유자를 조회합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor" target="_blank" rel="noopener"><code>skb_cloud_local_ocap_adaptor</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>cladimpl/CladServiceManagerImpl.java</code></div></div>
+      <div class="item"><div class="k">인터페이스 태그</div><div class="v"><code>0xd855fbc474dc6a53</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>Cloud App 이 어댑터에 처음 진입하는 단일 창구가 <code>CladServiceManager</code> 인터페이스이며, Local 측 구현체는 <code>CladServiceManagerImpl</code> 입니다. 이 인터페이스는 ROP 64bit 태그 <code>0xd855fbc474dc6a53</code> 으로 식별되며, 클라우드 측 프록시(<code>stub/Sd855fbc474dc6a53.java</code>)와 1:1 대응합니다. 구현체는 생성자에서 <code>createAppManager()</code> 를 호출해 <code>AppManager.init("com.alticast.cladimpl.manager.AppManager")</code> 로 싱글톤 매니저를 먼저 준비합니다.</p>
+    <p>Cloud App 은 가장 먼저 <code>getCloudAdaptorVersion()</code> 으로 어댑터 버전 <code>"1.0"</code> 을 확인해 호환성을 점검합니다. 이후 <code>createCladContext(applicationId)</code> 를 호출하면 매니저가 해당 앱ID의 컨텍스트를 컨텍스트 맵에서 조회하고, 없으면 <code>CladContextImpl</code> 을 새로 만들어 <code>addCladContext</code> 로 캐싱한 뒤 반환합니다. 같은 앱ID로 다시 호출하면 캐싱된 동일 인스턴스를 돌려주어 앱당 하나의 컨텍스트가 유지됩니다.</p>
+    <p>그 외에 메인 윈도우 소유자 조회(<code>getMainWindowOwner()</code>)와 Cloud/Device 앱 등록·시작·정지(<code>registerCloudApps</code>/<code>startCloudApp</code> 등) 시그니처를 제공합니다. 단 앱 등록·시작·정지 메서드는 본 저장소 구현체에서는 빈 본문(골격)이며, 실제 동작은 상위 플랫폼 연동 범위로 추정됩니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      <code>CladServiceManagerImpl</code> 은 <code>Exportable</code> 을 구현하므로 <code>createSkeleton()</code> 으로 자신의 서버측 디스패처 <code>CladServiceManagerSkel</code> 을 만들 수 있습니다. ROP 런타임은 이 Skeleton 으로 들어온 호출의 32bit 메서드 해시(예: <code>0xb2815b12</code> = getCloudAdaptorVersion)를 분기해 구현체 메서드로 위임합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Cloud as Cloud App
+    participant Skel as CladServiceManagerSkel
+    participant SM as CladServiceManagerImpl
+    participant AM as AppManager (singleton)
+    participant CTX as CladContextImpl
+
+    Note over SM: 생성자에서 createAppManager()
+    SM-&gt;&gt;AM: init("...manager.AppManager")
+    Cloud-&gt;&gt;Skel: ROP call 0xb2815b12
+    Skel-&gt;&gt;SM: getCloudAdaptorVersion()
+    SM--&gt;&gt;Cloud: "1.0"
+    Cloud-&gt;&gt;Skel: ROP call 0x31ecefec (appId)
+    Skel-&gt;&gt;SM: createCladContext(applicationId)
+    SM-&gt;&gt;AM: getCladContext(applicationId)
+    alt 캐시에 없음
+        AM--&gt;&gt;SM: null
+        SM-&gt;&gt;CTX: new CladContextImpl(applicationId)
+        SM-&gt;&gt;AM: addCladContext(context, applicationId)
+    else 캐시에 있음
+        AM--&gt;&gt;SM: 기존 context
+    end
+    SM--&gt;&gt;Cloud: CladContext
+      </div>
+      <p class="cap"><strong>흐름.</strong> 매니저 생성 시 <code>AppManager</code> 싱글톤을 초기화하고, Cloud App 의 버전 확인 후 앱ID별로 컨텍스트를 lazy 생성·캐싱해 반환합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class CladServiceManager {
+        &lt;&lt;interface&gt;&gt;
+        +getCloudAdaptorVersion() String
+        +createCladContext(long applicationId) CladContext
+        +registerCloudApps(List applications)
+        +startCloudApp(long appId, List parameter)
+        +getMainWindowOwner() long
+    }
+    class CladServiceManagerImpl {
+        -CladLog LOG
+        +createAppManager()
+        +getCloudAdaptorVersion() String
+        +createCladContext(long applicationId) CladContext
+        +createCladContextImpl(long applicationId) CladContextImpl
+        +createSkeleton() Skeleton
+    }
+    class CladServiceManagerSkel {
+        +getTag() long
+        +scan(Buffer)
+        +processRequest(LocalCall)
+    }
+    class AppManager {
+        -Hashtable contextMap
+        +init(String className)$
+        +getInstance() AppManager$
+        +getCladContext(long applicationId) CladContextImpl
+        +addCladContext(CladContext, long applicationId)
+        +getMainWindowOwner() long
+    }
+    class CladContextImpl
+    class Exportable {
+        &lt;&lt;interface&gt;&gt;
+        +createSkeleton() Skeleton
+    }
+
+    CladServiceManagerImpl ..|&gt; CladServiceManager : implements
+    CladServiceManagerImpl ..|&gt; Exportable : implements
+    CladServiceManagerImpl --&gt; AppManager : init / 컨텍스트 위임
+    CladServiceManagerImpl ..&gt; CladContextImpl : 생성
+    CladServiceManagerImpl ..&gt; CladServiceManagerSkel : createSkeleton
+    AppManager o-- CladContextImpl : contextMap 보관
+      </div>
+      <p class="cap"><strong>관계.</strong> 구현체는 인터페이스와 <code>Exportable</code> 을 동시에 구현하며, 컨텍스트 생성·캐싱·메인 윈도우 소유자 조회를 <code>AppManager</code> 싱글톤에 위임합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>cladimpl/CladServiceManagerImpl.java</code> — 매니저 초기화와 컨텍스트 생성·캐싱</div>
+<pre><code>public CladServiceManagerImpl() {
+    super();
+    createAppManager();                       // AppManager 싱글톤 준비
+}
+
+public void createAppManager() {
+    try {
+        AppManager.init("com.alticast.cladimpl.manager.AppManager");
+    } catch (Exception e) { e.printStackTrace(); }
+}
+
+public String getCloudAdaptorVersion() {
+    return "1.0";                             // 호환성 확인용 버전
+}
+
+public CladContext createCladContext(long applicationId) {
+    CladContextImpl context =
+        (CladContextImpl) AppManager.getInstance().getCladContext(applicationId);
+    if (context == null) {                    // 캐시에 없으면 새로 생성 후 등록
+        context = createCladContextImpl(applicationId);
+        AppManager.getInstance().addCladContext(context, applicationId);
+    }
+    return context;                           // 앱당 단일 컨텍스트 보장
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>clad/CladServiceManagerSkel.java</code> — 메서드 해시로 호출 분기(서버측 디스패처)</div>
+<pre><code>public long getTag () { return 0xd855fbc474dc6a53l; }
+
+public void processRequest (LocalCall lc) {
+    switch (lc.buffer.readI32()) {
+    default: throw new RemoteException("Method not found");
+    case 0xb2815b12: __call_getCloudAdaptorVersion(lc); return;
+    case 0x31ecefec: __call_createCladContext(lc); return;
+    case 0xae901df4: __call_getMainWindowOwner(lc); return;
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/clad/CladServiceManager.java" target="_blank" rel="noopener">clad/CladServiceManager.java</a><span class="src">진입점 인터페이스 정의(버전·컨텍스트 생성·앱/윈도우 관리 시그니처)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/cladimpl/CladServiceManagerImpl.java" target="_blank" rel="noopener">cladimpl/CladServiceManagerImpl.java</a><span class="src">Local 구현체 — AppManager 초기화, createCladContext 캐싱</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/clad/CladServiceManagerSkel.java" target="_blank" rel="noopener">clad/CladServiceManagerSkel.java</a><span class="src">서버측 디스패처 — 태그 0xd855fbc474dc6a53, 메서드 해시 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/cladimpl/manager/AppManager.java" target="_blank" rel="noopener">cladimpl/manager/AppManager.java</a><span class="src">싱글톤 매니저 — 컨텍스트 맵, init/getInstance/addCladContext</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">앱 단위 컨텍스트 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap_adaptor 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

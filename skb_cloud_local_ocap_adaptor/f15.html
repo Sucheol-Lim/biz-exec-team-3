@@ -1,0 +1,180 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap_adaptor · JS↔Java 코덱 일치 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JS ↔ Java 코덱 일치 — skb_cloud_local_ocap_adaptor 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">SKB(TBroad) Local App OCAP Cloud Adaptor</a><span class="sep">›</span>
+      <span class="here">JS ↔ Java 코덱 일치</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">JavaScript · ROP</span>
+    </div>
+    <h1>JS ↔ Java 코덱 일치</h1>
+    <p class="one-liner"><code>js/cloud_adaptor.js</code> 가 동일 인터페이스/구조체를 Java 측과 같은 64bit 태그·32bit 메서드 해시로 등록해, 브라우저/클라우드 런타임과 STB Java 런타임이 ROP로 정확히 매칭되도록 합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor" target="_blank" rel="noopener"><code>skb_cloud_local_ocap_adaptor</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 파일</div><div class="v"><code>js/cloud_adaptor.js</code></div></div>
+      <div class="item"><div class="k">모듈 의존</div><div class="v"><code>acba · js:rop</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>ROP 통신이 성립하려면 호출하는 쪽(Cloud/브라우저, JS)과 호출받는 쪽(STB, Java)이 동일한 타입 식별 체계를 공유해야 합니다. 인터페이스는 64bit 태그로, 각 메서드는 32bit 해시로 식별되는데, 이 값이 양쪽에서 한 비트라도 다르면 호출이 매칭되지 않습니다. <code>js/cloud_adaptor.js</code> 는 JS 측의 타입 등록 스크립트로, Java 산출물(<code>*Skel</code>/<code>stub/S*</code>)과 동일한 태그·해시를 등록하는 역할을 합니다.</p>
+    <p>스크립트는 <code>acba.define("js:cloud_adaptor", ["js:rop"], function(r) { ... })</code> 형태로 <code>js:rop</code> 런타임에 의존하는 모듈을 정의합니다. 본문에서 ROP 기본 타입(<code>I8/I16/I32/I64/STRING/BOOLEAN/F32/F64</code> 등)과 코덱(<code>NullableCodec/ListCodec/MapCodec/StructCodec/InterfaceCodec</code>)을 꺼낸 뒤, <code>r.addTypes({ ... })</code> 한 번으로 모든 인터페이스·구조체를 일괄 등록합니다.</p>
+    <p>각 인터페이스 항목은 <code>[InterfaceCodec, "&lt;64bit 태그&gt;", &lt;상수 배열&gt;, { &lt;메서드 해시&gt;: [이름, 인자 코덱, 반환 코덱], ... }]</code> 구조입니다. 예를 들어 <code>clad.CladServiceManager</code> 의 태그 <code>"d855fbc474dc6a53"</code> 과 메서드 <code>0xb2815b12: getCloudAdaptorVersion</code> 은 Java 측 <code>CladServiceManagerSkel.getTag()</code>·<code>processRequest</code> 의 값과 정확히 일치합니다. 구조체(<code>clad.CloudApp</code>, <code>clad.si.CladChannelList</code>)는 <code>StructCodec</code> 으로 필드 순서·타입까지 Java 클래스와 맞춰 등록됩니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      이 파일은 IDL(<code>alticast_cloud_adaptor.idl</code>)에서 Java 산출물과 함께 생성되는 코덱입니다. IDL 을 고치면 Java <code>*Skel</code>·<code>stub/S*</code> 와 이 JS 코덱을 다시 생성해야 양쪽 태그·해시가 일치합니다(IDL 컴파일러는 저장소 미포함). 즉 이 파일은 "두 런타임 간 ABI 계약서" 역할을 합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Loader as acba 모듈 로더
+    participant JS as js/cloud_adaptor.js
+    participant ROP as js:rop 런타임
+    participant Java as STB Java (Skel/Stub)
+
+    Loader-&gt;&gt;JS: define("js:cloud_adaptor", ["js:rop"])
+    JS-&gt;&gt;ROP: r.addTypes({ 태그·해시 매핑 })
+    Note over JS,ROP: 인터페이스/구조체를 Java와 동일 식별자로 등록
+    JS-&gt;&gt;ROP: Cloud App: getCloudAdaptorVersion 원격 호출
+    ROP-&gt;&gt;Java: tag d855fbc474dc6a53 / method 0xb2815b12
+    Java--&gt;&gt;ROP: "1.0"
+    ROP--&gt;&gt;JS: 디코딩된 반환값
+      </div>
+      <p class="cap"><strong>흐름.</strong> 모듈 로딩 시 JS 코덱이 모든 타입을 Java 와 동일한 태그·해시로 등록하고, 이후 원격 호출은 그 식별자로 STB Java 의 Skeleton 과 매칭됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class cloud_adaptor_js {
+        +define("js:cloud_adaptor", ["js:rop"], fn)
+        +r.addTypes(typeMap)
+    }
+    class InterfaceCodec {
+        tag (64bit)
+        methodHash → signature
+    }
+    class StructCodec {
+        field order / types
+    }
+    class CladServiceManagerSkel {
+        +getTag() = 0xd855fbc474dc6a53
+        +processRequest(LocalCall)
+    }
+    class CloudApp {
+        +long id
+        +String name
+        +String cloudUrl
+    }
+
+    cloud_adaptor_js ..&gt; InterfaceCodec : 인터페이스 등록
+    cloud_adaptor_js ..&gt; StructCodec : 구조체 등록
+    InterfaceCodec ..&gt; CladServiceManagerSkel : 동일 태그/해시
+    StructCodec ..&gt; CloudApp : 동일 필드 순서/타입
+      </div>
+      <p class="cap"><strong>관계.</strong> JS 코덱의 <code>InterfaceCodec</code>/<code>StructCodec</code> 등록 항목이 Java 측 Skeleton 의 태그·메서드 해시, 구조체 클래스의 필드 정의와 1:1로 대응합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>js/cloud_adaptor.js</code> — 모듈 정의와 타입 등록(발췌)</div>
+<pre><code>acba.define("js:cloud_adaptor", ["js:rop"], function(r) {
+    var types = r.types
+    var STRING = types.String
+    var I64 = types.i64
+    var InterfaceCodec = r.codecs.Interface
+    var StructCodec = r.codecs.Struct
+    r.addTypes({
+    'clad.CladServiceManager': [InterfaceCodec, "d855fbc474dc6a53", undefined,
+        {0xb2815b12: ["getCloudAdaptorVersion", undefined, [STRING]],
+         0x31ecefec: ["createCladContext", [I64], ["clad.CladContext"]],
+         0xae901df4: ["getMainWindowOwner", undefined, [I64]]}],
+    'clad.CloudApp': [StructCodec, I64, "id", STRING, "name", STRING, "cloudUrl",
+         /* ... 필드 순서·타입을 Java CloudApp 과 일치 ... */ ],
+    /* ... 나머지 인터페이스/구조체 동일 패턴 ... */
+    })
+    return null
+})</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>clad/CladServiceManagerSkel.java</code> — Java 측 동일 태그·해시(대조)</div>
+<pre><code>public long getTag () { return 0xd855fbc474dc6a53l; }   // JS "d855fbc474dc6a53" 와 일치
+
+public void processRequest (LocalCall lc) {
+    switch (lc.buffer.readI32()) {
+    case 0xb2815b12: __call_getCloudAdaptorVersion(lc); return;  // JS 0xb2815b12 와 일치
+    case 0x31ecefec: __call_createCladContext(lc); return;
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/js/cloud_adaptor.js" target="_blank" rel="noopener">js/cloud_adaptor.js</a><span class="src">JS측 ROP 코덱/타입 등록 — 64bit 태그·32bit 메서드 해시</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/clad/CladServiceManagerSkel.java" target="_blank" rel="noopener">clad/CladServiceManagerSkel.java</a><span class="src">Java 측 대조 — getTag()/메서드 해시 일치 검증 근거</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/clad/CloudApp.java" target="_blank" rel="noopener">clad/CloudApp.java</a><span class="src">구조체 — StructCodec 필드 순서·타입 대조</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/alticast_cloud_adaptor.idl" target="_blank" rel="noopener">alticast_cloud_adaptor.idl</a><span class="src">단일 원본 IDL — Java/JS 산출물 생성의 근원</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f14.html">← 사업자 전용 확장(TBroad)</a>
+      <a href="index.html#features">주요 기능 목록 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap_adaptor 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

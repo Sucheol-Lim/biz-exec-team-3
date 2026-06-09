@@ -1,0 +1,188 @@
+<!doctype html>
+<!-- skylife-ux3.0 · STB 제어 명령 기능 상세 — StbControlHandler 도메인별 음성 명령 처리 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STB 제어 명령 — Skylife ATV EPG 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Skylife ATV EPG (UX3.0)</a><span class="sep">›</span>
+      <span class="here">STB 제어 명령</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT SkyLife</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV(Leanback) STB · Java</span>
+    </div>
+    <h1>STB 제어 명령</h1>
+    <p class="one-liner"><code>StbControlHandler</code>가 채널(set/step)·볼륨(set/step/mute)·전원·미디어·녹화·내비게이션·앱 실행·자막·오디오 도메인의 음성 명령을 처리합니다. 채널/앱/화면 이동은 기존 <code>TTUILinkManager.handleLink()</code>를, 볼륨은 <code>AudioManager</code>를 재사용합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skylife-ux3.0" target="_blank" rel="noopener"><code>skylife-ux3.0</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feat/lw-voice-api</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>handler/StbControlHandler</code> · <code>mapping/AppIdMapping</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">stb_control payload 도메인 매트릭스</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>StbControlHandler.handle(ctx, body)</code>는 <code>stb_control</code> payload의 <code>domain</code>/<code>action</code> 조합을 매트릭스로 분기합니다(spec §9). 현재 Phase 1에서 실제 동작하는 도메인은 <strong>channel</strong>(set/step), <strong>volume</strong>(set/step/mute/unmute), <strong>app</strong>(open), <strong>navigation</strong>(open), <strong>search</strong>(open/query)이며, <strong>media</strong>·<strong>power</strong>·<strong>record</strong>·<strong>subtitle</strong>·<strong>audio</strong>는 안내 fallback과 함께 Phase 2/3로 예약되어 있습니다.</p>
+    <p>채널 set은 채널 번호를 받아 <code>resolveChannelNumber()</code>로 검증한 뒤 <code>TTUILinkManager.handleLink(LINK_C, ...)</code>로 튜닝합니다. LLM이 채널명을 모르고 환각 번호("MBC"→206506131 등)를 보내면 <code>RING_ACCESSIBLE</code> 목록을 STT prompt로 fuzzy 매치해 실제 번호로 교정합니다. 볼륨은 <code>AudioManager</code>의 <code>setStreamVolume</code>/<code>adjustStreamVolume</code>으로 처리하고, 앱 실행은 <code>AppIdMapping</code>(spec appId → 패키지명), 화면 이동은 <code>DestinationMapping</code>(destination → linkType/param)으로 매핑합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      모든 UI 변경(채널/앱/화면 이동)은 <code>new Handler(Looper.getMainLooper()).post(...)</code>로 메인 스레드에서 <code>handleLink</code>를 호출합니다. 명령 실행 후에는 <code>markResult()</code>로 음성 패널을 RESULT 상태로 전환하고 STT transcript를 그대로 표시한 뒤 2.5초 후 자동 숨김 처리합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant DSP as AssistantResponseDispatcher
+    participant SCH as StbControlHandler
+    participant ECM as EpgChannelManager
+    participant LM as TTUILinkManager
+    participant AM as AudioManager
+    participant VO as VoiceListeningOverlay
+
+    DSP-&gt;&gt;SCH: handle(body) (payload stb_control)
+    SCH-&gt;&gt;SCH: domain/action 분기
+    alt domain channel set
+        SCH-&gt;&gt;ECM: resolveChannelNumber (정확/fuzzy 매치)
+        SCH-&gt;&gt;LM: handleLink(LINK_C, chno)
+    else domain volume
+        SCH-&gt;&gt;AM: setStreamVolume / adjustStreamVolume
+    else domain app/navigation
+        SCH-&gt;&gt;LM: handleLink(LINK_AP / dest)
+    end
+    SCH-&gt;&gt;VO: markResult() (RESULT + STT echo)
+      </div>
+      <p class="cap"><strong>흐름.</strong> dispatcher가 <code>stb_control</code>을 넘기면 도메인별로 채널/볼륨/앱/화면 명령을 기존 진입점으로 실행하고 음성 패널을 RESULT로 마무리합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class StbControlHandler {
+        +handle(ctx, body)
+        -handleChannel(ctx, action, body)
+        -handleVolume(ctx, action, body)
+        -handleApp(ctx, body)
+        -handleNavigation(ctx, body)
+        -resolveChannelNumber(chno) String
+        -markResult()
+    }
+    class AppIdMapping {
+        +toPackageName(appId) String
+    }
+    class DestinationMapping {
+        +resolve(dest) Mapped
+    }
+    class EpgChannelManager {
+        +getValidChannel(ring, num) EpgChannel
+        +getChannels(ring) List~EpgChannel~
+    }
+    class TTUILinkManager {
+        +handleLink(type, param, ext, src)
+    }
+    class AudioManager
+
+    StbControlHandler ..&gt; AppIdMapping : app open
+    StbControlHandler ..&gt; DestinationMapping : navigation
+    StbControlHandler --&gt; EpgChannelManager : 채널 검증
+    StbControlHandler --&gt; TTUILinkManager : handleLink
+    StbControlHandler --&gt; AudioManager : 볼륨 제어
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>StbControlHandler</code>가 매핑 클래스로 appId/destination을 해석하고, 채널은 <code>EpgChannelManager</code>로 검증한 뒤 <code>TTUILinkManager</code>·<code>AudioManager</code>로 실제 제어합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>assistant/handler/StbControlHandler.java</code> — 도메인 매트릭스 분기</div>
+<pre><code>switch (domain) {
+    case AssistantConstants.DOMAIN_CHANNEL:    handleChannel(ctx, action, body); markResult(); break;
+    case AssistantConstants.DOMAIN_VOLUME:     handleVolume(ctx, action, body);  markResult(); break;
+    case AssistantConstants.DOMAIN_APP:        handleApp(ctx, body);             markResult(); break;
+    case AssistantConstants.DOMAIN_NAVIGATION: handleNavigation(ctx, body);      markResult(); break;
+    case AssistantConstants.DOMAIN_SEARCH:     handleSearch(ctx, action, body);  markResult(); break;
+    case AssistantConstants.DOMAIN_MEDIA:   AnswerHandler.fallback(ctx, "재생 제어는 아직 지원 준비 중입니다."); break;
+    case AssistantConstants.DOMAIN_POWER:   AnswerHandler.fallback(ctx, "전원 제어는 아직 지원하지 않아요."); break;
+    // record / subtitle / audio — Phase 2/3 fallback
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>assistant/handler/StbControlHandler.java</code> — 채널명 fuzzy 매치(LLM 환각 번호 방어)</div>
+<pre><code>private static String resolveChannelNumber(String chno) {
+    if (chno != null &amp;&amp; chno.matches("\\d+")) {                 // 1. 정확 매치
+        EpgChannel exact = EpgChannelManager.getInstance()
+                .getValidChannel(EpgChannelRing.RING_ACCESSIBLE, Integer.parseInt(chno));
+        if (exact != null) return chno;
+    }
+    String prompt = WakeStatusProvider.getLastSttText();        // 2. STT prompt fuzzy
+    String norm = prompt.toLowerCase(Locale.KOREA).replaceAll("\\s+", "");
+    for (EpgChannel c : EpgChannelManager.getInstance().getChannels(EpgChannelRing.RING_ACCESSIBLE)) {
+        String cnLower = c.getName().toLowerCase(Locale.KOREA).replaceAll("\\s+", "");
+        if (c.getName().length() &gt;= 2 &amp;&amp; norm.contains(cnLower)) return String.valueOf(c.getNumber());
+    }
+    return null;                                                // 3. 실패
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/handler/StbControlHandler.java" target="_blank" rel="noopener">assistant/handler/StbControlHandler.java</a><span class="src">stb_control 도메인 매트릭스 — 채널/볼륨/앱/내비게이션/검색 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/handler/mapping/AppIdMapping.java" target="_blank" rel="noopener">assistant/handler/mapping/AppIdMapping.java</a><span class="src">spec appId → 패키지명 매핑(netflix, youtube, disney+ 등)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/handler/mapping/DestinationMapping.java" target="_blank" rel="noopener">assistant/handler/mapping/DestinationMapping.java</a><span class="src">navigation destination → linkType/param 매핑</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/AssistantConstants.java" target="_blank" rel="noopener">assistant/AssistantConstants.java</a><span class="src">DOMAIN_* 상수 정의(channel/volume/power/media 등)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f07.html">← LW Voice 음성 어시스턴트</a>
+      <a href="index.html#features">목록</a>
+      <a href="f09.html">콘텐츠 검색·재생 음성 명령 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feat/lw-voice-api</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">Skylife ATV EPG 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

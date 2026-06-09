@@ -1,0 +1,193 @@
+<!doctype html>
+<!-- ott-tvapp · CAS(수신제한) 기능 상세 — Digicap 계열 CAS + PKDialog -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CAS(수신제한) — ott-tvapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KCTV 제주 OTT Android TV 앱 (ott-tvapp)</a><span class="sep">›</span>
+      <span class="here">CAS(수신제한)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KCTV 제주</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>CAS(수신제한)</h1>
+    <p class="one-liner"><code>ctrl/CAS</code>가 Digicap 계열 수신제한 시스템(MCAS)을 처리합니다. <code>KctvPlayerManager</code>로 단말 인증서를 검증·발급하고, 가입 상태에 따라 시청 제한을 적용하며 <code>PKDialog</code> 등으로 사용자 인증을 안내합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/ott-tvapp" target="_blank" rel="noopener"><code>ott-tvapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>android14/marusys</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ctrl/CAS</code> · <code>comp/PKDialog</code></div></div>
+      <div class="item"><div class="k">CAS 엔진</div><div class="v"><code>KctvPlayerManager</code> (MCAS / SXC)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>CAS</code>는 <code>MCASErrorCode</code>를 상속한 정적 컨트롤러입니다. <code>createClient()</code>에서 <code>KctvPlayerManager.getInstance().initialize(...)</code>로 CAS 엔진을 초기화하면서 EMM 주소(<code>BuildConfig.EMM_BASE</code>)와 이벤트 리스너(<code>MCasEventListener</code>)를 등록합니다. 초기화가 성공하면 <code>isCasReady=true</code>가 되고, 오디오 언어 등 기본 설정을 적용합니다.</p>
+    <p><code>init()</code>은 전용 <code>HandlerThread</code>("CAS")에서 인증 절차를 수행합니다. <code>SXCS_dci_CertVerify()</code>로 단말 인증서 유효성을 확인하고, 오류면 <code>doCertIssue()</code>로 STB 인증서를 발급받은 뒤 <code>authorize()</code>로 CAS 가입 권한을 받습니다. 결과는 <code>CERT_VERIFY</code> 등 메시지로 UI에 통지됩니다.</p>
+    <p>채널 시청 시 CAS 상태(<code>STATUS</code>)는 <code>MCAS_STATUS_NORMAL</code>/<code>MCAS_STATUS_SUSPENDED</code>/<code>MCAS_STATUS_NOTSUBSCRIBED</code> 등으로 분류되며, <code>notsubscribed()</code>·<code>suspended()</code>·<code>requestReboot()</code> 판정에 따라 재시작·제한 안내로 이어집니다. PIN 입력이 필요한 구매/시청 제한 상황에서는 <code>PKDialog</code>가 표시되고, 가입 정보(<code>SUBSCRIBE_ID</code>)는 WebView 브릿지의 <code>getContractId()</code>로도 노출됩니다.</p>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant ACT as PlaybackActivity
+    participant CAS as ctrl/CAS
+    participant TH as CAS HandlerThread
+    participant KPM as KctvPlayerManager (MCAS)
+    participant H as MyHandler (UI)
+    participant PK as comp/PKDialog
+
+    ACT-&gt;&gt;CAS: createClient(context, deviceId, handler)
+    CAS-&gt;&gt;KPM: initialize(ctx, 32, deviceId, MCasEventListener, EMM_BASE)
+    KPM--&gt;&gt;CAS: Results (isCasReady = true)
+    ACT-&gt;&gt;CAS: init(handler)
+    CAS-&gt;&gt;TH: HandlerThread("CAS") 시작
+    TH-&gt;&gt;KPM: SXCS_dci_CertVerify(now)
+    alt 인증서 오류
+        TH-&gt;&gt;CAS: doCertIssue() (STB 인증 발급)
+    else 유효
+        TH-&gt;&gt;CAS: authorize() (CAS 가입 권한)
+    end
+    KPM--&gt;&gt;CAS: MCasEventListener (STATUS 변경)
+    CAS-&gt;&gt;H: STATUS_CHANGED / CERT_VERIFY
+    alt PIN/시청 제한
+        H-&gt;&gt;PK: PKDialog 표시
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> CAS 엔진 초기화 후 별도 스레드에서 인증서 검증·발급·권한을 처리하고, 상태 변경 이벤트가 시청 제한·PIN 안내(<code>PKDialog</code>)로 연결됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class MCASErrorCode
+    class CAS {
+        +int STATUS
+        +String SUBSCRIBE_ID
+        +boolean isCasReady
+        +createClient(context, deviceId, handler)
+        +init(Handler handler)
+        +notsubscribed() boolean
+        +suspended() boolean
+        +requestReboot() boolean
+        +authorize()
+        +doCertIssue()
+    }
+    class KctvPlayerManager {
+        +initialize(ctx, n, deviceId, listener, emmUrl, prio) Results
+        +SXCS_dci_CertVerify(long now) MCAS_RESULT_T
+        +SXCF_GetVersion() SXC_VERSION_T
+    }
+    class KctvCasEventListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class MCasEventListener
+    class PKDialog {
+        +PKDialog(Context context)
+    }
+    class Dialog
+
+    CAS --|&gt; MCASErrorCode
+    CAS --&gt; KctvPlayerManager : initialize / 인증
+    MCasEventListener ..|&gt; KctvCasEventListener
+    CAS *-- MCasEventListener : 이벤트 수신
+    PKDialog --|&gt; Dialog
+    CAS ..&gt; PKDialog : PIN/제한 안내
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>CAS</code>가 <code>KctvPlayerManager</code> MCAS 엔진을 초기화·인증하고, 내부 <code>MCasEventListener</code>로 상태를 받으며 PIN 입력은 <code>PKDialog</code>가 처리합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ctrl/CAS.java</code> — createClient: MCAS 엔진 초기화</div>
+<pre><code>String emmUrl = BuildConfig.EMM_BASE;
+Results result = KctvPlayerManager.getInstance().initialize(
+        context, 32, deviceId, new MCasEventListener(),
+        emmUrl, KctvPlayerManager.MAX_PROCESS_PRIORITY);
+
+if (result == Results.ERROR) {
+    // 초기화 실패 처리
+} else {
+    PlayerConfigs.getInstance().set(PlayerConfigs.KEY_AUDIO_LANGUAGE, "kor");
+    isCasReady = true;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ctrl/CAS.java</code> — init: 인증서 검증 → 발급/권한</div>
+<pre><code>MCAS_RESULT_T mcasResult = KctvPlayerManager.getInstance()
+        .SXCS_dci_CertVerify(System.currentTimeMillis());
+isIsCASCertified = true;
+handler.sendMessage(handler.obtainMessage(CERT_VERIFY,
+        "인증서 유효성 확인: " + SXC_ERROR_EN.toString(mcasResult.result)));
+
+if (mcasResult.result != MCAS_ERROR_EN.NO_ERROR) {
+    doCertIssue();          // STB 인증 요청
+} else {
+    isSTBCertified = true;
+    authorize();            // CAS 인증 요청
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/CAS.java" target="_blank" rel="noopener">ctrl/CAS.java</a><span class="src">수신제한(MCAS) 컨트롤러 · 인증서 검증/발급 · 가입 상태 판정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/MCASErrorCode.java" target="_blank" rel="noopener">ott/MCASErrorCode.java</a><span class="src">CAS 오류 코드 상위 클래스 (CAS가 상속)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/comp/PKDialog.java" target="_blank" rel="noopener">comp/PKDialog.java</a><span class="src">PIN/시청 제한 입력 다이얼로그</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/build.gradle" target="_blank" rel="noopener">app/build.gradle</a><span class="src">EMM_BASE 등 CAS 서버 buildConfigField</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f05.html">WebView 하이브리드 UI</a>
+      <a href="f07.html">OOB / Inband SI 수신 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>android14/marusys</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">ott-tvapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,426 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Remote Solution PoC App — 과제 설명</title>
+<style>
+:root{
+  --accent:#059669;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">Altimedia PoC</span>
+      <span class="badge gray">Android TV (Leanback)</span>
+      <span class="badge gray">Kotlin</span>
+    </div>
+    <h1>Remote Solution PoC App</h1>
+    <p class="one-liner">차세대 입력 장치(Aero Pointer · Smart Air Ring)와 OTT UI의 결합을 검증하는 Android TV용 데모 애플리케이션입니다. BLE GATT로 입력 장치 제어 모드를 화면 컨텍스트에 맞춰 전환하면서 포인터·휠 스크럽·Circle to Search·드래그 즐겨찾기 인터랙션을 시연합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/remote_solution" target="_blank" rel="noopener"><code>remote_solution</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2025-12-24 · 23df598 [app] version up</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>com.altimedia.remotesolution</code> / 1.5 (7)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>이 앱은 입력 장치 제조사 <strong>Remote Solution 사</strong>가 의뢰한 신규 입력 장치 <strong>Aero Pointer</strong> 및 <strong>Smart Air Ring</strong>의 데모용 애플리케이션입니다. Altimedia가 PoC(Proof of Concept) 형태로 개발했으며, Android TV(leanback) 환경에서 차세대 입력 장치와 OTT UI가 어떻게 결합되는지를 실제 동작으로 검증·시연하는 것이 목적입니다. 단말은 Android TV 셋톱박스/TV를 대상으로 하며, <code>uses-feature android.software.leanback</code> 선언과 <code>LEANBACK_LAUNCHER</code> 인텐트 필터로 TV 런처에 등록됩니다.</p>
+    <p>핵심 컨셉은 BLE GATT로 연결한 입력 장치(<code>mn3</code> 계열 리모컨, <code>Smart Air Ring</code>)의 동작 모드를 화면 컨텍스트에 따라 전환하면서, OTT 홈/VOD 재생/라이브 채널 화면에서 차별화된 인터랙션을 보여 주는 것입니다. 화면마다 포인터(에어 마우스), D-pad 네비게이션, 휠 스크럽, 모션 드로잉이 필요한 만큼만 활성화되도록 장치 제어 비트 마스크를 송신합니다.</p>
+    <p>요구사항(사내 위키 기준)은 크게 세 축으로 정리됩니다. 첫째 <strong>Flying Navi(4방향)</strong> 롱프레스로 VOD 리스트·미니가이드 L바를 다루는 네비게이션, 둘째 <strong>Motion Control</strong>로 영상 위에 원을 그려 영역을 캡처하는 Circle to Search와 포스터를 잡고 움직여 찜하는 드래그 즐겨찾기, 셋째 <strong>Wheel</strong>로 VOD 재생 시 REW/FF(되감기/빨리감기)를 수행하는 탐색입니다.</p>
+    <div class="callout">
+      <div class="ct">데모용 로컬 구성</div>
+      네트워크 스트리밍이 아니라 APK에 동봉된 로컬 자산(<code>assets/*.mp4</code> 및 프레임 이미지)을 재생·표시하는 데모입니다. 콘텐츠 목록과 상세 정보(브랜드명, 가격 등)는 모두 코드에 하드코딩되어 있습니다. 입력 장치(<code>mn3</code> 계열 또는 <code>Smart Air Ring</code>)가 사전에 페어링되어 있지 않으면 휠/Circle to Search/튜토리얼 같은 일부 인터랙션은 동작하지 않습니다.
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">BLE 입력 장치 제어 (GATT)</div><div class="d">본딩된 장치 이름으로 <code>MN3</code>/<code>SMART_RING</code>/<code>DEFAULT</code>를 판별하고, 커스텀 GATT 서비스(<code>F3C5B4E1-…</code>)의 TX/RX 캐릭터리스틱을 찾아 코루틴 작업 큐로 쓰기를 직렬화합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">화면별 제어 모드 전환</div><div class="d"><code>ControlMode</code> enum(<code>INIT</code>/<code>HOME</code>/<code>WHEEL</code>/<code>CIRCLE_TO_SEARCH</code>/<code>LIVE_CHANNEL</code>/<code>EXIT</code>)으로 포인터·휠·플라잉 네비·플라잉 클릭 비트를 조합해 2바이트(header, controlBits)로 송신합니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">OTT 홈 런처</div><div class="d">가로 스크롤 콘텐츠 행(Trending Now, For you, Tv Series, Movie 등)과 좌측 네비게이션 레일(SEARCH/HOME/LIVE TV/HBO GO/MONOMAX/KIDS/APPS/MESSAGE)로 구성된 런처 화면입니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">드래그 즐겨찾기 (찜하기)</div><div class="d">포스터를 잡아 하단 <code>dragPopup</code> 영역으로 드롭하면 즐겨찾기에 추가되는 인터랙션을 시연합니다. <code>Added to Favorite Movies/Series</code> 토스트로 결과를 안내합니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">VOD 로컬 재생</div><div class="d">Media3 ExoPlayer로 <code>asset:///&lt;title&gt;.mp4</code> 형태의 동봉 영상을 재생합니다. 콘텐츠 종류에 따라 휠 탐색 또는 Circle to Search 인터랙션으로 분기됩니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">휠 스크럽 탐색 (REW/FF)</div><div class="d"><code>Good Fortune</code>, <code>One Battle After Another</code> 등 휠 대상 콘텐츠는 제너릭 모션 스크롤(<code>AXIS_VSCROLL</code>)로 1초 단위 탐색하고, 프레임 썸네일 리스트(<code>VodFrameAdapter</code>)를 함께 표시합니다.</div></a>
+      <a class="card" href="f07.html"><div class="t">Circle to Search (모션 캡처)</div><div class="d">재생 화면 위에 원을 그리면 종횡비·반지름 안정성·경로 폐합·길이·크기 기준으로 원 여부를 판정하고, 비뚤어진 획을 정원(正圓)으로 모핑한 뒤 해당 영역을 캡처합니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">캡처 영역 비트맵 추출</div><div class="d">루트 뷰와 비디오 <code>TextureView</code> 표면을 함께 그려 캡처한 뒤 200x200 썸네일을 만들고 <code>CaptureResult.SUCCESS</code>로 콜백합니다. 성공 시 상품 상세 오버레이(브랜드/가격 등 하드코딩)를 띄웁니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">라이브 채널 · 미니 EPG</div><div class="d">라이브 채널 재생과 함께 미니 EPG(<code>MiniEpgAdapter</code>), 미니 가이드(<code>MiniguideAdapter</code>)를 제공하며, <code>InfiniteAdapterWrapper</code>로 무한 스크롤을 구현합니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">인터랙션 튜토리얼 오버레이</div><div class="d"><code>CircleTutorialView</code>, <code>WheelTutorialView</code>, <code>FavoriteTutorialView</code>가 각 인터랙션 사용법을 애니메이션으로 안내합니다. MN3 연결 시 홈 최초 진입에서 즐겨찾기 튜토리얼을 노출합니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">TV 포커스 네비게이션</div><div class="d"><code>RSLinearLayoutManager</code>로 포커스 중앙 정렬·스냅 등 TV용 포커스 이동을 보조하며, 음수 <code>deviceId</code>의 D-pad 키 이벤트를 소비해 입력 장치 동작을 안정화합니다.</div></a>
+      <a class="card" href="f12.html"><div class="t">스플래시 진입 흐름</div><div class="d">단일 네비게이션 그래프(<code>nav_graph_main.xml</code>)의 시작 지점인 splash에서 home으로 전환합니다. <code>SplashFragment</code>/<code>SplashViewModel</code>이 담당합니다.</div></a>
+      <a class="card" href="f13.html"><div class="t">GIF 썸네일 로딩</div><div class="d">Coil3의 <code>AnimatedImageDecoder</code>로 라이브 채널 썸네일의 애니메이션 GIF를 디코딩·표시합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>단일 애플리케이션 모듈(<code>:app</code>) 구조입니다. 패키지는 <code>com.altimedia.remotesolution</code> 하위가 본체이며, BLE 입력과 네비게이션을 다루는 일부 base 클래스(<code>TvActivity</code>/<code>TvFragment</code>/<code>TvViewModel</code>/<code>Navigator</code>)는 같은 모듈 안의 <code>ui/base</code>에 위치합니다. Hilt로 Navigator·Repository를 주입하고, Navigation 컴포넌트의 단일 그래프로 화면을 전환합니다.</p>
+    <pre class="tree">remote_solution/
+├─ build.gradle.kts            # 루트 빌드 스크립트 (플러그인 alias 선언)
+├─ settings.gradle.kts         # rootProject "RemoteSolution", include(":app")
+├─ gradle/
+│  ├─ libs.versions.toml       # 버전 카탈로그 (의존성/플러그인 버전 일원화)
+│  └─ wrapper/                 # Gradle Wrapper 설정 (8.13)
+├─ keystore.jks                # 디버그/릴리스 공용 서명 키 (repo 동봉)
+└─ app/
+   ├─ build.gradle.kts         # 앱 모듈 빌드 설정, 의존성
+   ├─ proguard-rules.pro       # Fragment keep 규칙
+   └─ src/main/
+      ├─ AndroidManifest.xml   # leanback launcher, Bluetooth 권한
+      ├─ assets/               # 로컬 VOD mp4 + 프레임 이미지(scene*.jpg)
+      └─ java/com/altimedia/remotesolution/
+         ├─ RSApplication.kt           # @HiltAndroidApp, Timber 초기화
+         ├─ data/
+         │  ├─ channel/                # Channel/Program 모델 및 데이터 소스
+         │  ├─ menu/                   # 네비게이션 메뉴 모델
+         │  └─ vod/                    # Vod/VodRow 모델, HomeDataRepository
+         └─ ui/
+            ├─ MainActivity.kt         # 진입 Activity, BLE 권한 및 연결 트리거
+            ├─ BluetoothViewModel.kt   # BLE GATT 연결/제어 모드 송신 핵심
+            ├─ base/                   # TvActivity/TvFragment/TvViewModel/Navigator
+            ├─ di/                     # Hilt 모듈 (Navigator, Repository 주입)
+            ├─ splash/                 # 스플래시 → 홈 전환
+            ├─ home/                   # 홈 런처 (행/메뉴 어댑터, 드래그 즐겨찾기)
+            ├─ vod/                    # VOD 재생, Circle to Search(CircleInkView)
+            ├─ channel/                # 라이브 채널, 미니 EPG/미니 가이드
+            ├─ tutorial/               # 휠/원/즐겨찾기 튜토리얼 오버레이 뷰
+            ├─ common/                 # RSLinearLayoutManager 등 공용 컴포넌트
+            └─ util/                   # Asset/Time 확장, 그래디언트 레이아웃 등</pre>
+    <h3>주요 모듈 · 클래스</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>클래스 / 파일</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td>앱 진입</td><td><code>RSApplication</code></td><td><code>@HiltAndroidApp</code>. Debug에서 라인 번호 포함 <code>[KTA]</code> 태그 Timber, Release에서 WARN 이상만 로깅합니다.</td></tr>
+          <tr><td>앱 진입</td><td><code>MainActivity</code> (<code>TvActivity</code> 상속)</td><td><code>BLUETOOTH_CONNECT</code> 권한 요청, <code>onStart/onStop</code>에서 BLE 연결/해제 호출, 키 이벤트를 최상단 <code>TvFragment</code>로 디스패치합니다.</td></tr>
+          <tr><td>BLE 핵심</td><td><code>BluetoothViewModel</code></td><td>장치 판별, GATT 서비스·캐릭터리스틱 탐색, <code>CharacteristicWorker</code> 코루틴 큐로 쓰기 직렬화, <code>ControlMode</code> 비트 마스크 송신을 담당합니다.</td></tr>
+          <tr><td>홈</td><td><code>HomeFragment</code> / <code>HomeViewModel</code> / <code>HomeDataRepository</code></td><td>가로 스크롤 행 + 네비게이션 레일 런처, 포스터 드래그 즐겨찾기, MN3 진입 튜토리얼을 구성합니다.</td></tr>
+          <tr><td>VOD</td><td><code>VodFragment</code> / <code>CircleInkView</code> / <code>VodFrameAdapter</code></td><td>ExoPlayer 로컬 재생, 휠 스크럽 프레임 탐색, 영상 위 드로잉 기반 영역 캡처를 처리합니다.</td></tr>
+          <tr><td>라이브</td><td><code>ChannelFragment</code> / <code>ChannelViewModel</code> + <code>ChannelDataSource</code> / <code>ProgramDataSource</code></td><td>라이브 채널 재생, 미니 EPG·미니 가이드(무한 스크롤) 제공을 담당합니다.</td></tr>
+          <tr><td>공용</td><td><code>RSLinearLayoutManager</code> / <code>InfiniteAdapterWrapper</code> / <code>GradientAlphaConstraintLayout</code></td><td>TV 포커스 정렬·스냅, 무한 스크롤 래핑, 그래디언트 페이드 레이아웃 등 공용 컴포넌트입니다.</td></tr>
+          <tr><td>DI</td><td><code>TvNavigatorModule</code> / <code>HomeDataRepositoryModule</code> / <code>ChannelDataRepositoryModule</code></td><td>Hilt 모듈로 Navigator·Repository를 주입합니다.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>계층 관계로 보면 진입 <code>MainActivity</code>가 BLE 권한과 <code>BluetoothViewModel</code> 연결을 트리거하고, 모든 화면 Fragment는 공용 base <code>TvFragment</code>를 상속해 <code>activityViewModels()</code>로 <code>BluetoothViewModel</code>을 공유합니다. 각 화면은 진입 시 자신의 <code>ControlMode</code>를 ViewModel에 요청하고, ViewModel은 그 모드의 2바이트 제어 신호를 GATT TX 캐릭터리스틱으로 써서 외부 입력 장치(Aero Pointer / Smart Air Ring)의 동작 모드를 바꿉니다. 외부 연동은 네트워크 없이 BLE(GATT) 단방향 제어 송신과 로컬 자산 재생으로 한정됩니다.</p>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>언어</td><td>Kotlin</td><td>2.0.21</td><td>JVM target 11</td></tr>
+          <tr><td>빌드</td><td>Android Gradle Plugin</td><td>8.11.1</td><td>Gradle Kotlin DSL + Version Catalog, Wrapper 8.13</td></tr>
+          <tr><td>플랫폼</td><td>Android SDK</td><td>compileSdk 36 / minSdk 28 / targetSdk 34</td><td><code>applicationId com.altimedia.remotesolution</code>, versionName 1.5 / versionCode 7</td></tr>
+          <tr><td>DI</td><td>Dagger Hilt (+ KSP)</td><td>2.57.1 / KSP 2.0.21-1.0.27</td><td>Navigator·Repository 주입</td></tr>
+          <tr><td>네비게이션</td><td>AndroidX Navigation</td><td>2.9.3</td><td>fragment, ui, safe-args</td></tr>
+          <tr><td>미디어</td><td>AndroidX Media3 ExoPlayer</td><td>1.8.0</td><td>exoplayer, exoplayer-dash, ui</td></tr>
+          <tr><td>이미지</td><td>Coil3</td><td>3.0.0</td><td>coil, coil-gif(GIF 디코더)</td></tr>
+          <tr><td>ML Kit</td><td>Digital Ink Recognition</td><td>18.1.0</td><td><code>Ink</code>/<code>Ink.Stroke</code> 타입 수집 (도형 판정은 자체 기하 로직)</td></tr>
+          <tr><td>ML Kit</td><td>GenAI Image Description</td><td>1.0.0-beta1</td><td>의존성 선언만 있고 직접 호출 코드는 미확인 (추정상 향후 인식 연동 준비)</td></tr>
+          <tr><td>로깅</td><td>Timber</td><td>5.0.1</td><td>Debug에서 <code>[KTA]</code> 태그</td></tr>
+          <tr><td>UI</td><td>AppCompat / Material / ConstraintLayout</td><td>1.7.1 / 1.12.0 / 2.2.1</td><td>ViewBinding 사용</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+    <h3>BLE 연결 및 제어 모드 송신</h3>
+    <ol class="steps">
+      <li><span class="st">권한 확인 후 연결</span><span class="sd"><code>MainActivity.onStart()</code>에서 <code>BLUETOOTH_CONNECT</code> 권한을 확인하고 <code>viewModel.connectRemoteSolution()</code>으로 본딩된 BLE 장치 연결을 시도합니다.</span></li>
+      <li><span class="st">장치 종류 판별</span><span class="sd">장치 이름이 <code>mn3</code>로 시작하면 <code>Device.MN3</code>, <code>Smart Air Ring</code>으로 시작하면 <code>Device.SMART_RING</code>, 그 외에는 <code>DEFAULT</code>로 분류합니다.</span></li>
+      <li><span class="st">GATT 서비스 탐색</span><span class="sd">서비스 발견 후 커스텀 UUID(<code>F3C5B4E1-…</code>)의 TX/RX 캐릭터리스틱을 찾고 RX CCCD를 활성화한 뒤 <code>ControlMode.INIT</code>을 송신합니다.</span></li>
+      <li><span class="st">화면별 모드 전환</span><span class="sd">홈/VOD/라이브 진입 시 해당 화면의 <code>ControlMode</code>(HOME·WHEEL·CIRCLE_TO_SEARCH·LIVE_CHANNEL)에 맞춰 포인터·휠·플라잉 네비·플라잉 클릭 비트를 조합한 2바이트(header, controlBits)를 <code>CharacteristicWorker</code> 큐를 통해 TX로 씁니다.</span></li>
+      <li><span class="st">종료 정리</span><span class="sd"><code>onStop()</code>에서 <code>ControlMode.EXIT</code>을 보내고 <code>disconnectRemoteSolution()</code>으로 연결을 해제합니다.</span></li>
+    </ol>
+    <h3>Circle to Search (영상 위 영역 캡처)</h3>
+    <ol class="steps">
+      <li><span class="st">획 수집</span><span class="sd"><code>CircleInkView</code>가 <code>PlayerView</code> 위에서 <code>MotionEvent</code> 좌표를 ML Kit <code>Ink.Stroke</code>로 수집합니다.</span></li>
+      <li><span class="st">원 판정</span><span class="sd">종횡비·반지름 안정성·경로 폐합·길이·크기 기준으로 "원에 가까운지"를 자체 기하 로직으로 판정합니다.</span></li>
+      <li><span class="st">정원 모핑</span><span class="sd">원으로 인정되면 비뚤어진 획을 정원(正圓)으로 모핑하는 애니메이션을 재생합니다.</span></li>
+      <li><span class="st">영역 비트맵 캡처</span><span class="sd">루트 뷰와 비디오 <code>TextureView</code> 표면을 함께 그려 캡처하고 200x200 썸네일을 만들어 <code>CaptureResult.SUCCESS</code>로 콜백합니다.</span></li>
+      <li><span class="st">상세 오버레이 노출</span><span class="sd"><code>VodFragment</code>가 상품 상세 오버레이(브랜드·가격 등 하드코딩 데이터)를 띄워 검색 결과를 시연합니다.</span></li>
+    </ol>
+    <h3>휠 스크럽 VOD 탐색</h3>
+    <ol class="steps">
+      <li><span class="st">휠 콘텐츠 재생</span><span class="sd">휠 대상 콘텐츠(<code>Good Fortune</code> 등)를 ExoPlayer로 재생하고 <code>ControlMode.WHEEL</code>로 입력 장치를 휠 모드로 전환합니다.</span></li>
+      <li><span class="st">모션 스크롤 입력</span><span class="sd">제너릭 모션 스크롤(<code>AXIS_VSCROLL</code>) 이벤트를 받아 1초 단위로 REW/FF 탐색을 수행합니다.</span></li>
+      <li><span class="st">프레임 썸네일 동기화</span><span class="sd">탐색 위치에 대응하는 프레임 썸네일 리스트(<code>VodFrameAdapter</code>, <code>scene*.jpg</code>)를 함께 표시해 위치를 시각화합니다.</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>이 저장소에는 <code>gradlew</code> 래퍼 스크립트가 커밋되어 있지 않고 래퍼 설정(<code>gradle/wrapper/gradle-wrapper.properties</code>)만 포함됩니다. Android Studio에서 열면 IDE가 Gradle 8.13을 자동 구성하므로 IDE 빌드를 권장합니다. CLI로 빌드하려면 로컬에 설치된 Gradle(8.13)을 사용해야 합니다.</p>
+    <pre><code># 디버그 빌드 (repo 동봉 keystore로 서명)
+gradle :app:assembleDebug
+
+# 릴리스 빌드 (minify + proguard 적용, 동일 keystore로 서명)
+gradle :app:assembleRelease
+
+# 정리
+gradle clean</code></pre>
+    <p>서명은 <code>app/build.gradle.kts</code>의 <code>signingConfigs</code>에서 루트 <code>keystore.jks</code>를 사용하도록 debug/release 모두 설정되어 있습니다(alias/비밀번호 모두 <code>android</code>). 별도 서명 구성 없이 바로 설치 가능한 APK가 산출됩니다. Release는 <code>isMinifyEnabled = true</code>로 ProGuard 최적화가 적용됩니다. 산출물은 <code>app/build/outputs/apk/</code> 하위의 서명된 APK입니다.</p>
+    <div class="callout warn">
+      <div class="ct">서명 키 동봉 주의</div>
+      <code>keystore.jks</code>와 그 비밀번호가 저장소에 평문으로 포함되어 있습니다. PoC 용도로 그대로 두었으나, 운영/배포 전환 시에는 서명 키를 분리 관리하는 것을 권장합니다.
+    </div>
+    <p>실행 시 앱은 본딩된 BLE 장치를 탐색해 연결을 시도합니다. PoC 특성상 입력 장치(<code>mn3</code> 계열 또는 <code>Smart Air Ring</code>)가 사전에 페어링되어 있지 않으면 휠·Circle to Search·튜토리얼 등 일부 인터랙션은 동작하지 않습니다.</p>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>최근 작업은 2025년 12월 PoC 마감 직전에 집중되어, BLE 장치 상태 예외 처리와 장치 이름 조회 null safety 보강, 채널 튜토리얼 갱신, 홈 navview 시계, VOD 백키 차단·재생/일시정지 안정화·프레임 포커스 애니메이션·진행 바 리팩터링 등 PoC 인터랙션을 다듬는 작업이 주를 이룹니다. 잦은 <code>version up</code> 커밋으로 데모 빌드를 반복 갱신한 흔적이 보입니다.</p>
+    <ul class="commits">
+      <li><span class="date">2025-12-24</span><span class="msg">[app] version up</span></li>
+      <li><span class="date">2025-12-24</span><span class="msg">[app] not showing guide when bluetooth device state is abnormal</span></li>
+      <li><span class="date">2025-12-24</span><span class="msg">[app] add null safety when getting bluetooth device name</span></li>
+      <li><span class="date">2025-12-24</span><span class="msg">[channel] update tutorial</span></li>
+      <li><span class="date">2025-12-23</span><span class="msg">[app] version up</span></li>
+      <li><span class="date">2025-12-23</span><span class="msg">[app] update</span></li>
+      <li><span class="date">2025-12-23</span><span class="msg">[home] update navview clock</span></li>
+      <li><span class="date">2025-12-23</span><span class="msg">[vod] block back key when inkview visible</span></li>
+      <li><span class="date">2025-12-23</span><span class="msg">[app] version up</span></li>
+      <li><span class="date">2025-12-23</span><span class="msg">[vod] play/pause work properly when move to home launcher</span></li>
+      <li><span class="date">2025-12-23</span><span class="msg">[vod] set condition low circle completion</span></li>
+      <li><span class="date">2025-12-23</span><span class="msg">[vod] frame focus anim update</span></li>
+      <li><span class="date">2025-12-23</span><span class="msg">[vod] work properly after touchmode</span></li>
+      <li><span class="date">2025-12-23</span><span class="msg">[vod] set condition low circle completion</span></li>
+      <li><span class="date">2025-12-22</span><span class="msg">[home] update drag horizontal item</span></li>
+      <li><span class="date">2025-12-22</span><span class="msg">[vod] update frame anim</span></li>
+      <li><span class="date">2025-12-22</span><span class="msg">[vod] refactor progress bar</span></li>
+      <li><span class="date">2025-12-22</span><span class="msg">Merge remote-tracking branch 'origin/develop' into develop</span></li>
+    </ul>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li><code>remote_solution/README.md</code><span class="src">저장소 README — 과제 개요·기술 스택·모듈 설명</span></li>
+      <li><code>git@bitbucket.org:altimedia/remote_solution.git</code><span class="src">저장소 — 분석 기준 브랜치 develop, 최근 커밋 23df598</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3992748126">2025_Remote Solution PoC용 App 개발</a><span class="src">Confluence (ORGAPPDEV) — 과제 상위 페이지</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3992748144">개요_RSPoC</a><span class="src">Confluence (ORGAPPDEV) — 배경(Aero Pointer · Smart Air Ring Demo), 구성원</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3992453239">요구사항 및 분석_RSPoC</a><span class="src">Confluence (ORGAPPDEV) — Flying Navi/Motion Control/Wheel 요구사항</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3997499414">Smart Air Ring</a><span class="src">Confluence (ORGAPPDEV) — Air ring 이벤트(휠/버튼) 및 Work items</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

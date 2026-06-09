@@ -1,0 +1,178 @@
+<!doctype html>
+<!-- kt_ford_aosp_radio_app · 마지막 청취 채널 복원 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마지막 청취 채널 복원 — kt_ford_aosp_radio_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford AOSP 라디오 앱</a><span class="sep">›</span>
+      <span class="here">마지막 청취 채널 복원</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive (AOSP/AAOS) · Java</span>
+    </div>
+    <h1>마지막 청취 채널 복원</h1>
+    <p class="one-liner"><code>RadioPreferenceManager</code>(SharedPreferences)가 마지막 청취 위치(<code>LCW</code>)를 저장·복원해, 재실행 시 직전에 듣던 채널로 이어집니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app" target="_blank" rel="noopener"><code>kt_ford_aosp_radio_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>manager/RadioPreferenceManager.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">LCW(last channel watched) 보관</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>사용자가 마지막에 듣던 채널을 기억하기 위해 <code>RadioPreferenceManager</code>가 SharedPreferences(<code>kt.ford.radio.service</code>)에 채널 인덱스를 <code>LCW</code>(last channel watched) 키로 저장합니다. 이 매니저는 LazyHolder 싱글턴이며, <code>RadioApplication.onCreate()</code>에서 <code>init(context)</code>로 한 번 초기화됩니다.</p>
+    <p>저장 시점은 재생이 시작되는 세션 콜백 <code>onPlay()</code>로, 현재 <code>nowPlayPos</code>를 <code>setIntValue(LCW, pos)</code>로 기록합니다. 복원 시점은 서비스 생성 <code>onCreate()</code>로, <code>getSavedPlayListPosition()</code>이 저장된 인덱스를 읽어 <code>updatePosition(TARGET_SPECIFIC, ...)</code>으로 시작 위치를 맞춥니다. 따라서 차량을 재시동하거나 앱을 다시 실행해도 직전 채널부터 이어집니다. 런처가 <code>kas.action.app.clear</code>를 보내면 <code>resetData()</code>가 <code>LCW</code>를 0으로 되돌려 첫 채널로 초기화합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      복원 값은 인덱스(int)만 저장합니다. 채널 카탈로그가 <code>ChannelListItems</code>에 고정되어 있어 인덱스만으로 동일 채널을 가리킬 수 있으므로, URL·메타데이터를 따로 저장하지 않아 구현이 단순합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant APP as RadioApplication
+    participant SVC as RadioBrowserService
+    participant CB as RadioSessionCallback
+    participant PM as RadioPreferenceManager
+    participant SP as SharedPreferences
+
+    APP->>PM: init(context) (앱 시작)
+    Note over SVC: --- 서비스 onCreate ---
+    SVC->>PM: getIntValue(LCW)
+    PM->>SP: getInt(LCW, 0)
+    SP-->>PM: 저장된 인덱스
+    PM-->>SVC: lastPosition
+    SVC->>SVC: updatePosition(TARGET_SPECIFIC, lastPosition)
+    Note over CB: --- 재생 시작 onPlay ---
+    CB->>PM: setIntValue(LCW, nowPlayPos)
+    PM->>SP: putInt(LCW).apply()
+      </div>
+      <p class="cap"><strong>흐름.</strong> 앱 시작 시 매니저를 초기화하고, 서비스 생성 시 저장 인덱스로 시작 위치를 복원하며, 재생할 때마다 현재 위치를 LCW 로 저장합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class RadioPreferenceManager {
+        +servicePrefName = "kt.ford.radio.service"$
+        +LCW = "key.last.channel.watched"$
+        +getInstance()$ RadioPreferenceManager
+        +init(context)
+        +setIntValue(key, value)
+        +getIntValue(key) int
+        +resetData()
+    }
+    class RadioApplication {
+        +onCreate()
+    }
+    class RadioBrowserService {
+        -getSavedPlayListPosition() int
+        -savePlayListPosition(val)
+    }
+    class SharedPreferences {
+        +getInt(key, def) int
+        +edit() Editor
+    }
+
+    RadioApplication ..> RadioPreferenceManager : init()
+    RadioBrowserService ..> RadioPreferenceManager : 저장/복원
+    RadioPreferenceManager o-- SharedPreferences : 위임
+      </div>
+      <p class="cap"><strong>관계.</strong> 싱글턴 <code>RadioPreferenceManager</code>가 SharedPreferences 를 감싸고, 앱이 초기화·서비스가 저장/복원합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>media/RadioBrowserService.java</code> — 복원/저장 진입점</div>
+<pre><code>// onCreate(): 저장된 위치로 시작 채널 복원
+updatePosition(Target.TARGET_SPECIFIC, getSavedPlayListPosition());
+
+private int getSavedPlayListPosition() {
+    return RadioPreferenceManager.getInstance().getIntValue(RadioPreferenceManager.LCW);
+}
+
+// onPlay(): 현재 위치를 LCW 로 저장
+private void savePlayListPosition(int val) {
+    RadioPreferenceManager.getInstance().setIntValue(RadioPreferenceManager.LCW, val);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>manager/RadioPreferenceManager.java</code> — LCW 보관/초기화</div>
+<pre><code>public static final String LCW = "key.last.channel.watched";
+
+public void setIntValue(String key, int value) {
+    servicePreferences.edit().putInt(key, value).apply();
+}
+public int getIntValue(String key) {
+    return servicePreferences.getInt(key, 0);
+}
+public void resetData() {                       // kas.action.app.clear 대응
+    servicePreferences.edit().putInt(LCW, 0).commit();
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/manager/RadioPreferenceManager.java" target="_blank" rel="noopener">manager/RadioPreferenceManager.java</a><span class="src">LCW 키 · setIntValue/getIntValue/resetData</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/media/RadioBrowserService.java" target="_blank" rel="noopener">media/RadioBrowserService.java</a><span class="src">getSavedPlayListPosition / savePlayListPosition · 시작 위치 복원</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/RadioApplication.java" target="_blank" rel="noopener">RadioApplication.java</a><span class="src">PreferenceManager init() (앱 진입점)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f09.html">← 오디오 포커스 관리</a>
+      <a href="f11.html">미디어 알림 / 포그라운드 유지 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_radio_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

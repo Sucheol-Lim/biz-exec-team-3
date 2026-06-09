@@ -1,0 +1,200 @@
+<!doctype html>
+<!-- kt_integrated_iot_fe · 지도형 대시보드 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>지도형 대시보드 — kt_integrated_iot_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT 통합 IoT 관제 FE</a><span class="sep">›</span>
+      <span class="here">지도형 대시보드</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관제 콘솔 (React SPA)</span>
+    </div>
+    <h1>지도형 대시보드</h1>
+    <p class="one-liner">KT 자체 지도 SDK(<code>kt-map-sdk-js</code>)로 디바이스·시설물·이벤트 마커를 지도에 표출하고, 마커 다이얼로그·그리기(Draw) 컨트롤·도면 뷰어를 제공하는 메인 관제 화면입니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/home/Home.tsx</code> · <code>map/</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">지도 뷰(viewType 'M') 메인 화면</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>Home</code> 화면은 <code>viewType</code>이 <code>'M'</code>(Map)일 때 지도형 대시보드를 렌더링합니다. <code>ktGms.Map</code> 인스턴스를 <code>useRef</code>로 보관하고, <code>VITE_KT_MAP_API_KEY</code>를 Bearer 토큰으로 넘겨 지도를 초기화합니다. 지도 스타일(<code>styledata</code>) 로드 시 라이트 모드면 틴트 레이어를 추가하고 불필요한 POI 레이어를 필터링합니다.</p>
+    <p>서비스 대상(<code>headerServiceTarget</code>)이 바뀌면 <code>HomeMapState</code>에 좌표·줌을 저장해 <code>flyTo</code>로 이동시킵니다. 마커 검색(<code>MarkerSearch</code>)으로 받은 <code>markerList</code>는 <code>MarkerStateHandler</code>가 감시하여, 특정 디바이스로 이동(<code>flyTo</code>)하거나 범위에 맞춰(<code>fitBounds</code>) 카메라를 옮기고, 필요 시 마커 다이얼로그(<code>openMarkerDialog</code>)를 띄웁니다.</p>
+    <p>지도 위에는 <code>MapControllers</code>(줌·내 위치 등 컨트롤), <code>MapToolbar</code>(지도/도면 전환, 커버리지·플래그 토글)가 오버레이됩니다. 그리기 기능은 전역 <code>DrawControlContext</code>가 <code>ktGms.control.DrawControl</code> 인스턴스를 보관해 폴리곤·라인 그리기 모드를 제어합니다. 도면 모드에서는 <code>DrawingViewer</code>가 시설 도면 위에 마커를 표시합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      한전 AMI(<code>SITE_CODES.AMI</code>)는 지도 표출 대상이 아니어서 지도 DOM과 마커 검색을 렌더링하지 않고 카드형 화면으로만 동작합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Home as Home (pages/home)
+    participant SDK as ktGms.Map (kt-map-sdk-js)
+    participant Search as MarkerSearch
+    participant MSH as MarkerStateHandler
+    participant MC as useMapControl
+    participant Dlg as MarkerDialogList
+
+    Home-&gt;&gt;SDK: new ktGms.Map(container, access_token=Bearer KEY)
+    SDK--&gt;&gt;Home: on('load') → isMapLoaded=true
+    SDK--&gt;&gt;Home: on('styledata') → addTintLayer / filterPoiLayers
+    Home-&gt;&gt;Search: serviceTargetId 전달
+    Search--&gt;&gt;Home: setMarkerList(markers)
+    Home-&gt;&gt;MSH: markerList + mapState 전달
+    MSH-&gt;&gt;SDK: flyTo / fitBounds (카메라 이동)
+    opt 마커 모달 요청
+        MSH-&gt;&gt;MC: openMarkerDialog(properties, coordinates)
+        MC-&gt;&gt;Dlg: 마커 요약/상세 다이얼로그 표시
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 지도 초기화 후 마커 검색 결과가 <code>MarkerStateHandler</code>로 전달되어 카메라를 이동시키고, 선택된 마커는 다이얼로그로 상세를 표시합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class Home {
+        -map RefObject~Map~
+        -markerList
+        -isMapLoaded
+        +render() Element
+    }
+    class MarkerStateHandler {
+        +useEffect() void
+    }
+    class MarkerSearch {
+        +setMarkerList()
+        +onFlyToLocation()
+        +onFlyToBounds()
+    }
+    class MapControlProvider {
+        +openMarkerDialog()
+    }
+    class DrawControlContext {
+        -drawControl DrawControl
+        +startDraw(mode)
+        +stopDraw()
+        +drawShape(coords, type)
+    }
+    class KtGmsMap {
+        +flyTo(opts)
+        +fitBounds(bounds)
+        +on(event, cb)
+        +queryRenderedFeatures(point)
+    }
+
+    Home o-- KtGmsMap : 소유(ref)
+    Home --&gt; MarkerSearch : 마커 조회 위임
+    Home --&gt; MarkerStateHandler : 카메라 동기화
+    MarkerStateHandler --&gt; KtGmsMap : flyTo / fitBounds
+    MarkerStateHandler ..&gt; MapControlProvider : openMarkerDialog
+    Home ..&gt; DrawControlContext : 그리기 컨트롤
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>Home</code>이 <code>ktGms.Map</code> 인스턴스를 소유하고, 검색·카메라 이동·마커 다이얼로그·그리기 컨트롤이 각각 분리된 컴포넌트/컨텍스트로 협력합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/home/Home.tsx</code> — KT 지도 SDK 초기화</div>
+<pre><code>import ktGms from 'kt-map-sdk-js';
+const MAP_KEY = import.meta.env.VITE_KT_MAP_API_KEY;
+
+map.current = new ktGms.Map({
+  container: mapDOM.current,
+  style: 'normal',
+  center: [mapState.lng, mapState.lat],
+  zoom: mapState.zoom,
+  access_token: 'Bearer ' + MAP_KEY,
+  ktLogo: false,
+  geolocateControl: true,
+});
+map.current?.on('load', () =&gt; setIsMapLoaded(true));
+map.current?.on('styledata', () =&gt; {
+  if (mode === 'light') addTintLayer(map);
+  filterPoiLayers(map);
+});</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/home/Home.tsx</code> — 마커로 카메라 이동 후 상세 다이얼로그 표시</div>
+<pre><code>map.current?.flyTo({
+  center: [Number(targetMarker.longitudeValue), Number(targetMarker.latitudeValue)],
+  zoom: 16, speed: 2.5, essential: true,
+});
+if (mapState.marker?.modalType) {
+  openMarkerDialog({
+    properties: { ...targetMarker, openDetail: mapState.marker?.modalType === 'DETAIL' },
+    coordinates: [Number(targetMarker.longitudeValue), Number(targetMarker.latitudeValue)],
+  });
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/Home.tsx" target="_blank" rel="noopener">src/pages/home/Home.tsx</a><span class="src">ktGms.Map 초기화 · 마커 카메라 이동 · 오버레이 구성</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/contexts/DrawControlContext.tsx" target="_blank" rel="noopener">src/contexts/DrawControlContext.tsx</a><span class="src">ktGms.control.DrawControl 보관 · startDraw / drawShape</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/map/toolbar/MapToolbar.tsx" target="_blank" rel="noopener">src/components/map/toolbar/MapToolbar.tsx</a><span class="src">지도/도면 전환 · 커버리지·플래그 토글 툴바</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/markerDialog/MarkerDialogList.tsx" target="_blank" rel="noopener">src/components/markerDialog/MarkerDialogList.tsx</a><span class="src">마커 요약/상세 다이얼로그 렌더</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/MapUtils.ts" target="_blank" rel="noopener">src/utils/MapUtils.ts</a><span class="src">addTintLayer / filterPoiLayers 등 지도 유틸</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f01.html">멀티 사이트 통합 관제</a>
+      <a href="f03.html">카드형 종합 현황 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_integrated_iot_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

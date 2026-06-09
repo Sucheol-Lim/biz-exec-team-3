@@ -1,0 +1,204 @@
+<!doctype html>
+<!-- kt-bom-qrator-web · 큐톤(Cue-tone) 광고 트리거 기능 상세 — 방송 큐톤 메시지 수신 광고 연동 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>큐톤(Cue-tone) 광고 트리거 — kt-bom-qrator-web 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT BOM Qrator Web (언바운드 위젯 앱)</a><span class="sep">›</span>
+      <span class="here">큐톤(Cue-tone) 광고 트리거</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">olleh tv 웹 미들웨어 STB · JavaScript</span>
+    </div>
+    <h1>큐톤(Cue-tone) 광고 트리거</h1>
+    <p class="one-liner">방송 큐톤(Cue-tone) 광고 메시지 수신 시 광고 연동 트리거를 노출합니다. 캐시된 큐톤 캠페인 목록에서 자산을 매칭해 표시하고, RED 키 입력 시 BOM 서버의 <code>getCuetoneCmpInfo(BW016)</code>로 캠페인 정보를 받아 링크를 실행합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web" target="_blank" rel="noopener"><code>kt-bom-qrator-web</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>apps/CuetoneADTrigger/js/CuetoneAD.js</code></div></div>
+      <div class="item"><div class="k">서버 요청</div><div class="v"><code>getCuetoneCmpInfo (BW016)</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>큐톤 트리거의 진입점은 <code>qrator</code>의 <code>QRT_SHOW_TRIGGER_WHEN_CUETONE_AD</code> 메시지입니다. <code>qrator._processResponseQrtShowTriggerWhenCuetoneAD</code>가 먼저 위젯/BOM 앱/sharpUi 실행 여부를 확인하고, 옵저버에 <code>obs_isLoadingUnboundApplication</code>으로 다른 언바운드 앱이 없음을 확인한 뒤에야 <code>cuetoneAD.show(assetId, subscriptionId, campaignId, adId, requestCode)</code>를 호출합니다.</p>
+    <p><code>CuetoneADModel</code>은 부팅 시 캐시 서버에서 큐톤 캠페인 목록을 받아 <code>localStorage</code>에 보관합니다. <code>show()</code>가 호출되면 <code>findCampaign()</code>이 자산/구독/캠페인 ID로 매칭하고 노출 유효시간(<code>START_TIME</code>~<code>END_TIME</code>)을 검사해 캠페인을 찾습니다. 캠페인이 있으면 <code>CuetoneADTrigger</code> 뷰로 트리거를 그리고, <code>SHOW_TIME</code>초 후 자동으로 비활성화(<code>_deactivate</code>)되는 타이머를 겁니다.</p>
+    <p>사용자가 RED 키를 누르면 <code>_executeLink</code>이 <code>requestCampaignInfo</code>로 <code>getCuetoneCmpInfo(BW016)</code>를 호출합니다. 요청 데이터에는 <code>stbType_WEBAPP(2)</code>·<code>serviceType</code>(OTV/OTS)·자산·구독·캠페인 ID가 담깁니다. 응답의 <code>link_type</code>·<code>link_param</code>은 <code>brk_executeLink</code> 내부 메시지로 brk에 전달되어 실행됩니다. adId는 <code>cryptoUtil.encryptAESWithCBC</code>로 암호화해 로그에 남깁니다.</p>
+    <div class="callout">
+      <div class="ct">채널 변경 시 자동 종료</div>
+      활성화(<code>_activate</code>) 시점에 <code>broadcast</code> 객체의 <code>onPlayStateChange</code>·<code>onChannelChangeSucceeded</code>·<code>onChannelChangeError</code>를 구독합니다. 광고 노출 중 채널이 바뀌면 즉시 <code>_deactivate</code>되어 트리거가 사라지고 qrator로 제어가 돌아갑니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant OBS as Observer
+    participant Q as qrator
+    participant CAD as cuetoneAD
+    participant MODEL as CuetoneADModel
+    participant E7 as e7works (BW016)
+    participant BRK as brk
+
+    OBS-&gt;&gt;Q: qrt_showTriggerWhenCuetoneAD
+    Q-&gt;&gt;OBS: obs_isLoadingUnboundApplication
+    OBS--&gt;&gt;Q: res = no
+    Q-&gt;&gt;CAD: show(assetId, subscriptionId, campaignId, adId, reqCd)
+    CAD-&gt;&gt;MODEL: findCampaign(...)
+    MODEL--&gt;&gt;CAD: 유효 campaign
+    CAD-&gt;&gt;CAD: view.showTrigger() + SHOW_TIME 타이머
+    CAD-&gt;&gt;CAD: _listenChannelChangeEvent()
+
+    Note over CAD: 사용자 RED 키
+    CAD-&gt;&gt;MODEL: requestCampaignInfo(campaign)
+    MODEL-&gt;&gt;E7: POST getCuetoneCmpInfo (BW016)
+    E7--&gt;&gt;MODEL: sessionId / camp_info(link_type)
+    CAD-&gt;&gt;BRK: brk_executeLink(linkType, datas)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 옵저버 큐톤 메시지 → 언바운드 앱 확인 → 매칭 캠페인 표시(SHOW_TIME 타이머·채널 이벤트 구독). RED 키 시 <code>getCuetoneCmpInfo(BW016)</code> 응답의 링크를 <code>brk_executeLink</code>로 brk에 전달합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class cuetoneAD {
+        -model
+        -view
+        -activityData
+        +init()
+        +setKeyset(proxy)
+        +keyEventListener(event)
+        +show(assetId, subscriptionId, campaignId, adId, reqCd)
+        +qMessage(event)
+    }
+    class CuetoneADModel {
+        -campaignList
+        +findCampaign(assetId, subId, campId)
+        +requestCampaignInfo(campaign, cb)
+        +updateScheduleFile()
+    }
+    class CuetoneADTrigger {
+        +showTrigger(campaign, cb)
+        +hideTrigger()
+    }
+    class ActivityData {
+        +campaign
+        +adid
+        +requestCode
+    }
+    class qrator {
+        +show(appName)
+        +deactivate()
+        +sendInternalMessage(target, msg)
+    }
+
+    cuetoneAD *-- CuetoneADModel : 소유
+    cuetoneAD *-- CuetoneADTrigger : 소유(뷰)
+    cuetoneAD ..&gt; ActivityData
+    cuetoneAD --&gt; qrator : 표시/내부 메시지
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>cuetoneAD</code>가 <code>CuetoneADModel</code>(BW016·캐시)과 <code>CuetoneADTrigger</code>(뷰)를 소유하고, 활성 상태는 <code>ActivityData</code>로 보관합니다. 표시·내부 링크 전달은 <code>qrator</code>를 경유합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>apps/CuetoneADTrigger/js/CuetoneADModel.js</code> — getCuetoneCmpInfo(BW016) 요청</div>
+<pre><code>this.requestCampaignInfo = function (campaign, resultCallback) {
+    var urn = ConstRequestBS.GET_CUETONE_CMP_INFO_BW016,
+        url = commonProperty.BRK_e7works_serverIp + '/' + urn;
+
+    var data = _mergeObject({
+        svcContId: campaign.SVC_CONT_ID,
+        assetId:   campaign.ASSET_ID,
+        campId:    campaign.CAMP_ID,
+        sbscrptnId: campaign.SBSCRPTN_ID
+    }, requestFixedData);                  // said / stbType_WEBAPP(2) / serviceType
+
+    _requestByPost(url, data, function (result) {
+        if (result.emergency_yn === ConstResponseBS.emergency_yn_CLOSE) return;
+        resultCallback(result.sessionId, result.svcContId, result.camp_info);
+    }, function (result) {
+        test.getCuetoneCmpInfo(resultCallback);
+    });
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>apps/CuetoneADTrigger/js/CuetoneAD.js</code> — show: 매칭 캠페인 표시와 SHOW_TIME 타이머</div>
+<pre><code>show: function (assetId, subscriptionId, campaignId, adId, requestCode) {
+    var campaign = model.findCampaign(assetId, subscriptionId, campaignId);
+    if (!campaign) { return; }
+
+    _showTrigger(campaign, function (result) {
+        if (result) {
+            _activate(campaign, adId, requestCode);   // qrator.show + 채널이벤트 구독
+        } else {
+            _deactivate();
+        }
+    });
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/CuetoneADTrigger/js/CuetoneAD.js" target="_blank" rel="noopener">apps/CuetoneADTrigger/js/CuetoneAD.js</a><span class="src">큐톤 트리거 컨트롤러. show·키 처리·채널이벤트 구독·brk_executeLink 전달</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/CuetoneADTrigger/js/CuetoneADModel.js" target="_blank" rel="noopener">apps/CuetoneADTrigger/js/CuetoneADModel.js</a><span class="src">큐톤 캠페인 캐시·findCampaign·getCuetoneCmpInfo(BW016)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/CuetoneADTrigger/js/CuetoneADTrigger.js" target="_blank" rel="noopener">apps/CuetoneADTrigger/js/CuetoneADTrigger.js</a><span class="src">큐톤 트리거 뷰(showTrigger/hideTrigger)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/qrator/js/main.js" target="_blank" rel="noopener">qrator/js/main.js</a><span class="src"><code>_processResponseQrtShowTriggerWhenCuetoneAD</code> 진입 라우팅</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f06.html">← CMP(캠페인) 채널 트리거</a>
+      <a href="f08.html">쇼핑키 / 결제 연동 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt-bom-qrator-web 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

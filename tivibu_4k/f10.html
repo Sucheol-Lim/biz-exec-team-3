@@ -1,0 +1,205 @@
+<!doctype html>
+<!-- tivibu_4k · 로그인/프로비저닝 기능 상세 — ProvisionInitializer/EasApi/ProvisionPopup 시퀀스·클래스 다이어그램 + 코드 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>로그인·프로비저닝 — tivibu_4k 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Tivibu 4K Android — IPTV/OTT 런처</a><span class="sep">›</span>
+      <span class="here">로그인·프로비저닝</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV / Leanback · Kotlin</span>
+    </div>
+    <h1>로그인·프로비저닝</h1>
+    <p class="one-liner">부팅 초기화 단계에서 <code>ProvisionInitializer</code>가 <code>EasApi.provision()</code>/로그인으로 단말 등록·인증을 수행하고, 실패 시 FailSafe 모드로 폴백하며, 입력은 <code>ProvisionPopup</code>/<code>ProvisionErrorPopup</code>으로 처리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tivibu_4k" target="_blank" rel="noopener"><code>tivibu_4k</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>sprint/LS0626_release</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>app/core/initializer/ProvisionInitializer.kt</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">부팅 초기화 파이프라인의 인증 단계</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>프로비저닝/로그인은 부팅 초기화 파이프라인의 한 단계(<code>ActivityInitializer</code>)인 <code>ProvisionInitializer</code>가 담당합니다. 첫 생성(<code>isFirstCreated</code>) 시 OTT 계정 전환 여부를 점검(<code>checkOttAccountSwitch</code>)한 뒤 <code>tryLogin()</code>으로 로그인 시도를 시작합니다. 플랫폼(IPTV / Tivibu Go / Smart TV OTT)과 게스트/계정 로그인 여부에 따라 <code>guestLogin()</code>·<code>ottLogin()</code> 등 경로가 분기됩니다.</p>
+    <p>실제 네트워크 호출은 <code>EasRepository</code>가 <code>EasApi</code>(Retrofit)로 수행합니다. 단말 프로비전(<code>provision(provisionId, devMac, deviceId)</code>), SSO 계정 조회·인증(<code>queryAccountList</code>), 토큰 발급 등을 통해 단말을 등록하고 사용자 세션을 확립합니다. CAS 인증 단말(<code>isCasAuth</code>)은 로그인을 생략하고 곧바로 FailSafe 모드로 동작합니다.</p>
+    <p>로그인 실패 또는 예외가 발생하면 <code>onErrorReturn</code>으로 <code>InitializerResult.FAILURE_SAFE</code>를 반환하고, FailSafe 모니터(<code>FailSafeMonitorRepository</code>)를 가동한 뒤 채널 목록을 FailSafe 파라미터로 초기화해 최소 기능으로 부팅을 이어갑니다. 사용자 입력이 필요한 경우 <code>ProvisionPopup</code>(프로비전 ID 입력 등)과 <code>ProvisionErrorPopup</code>(오류 안내)을 띄웁니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      인증을 "막느냐/통과시키느냐"의 이분법이 아니라, 실패해도 FailSafe 모드로 부팅을 완주시키는 폴백을 1차 시민으로 둡니다. 로그인 단계가 전체 부팅을 막지 않도록 RxJava 체인(<code>onErrorReturn</code> → <code>flatMap</code>)으로 결과를 다음 초기화로 전달합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant ACT as MainActivity
+    participant PI as ProvisionInitializer
+    participant ER as EasRepository
+    participant API as EasApi (Retrofit)
+    participant FS as FailSafeMonitorRepository
+    participant POP as ProvisionPopup / ErrorPopup
+
+    ACT->>PI: initialize(activity, isFirstCreated)
+    PI->>PI: checkOttAccountSwitch()
+    PI->>PI: tryLogin()
+    PI->>ER: provision / queryAccountList
+    ER->>API: GET provision / queryAccountList
+    API--&gt;>PI: ProvisionDto / AccountListDto
+    alt 로그인 성공
+        PI--&gt;>ACT: InitializerResult.SUCCESS
+    else 실패/예외
+        PI->>FS: startMonitor()
+        PI->>PI: channelRepository.initialize(FailSafe)
+        PI->>POP: 필요 시 입력/오류 팝업
+        PI--&gt;>ACT: InitializerResult.FAILURE_SAFE
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 부팅 초기화에서 <code>ProvisionInitializer</code>가 EAS 경로로 프로비전·로그인을 수행하고, 실패 시 FailSafe 모니터를 켜고 FailSafe 채널 초기화로 폴백하면서 결과를 다음 초기화로 넘깁니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ActivityInitializer {
+        &lt;&lt;interface&gt;&gt;
+        +initialize(activity, isFirstCreated) Single~InitializerResult~
+        +priority int
+    }
+    class ProvisionInitializer {
+        +initialize(...)
+        -tryLogin() Single~InitializerResult~
+        -guestLogin() / ottLogin()
+        -checkOttAccountSwitch()
+    }
+    class EasRepository {
+        &lt;&lt;interface&gt;&gt;
+        +readProvision() Provision
+        +putProvision(p) Completable
+    }
+    class EasApi {
+        &lt;&lt;interface&gt;&gt;
+        +provision(provisionId, devMac, deviceId) Single~ProvisionDto~
+        +queryAccountList(...) Single~AccountListDto~
+    }
+    class FailSafeMonitorRepository {
+        &lt;&lt;interface&gt;&gt;
+        +startMonitor()
+        +isMonitorRunning() boolean
+    }
+    class ProvisionPopup
+    class ProvisionErrorPopup
+
+    ProvisionInitializer ..|&gt; ActivityInitializer
+    ProvisionInitializer --&gt; EasRepository
+    EasRepository --&gt; EasApi : Retrofit
+    ProvisionInitializer --&gt; FailSafeMonitorRepository : 폴백
+    ProvisionInitializer ..&gt; ProvisionPopup
+    ProvisionInitializer ..&gt; ProvisionErrorPopup
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>ProvisionInitializer</code>는 초기화 인터페이스 구현체로, <code>EasRepository</code>→<code>EasApi</code>로 단말 등록·인증을 수행하고 실패 시 <code>FailSafeMonitorRepository</code>로 폴백하며 입력/오류 팝업을 띄웁니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>app/core/initializer/ProvisionInitializer.kt</code> — 로그인 시도 + FailSafe 폴백</div>
+<pre><code>return if (isFirstCreated) {
+    checkOttAccountSwitch()
+    tryLogin()
+        .onErrorReturn {
+            Log.d(TAG, "initialize|onErrorReturn, failsafe mode")
+            InitializerResult.FAILURE_SAFE
+        }
+        .flatMap { initResult -&gt;
+            if (initResult == InitializerResult.FAILURE_SAFE) {
+                if (!failSafeMonitorRepository.isMonitorRunning()) {
+                    failSafeMonitorRepository.startMonitor()
+                }
+                channelRepository.initialize(params = TTInitChannelListParams.FailSafe)
+                    .map { initResult }
+            } else {
+                Single.just(initResult)
+            }
+        }
+} else Single.just(InitializerResult.SUCCESS)</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>data/remote/api/EasApi.kt</code> — 프로비전/SSO 로그인 Retrofit 인터페이스</div>
+<pre><code>// 2.3.3. Appsvr provision interface
+@GET(DataConfig.API_PROVISION)
+fun provision(
+    @Query("provisionid") provisionId: String?,
+    @Query("devmac") devMac: String?,
+    @Query("deviceid") deviceId: String
+): Single&lt;ProvisionDto&gt;
+
+// 2.3.2. SSO Login authentication
+@GET(DataConfig.API_QUERY_ACCOUNT_LIST)
+fun queryAccountList(/* stbsn, mobileno, loginpwd, logintype, ... */): Single&lt;AccountListDto&gt;</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/app/core/initializer/ProvisionInitializer.kt" target="_blank" rel="noopener">app/core/initializer/ProvisionInitializer.kt</a><span class="src">프로비저닝/로그인 초기화 단계 · tryLogin · FailSafe 폴백</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/data/src/main/java/com/altimedia/data/remote/api/EasApi.kt" target="_blank" rel="noopener">data/remote/api/EasApi.kt</a><span class="src">provision / queryAccountList / 토큰 등 인증 Retrofit API</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/popup/ProvisionPopup.kt" target="_blank" rel="noopener">ui/popup/ProvisionPopup.kt</a><span class="src">프로비전 입력 팝업</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/popup/ProvisionErrorPopup.kt" target="_blank" rel="noopener">ui/popup/ProvisionErrorPopup.kt</a><span class="src">프로비전 오류 안내 팝업</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/domain/src/main/java/com/altimedia/domain/repository/EasRepository.kt" target="_blank" rel="noopener">domain/repository/EasRepository.kt</a><span class="src">프로비전/로그인 도메인 repository</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f09.html">← 검색</a>
+      <a href="f11.html">EAS · MES 알림 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>sprint/LS0626_release</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tivibu_4k 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

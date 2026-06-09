@@ -1,0 +1,185 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp · STT 인식 보정(PhraseList/STTModifier) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STT 인식 보정 (PhraseList) — AI Kiosk WebApp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp</a><span class="sep">›</span>
+      <span class="here">STT 인식 보정 (PhraseList)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Azure PhraseList · 후처리 치환</span>
+    </div>
+    <h1>STT 인식 보정 (PhraseList)</h1>
+    <p class="one-liner">메뉴명과 "아아", "뜨아", "한잔", "시럽 추가" 같은 카페 구어체를 Azure STT PhraseList에 등록하고, 인식 결과는 <code>STTModifier</code>로 오인식어를 치환해 한국어 주문 인식 정확도를 높입니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 모듈</div><div class="v"><code>main.jsx</code> · <code>util/STTModifier.js</code> · <code>AzureSTTManager.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">STT 정확도 향상 (사전 + 사후)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>카페 주문 발화는 메뉴명·수량·구어체가 섞여 한국어 STT가 자주 오인식합니다. 이 앱은 두 단계로 정확도를 끌어올립니다. 첫째는 인식 전 단계인 <strong>PhraseList</strong>(사전 힌트)이고, 둘째는 인식 후 단계인 <strong>STTModifier</strong>(치환 보정)입니다.</p>
+    <p>PhraseList는 부팅 시 <code>main.jsx</code>에서 구성됩니다. <code>data.menus</code>를 ko/en으로 각각 순회하며 메뉴명을 추출해 세미콜론으로 이은 뒤, 한국어에는 "하나·한개·둘·한잔·두잔·시럽·시럽 추가·아아·뜨아" 같은 카페 구어체를 덧붙입니다. 완성된 문자열을 <code>AzureSTTManager.setPhraseListKR/EN</code>으로 매니저에 보관해 두고, 인식 시작 시 <code>PhraseListGrammar.fromRecognizer(recognizer).addPhrase(...)</code>로 Azure SDK 인식기에 적용합니다(언어별 분기).</p>
+    <p>STTModifier는 인식이 끝난 텍스트를 정규식으로 치환합니다. "실험/시업/취업"→"시럽", "환전/한전/운전"→"한잔", "코드브루/골드브루"→"콜드브루", "벌컥/벌컵/베컴"→"벌크업"처럼 100여 개의 오인식 보정 세트가 정의되어 있고(<code>add stt modification sets</code> 커밋), 메뉴별 <code>similars</code>도 함께 적용됩니다. <code>useSTT</code>가 최종 결과에 이 보정을 걸어 LLM 질의로 넘깁니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      PhraseList는 Azure 엔진이 후보 단어를 우선 인식하도록 돕는 사전 힌트이고, STTModifier는 그래도 남은 오인식을 사후 규칙으로 교정합니다. 두 단계가 보완 관계로 동작해 카페 도메인 발화 인식률을 높입니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant MAIN as main.jsx (부팅)
+    participant DATA as Data.js
+    participant STT as AzureSTTManager
+    participant SDK as Azure Speech SDK
+    participant HK as useSTT
+    participant MOD as STTModifier
+
+    MAIN-&gt;&gt;DATA: menus 순회 (ko/en 메뉴명 추출)
+    MAIN-&gt;&gt;MAIN: 구어체(아아/뜨아/한잔/시럽 추가) 보강
+    MAIN-&gt;&gt;STT: setPhraseListKR / setPhraseListEN
+    Note over STT,SDK: 인식 시작 시
+    STT-&gt;&gt;SDK: PhraseListGrammar.addPhrase(언어별)
+    SDK--&gt;&gt;HK: recognized 텍스트
+    HK-&gt;&gt;MOD: STTModifier(text)
+    MOD--&gt;&gt;HK: 치환 보정된 텍스트
+      </div>
+      <p class="cap"><strong>흐름.</strong> 부팅 시 메뉴명+구어체로 PhraseList를 만들어 매니저에 저장하고, 인식 시작 시 SDK에 적용합니다. 인식 결과는 <code>STTModifier</code>로 사후 치환됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class main {
+        +enPhrase
+        +krPhrase
+        +PhraseList 구성()
+    }
+    class AzureSTTManager {
+        -phraseListKR
+        -phraseListEN
+        +setPhraseListKR(phrase)
+        +setPhraseListEN(phrase)
+        +startSpeechRecognition()
+    }
+    class PhraseListGrammar {
+        +fromRecognizer(recognizer)
+        +addPhrase(phrase)
+        +clear()
+    }
+    class STTModifier {
+        +STTModifier(sttText) string
+    }
+    class ModificationSet {
+        +asIs
+        +toBe
+    }
+
+    main --&gt; AzureSTTManager : setPhraseListKR/EN
+    AzureSTTManager --&gt; PhraseListGrammar : addPhrase
+    STTModifier o-- ModificationSet : 치환 규칙
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>main.jsx</code>가 PhraseList를 만들어 매니저에 주입하고, 매니저는 <code>PhraseListGrammar</code>로 SDK에 적용합니다. 사후 보정은 <code>STTModifier</code>의 <code>ModificationSet</code> 규칙으로 수행됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/main.jsx</code> — 메뉴명 + 구어체로 PhraseList 구성</div>
+<pre><code>i18n.changeLanguage("en");
+data.menus.forEach((m) =&gt; { enPhrase += i18n.t(m.name_key) + ";"; });
+
+i18n.changeLanguage("ko");
+data.menus.forEach((m) =&gt; { krPhrase += i18n.t(m.name_key) + ";"; });
+krPhrase += "하나;한개;둘;두개;세개;네개;다섯;한잔;두잔;세잔;네잔;시럽;시럽 추가;아아;뜨아;";
+
+AzureSTTManager.setPhraseListEN(enPhrase);
+AzureSTTManager.setPhraseListKR(krPhrase);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/util/STTModifier.js</code> — 오인식어 사후 치환</div>
+<pre><code>const modifications = [
+    new ModificationSet("실험", "시럽"),
+    new ModificationSet("환전", "한잔"),
+    new ModificationSet("코드브루", "콜드브루"),
+    new ModificationSet("벌컵", "벌크업"),
+    /* ...100여 개의 보정 세트... */
+];
+
+export const STTModifier = (sttText) =&gt; {
+    let result;
+    [...similars, ...modifications].forEach((item) =&gt; {
+        result = (result ? result : sttText).replace(new RegExp(item.asIs, "g"), item.toBe);
+    });
+    return result;
+};</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/main.jsx" target="_blank" rel="noopener">src/main.jsx</a><span class="src">부팅 시 메뉴명+구어체로 PhraseList 구성 후 매니저 주입</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/util/STTModifier.js" target="_blank" rel="noopener">src/util/STTModifier.js</a><span class="src">ModificationSet 규칙 · 메뉴 similars · 정규식 치환</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/voice/AzureSTTManager.js" target="_blank" rel="noopener">src/voice/AzureSTTManager.js</a><span class="src">setPhraseListKR/EN · PhraseListGrammar.addPhrase 적용</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/Data.js" target="_blank" rel="noopener">src/Data.js</a><span class="src">메뉴별 similars(유사 오인식어) 정의</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f08.html">← 결제 · 카드 삽입 시뮬레이션</a>
+      <a href="f10.html">다국어 (i18n) 지원 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">AI Kiosk WebApp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

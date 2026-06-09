@@ -1,0 +1,196 @@
+<!doctype html>
+<!-- kt_ford_aosp_podcast_app · 이전 시청 정보 복원 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>이전 시청 정보 복원 — kt_ford_aosp_podcast_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford 차량용 팟캐스트 앱</a><span class="sep">›</span>
+      <span class="here">이전 시청 정보 복원</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive · Java</span>
+    </div>
+    <h1>이전 시청 정보 복원</h1>
+    <p class="one-liner">마지막으로 청취한 채널·에피소드(<code>LastWatchedItem</code>)를 SharedPreferences에 저장해 두고, 서비스 생성·런처/음성 진입 시 직전 항목을 다시 준비(prepare)하거나 자동 재생합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app" target="_blank" rel="noopener"><code>kt_ford_aosp_podcast_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop-exoplayer</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>LastWatchedItem</code> · <code>startLastWatchedEpisode()</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">마지막 PID/EID 영속화 · 재진입 복원</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>마지막 청취 정보는 채널 ID(<code>PID</code>)와 에피소드 ID(<code>EID</code>) 두 값으로 표현되며, <code>PodcastPreferenceManager</code>가 <code>key.mypod.last.pid</code>·<code>key.mypod.last.eid</code> 키로 SharedPreferences에 저장합니다. 재생이 진행되어 미디어 아이템이 전환될 때마다 <code>PodcastExoplayerHelper.saveLastPod()</code>가 현재 항목의 PID/EID를 저장해 둡니다.</p>
+    <p>복원은 서비스 시작 시점에 일어납니다. <code>onCreate()</code>에서 100ms 지연 후 <code>startLastWatchedEpisode(false)</code>를 호출하며, 저장된 PID/EID가 유효하면 해당 채널의 에피소드 목록을 받아 <code>onGetLastWatched()</code>에서 저장된 EID와 일치하는 항목을 찾아 세션에 큐·메타데이터를 세팅합니다. 일반 진입(<code>fromVoice=false</code>)은 재생까지 하지 않고 <code>onPrepareFromMediaId()</code>로 "준비" 상태만 만들고, 음성/런처 진입(<code>fromVoice=true</code>)은 <code>onPlayFromMediaId()</code>로 곧바로 자동 재생합니다. 저장 정보가 없으면 음성 진입 시에는 추천 1위 팟을 대신 재생하고, 일반 진입 시에는 <code>STATE_NONE</code>으로 둡니다.</p>
+    <div class="callout">
+      <div class="ct">준비 vs 재생 구분</div>
+      <code>onPrepareFromMediaId()</code>는 <code>setHelperPlayWhenReady(false)</code>로 정지 상태에서 위치만 복원하고, <code>onPlayFromMediaId()</code>는 <code>true</code>로 즉시 재생합니다. 덕분에 앱을 다시 열었을 때 의도치 않게 소리가 나는 일 없이 직전 지점부터 이어 들을 준비만 됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SVC as PodcastBrowserService
+    participant PM as PodcastPreferenceManager
+    participant REQ as PodcastRequest
+    participant CB as PodcastSessionCallback
+    participant EXO as PodcastExoplayerHelper
+
+    Note over SVC: 재생 중 항목 전환마다
+    EXO-&gt;&gt;PM: saveLastPID(pid) · saveLastEID(eid)
+
+    Note over SVC: 서비스 onCreate (+100ms)
+    SVC-&gt;&gt;PM: getLastWatchedItem() → PID/EID
+    alt PID/EID 유효
+        SVC-&gt;&gt;REQ: getEpisodeList(pid, lastWatched=true, fromVoice)
+        REQ--&gt;&gt;SVC: onGetLastWatched(episodeList, pid)
+        SVC-&gt;&gt;SVC: EID 일치 항목 탐색
+        alt 일반 진입
+            SVC-&gt;&gt;CB: onPrepareFromMediaId(eid) → setPlayWhenReady(false)
+        else 음성/런처 진입
+            SVC-&gt;&gt;CB: onPlayFromMediaId(eid) → 자동 재생
+        end
+    else 저장 정보 없음
+        SVC-&gt;&gt;EXO: updateSessionPlaybackState(STATE_NONE) (또는 추천1위 재생)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 재생 중 PID/EID를 계속 저장하고, 서비스 시작 시 그 값으로 채널을 받아 일치 에피소드를 준비(일반) 또는 자동 재생(음성/런처)합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class PodcastPreferenceManager {
+        +KEY_MY_POD_LAST_WATCHED_PID
+        +KEY_MY_POD_LAST_WATCHED_EID
+        +saveLastPID(pid)
+        +saveLastEID(eid)
+        +getLastWatchedItem() LastWatchedItem
+    }
+    class LastWatchedItem {
+        -String PID
+        -String EID
+        +getPID() String
+        +getEID() String
+    }
+    class PodcastBrowserService {
+        -LastWatchedItem lastWatchedItem
+        +startLastWatchedEpisode(fromVoice)
+        +onGetLastWatched(list, pid, fromVoice, result)
+    }
+    class PodcastSessionCallback {
+        +onPrepareFromMediaId(mediaId, extras)
+        +onPlayFromMediaId(mediaId, extras)
+    }
+    class PodcastExoplayerHelper {
+        +saveLastPod(item)
+        +saveLastPod(list, index)
+    }
+
+    PodcastPreferenceManager o-- LastWatchedItem : 보관
+    PodcastBrowserService --&gt; PodcastPreferenceManager : 마지막 항목 조회
+    PodcastBrowserService --&gt; PodcastSessionCallback : 준비/재생 위임
+    PodcastExoplayerHelper --&gt; PodcastPreferenceManager : 전환 시 PID/EID 저장
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>PodcastExoplayerHelper</code>가 전환마다 저장하고, <code>PodcastBrowserService</code>가 시작 시 <code>LastWatchedItem</code>으로 복원 흐름을 분기합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>media/PodcastBrowserService.java</code> — 마지막 항목으로 복원 분기</div>
+<pre><code>public void startLastWatchedEpisode(boolean fromVoice) {
+    lastWatchedItem = podcastPreferenceManager.getLastWatchedItem();
+    if (lastWatchedItem.getPID().equals("") || lastWatchedItem.getEID().equals("")) {
+        if (fromVoice) {
+            PodcastRequest.getRecommendList(RECOMMEND_LIST_COUNT, false, null, true, this, null); // 추천1위
+        } else {
+            podcastPlayerHelper.updateSessionPlaybackState(PlaybackStateCompat.STATE_NONE);
+        }
+    } else {
+        PodcastRequest.getEpisodeList(EPISODE_LOAD_COUNT, lastWatchedItem.getPID(), "desc", true, fromVoice, this, null);
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>media/PodcastBrowserService.java</code> — 저장된 EID와 일치하는 항목 준비/재생</div>
+<pre><code>for (int i = 0; i &lt; list.size(); i++) {
+    String eid = list.get(i).getDescription().getMediaId();
+    if (lastWatchedItem.getEID().equals(eid)) {
+        Bundle bundle = new Bundle();
+        bundle.putBoolean(Constants.KEY_LAST_WATCHED, true);
+        if (fromVoice) {
+            podcastSessionCallback.onPlayFromMediaId(eid, bundle);   // 자동 재생
+        } else {
+            podcastSessionCallback.onPrepareFromMediaId(eid, bundle); // 준비만
+        }
+        break;
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/manager/PodcastPreferenceManager.java" target="_blank" rel="noopener">manager/PodcastPreferenceManager.java</a><span class="src">LastWatchedItem · saveLastPID/EID · getLastWatchedItem</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/PodcastBrowserService.java" target="_blank" rel="noopener">media/PodcastBrowserService.java</a><span class="src">startLastWatchedEpisode · onGetLastWatched 복원 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/PodcastSessionCallback.java" target="_blank" rel="noopener">media/PodcastSessionCallback.java</a><span class="src">onPrepareFromMediaId(준비) / onPlayFromMediaId(재생)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/PodcastExoplayerHelper.java" target="_blank" rel="noopener">media/PodcastExoplayerHelper.java</a><span class="src">saveLastPod로 전환 시 PID/EID 영속화</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f06.html">← 마이팟 구독 관리</a>
+      <a href="f08.html">기가지니 음성(KAS) 연동 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop-exoplayer</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_podcast_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

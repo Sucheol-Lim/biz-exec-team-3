@@ -1,0 +1,181 @@
+<!doctype html>
+<!-- rms_fe · 앱(App) 관리 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>앱(App) 관리 — rms_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">RMS FrontEnd 과제</a><span class="sep">›</span>
+      <span class="here">앱(App) 관리</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Altimedia RMS</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
+    </div>
+    <h1>앱(App) 관리</h1>
+    <p class="one-liner"><code>packageList</code>/<code>packageInstall</code>/<code>defaultPackage</code>/<code>appPolicy</code>가 <code>AppApiManager</code>로 APK 패키지 업로드·설치·기본 패키지·앱 정책을 다루며, OBE 사이트에서는 패키지명 대신 앱 이름(<code>appName</code>) 컬럼을 표시합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/appmanagement/*</code> · <code>_api/App.tsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">APK 패키지 배포·정책 운영</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>앱 관리는 단말에 배포할 APK 패키지의 등록부터 설치, 정책 적용까지를 다룹니다. <code>packageList</code>는 <code>AppApiManager.getList()</code>(<code>/api/v1/app-packages</code>)로 패키지 목록을 조회하고, 업로드는 <code>create</code>(<code>FormData</code> + <code>isForm=true</code>)로 APK를 <code>multipart/form-data</code> 전송하며 사전에 <code>getApkInfo</code>(<code>analyze-apk</code>)로 APK 메타를 분석합니다. 실제 단말 설치는 <code>packageInstall</code>이 <code>install()</code>(<code>/api/v1/app-package-installs</code>)에 <code>packageIds</code>·<code>mode</code>·<code>installTime</code>·대상 <code>deviceGroupIds</code>를 넘겨 예약/즉시 배포합니다. 진행 상태는 <code>getInstallDetailHistroyStatus</code>로 추적합니다.</p>
+    <p><code>defaultPackage</code>는 단말 초기 구성에 들어갈 기본 패키지(<code>/api/v1/default-packages</code>)와 관리 앱(managed-app) XML 업로드를 다루고, <code>appPolicy</code>는 화이트리스트/블랙리스트 등 앱 정책을 등록·수정합니다. OBE 타깃에서는 운영자에게 친숙한 표시를 위해 목록 컬럼이 패키지명 대신 <code>appName</code>으로 표시되도록 분기되어 있습니다(<code>appmanagement.columns.ts</code>).</p>
+    <div class="callout">
+      <div class="ct">OBE 앱 이름 표시</div>
+      최근 작업으로 OBE 사이트에서 패키지명을 앱 이름(<code>appName</code>)으로 바꿔 표시하도록 컬럼·업로드 모달·화이트리스트 설명이 정비되었습니다(개발 이력 <code>74f7d919</code> 등). 코드베이스는 동일하지만 사이트별로 사용자에게 보이는 라벨이 달라집니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant OP as 운영자 (Browser)
+    participant PU as packageFileUpload
+    participant PI as packageInstall.tsx
+    participant AM as AppApiManager (_api/App)
+    participant BE as RMS BE 서버
+    participant GRP as 대상 단말 그룹
+
+    OP-&gt;&gt;PU: APK 선택
+    PU-&gt;&gt;AM: getApkInfo(FormData)
+    AM-&gt;&gt;BE: POST /app-packages/analyze-apk
+    BE--&gt;&gt;PU: APK 메타 (name/version)
+    OP-&gt;&gt;PU: 업로드
+    PU-&gt;&gt;AM: create(FormData)
+    AM-&gt;&gt;BE: POST /app-packages (multipart)
+    OP-&gt;&gt;PI: 설치 예약 (group/time/mode)
+    PI-&gt;&gt;AM: install(packageIds, mode, time, groupIds)
+    AM-&gt;&gt;BE: POST /app-package-installs
+    BE-&gt;&gt;GRP: 설치 전파
+    loop 설치 상태 추적
+        PI-&gt;&gt;AM: getInstallDetailHistroyStatus(id)
+        AM-&gt;&gt;BE: GET 상태
+        BE--&gt;&gt;PI: 단말별 설치 진행/결과
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> APK를 분석·업로드한 뒤 대상 그룹·시각·모드를 지정해 <code>install</code>로 배포하고, 설치 히스토리 상태를 폴링해 단말별 결과를 확인합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class PackageList {
+        +getList()
+    }
+    class PackageInstall {
+        +install()
+    }
+    class DefaultPackage {
+        +getDefaultPkgList()
+        +uploadManagedApp()
+    }
+    class AppPolicy {
+        +register()
+        +update()
+    }
+    class AppApiManager {
+        +getList(cb, page, size, name)
+        +create(cb, FormData)
+        +getApkInfo(cb, FormData)
+        +install(cb, packageIds, mode, time, groupIds)
+        +getInstallDetailHistroyStatus(cb, id)
+        +getDefaultPkgList(cb, ...)
+    }
+
+    PackageList --&gt; AppApiManager : 목록
+    PackageInstall --&gt; AppApiManager : 설치·상태
+    DefaultPackage --&gt; AppApiManager : 기본 패키지·managed-app
+    AppPolicy --&gt; AppApiManager : 정책 등록/수정
+      </div>
+      <p class="cap"><strong>관계.</strong> 앱 관리 하위 화면들이 <code>AppApiManager</code> 하나를 공유해 패키지 CRUD·설치·정책을 처리합니다. APK 업로드와 managed-app XML은 <code>FormData</code>(<code>isForm</code>)로 전송됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>_api/App.tsx</code> — APK 업로드(FormData)와 그룹 단위 설치 요청</div>
+<pre><code>create: (callback, data: FormData) =&gt; {
+  request('post', `/api/v1/app-packages`, callback, data, true);  // isForm = multipart
+},
+install: (callback, packageIds, mode, installTime, deviceGroupIds: number[]) =&gt; {
+  request('post', `/api/v1/app-package-installs`, callback,
+    { packageIds, mode, installTime, deviceGroupIds });
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>pages/appmanagement/appmanagement.columns.ts</code> — OBE 등에서 appName 컬럼 사용</div>
+<pre><code>{
+  id: 'appName',
+  // OBE 사이트: 패키지명 대신 앱 이름(appName)을 목록 컬럼으로 표시
+  // ...
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/appmanagement/packageList.tsx" target="_blank" rel="noopener">pages/appmanagement/packageList.tsx</a><span class="src">패키지 목록 조회</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/appmanagement/packageInstall.tsx" target="_blank" rel="noopener">pages/appmanagement/packageInstall.tsx</a><span class="src">앱 설치 — 그룹/시각/모드 지정 배포·상태 추적</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/appmanagement/defaultPackage.tsx" target="_blank" rel="noopener">pages/appmanagement/defaultPackage.tsx</a><span class="src">기본 패키지·managed-app XML 업로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/appmanagement/appPolicy.tsx" target="_blank" rel="noopener">pages/appmanagement/appPolicy.tsx</a><span class="src">앱 정책 등록/수정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/App.tsx" target="_blank" rel="noopener">_api/App.tsx</a><span class="src">AppApiManager — app-packages / app-package-installs / default-packages</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/appmanagement/appmanagement.columns.ts" target="_blank" rel="noopener">pages/appmanagement/appmanagement.columns.ts</a><span class="src">목록 컬럼 — OBE의 appName 표시 분기</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f05.html">← 단말(Device) 관리</a>
+      <a href="f07.html">OTA(펌웨어) 관리 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">rms_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

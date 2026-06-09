@@ -1,0 +1,201 @@
+<!doctype html>
+<!-- tivibu_4k · 라이브 TV 시청 기능 상세 — 채널 튜닝/OSD/미니가이드/5채널 시퀀스·클래스 다이어그램 + 코드 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>라이브 TV 시청 — tivibu_4k 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Tivibu 4K Android — IPTV/OTT 런처</a><span class="sep">›</span>
+      <span class="here">라이브 TV 시청</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV / Leanback · Kotlin</span>
+    </div>
+    <h1>라이브 TV 시청</h1>
+    <p class="one-liner"><code>LiveTvScreen</code>과 <code>LiveTvViewModel</code>이 리모컨 키 입력으로 채널을 튜닝하고, SI 채널 어댑터(<code>ChannelPlayerAdapter</code>)로 실시간 방송을 재생하며, OSD·미니 가이드·채널 리스트·5채널 보기 등 라이브 화면 요소를 호스팅합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tivibu_4k" target="_blank" rel="noopener"><code>tivibu_4k</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>sprint/LS0626_release</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ui/livetv/LiveTvScreen.kt</code> · <code>LiveTvViewModel.kt</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">홈에서 진입하는 실시간 시청 화면 (SAA 레이어)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>라이브 TV 시청은 단말이 부팅·홈 진입을 끝낸 뒤 가장 빈번하게 사용하는 핵심 화면입니다. <code>LiveTvScreen</code>은 단일 액티비티(<code>MainActivity</code>) 위에 show/hide 방식으로 올라가는 Fragment(<code>ATVScreen</code>)이며, 화면 안에 미니 가이드(<code>MiniGuideView</code>), 채널 OSD(<code>ChannelOsdView</code>), 채널 플레이바(<code>ChannelPlayBar</code>), PIP(<code>PipView</code>), 모자이크(<code>MosaicView</code>) 등 라이브 시청 요소를 직접 보유합니다.</p>
+    <p>채널 전환은 리모컨 키 입력에서 시작합니다. <code>onKeyDown()</code>이 숫자 키·채널 업/다운·핫키를 받아 <code>processChannelKey()</code> / <code>processHotKey()</code>로 분기하고, <code>LiveTvViewModel.startChannel()</code>이 대상 채널 번호를 해석해 SI 채널 어댑터(<code>ChannelPlayerAdapter.tune()</code>)로 실제 튜닝을 지시합니다. 튜닝이 끝나면 채널의 종류(일반/모자이크/MyTV)에 따라 <code>LiveTvUiState</code>를 갱신해 미니 가이드 또는 모자이크 화면을 노출합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      <code>LiveTvViewModel</code>은 <code>PlayCoordinator</code>·<code>RecordCoordinator</code>·<code>HotKeyCoordinator</code>를 위임(by) 받아 재생·녹화·핫키 기능을 합성합니다. 화면 상태는 <code>LiveTvUiState</code>(MiniGuide / Mosaic / PlayBar / FailSafeMode 등)로 단일화해, 키 입력과 비동기 튜닝 결과가 동일한 상태 머신을 통해 화면에 반영되도록 했습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 리모컨 (User)
+    participant SCR as LiveTvScreen
+    participant VM as LiveTvViewModel
+    participant CR as ChannelRepository
+    participant CA as ChannelPlayerAdapter (SI)
+    participant UI as LiveTvUiState
+
+    U->>SCR: onKeyDown(숫자/CH+/-)
+    SCR->>SCR: processChannelKey(keyCode)
+    SCR->>VM: startChannel()
+    VM->>CR: getChannelList() / getChannel(id)
+    CR--&gt;>VM: 채널/현재 채널 ID
+    VM->>CA: tune(channelId) { result }
+    CA--&gt;>VM: tune result
+    alt channel.isMosaic
+        VM->>UI: setUiState(Mosaic)
+    else 일반 채널
+        VM->>UI: setUiState(MiniGuide)
+    end
+    UI--&gt;>SCR: uiState 갱신 관찰
+    SCR->>SCR: 미니가이드/OSD/플레이바 표시
+      </div>
+      <p class="cap"><strong>흐름.</strong> 리모컨 키가 <code>LiveTvScreen.onKeyDown()</code>으로 들어오면 채널 키를 분류해 <code>startChannel()</code>을 호출하고, ViewModel이 채널을 해석해 SI 어댑터로 튜닝합니다. 결과에 따라 <code>LiveTvUiState</code>를 모자이크/미니가이드로 전환하고 화면이 이를 관찰해 오버레이를 그립니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class LiveTvScreen {
+        -LiveTvViewModel viewModel
+        +onKeyDown(keyCode, event) boolean
+        -processChannelKey(keyCode) boolean
+        -processHotKey(keyCode) boolean
+        +openMiniGuideOsd(channelId)
+        +setOsd(isShow, channelId)
+    }
+    class LiveTvViewModel {
+        -currentChannelRingList
+        +startChannel()
+        +tuneMiniGuideChannel()
+        +setUiState(state, forced)
+        +setOsdShowEvent(show)
+    }
+    class ChannelPlayerAdapter {
+        &lt;&lt;interface&gt;&gt;
+        +tune(channelId, callback)
+        +getCurrentChannelId() ChannelId
+        +currentState PlayerState
+    }
+    class ChannelRepository {
+        &lt;&lt;interface&gt;&gt;
+        +getChannelList() List~Channel~
+        +getChannel(id) Channel
+    }
+    class LiveTvUiState {
+        &lt;&lt;sealed&gt;&gt;
+        MiniGuide
+        Mosaic
+        PlayBar
+        FailSafeMode
+    }
+    class MiniGuideView
+    class ChannelOsdView
+    class PipView
+    class MosaicView
+
+    LiveTvScreen --&gt; LiveTvViewModel : viewModels()
+    LiveTvScreen o-- MiniGuideView : 소유
+    LiveTvScreen o-- ChannelOsdView : 소유
+    LiveTvScreen o-- PipView : 소유
+    LiveTvScreen o-- MosaicView : 소유
+    LiveTvViewModel --&gt; ChannelPlayerAdapter : tune 위임
+    LiveTvViewModel --&gt; ChannelRepository : 채널 조회
+    LiveTvViewModel ..&gt; LiveTvUiState : 상태 갱신
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>LiveTvScreen</code>이 라이브 오버레이 뷰들을 소유하고 <code>LiveTvViewModel</code>을 구독합니다. ViewModel은 SI <code>ChannelPlayerAdapter</code>와 <code>ChannelRepository</code>를 통해 튜닝·채널 조회를 수행하며 결과를 <code>LiveTvUiState</code>로 단일화합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/livetv/LiveTvViewModel.kt</code> — startChannel(): 채널 해석 → 튜닝 → 상태 전환</div>
+<pre><code>val channelId = startChannelNumber?.run {
+        channelRepository.getChannelList().find { it.number == this }?.id
+    }
+    ?: channelAdapter.getCurrentChannelId()
+    ?: channelAdapter.getCurrentChannelRingChannelList().firstOrNull()?.id
+    ?: channelList.firstOrNull()?.id
+
+channelId?.apply {
+    channelAdapter.tune(channelId = this@apply) {        // SI 어댑터로 실제 튜닝
+        Timber.d("startChannel() tune result: $it")
+    }
+    val channel = channelRepository.getChannel(id = channelId)
+    if (showPlayBarFirst) {
+        setUiState(LiveTvUiState.PlayBar(showAnimation = false), forced = true)
+    } else if (channel?.isMosaic == true) {
+        setUiState(LiveTvUiState.Mosaic, forced = true)   // 모자이크 채널
+    } else {
+        setUiState(LiveTvUiState.MiniGuide, forced = true) // 일반 채널
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/LiveTvScreen.kt" target="_blank" rel="noopener">ui/livetv/LiveTvScreen.kt</a><span class="src">라이브 화면 Fragment · onKeyDown/채널키·핫키 처리 · 오버레이 호스팅</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/LiveTvViewModel.kt" target="_blank" rel="noopener">ui/livetv/LiveTvViewModel.kt</a><span class="src">startChannel/tune · LiveTvUiState 관리 · Coordinator 위임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/miniguide/MiniGuideView.kt" target="_blank" rel="noopener">ui/livetv/miniguide/MiniGuideView.kt</a><span class="src">미니 가이드(채널 링) 뷰</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/osd/ChannelOsdView.kt" target="_blank" rel="noopener">ui/livetv/osd/ChannelOsdView.kt</a><span class="src">채널 OSD(채널 정보) 뷰</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/fivechannel/FiveChannelPopup.kt" target="_blank" rel="noopener">ui/livetv/fivechannel/FiveChannelPopup.kt</a><span class="src">5채널 동시 보기 팝업</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">TV 가이드(편성표) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>sprint/LS0626_release</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tivibu_4k 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

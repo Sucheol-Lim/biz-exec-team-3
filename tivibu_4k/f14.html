@@ -1,0 +1,209 @@
+<!doctype html>
+<!-- tivibu_4k · 멀티 단말 분기 빌드 기능 상세 — PlatformFlavor/configureFlavors + flavor별 의존성 주입 다이어그램 + 코드 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>멀티 단말 분기 빌드 — tivibu_4k 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Tivibu 4K Android — IPTV/OTT 런처</a><span class="sep">›</span>
+      <span class="here">멀티 단말 분기 빌드</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV / Leanback · Kotlin · Gradle</span>
+    </div>
+    <h1>멀티 단말 분기 빌드</h1>
+    <p class="one-liner"><code>PlatformFlavor</code> enum과 <code>configureFlavors()</code> convention 함수가 <code>tivibuEv</code>/<code>tivibuGo</code>/<code>stvOtt</code>/<code>zteAosp</code> 4개 flavor를 단일 코드베이스에서 분기하고, 플랫폼 종속 구현(player·si·platform)은 flavor별 <code>runtimeOnly</code> 의존성으로 주입합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tivibu_4k" target="_blank" rel="noopener"><code>tivibu_4k</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>sprint/LS0626_release</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>build-logic/.../Flavor.kt</code> · <code>app/build.gradle.kts</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">단일 코드베이스 · 다중 단말 분기 빌드</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">빌드 흐름</a>
+    <a href="#class">구성 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>분기 빌드의 중심은 composite build인 <code>build-logic</code>의 <code>PlatformFlavor</code> enum입니다. 단일 차원(<code>FlavorDimension.platform</code>) 아래에 4개 flavor를 정의하며, 각 항목이 빌드 키와 <code>applicationId</code>를 들고 있습니다. <code>tivibuEv</code>(기본 flavor, <code>tivibu.android.stb</code>)·<code>tivibuGo</code>(<code>tivibu.android.stb.ott</code>)·<code>stvOtt</code>(<code>com.ttnet.tivibutv</code>)·<code>zteAosp</code>(<code>com.zte.aosp</code>)입니다. <code>getFlavor(fullName)</code>은 변형(variant) 이름 문자열에서 flavor를 역추적하는 유틸로, 버전 산출 등 빌드 스크립트가 활용합니다.</p>
+    <p><code>configureFlavors()</code> 확장 함수는 모든 모듈이 동일한 flavor 차원·항목을 갖도록 <code>productFlavors</code>를 일괄 등록합니다. 애플리케이션 모듈에서는 flavor별 <code>applicationId</code>·<code>versionName</code>·<code>versionCode</code>를 적용하고(버전은 <code>readVersion(flavor)</code> 콜백으로 <code>auto-version-*.gradle</code>에서 산출), 라이브러리 모듈에서는 <code>VERSION_NAME</code>/<code>VERSION_CODE</code>를 <code>buildConfigField</code>로 노출합니다. 이렇게 모든 모듈의 flavor 차원을 일치시켜야 flavor별 소스셋(<code>app/src/tivibuEv</code> 등)과 flavor 한정 의존성이 충돌 없이 결합됩니다.</p>
+    <p>플랫폼 종속 구현은 빌드 시점에 flavor별로 주입됩니다. <code>app/build.gradle.kts</code>는 공통으로 <code>player:impl-tt4k</code>·<code>si:impl-tt4k</code>를 <code>runtimeOnly</code>로 넣고, 플랫폼 의존성은 <code>tivibuEvRuntimeOnly</code>/<code>tivibuGoRuntimeOnly</code>는 <code>dependency:platform:tt4k</code>를, <code>stvOttRuntimeOnly</code>는 <code>dependency:platform:smarttv</code>를 연결하는 flavor 한정 configuration을 사용합니다. Smart TV용 staging 빌드는 <code>androidComponents.beforeVariants</code>에서 <code>stvOtt</code> flavor일 때만 활성화하여 다른 flavor에는 staging 변형이 생성되지 않도록 막습니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트 — 단일 차원 + flavor 한정 configuration</div>
+      플랫폼 차이를 코드 분기(if/when)가 아니라 빌드 의존성 주입으로 흡수합니다. 공통 코드는 인터페이스(player·si 추상화)에만 의존하고, 실제 구현은 flavor별 <code>runtimeOnly</code>로 갈아끼우므로 앱 코드는 어떤 단말로 빌드되는지 몰라도 됩니다. <code>missingDimensionStrategy</code> 없이도 모든 모듈이 같은 <code>platform</code> 차원을 공유하도록 <code>configureFlavors()</code>가 강제합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>빌드 흐름</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant DEV as 개발자 / CI
+    participant GRADLE as Gradle (AGP)
+    participant FLV as configureFlavors()
+    participant VER as auto-version-*.gradle
+    participant DEP as flavor 한정 의존성
+
+    DEV-&gt;&gt;GRADLE: assembleTivibuEvRelease 등 실행
+    GRADLE-&gt;&gt;FLV: productFlavors 등록(PlatformFlavor)
+    FLV-&gt;&gt;VER: readVersion(flavor)
+    VER--&gt;&gt;FLV: (versionName, versionCode)
+    FLV-&gt;&gt;GRADLE: applicationId/version 적용
+    GRADLE-&gt;&gt;DEP: tivibuEv/Go → platform.tt4k, stvOtt → platform.smarttv
+    Note over GRADLE: stvOtt + staging 일 때만 staging variant 활성
+    GRADLE--&gt;&gt;DEV: tt-play_&lt;ver&gt;_&lt;date&gt;_&lt;type&gt;.apk
+      </div>
+      <p class="cap"><strong>흐름.</strong> flavor별 assemble 태스크가 실행되면 <code>configureFlavors()</code>가 flavor를 등록하고 버전 스크립트로 버전을 산출한 뒤, flavor 한정 configuration이 해당 단말의 플랫폼 구현을 주입하고 규칙에 맞는 파일명으로 APK를 출력합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>구성 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class FlavorDimension {
+        &lt;&lt;enumeration&gt;&gt;
+        platform
+    }
+    class PlatformFlavor {
+        &lt;&lt;enumeration&gt;&gt;
+        tivibuEv
+        tivibuGo
+        stvOtt
+        zteAosp
+        +key String
+        +applicationId String
+        +getFlavor(fullName) PlatformFlavor
+    }
+    class configureFlavors {
+        +CommonExtension.configureFlavors(isApplication, readVersion)
+    }
+    class AppBuildScript {
+        +tivibuEvRuntimeOnly(platform.tt4k)
+        +tivibuGoRuntimeOnly(platform.tt4k)
+        +stvOttRuntimeOnly(platform.smarttv)
+        +runtimeOnly(player.implTt4k)
+        +runtimeOnly(si.implTt4k)
+    }
+    class PlatformTt4k
+    class PlatformSmarttv
+
+    PlatformFlavor --&gt; FlavorDimension : dimension
+    configureFlavors --&gt; PlatformFlavor : productFlavors 등록
+    AppBuildScript --&gt; configureFlavors : 적용
+    AppBuildScript --&gt; PlatformTt4k : EV/GO 주입
+    AppBuildScript --&gt; PlatformSmarttv : stvOtt 주입
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>PlatformFlavor</code>가 flavor 정의와 applicationId를 보유하고, <code>configureFlavors()</code>가 이를 전 모듈에 등록하며, 앱 빌드 스크립트는 flavor 한정 configuration으로 각 단말의 플랫폼 구현을 주입합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>build-logic/.../com/altimedia/buildlogic/Flavor.kt</code> — flavor 정의(키·applicationId)</div>
+<pre><code>enum class PlatformFlavor(val dimension: FlavorDimension, val isDefault: Boolean = false,
+                          val key: String, val applicationId: String? = null) {
+    tivibuEv(FlavorDimension.platform, true, key = "PLATFORM_TIVIBU_EV", applicationId = "tivibu.android.stb"),
+    tivibuGo(FlavorDimension.platform,       key = "PLATFORM_TIVIBU_GO", applicationId = "tivibu.android.stb.ott"),
+    stvOtt  (FlavorDimension.platform,       key = "PLATFORM_STV_OTT",   applicationId = "com.ttnet.tivibutv"),
+    zteAosp (FlavorDimension.platform,       key = "PLATFORM_ZTE_AOSP",  applicationId = "com.zte.aosp"),
+    ;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>build-logic/.../Flavor.kt</code> — 전 모듈 공통 flavor 등록 + 버전 적용</div>
+<pre><code>fun CommonExtension&lt;*, *, *, *, *, *&gt;.configureFlavors(
+    isApplication: Boolean = false, saveConfig: Boolean = false,
+    readVersion: (PlatformFlavor) -&gt; Pair&lt;String, Int&gt;,
+) {
+    FlavorDimension.values().forEach { flavorDimensions += it.name }
+    productFlavors {
+        PlatformFlavor.values().forEach { platformFlavor -&gt;
+            register(platformFlavor.name) {
+                dimension = platformFlavor.dimension.name
+                val (name, code) = readVersion(platformFlavor)
+                if (this is ApplicationProductFlavor &amp;&amp; isApplication &amp;&amp; platformFlavor.applicationId != null) {
+                    applicationId = platformFlavor.applicationId
+                    versionName = name; versionCode = code
+                }
+            }
+        }
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>app/build.gradle.kts</code> — flavor 한정 플랫폼 구현 주입 + staging 게이트</div>
+<pre><code>runtimeOnly(projects.player.implTt4k)
+runtimeOnly(projects.si.implTt4k)
+tivibuEvRuntimeOnly(projects.dependency.platform.tt4k)
+tivibuGoRuntimeOnly(projects.dependency.platform.tt4k)
+stvOttRuntimeOnly(projects.dependency.platform.smarttv)
+
+// Smart TV 전용 staging variant만 활성화
+androidComponents {
+    beforeVariants { variantBuilder -&gt;
+        val flavorName = variantBuilder.productFlavors.firstOrNull()?.second
+        if (variantBuilder.buildType?.contains("staging") == true) {
+            variantBuilder.enable = (flavorName == PlatformFlavor.stvOtt.name)
+        }
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/build-logic/convention/src/main/java/com/altimedia/buildlogic/Flavor.kt" target="_blank" rel="noopener">build-logic/.../buildlogic/Flavor.kt</a><span class="src">PlatformFlavor enum · configureFlavors() · getFlavor()</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/build.gradle.kts" target="_blank" rel="noopener">app/build.gradle.kts</a><span class="src">flavor 한정 runtimeOnly 주입 · staging variant 게이트 · APK 파일명</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/settings.gradle.kts" target="_blank" rel="noopener">settings.gradle.kts</a><span class="src">composite build(build-logic) 포함 · 모듈(player/si/platform tt4k·smarttv) 구성</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/auto-version-functions.gradle" target="_blank" rel="noopener">auto-version-functions.gradle</a><span class="src">flavor별 버전명/버전코드 산출(readVersion 입력)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/bitbucket-pipelines.yml" target="_blank" rel="noopener">bitbucket-pipelines.yml</a><span class="src">flavor별 assemble 순차 실행 후 FTP 배포 CI</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f13.html">← 설정 · 프로필</a>
+      <a href="index.html#features">기능 목록으로 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>sprint/LS0626_release</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tivibu_4k 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

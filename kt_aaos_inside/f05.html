@@ -1,0 +1,198 @@
+<!doctype html>
+<!-- kt_aaos_inside · 앱 실행/제어 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>앱 실행/제어 — kt_aaos_inside 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT AAOS Demokit P1 음성인식 앱</a><span class="sep">›</span>
+      <span class="here">앱 실행/제어</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive OS · Java</span>
+    </div>
+    <h1>앱 실행/제어</h1>
+    <p class="one-liner"><code>GVoiceAppManager</code>가 service intent를 대상 패키지로 매핑하고 설치 여부를 확인한 뒤, <code>avis://</code> 딥링크 인텐트(<code>ACTION_FROM_VOICE</code>)로 차량 내 앱(내비게이션·일반 앱)을 음성으로 실행·제어합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_aaos_inside" target="_blank" rel="noopener"><code>kt_aaos_inside</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feature/support_stt</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>dialogkit/app/GVoiceAppManager.java</code> · <code>AppConstants.java</code></div></div>
+      <div class="item"><div class="k">진입점</div><div class="v"><code>doAppAction(commandInfo)</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>DialogKit이 앱 타입(<code>APP_TYPE_AAOS_NAVIGATION</code> 또는 <code>APP_TYPE_COMMON</code>)으로 라우팅하면 <code>GVoiceAppManager.doAppAction(commandInfo)</code>가 호출됩니다. 매니저는 <code>commandInfo</code>의 service intent를 <code>GVoiceDataManager.getTargetAppPackage()</code>로 패키지명으로 변환하고, <code>PackageManager</code>로 설치 여부를 확인합니다.</p>
+    <p>설치되어 있으면 앱 이름을 담은 안내 TTS("OO 앱을 실행 할게요")를 먼저 재생한 뒤, <code>avis</code> 스킴·대상 패키지를 authority로 하고 service intent·파라미터를 쿼리로 담은 딥링크 <code>Uri</code>를 만들어 <code>ACTION_FROM_VOICE</code> 인텐트로 대상 앱을 시작합니다. 미설치 시 "설치되어 있는지 확인해 주세요" 안내를 제공합니다. 이 매니저는 DSS 상태·TTS·STT용 브로드캐스트 리시버도 함께 등록합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      앱 실행 인텐트는 표준 launcher 인텐트가 아니라 <code>avis://&lt;packageName&gt;?serviceIntent=...&amp;params=...</code> 형태의 커스텀 딥링크입니다. 이를 통해 대상 앱이 단순 실행을 넘어 명령(검색어·재생 옵션 등)까지 파라미터로 전달받아 처리할 수 있습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant DK as InsideDialogKitManager
+    participant AM as GVoiceAppManager
+    participant DM as GVoiceDataManager
+    participant PM as PackageManager
+    participant IVM as InsideVoiceManager
+    participant APP as 대상 앱
+
+    DK-&gt;&gt;AM: doAppAction(commandInfo)
+    AM-&gt;&gt;DM: getTargetAppPackage(serviceIntent)
+    DM--&gt;&gt;AM: applicationId
+    AM-&gt;&gt;PM: getPackageInfo(applicationId)
+    alt 설치됨
+        PM--&gt;&gt;AM: PackageInfo
+        AM-&gt;&gt;IVM: startTTS("OO 앱을 실행 할게요")
+        AM-&gt;&gt;APP: startActivity(ACTION_FROM_VOICE, avis://...)
+    else 미설치
+        PM--&gt;&gt;AM: NameNotFoundException
+        AM-&gt;&gt;IVM: startTTS("설치되어 있는지 확인해 주세요")
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> service intent → 패키지 매핑 → 설치 확인 → 안내 TTS → 딥링크 인텐트로 대상 앱 실행/제어 순으로 진행됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class GVoiceAppManager {
+        -Context mContext
+        -String currentCallerAppId
+        +doAppAction(commandInfo)
+        -isPackageInstalled(applicationId) boolean
+        -sendFeedback(applicationId, exist)
+        -runTargetApp(commandInfo, applicationId)
+        +startSpeechToText()
+        +stopSpeechToText(msg)
+    }
+    class AppConstants {
+        +COMMON_SCHEME
+        +QUERY_KEY_SERVICE_INTENT
+        +QUERY_KEY_PARAMS
+        +ACTION_PLAY_STT
+        +ACTION_STOP_STT
+    }
+    class CommandInfo {
+        +getServiceIntent() String
+        +getParams() JsonObject
+        +isCustomDialog() boolean
+    }
+    class GVoiceDataManager {
+        +getTargetAppPackage(serviceIntent) String
+        +getAppInfo(applicationId) AppInfo
+    }
+    class InsideVoiceManager {
+        +startTTS(msg)
+    }
+
+    GVoiceAppManager ..&gt; AppConstants : Uri 키
+    GVoiceAppManager --&gt; CommandInfo : service intent·params
+    GVoiceAppManager --&gt; GVoiceDataManager : 패키지 매핑
+    GVoiceAppManager --&gt; InsideVoiceManager : 안내 TTS
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>GVoiceAppManager</code>는 <code>CommandInfo</code>·<code>GVoiceDataManager</code>로 실행 대상을 결정하고, <code>AppConstants</code>의 키로 딥링크 Uri를 조립하며, 결과 안내는 <code>InsideVoiceManager.startTTS</code>로 위임합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>dialogkit/app/GVoiceAppManager.java</code> — 설치 확인 후 안내·실행</div>
+<pre><code>public void doAppAction(@NonNull CommandInfo commandInfo) {
+    String serviceIntent = commandInfo.getServiceIntent();
+    if (serviceIntent != null) {
+        String applicationId = GVoiceDataManager.getInstance().getTargetAppPackage(serviceIntent);
+        if (applicationId != null) {
+            if (isPackageInstalled(applicationId)) {
+                sendFeedback(applicationId, true);                 // 실행 안내 TTS
+                new Handler(Looper.getMainLooper()).postDelayed(
+                        () -&gt; runTargetApp(commandInfo, applicationId), 500L);
+            } else {
+                sendFeedback(applicationId, false);                // 미설치 안내
+            }
+        }
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>dialogkit/app/GVoiceAppManager.java</code> — avis 딥링크 인텐트로 대상 앱 시작</div>
+<pre><code>Intent startIntent = new Intent();
+startIntent.setAction(VoiceConstants.ACTION_FROM_VOICE);
+Uri uri = new Uri.Builder()
+        .scheme(VoiceConstants.COMMON_SCHEME)              // "avis"
+        .authority(applicationId)
+        .appendQueryParameter(AppConstants.QUERY_KEY_SERVICE_INTENT, commandInfo.getServiceIntent())
+        .appendQueryParameter(AppConstants.QUERY_KEY_PARAMS,
+                commandInfo.isCustomDialog() ? commandInfo.getAppInfo().toString()
+                                             : commandInfo.getParams().toString())
+        .build();
+startIntent.setData(uri);
+startIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+mContext.startActivity(startIntent);</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/dialogkit/app/GVoiceAppManager.java" target="_blank" rel="noopener">dialogkit/app/GVoiceAppManager.java</a><span class="src">doAppAction·설치 확인·안내 TTS·avis 딥링크 실행·STT/TTS/DSS 리시버</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/dialogkit/app/AppConstants.java" target="_blank" rel="noopener">dialogkit/app/AppConstants.java</a><span class="src">avis 스킴·serviceIntent/params 쿼리 키·STT/TTS 액션 상수</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/assets/AppInfoList.json" target="_blank" rel="noopener">assets/AppInfoList.json</a><span class="src">앱 패키지·타입 기본 데이터(SP 미수신 시 폴백 참조)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/assets/IntentInfoList.json" target="_blank" rel="noopener">assets/IntentInfoList.json</a><span class="src">inside↔service intent 매핑 기본 데이터</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f04.html">자연어 명령 처리(DialogKit)</a>
+      <a href="f06.html">미디어 재생 제어 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feature/support_stt</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_aaos_inside 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- kt_ford_aosp_radio_app · 음성(TTS) 지금 듣고 있는 채널 응답 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>음성(TTS) "지금 듣고 있는 채널" 응답 — kt_ford_aosp_radio_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford AOSP 라디오 앱</a><span class="sep">›</span>
+      <span class="here">음성(TTS) "지금 듣고 있는 채널" 응답</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive (AOSP/AAOS) · Java</span>
+    </div>
+    <h1>음성(TTS) "지금 듣고 있는 채널" 응답</h1>
+    <p class="one-liner">런처의 <code>radio.nowPlaying</code> 요청을 받아 현재 재생 채널명을 안내 문구로 만들고 <code>kas.action.app.tts</code> 인터페이스로 런처에 회신합니다(기가지니 음성 명령 시나리오).</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app" target="_blank" rel="noopener"><code>kt_ford_aosp_radio_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>RadioBrowserService</code> · <code>util/Utils</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">기가지니 음성 명령 회신</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>"지금 듣고 있는 채널 뭐야?" 같은 음성 명령이 들어오면 기가지니 인사이드 플랫폼/런처가 <code>radio.nowPlaying</code> 브로드캐스트를 보냅니다. <code>RadioBrowserService</code>의 내부 리시버가 이를 받아 <code>sendCurrentPlayInfo()</code>를 메인 핸들러에 post 합니다. 이 메서드는 현재 플레이어 상태를 확인해, 재생 중이면 현재 <code>MediaMetadata</code>에서 채널명(<code>mediaId</code>)을 읽어 <code>R.string.tts_now_playing</code>("지금 듣고 있는 채널은 %s 라디오 입니다.")으로 문구를 만듭니다.</p>
+    <p>만든 문구는 <code>Utils.sendTTSForLauncher()</code>가 <code>kas.action.app.tts</code> 액션 인텐트에 담아 런처 컴포넌트(<code>LAUNCHER_APP_PACKAGE</code> / <code>LAUNCHER_BROADCAST_PACKAGE</code>)로 직접 보내며, 런처가 이를 음성으로 안내합니다. 일시정지 상태면 "라디오 청취중이 아닙니다."(<code>tts_not_playing</code>)를 보내고, 완전 정지 상태면 회신 없이 런처(기가지니 인사이드)가 자체 처리하도록 둡니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      회신은 일반 브로드캐스트가 아니라 <code>setComponent()</code>로 런처의 <code>AppBroadcastReceiver</code>를 명시 지정해 보냅니다. 또한 <code>FLAG_INCLUDE_STOPPED_PACKAGES</code>를 붙여 런처가 정지 상태여도 전달되게 합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant LCH as 런처 (기가지니)
+    participant IBR as 서비스 내부 BroadcastReceiver
+    participant SVC as RadioBrowserService
+    participant PH as RadioPlayerHelper
+    participant U as Utils
+
+    LCH->>IBR: radio.nowPlaying
+    IBR->>SVC: Handler.post(sendCurrentPlayInfo)
+    SVC->>PH: getPlayerState()
+    alt PLAYER_PLAYING
+        SVC->>PH: getCurrentMediaMetaData()
+        PH-->>SVC: 채널명(mediaId)
+        SVC->>U: sendTTSForLauncher(tts_now_playing %s)
+        U->>LCH: kas.action.app.tts (text)
+    else PLAYER_PAUSED
+        SVC->>U: sendTTSForLauncher(tts_not_playing)
+        U->>LCH: kas.action.app.tts (청취중 아님)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> nowPlaying 요청 시 재생 상태를 확인해, 재생 중이면 채널명 안내 문구를, 일시정지면 미청취 문구를 <code>kas.action.app.tts</code>로 회신합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class RadioBrowserService {
+        -broadcastReceiver
+        -sendCurrentPlayInfo()
+    }
+    class RadioPlayerHelper {
+        +getPlayerState() PlayerState
+        +getCurrentMediaMetaData() MediaMetadataCompat
+    }
+    class Utils {
+        +sendTTSForLauncher(context, tts)$
+    }
+    class Constants {
+        +ACTION_NOW_PLAYING = "radio.nowPlaying"$
+        +ACTION_TTS = "kas.action.app.tts"$
+        +LAUNCHER_APP_PACKAGE$
+    }
+    class PlayerState {
+        &lt;&lt;enumeration&gt;&gt;
+        PLAYER_PLAYING
+        PLAYER_PAUSED
+        PLAYER_NONE
+    }
+
+    RadioBrowserService ..> RadioPlayerHelper : 상태/메타 조회
+    RadioBrowserService ..> Utils : sendTTSForLauncher
+    RadioBrowserService ..> Constants : 액션 상수
+    RadioPlayerHelper ..> PlayerState
+      </div>
+      <p class="cap"><strong>관계.</strong> 서비스가 플레이어 상태를 조회해 <code>Utils.sendTTSForLauncher()</code>로 안내 문구를 런처에 송신합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>media/RadioBrowserService.java</code> — 현재 재생 정보 회신</div>
+<pre><code>private void sendCurrentPlayInfo() {
+    if (radioPlayerHelper.getPlayerState() != RadioPlayerHelper.PlayerState.PLAYER_PLAYING) {
+        if (radioPlayerHelper.getPlayerState() == RadioPlayerHelper.PlayerState.PLAYER_PAUSED) {
+            Utils.sendTTSForLauncher(this, getResources().getString(R.string.tts_not_playing));
+        }
+        return;   // 정지 상태는 런처(기가지니 인사이드)에서 처리
+    }
+    MediaMetadataCompat mediaMetadataCompat = radioPlayerHelper.getCurrentMediaMetaData();
+    if (mediaMetadataCompat != null) {
+        String title = mediaMetadataCompat.getDescription().getMediaId();
+        Utils.sendTTSForLauncher(this, getResources().getString(R.string.tts_now_playing, title));
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>util/Utils.java</code> — kas.action.app.tts 회신</div>
+<pre><code>public static void sendTTSForLauncher(Context context, String tts) {
+    Intent intent = new Intent();
+    intent.setAction(Constants.ACTION_TTS);                 // "kas.action.app.tts"
+    intent.putExtra(Constants.KEY_APP_TYPE, Constants.APP_TYPE);
+    intent.putExtra(Constants.KEY_TEXT, tts);
+    intent.setComponent(new ComponentName(
+            Constants.LAUNCHER_APP_PACKAGE, Constants.LAUNCHER_BROADCAST_PACKAGE));
+    intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+    context.sendBroadcast(intent);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/media/RadioBrowserService.java" target="_blank" rel="noopener">media/RadioBrowserService.java</a><span class="src">radio.nowPlaying 수신 · sendCurrentPlayInfo()</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/util/Utils.java" target="_blank" rel="noopener">util/Utils.java</a><span class="src">sendTTSForLauncher() · 런처 컴포넌트 명시 송신</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/res/values/strings.xml" target="_blank" rel="noopener">res/values/strings.xml</a><span class="src">tts_now_playing / tts_not_playing 안내 문구</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f06.html">← 차량 런처 연동</a>
+      <a href="f08.html">다음/이전 채널 전환 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_radio_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

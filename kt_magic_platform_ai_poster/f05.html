@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_poster · 배너 템플릿 세트(Set-F/S/H + 직접 설정) 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>배너 템플릿 세트 — kt_magic_platform_ai_poster 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 포스터 (지니 포스터 편집툴)</a><span class="sep">›</span>
+      <span class="here">배너 템플릿 세트</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">PC 웹 (Vue 3 SPA) · 정적 데이터</span>
+    </div>
+    <h1>배너 템플릿 세트</h1>
+    <p class="one-liner">Set-F(5종)·Set-S(10종)·Set-H(11종) 사전 정의 템플릿과 "직접 설정" 커스텀 옵션을 제공합니다. KT 서비스 화면(HomeTop, miniEPG, 빅배너 등)에 맞춘 해상도 규격이 <code>imageExtensionTemplates.js</code>에 정적으로 정의됩니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster" target="_blank" rel="noopener"><code>kt_magic_platform_ai_poster</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 파일</div><div class="v"><code>imageExtensionTemplates.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">이미지 확장 규격 정의 데이터</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>템플릿 세트는 이미지 확장이 만들어 낼 배너 규격의 카탈로그입니다. <code>imageExtensionTemplates.js</code>가 <code>IMAGE_EXTENSION_TEMPLATES</code> 배열로 4개 항목을 정의합니다. <strong>Set-F</strong>(id 1, 5종: 가로/세로 조합), <strong>Set-S</strong>(id 2, 10종: N/W/S/K 시리즈), <strong>Set-H</strong>(id 3, 11종: KT 서비스 화면 규격), 그리고 <strong>직접 설정</strong>(id 0, <code>isCustom: true</code>, contents 비어 있음)입니다.</p>
+    <p>각 템플릿의 <code>contents</code> 항목은 <code>{ id, typeTitle, resolution{width,height}, originPositions }</code> 구조이며, <code>originPositions</code>는 공통 상수 <code>DEFAULT_ORIGIN_POSITIONS = ['Left','Right','Middle','Top','Bottom']</code>를 공유합니다. <code>RightPanel.vue</code>의 <code>v-select</code>가 이 배열을 <code>:items</code>로 받아 드롭다운을 그리고, <code>ImageExtensionPopup.vue</code>는 <code>getTemplateById()</code>로 선택된 템플릿을 조회해 배너 목록을 표 형태로 보여 줍니다. "직접 설정"이면 사용자가 width/height를 직접 입력하는 커스텀 행 UI로 전환됩니다.</p>
+    <div class="callout">
+      <div class="ct">Set-H = KT 서비스 화면 규격</div>
+      Set-H에는 <code>HomeTop(1280×364)</code>, <code>miniEPG(264×147)</code>, <code>카테고리 배너(710×424)</code>, <code>VOD Loading(1280×720)</code>, <code>빅배너(1980×900)</code> 등 실제 KT IPTV/매직 서비스 화면에 들어갈 규격이 그대로 담겨 있습니다. 디자이너가 한 포스터로 여러 노출 면을 동시에 뽑을 수 있게 한 의도입니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor U as 사용자
+    participant RP as RightPanel.vue
+    participant TPL as imageExtensionTemplates.js
+    participant POP as ImageExtensionPopup.vue
+
+    RP-&gt;&gt;TPL: IMAGE_EXTENSION_TEMPLATES (v-select :items)
+    U-&gt;&gt;RP: 템플릿 선택 (Set-F/S/H/직접 설정)
+    RP-&gt;&gt;POP: open-image-extension-popup(templateId)
+    POP-&gt;&gt;TPL: getTemplateById(templateId)
+    TPL--&gt;&gt;POP: name + contents배열 + isCustom
+    alt isCustom == true
+        POP-&gt;&gt;POP: 커스텀 입력 행 UI (width/height 직접)
+    else 사전 정의 템플릿
+        POP-&gt;&gt;POP: contents 표 + 원본 위치 select
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 정적 카탈로그가 드롭다운을 채우고, 선택된 id로 <code>getTemplateById</code>가 템플릿 객체를 돌려줍니다. 커스텀 여부에 따라 팝업 UI가 갈립니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class Template {
+        +id
+        +name
+        +isCustom
+        +contents
+    }
+    class Content {
+        +id
+        +typeTitle
+        +resolution
+        +originPositions
+    }
+    class Resolution {
+        +width
+        +height
+    }
+    class TemplatesModule {
+        +IMAGE_EXTENSION_TEMPLATES
+        +getTemplateById(id) Template
+        +getAllTemplateNames()
+    }
+
+    TemplatesModule o-- Template : Set-F/S/H + 직접 설정
+    Template *-- Content : contents
+    Content *-- Resolution : resolution
+      </div>
+      <p class="cap"><strong>관계.</strong> 모듈이 템플릿 4종을 보유하고, 각 템플릿은 배너별 <code>Content</code>(해상도·원본 위치 옵션)를 가집니다. <code>getTemplateById</code>로 조회합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/assets/js/utils/imageExtensionTemplates.js</code> — Set-H(KT 서비스 화면 규격) 일부와 직접 설정</div>
+<pre><code>const DEFAULT_ORIGIN_POSITIONS = ['Left','Right','Middle','Top','Bottom'];
+
+export const IMAGE_EXTENSION_TEMPLATES = [
+    { id: 1, name: "Set-F", contents: [ /* 가로(1) 1920x1080 ... 세로(3) 360x540 (5종) */ ] },
+    { id: 2, name: "Set-S", contents: [ /* N-1 700x1000 ... K-T2 600x240 (10종) */ ] },
+    {
+        id: 3, name: "Set-H",
+        contents: [
+            { id: 1, typeTitle: "HomeTop",  resolution: { width: 1280, height: 364 }, originPositions: DEFAULT_ORIGIN_POSITIONS },
+            { id: 2, typeTitle: "miniEPG",  resolution: { width: 264,  height: 147 }, originPositions: DEFAULT_ORIGIN_POSITIONS },
+            { id: 5, typeTitle: "VOD Loading", resolution: { width: 1280, height: 720 }, originPositions: DEFAULT_ORIGIN_POSITIONS },
+            { id: 11, typeTitle: "빅배너",   resolution: { width: 1980, height: 900 }, originPositions: DEFAULT_ORIGIN_POSITIONS }
+            /* ... 총 11종 */
+        ]
+    },
+    { id: 0, name: "직접 설정", isCustom: true, contents: [] }
+];
+
+export function getTemplateById(templateId) {
+    return IMAGE_EXTENSION_TEMPLATES.find(t =&gt; t.id === templateId) || null;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/components/panels/RightPanel.vue</code> — 템플릿 드롭다운 바인딩</div>
+<pre><code>&lt;v-select
+    :items="IMAGE_EXTENSION_TEMPLATES"
+    item-title="name"
+    item-value="id"
+    v-model="selectedTemplate"
+    :placeholder="t('rightPanel.selectTemplate')"
+/&gt;</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/assets/js/utils/imageExtensionTemplates.js" target="_blank" rel="noopener">posteredit/assets/js/utils/imageExtensionTemplates.js</a><span class="src">IMAGE_EXTENSION_TEMPLATES(Set-F/S/H + 직접 설정) · DEFAULT_ORIGIN_POSITIONS · getTemplateById</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/panels/RightPanel.vue" target="_blank" rel="noopener">posteredit/components/panels/RightPanel.vue</a><span class="src">v-select :items=IMAGE_EXTENSION_TEMPLATES 드롭다운</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/popups/ImageExtensionPopup.vue" target="_blank" rel="noopener">posteredit/components/popups/ImageExtensionPopup.vue</a><span class="src">getTemplateById로 선택 템플릿 조회 · 사전 정의/커스텀 UI 분기</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f04.html">← 이미지 확장 (Outpainting)</a>
+      <a href="f06.html">결과 폴링 처리 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_poster 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!doctype html>
+<!-- ott-tvapp · 자동 재부팅 스케줄 기능 상세 — WorkManager RebootScheduler/RebootWorker -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>자동 재부팅 스케줄 — ott-tvapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KCTV 제주 OTT Android TV 앱 (ott-tvapp)</a><span class="sep">›</span>
+      <span class="here">자동 재부팅 스케줄</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KCTV 제주</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>자동 재부팅 스케줄</h1>
+    <p class="one-liner"><code>reboot</code> 패키지의 <code>RebootScheduler</code>가 WorkManager로 새벽 시간대 재부팅 작업을 예약하고, <code>RebootWorker</code>가 시각을 확인해 <code>PlaybackActivity</code>에 팝업 브로드캐스트를 보내며, <code>RebootCheckWorker</code>가 주기 점검을 담당합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/ott-tvapp" target="_blank" rel="noopener"><code>ott-tvapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>android14/marusys</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>reboot/RebootScheduler</code> · <code>reboot/RebootWorker</code></div></div>
+      <div class="item"><div class="k">기반</div><div class="v">androidx.work (WorkManager)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>장시간 켜져 있는 셋톱박스의 안정성을 위해 일정 주기마다 단말을 새벽 시간대에 자동 재부팅합니다. <code>RebootScheduler.scheduleRebootIfNeeded()</code>는 최초 실행 시각(<code>Config.KEY_FIRST_LAUNCH</code>)을 기록하고, 기준 일수(상용 5일/개발 1일)가 지났으면 새벽 3~5시(개발 시 다른 값) 사이 랜덤 시각을 골라 그 시각까지의 지연을 계산합니다.</p>
+    <p>계산된 지연으로 <code>OneTimeWorkRequest(RebootWorker.class)</code>를 만들어 <code>WorkManager.enqueue()</code>에 등록합니다. <code>RebootWorker.doWork()</code>는 실행 시점이 유효한 시간대(<code>START_TIME ~ START_TIME+END_TIME</code>)인지 다시 확인한 뒤, <code>PlaybackActivity.ACTION_SHOW_POPUP</code> 브로드캐스트를 보내 액티비티가 재부팅 안내 팝업을 띄우도록 합니다.</p>
+    <p><code>PlaybackActivity</code>는 <code>ACTION_SHOW_POPUP</code> 리시버에서 <code>RebootDialog</code>를 띄워 시청 중이 아닐 때 사용자 안내 후 재부팅을 진행합니다. 별도로 <code>RebootCheckWorker</code>는 <code>PeriodicWorkRequest</code>(1일 주기)로 등록되어 재부팅 필요 여부를 주기적으로 점검합니다.</p>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant ACT as PlaybackActivity
+    participant RS as reboot/RebootScheduler
+    participant WM as WorkManager
+    participant RW as reboot/RebootWorker
+    participant DLG as comp/RebootDialog
+
+    ACT-&gt;&gt;RS: scheduleRebootIfNeeded()
+    RS-&gt;&gt;RS: 최초 실행 기록 / 기준 일수 경과 점검
+    RS-&gt;&gt;RS: 새벽 랜덤 시각 + 지연 계산
+    RS-&gt;&gt;WM: enqueue(OneTimeWorkRequest&lt;RebootWorker&gt; setInitialDelay)
+    WM-&gt;&gt;RW: doWork() (예약 시각 도달)
+    RW-&gt;&gt;RW: 유효 시간대(START~END) 재확인
+    RW-&gt;&gt;ACT: sendBroadcast(ACTION_SHOW_POPUP)
+    ACT-&gt;&gt;DLG: new RebootDialog(...) 안내 후 재부팅
+      </div>
+      <p class="cap"><strong>흐름.</strong> 기준 일수 경과 시 새벽 랜덤 시각으로 <code>RebootWorker</code>를 예약하고, 워커가 시간대를 재확인해 팝업 브로드캐스트 → <code>RebootDialog</code> → 재부팅으로 이어집니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class Worker
+    class RebootScheduler {
+        +int START_TIME
+        +int END_TIME
+        +RebootScheduler(Context context)
+        +scheduleRebootIfNeeded()
+        -getNextTriggerTime(h, m, s) long
+    }
+    class RebootWorker {
+        +doWork() Result
+    }
+    class RebootCheckWorker {
+        +doWork() Result
+    }
+    class RebootDialog {
+        +RebootDialog(context, title, message, rebootAction, cancelAction)
+    }
+    class WorkManager {
+        +enqueue(WorkRequest)
+        +getInstance(Context) WorkManager
+    }
+
+    RebootWorker --|&gt; Worker
+    RebootCheckWorker --|&gt; Worker
+    RebootScheduler --&gt; WorkManager : enqueue
+    RebootScheduler ..&gt; RebootWorker : OneTimeWorkRequest
+    RebootWorker ..&gt; RebootDialog : ACTION_SHOW_POPUP 브로드캐스트
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>RebootScheduler</code>가 WorkManager로 <code>RebootWorker</code>를 예약하고, 워커는 브로드캐스트로 <code>RebootDialog</code>를 유발합니다. <code>RebootCheckWorker</code>는 주기 점검 워커입니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>reboot/RebootScheduler.java</code> — 기준 일수 경과 시 새벽 랜덤 시각 예약</div>
+<pre><code>long fiveDaysMillis = TimeUnit.DAYS.toMillis(CHECK_DAY);   // 상용 5일 / 개발 1일
+if (now - firstLaunch &gt;= fiveDaysMillis) {
+    Random random = new Random();
+    randomHour   = START_TIME + random.nextInt(END_TIME); // 새벽 3~5시(상용)
+    randomMinute = random.nextInt(60);
+    randomSecond = random.nextInt(60);
+    long targetTime = getNextTriggerTime(randomHour, randomMinute, randomSecond);
+    long delay = targetTime - now;
+
+    OneTimeWorkRequest workRequest = new OneTimeWorkRequest.Builder(RebootWorker.class)
+            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+            .build();
+    WorkManager.getInstance(context).enqueue(workRequest);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>reboot/RebootWorker.java</code> — 시간대 재확인 후 팝업 브로드캐스트</div>
+<pre><code>public Result doWork() {
+    Calendar now = Calendar.getInstance();
+    int currentHour = now.get(Calendar.HOUR_OF_DAY);
+    if (currentHour &lt; RebootScheduler.START_TIME
+            || currentHour &gt;= (RebootScheduler.START_TIME + RebootScheduler.END_TIME)) {
+        return Result.success();   // 유효 시간대 아니면 취소
+    }
+    Intent intent = new Intent(PlaybackActivity.ACTION_SHOW_POPUP);
+    intent.putExtra("title", "시스템 알림");
+    intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+    getApplicationContext().sendBroadcast(intent);
+    return Result.success();
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/reboot/RebootScheduler.java" target="_blank" rel="noopener">reboot/RebootScheduler.java</a><span class="src">재부팅 예약 스케줄러 · 기준 일수/새벽 랜덤 시각 계산</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/reboot/RebootWorker.java" target="_blank" rel="noopener">reboot/RebootWorker.java</a><span class="src">예약 시각 실행 워커 · 시간대 재확인 후 팝업 브로드캐스트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/reboot/RebootCheckWorker.java" target="_blank" rel="noopener">reboot/RebootCheckWorker.java</a><span class="src">주기(1일) 재부팅 필요 점검 워커</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/comp/RebootDialog.java" target="_blank" rel="noopener">comp/RebootDialog.java</a><span class="src">재부팅 안내 다이얼로그 (rebootAction/cancelAction)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/PlaybackActivity.java" target="_blank" rel="noopener">PlaybackActivity.java</a><span class="src">ACTION_SHOW_POPUP 리시버 · RebootCheckWorker PeriodicWorkRequest 등록</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f11.html">푸시 티커</a>
+      <a href="f13.html">3rd Party 앱 모드 제어 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>android14/marusys</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">ott-tvapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

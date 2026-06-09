@@ -1,0 +1,188 @@
+<!doctype html>
+<!-- ott-tvapp · NMS 단말 관리 기능 상세 — Agent/AgentController + nms/qi 데이터 전송 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NMS 단말 관리 — ott-tvapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KCTV 제주 OTT Android TV 앱 (ott-tvapp)</a><span class="sep">›</span>
+      <span class="here">NMS 단말 관리</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KCTV 제주</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>NMS 단말 관리</h1>
+    <p class="one-liner"><code>ott/Agent</code>와 <code>ott/AgentController</code>가 <code>nms</code>·<code>qi</code> 패키지를 통해 CPU·메모리·네트워크·SI 등 단말 상태를 수집해 NMS 서버로 리포트하고, 관리 앱의 제어 액션을 처리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/ott-tvapp" target="_blank" rel="noopener"><code>ott-tvapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>android14/marusys</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ott/Agent</code> · <code>ott/nms/DataBuilder</code></div></div>
+      <div class="item"><div class="k">연동</div><div class="v"><code>MgmtManager</code> · <code>NmsDataSender</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>Agent</code>는 NMS(Network Management System) 리포팅의 중심입니다. 전용 <code>ThreadPoolExecutor</code>에서 <code>MgmtManager</code>(mgmt 라이브러리)와의 세션을 맺고, 네트워크 변경·서비스 상태 변경 등 이벤트가 오면 <code>DataBuilder</code>로 항목별 데이터(공통/CPU/메모리/플래시/네트워크/IO/설정/RCU/시스템/SI/HDMI/Google/VOD/IPTV)를 조립합니다. 각 이벤트는 <code>NMSEventID</code>(KE04, KH02, KH05~KH07 등) 코드로 식별됩니다.</p>
+    <p>조립된 메시지는 <code>sendData(eventId, msg)</code>가 <code>NmsDataSender</code>(mgmtcli)의 <code>sendNmsData()</code>로 전송합니다. 실제 패킷 전송은 <code>nms/NMSDataSender</code>(UDP 소켓 <code>send</code>)가 담당하고, 재생 품질 정보(QI)는 <code>qi/QIDataSendThread</code>가 별도 포트(<code>BuildConfig.QI_PORT</code>)로 전송합니다. QI 데이터는 <code>QIHandler</code>의 주기/실시간 콜백으로 수집됩니다.</p>
+    <p><code>AgentController</code>는 관리 앱(<code>com.kctvjeju.mgmt</code>)에서 내려오는 제어 액션을 정의·처리합니다. 주기 상태 리포트(<code>periodicStatus</code>), 서비스 변경 리포트, 구매 PIN 초기화·등급 초기화·해상도/HDMI-CEC 설정 등 다양한 원격 제어 액션 문자열을 보유합니다.</p>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant ACT as PlaybackActivity
+    participant AG as ott/Agent
+    participant MG as MgmtManager
+    participant DB as nms/DataBuilder
+    participant SND as NmsDataSender / NMSDataSender
+    participant NMS as NMS 서버
+    participant QI as qi/QIDataSendThread
+
+    ACT-&gt;&gt;AG: init(activity)
+    AG-&gt;&gt;MG: startClientSessionReconnect()
+    MG--&gt;&gt;AG: nmsDataSenderClientStart(NmsDataSender)
+    Note over AG: 이벤트 발생 (네트워크/서비스 상태 변경)
+    AG-&gt;&gt;DB: makeCommonData / makeCPUData / makeNetData ...
+    DB--&gt;&gt;AG: 항목 데이터
+    AG-&gt;&gt;SND: sendData(eventId, msg) → sendNmsData()
+    SND-&gt;&gt;NMS: UDP 패킷 전송
+    QI-&gt;&gt;NMS: QI(품질) 데이터 전송 (QI_PORT)
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>Agent</code>가 mgmt 세션을 맺고, 이벤트마다 <code>DataBuilder</code>로 상태 데이터를 조립해 <code>NmsDataSender</code>로 NMS에 전송하며 QI는 별도 스레드가 보냅니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class Agent {
+        +init(PlaybackActivity activity)
+        +nmsDataSenderClientStart(NmsDataSender api)
+        -sendData(String eventId, String msg)
+        -buildData(StringBuilder, data)
+    }
+    class AgentController {
+        +String ACTION_REPORT_PERIODIC_STATUS
+        +String ACTION_REPORT_SERVICE_CHANGE
+        +String ACTION_CONTROL_RESET_PURCHASE_PIN
+        +String ACTION_CONTROL_SET_RESOLUTION
+    }
+    class DataBuilder {
+        +makeCommonData(eventId)
+        +makeCPUData()
+        +makeMemoryData()
+        +makeNetData()
+        +makeVODData()
+        +makeIPTVData()
+    }
+    class NMSDataSender {
+        +run()
+    }
+    class QIDataSendThread {
+        +run()
+    }
+    class QIHandler {
+        +init(PlaybackActivity activity)
+    }
+    class MgmtManager {
+        +startClientSessionReconnect()
+    }
+
+    Agent --&gt; DataBuilder : 데이터 조립
+    Agent --&gt; MgmtManager : 세션 연결
+    Agent ..&gt; NMSDataSender : UDP 전송
+    QIHandler --&gt; QIDataSendThread : QI 전송
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>Agent</code>가 <code>DataBuilder</code>로 상태를 모아 NMS로 보내고, <code>AgentController</code>가 원격 제어 액션을, <code>QIHandler</code>/<code>QIDataSendThread</code>가 품질 정보를 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ott/Agent.java</code> — 이벤트별 상태 데이터 조립 후 전송</div>
+<pre><code>case MSG_NETWORK_CONNECTED:
+    buildData(builder, dataBuilder.makeCommonData(NMSEventID.KE04));
+    buildData(builder, dataBuilder.makeCPUData());
+    buildData(builder, dataBuilder.makeMemoryData());
+    buildData(builder, dataBuilder.makeFlashData());
+    buildData(builder, dataBuilder.makeNetData());
+    buildData(builder, dataBuilder.makeConfigData());
+    buildData(builder, dataBuilder.makeSIData());
+    buildData(builder, dataBuilder.makeVODData());
+    buildData(builder, dataBuilder.makeIPTVData());
+    sendData(NMSEventID.KE04, builder.toString());
+    break;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ott/Agent.java</code> — sendData: mgmt 클라이언트로 NMS 전송</div>
+<pre><code>private static void sendData(String eventId, String msg) {
+    if (inmsSender != null) {
+        inmsSender.sendNmsData(eventId, msg);   // NmsDataSender (mgmtcli)
+        Log.d(TAG, "inmsSender: sendNMSData");
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/Agent.java" target="_blank" rel="noopener">ott/Agent.java</a><span class="src">NMS 리포트 에이전트 · 이벤트별 데이터 조립/전송</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/AgentController.java" target="_blank" rel="noopener">ott/AgentController.java</a><span class="src">원격 제어 액션 정의(주기 리포트·PIN/등급 초기화·해상도/CEC)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/nms/DataBuilder.java" target="_blank" rel="noopener">ott/nms/DataBuilder.java</a><span class="src">CPU/메모리/네트워크/SI 등 상태 데이터 빌더</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/nms/NMSDataSender.java" target="_blank" rel="noopener">ott/nms/NMSDataSender.java</a><span class="src">NMS UDP 패킷 전송 스레드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/qi/QIDataSendThread.java" target="_blank" rel="noopener">ott/qi/QIDataSendThread.java</a><span class="src">품질 정보(QI) 전송 스레드 (QI_PORT)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/QIHandler.java" target="_blank" rel="noopener">ott/QIHandler.java</a><span class="src">QI 주기/실시간 리포트 콜백 수집</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f09.html">통합·음성 검색</a>
+      <a href="f11.html">푸시 티커 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>android14/marusys</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">ott-tvapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

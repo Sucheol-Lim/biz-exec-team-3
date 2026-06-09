@@ -1,0 +1,195 @@
+<!doctype html>
+<!-- turk-webx-tivibu-sysapp · 검색 / 검색 상세 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>검색 / 검색 상세 — turk-webx-tivibu-sysapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Türk Telekom Tivibu STB 시스템 앱 (EPG SYSAPP)</a><span class="sep">›</span>
+      <span class="here">검색 / 검색 상세</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">WebX STB · JavaScript (ES6/AMD)</span>
+    </div>
+    <h1>검색 / 검색 상세</h1>
+    <p class="one-liner"><code>SearchController</code>가 화상 키보드(OSK)로 입력받은 키워드를 <code>QueryManager.getKeywordSearch()</code>로 질의하고, 결과 선택 시 <code>SearchDetailController</code>가 상세 화면을 띄웁니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp" target="_blank" rel="noopener"><code>turk-webx-tivibu-sysapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>controller/SearchController.js</code> · <code>controller/SearchDetailController.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">키워드 검색 · OSK · 결과 상세</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>검색은 콘텐츠명·채널을 키워드로 찾는 기능입니다. <code>SearchController</code>는 <code>SearchFrame</code>을 생성·등록하고, 프레임 안의 화상 키보드(OSK, <code>ui/search/SearchOsk</code>·<code>SearchOskPanel</code>)로 사용자가 글자를 입력하면 검색어를 만듭니다. OSK는 공용 베이스인 <code>app/osk/BaseOsk</code>를 확장합니다. 입력된 키워드는 <code>QueryManager.getKeywordSearch()</code>로 서버에 질의되어 결과가 그리드(<code>SearchResultGrid</code>·<code>SearchResultPanel</code>)에 표시됩니다.</p>
+    <p>검색 결과에서 항목을 선택하면 <code>SearchDetailController</code>가 2022 리뉴얼 상세 프레임(<code>ui2022/searchdetail/SearchDetailFrame</code>)을 띄웁니다. 검색 상세는 프로그램/VOD 상세 정보를 보여주며, 거기서 재생·녹화·예약 등 후속 동작으로 연결됩니다. 두 컨트롤러 모두 표시 시 <code>KeyEventManager</code>에 자신을 키 리스너로 등록하고, 프레임 lifecycle은 <code>RootWindow</code>가 관리합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      검색과 검색 상세를 별도 컨트롤러·프레임으로 분리해, 결과 목록과 상세 화면의 우선순위(<code>Priority.SETTING</code> vs <code>Priority.SEARCH_DETAIL</code>)와 키 입력을 독립적으로 관리합니다. OSK는 <code>BaseOsk</code> 공통 로직을 재사용해 입력 문자열(<code>oskString</code>)과 최대 길이를 다룹니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant KEM as KeyEventManager
+    participant SC as SearchController
+    participant SF as SearchFrame
+    participant OSK as SearchOsk (BaseOsk)
+    participant QM as QueryManager
+    participant SDC as SearchDetailController
+
+    SC-&gt;&gt;SF: RootWindow.showFrame('searchFrame')
+    SC-&gt;&gt;KEM: addKeyListener(this)
+    loop 키워드 입력
+        KEM-&gt;&gt;SC: onKeyDown(keyEvent)
+        SC-&gt;&gt;SF: dispatchKeyDown(keyEvent)
+        SF-&gt;&gt;OSK: 글자 입력 → oskString 갱신
+    end
+    SF-&gt;&gt;QM: getKeywordSearch(condition, ...)
+    QM--&gt;&gt;SF: 검색 결과 목록
+    SF--&gt;&gt;SF: SearchResultGrid 렌더링
+    Note over SC,SDC: 결과 선택
+    SC-&gt;&gt;SDC: show(selectedItem)
+    SDC-&gt;&gt;SDC: RootWindow.showFrame('searchDetailFrame2022')
+      </div>
+      <p class="cap"><strong>흐름.</strong> OSK로 키워드를 만들면 <code>getKeywordSearch()</code>가 결과를 받아 그리드에 표시하고, 항목 선택 시 <code>SearchDetailController</code>가 상세 프레임을 띄웁니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class SearchController {
+        -searchFrame SearchFrame
+        +show(param, entrance)
+        +update(param)
+        +hide(param)
+        +onKeyDown(keyEvent)
+        +requestFocus()
+    }
+    class SearchDetailController {
+        -searchDetailFrame SearchDetailFrame
+        +show(param, entrance)
+        +hide(param)
+        +getPriority() int
+    }
+    class SearchFrame {
+        +dispatchKeyDown(keyEvent)
+        +focus()
+    }
+    class BaseOsk {
+        -oskString string
+        -maximumLength int
+        +setContainer(c)
+    }
+    class QueryManager {
+        +getKeywordSearch(condition, type, ...)
+    }
+
+    SearchController --&gt; SearchFrame : 소유 · 키 위임
+    SearchFrame --&gt; BaseOsk : 화상 키보드
+    SearchFrame --&gt; QueryManager : 키워드 검색
+    SearchController ..&gt; SearchDetailController : 결과 선택 → 상세
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>SearchController</code>가 검색 프레임과 OSK를, <code>SearchDetailController</code>가 상세 프레임을 담당하며, 검색 질의는 <code>QueryManager.getKeywordSearch()</code>로 수행됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>controller/SearchController.js</code> — 검색 프레임 표시·키 위임</div>
+<pre><code>init: function init(type) {
+    this.frameName = 'searchFrame';
+    this.searchFrame = new SearchFrame(this.frameName, Priority.SETTING);
+    SYSAPP.RootWindow.addFrame(this.searchFrame);
+    SYSAPP.SearchController = this;
+},
+
+show: function show(param, entrance) {
+    this.addKeyEventListener();
+    SYSAPP.RootWindow.showFrame(this.frameName, param, entrance);
+},
+
+onKeyDown: function(keyEvent) {
+    this.searchFrame.dispatchKeyDown(keyEvent);   // OSK·결과 그리드로 위임
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>controller/SearchDetailController.js</code> — 2022 검색 상세 프레임</div>
+<pre><code>init: function init(type) {
+    SYSAPP.SearchDetailController = this;
+    this.frameName = 'searchDetailFrame2022';
+    this.searchDetailFrame = new SearchDetailFrame2022(this.frameName, Priority.SEARCH_DETAIL);
+    SYSAPP.RootWindow.addFrame(this.searchDetailFrame);
+},
+
+show: function show(param, entrance) {
+    this.addKeyEventListener();
+    SYSAPP.RootWindow.showFrame(this.frameName, param, entrance);   // 결과 선택 → 상세
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/SearchController.js" target="_blank" rel="noopener">controller/SearchController.js</a><span class="src">검색 프레임 lifecycle · 키 위임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/SearchDetailController.js" target="_blank" rel="noopener">controller/SearchDetailController.js</a><span class="src">검색 결과 상세(2022) 프레임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/ui/search/SearchOsk.js" target="_blank" rel="noopener">ui/search/SearchOsk.js</a><span class="src">검색용 화상 키보드(OSK)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/osk/BaseOsk.js" target="_blank" rel="noopener">osk/BaseOsk.js</a><span class="src">OSK 공통 베이스(oskString, maximumLength)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/data/QueryManager.js" target="_blank" rel="noopener">data/QueryManager.js</a><span class="src">getKeywordSearch · searchVodList 등 검색 질의</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f04.html">← 채널 리스트 · 필터</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f06.html">VOD / 시리즈 상세 · 재생 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">turk-webx-tivibu-sysapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

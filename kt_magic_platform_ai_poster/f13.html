@@ -1,0 +1,177 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_poster · 다국어 지원(vue-i18n + 자체 useI18n composable) 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>다국어 지원 — kt_magic_platform_ai_poster 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 포스터 (지니 포스터 편집툴)</a><span class="sep">›</span>
+      <span class="here">다국어 지원</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">PC 웹 (Vue 3 SPA) · vue-i18n</span>
+    </div>
+    <h1>다국어 지원</h1>
+    <p class="one-liner">편집 모듈은 한국어/영어 로케일(<code>ko.json</code>·<code>en.json</code>)을 갖춘 자체 <code>useI18n</code> composable과 vue-i18n을 병행 사용해 UI 문구를 국제화합니다. 브라우저 언어와 localStorage 선택을 우선순위로 초기 언어를 결정합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster" target="_blank" rel="noopener"><code>kt_magic_platform_ai_poster</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 파일</div><div class="v"><code>posteredit/i18n.js</code> · <code>composables/useI18n.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">편집 UI 문구 국제화 (ko/en)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>포스터 편집 모듈은 자체 i18n 인스턴스를 둡니다. <code>posteredit/i18n.js</code>가 <code>createI18n({ legacy: false, ... })</code>로 Composition API 모드 인스턴스를 만들고 <code>ko.json</code>·<code>en.json</code> 메시지를 등록합니다. 메시지는 <code>common</code>, <code>posterEdit</code>, <code>rightPanel</code>, <code>imageExtension</code>, <code>imageExtensionResult</code> 등 영역별 네임스페이스로 묶여 있고, 예를 들어 <code>common.tokenInfo</code>는 <code>{cost}</code> 보간을 포함한 "작업 완료 시 {cost}토큰이 차감됩니다" 문구입니다.</p>
+    <p>각 컴포넌트는 <code>composables/useI18n.js</code>를 import해서 쓰는데, 이 composable은 vue-i18n의 <code>useI18n</code>을 그대로 재노출하는 얇은 래퍼입니다. 즉 "자체 composable"이라는 표현은 모듈 전용 진입점을 의미하고, 실제 번역 엔진은 vue-i18n입니다. 초기 언어는 <code>getInitialLocale()</code>이 ① localStorage(<code>posterEditLocale</code>) ② 브라우저 언어 ③ 기본값 <code>ko</code> 순으로 결정하며, <code>setLocale()</code>로 런타임에 바꾸면 localStorage 저장과 <code>&lt;html lang&gt;</code> 갱신까지 함께 수행합니다. 이미지 확장의 원본 위치 라벨(<code>imageExtension.positions.*</code>)도 로케일로 번역됩니다(예: <code>Top → 상단</code>).</p>
+    <div class="callout">
+      <div class="ct">번역 키 예시</div>
+      배너 원본 위치 코드(<code>Top/Bottom/Middle/Left/Right</code>)는 API에는 영문 그대로 보내고, 화면 표시만 <code>getOriginPositionOptions()</code>가 <code>t('imageExtension.positions.' + pos)</code>로 한글(상단/하단/가운데/왼쪽/오른쪽)로 변환합니다. 데이터와 표시를 분리한 구조입니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant I18N as posteredit/i18n.js
+    participant C as 편집 컴포넌트
+    participant UC as composables/useI18n.js
+    participant VI as vue-i18n
+
+    Note over I18N: createI18n(ko/en) + getInitialLocale()
+    I18N-&gt;&gt;I18N: localStorage → 브라우저 → 'ko' 순 결정
+    C-&gt;&gt;UC: useI18n()
+    UC-&gt;&gt;VI: vueUseI18n() 재노출
+    VI--&gt;&gt;C: { t, locale }
+    C-&gt;&gt;VI: t('common.tokenInfo', { cost })
+    VI--&gt;&gt;C: "작업 완료 시 N토큰이 차감됩니다"
+    Note over C,VI: setLocale('en') 시 localStorage + html lang 갱신
+      </div>
+      <p class="cap"><strong>흐름.</strong> 모듈 전용 i18n 인스턴스가 초기 언어를 정하고, 컴포넌트는 얇은 <code>useI18n</code> 래퍼로 vue-i18n의 <code>t()</code>를 사용해 보간 포함 문구를 번역합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class I18nModule {
+        +getInitialLocale()
+        +setLocale(locale)
+        +getLocale()
+        +getSupportedLocales()
+    }
+    class useI18nComposable {
+        +useI18n()
+    }
+    class VueI18n {
+        +t(key, params)
+        +locale
+    }
+    class Locales {
+        +ko.json
+        +en.json
+    }
+
+    I18nModule o-- Locales : messages 등록
+    I18nModule ..&gt; VueI18n : createI18n
+    useI18nComposable ..&gt; VueI18n : vueUseI18n 재노출
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>i18n.js</code>가 로케일 JSON으로 vue-i18n 인스턴스를 만들고, 컴포넌트는 <code>useI18n</code> 래퍼로 그 인스턴스의 <code>t()</code>에 접근합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/i18n.js</code> — 인스턴스 생성과 초기 언어 결정</div>
+<pre><code>const i18n = createI18n({
+    legacy: false,                        // Composition API
+    locale: getInitialLocale(),           // localStorage → 브라우저 → 'ko'
+    fallbackLocale: DEFAULT_LOCALE,
+    messages: { ko, en }
+})
+
+function getInitialLocale() {
+    const savedLocale = localStorage.getItem('posterEditLocale')
+    if (savedLocale &amp;&amp; SUPPORTED_LOCALES.includes(savedLocale)) return savedLocale
+    const browserLocale = getBrowserLocale()
+    if (SUPPORTED_LOCALES.includes(browserLocale)) return browserLocale
+    return DEFAULT_LOCALE                 // 'ko'
+}
+
+export function setLocale(locale) {
+    i18n.global.locale.value = locale
+    localStorage.setItem('posterEditLocale', locale)
+    document.querySelector('html').setAttribute('lang', locale)
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/composables/useI18n.js</code> — vue-i18n 재노출 래퍼</div>
+<pre><code>import { useI18n as vueUseI18n } from 'vue-i18n'
+
+// posteredit 전용 i18n composable (각 컴포넌트에서 import)
+export function useI18n() {
+    return vueUseI18n()
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/i18n.js" target="_blank" rel="noopener">posteredit/i18n.js</a><span class="src">createI18n(ko/en) · getInitialLocale 우선순위 · setLocale/getLocale</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/composables/useI18n.js" target="_blank" rel="noopener">posteredit/composables/useI18n.js</a><span class="src">vue-i18n useI18n 재노출 래퍼 (모듈 전용 진입점)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/locales/ko.json" target="_blank" rel="noopener">posteredit/locales/ko.json</a><span class="src">한국어 메시지 (common/posterEdit/rightPanel/imageExtension/imageExtensionResult)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/locales/en.json" target="_blank" rel="noopener">posteredit/locales/en.json</a><span class="src">영어 메시지 (동일 키 구조)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f12.html">← 인증·세션 관리</a>
+      <a href="index.html#features">주요 기능 목록 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_poster 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

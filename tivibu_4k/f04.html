@@ -1,0 +1,195 @@
+<!doctype html>
+<!-- tivibu_4k · 녹화(nPVR) 기능 상세 — RecordCoordinator/NPvrRepository/NPvrApi 시퀀스·클래스 다이어그램 + 코드 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>녹화(nPVR) — tivibu_4k 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Tivibu 4K Android — IPTV/OTT 런처</a><span class="sep">›</span>
+      <span class="here">녹화(nPVR)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV / Leanback · Kotlin</span>
+    </div>
+    <h1>녹화(nPVR)</h1>
+    <p class="one-liner"><code>RecordCoordinator</code>가 녹화 예약/취소/삭제를 조율하고 <code>NPvrRepository</code> → <code>NPvrApi</code>(Retrofit) 경로로 서버 네트워크 녹화(nPVR)를 호출하며, 녹화물 재생은 <code>NPVRPlayHandler</code>로 연결됩니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tivibu_4k" target="_blank" rel="noopener"><code>tivibu_4k</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>sprint/LS0626_release</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>data/.../api/NPvrApi.kt</code> · <code>RecordCoordinator</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">라이브/편성표/설정에서 진입하는 녹화 예약·관리</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>녹화는 단말 로컬이 아니라 네트워크 녹화(nPVR) 방식입니다. 라이브 TV(<code>LiveTvScreen</code>의 <code>onRecord</code>/<code>onRecordCancel</code>/<code>onRecordRemove</code>) 또는 편성표에서 녹화를 요청하면 <code>LiveTvViewModel</code>이 위임받은 <code>RecordCoordinator</code>를 통해 도메인 흐름으로 들어갑니다. <code>RecordCoordinator</code>는 데이터 가공과 네비게이션(예약 결과/에러 팝업)을 함께 담당합니다.</p>
+    <p>실제 서버 호출은 <code>NPvrRepository</code> 구현이 <code>NPvrApi</code>(Retrofit 인터페이스)를 통해 수행합니다. 단편 녹화 추가(<code>addNPvr</code>), 시리즈 녹화 추가(<code>addNPvrSeries</code>), 삭제(<code>delNPvr</code>/<code>delNPvrSeries</code>), 자동 삭제 갱신(<code>updateNPvr</code>), 녹화 제한 확인(<code>limitNPvr</code>), 잔여 녹화 시간(<code>getNPvrTime</code>), 녹화 상태 조회(<code>checkNPvrStatus</code>), 사용자/시리즈 녹화 목록(<code>getUserNPvrList</code>/<code>getUserSeriesNPvrList</code>)을 제공합니다.</p>
+    <p>녹화된 콘텐츠의 재생은 VOD 재생 파이프라인을 재사용합니다. <code>PlayOrchestrator</code>의 핸들러 딕셔너리에서 <code>VodType.RECORD</code>가 <code>NPVRPlayHandler</code>에 매핑되어 녹화물을 일반 VOD처럼 재생합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      각 <code>NPvrApi</code> 메서드 주석에 서버 인터페이스 번호(예. <code>3.18.1. Addition of NPVR (Non-Series) Recording</code>)가 명시되어 있어 Türk Telekom 백엔드 스펙과 1:1로 추적됩니다. 시리즈 녹화 추가 시 <code>prevueCode</code>를 의도적으로 생략하는 등 웹(QueryManager.js) 동작과 정합을 맞춘 흔적이 코드 주석에 남아 있습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SCR as LiveTvScreen / TvGuide
+    participant VM as LiveTvViewModel
+    participant RC as RecordCoordinator
+    participant REPO as NPvrRepository
+    participant API as NPvrApi (Retrofit)
+    participant SVR as Türk Telekom nPVR 서버
+
+    SCR->>VM: onRecord(program)
+    VM->>RC: recordProgram(program) / addRecording(...)
+    RC->>REPO: limitNPvr(channelCode, seriesHeadId, prevueCode)
+    REPO->>API: GET limitNPvr
+    API->>SVR: 녹화 제한 확인
+    SVR--&gt;>API: NPvrLimitDto
+    RC->>REPO: addNPvr(channelCode, seriesHeadId, prevueCode)
+    REPO->>API: GET addNPvr
+    API->>SVR: 녹화 예약
+    SVR--&gt;>API: BaseResponseDto
+    REPO--&gt;>RC: 예약 결과
+    alt 성공
+        RC->>SCR: 예약 완료 표시
+    else 실패
+        RC->>SCR: showRecordingError(...)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 녹화 요청이 ViewModel에 위임된 <code>RecordCoordinator</code>로 전달되면, 녹화 제한 확인 후 <code>NPvrRepository</code>→<code>NPvrApi</code> 경로로 서버에 예약을 요청합니다. 결과에 따라 완료 표시 또는 에러 팝업을 보입니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class RecordCoordinator {
+        &lt;&lt;interface&gt;&gt;
+        +recordProgram(...)
+        +addRecording(...)
+        +deleteRecording(...)
+        +deleteSeriesRecording(...)
+        +getUserNPvrList(...)
+        +getNPvrTime() Single~NPvrTime~
+        +showRecordingError(...)
+    }
+    class NPvrRepository {
+        &lt;&lt;interface&gt;&gt;
+        +addNPvr(...)
+        +addNPvrSeries(...)
+        +delNPvr(...)
+        +limitNPvr(...)
+        +getUserNPvrList(...)
+        +checkNPvrStatus(...)
+    }
+    class NPvrApi {
+        &lt;&lt;interface&gt;&gt;
+        +addNPvr(...) Single~BaseResponseDto~
+        +addNPvrSeries(...) Single~BaseResponseDto~
+        +delNPvr(prevueCode) Single~BaseResponseDto~
+        +limitNPvr(...) Single~NPvrLimitDto~
+        +getNPvrTime() Single~NPvrTimeDto~
+    }
+    class NPVRPlayHandler
+    class PlayOrchestrator
+
+    RecordCoordinator --&gt; NPvrRepository : 도메인 호출
+    NPvrRepository --&gt; NPvrApi : Retrofit 호출
+    PlayOrchestrator o-- NPVRPlayHandler : VodType.RECORD
+    NPVRPlayHandler ..&gt; NPvrRepository : 녹화물 재생
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>RecordCoordinator</code>가 도메인 <code>NPvrRepository</code>를 호출하고, 구현은 Retrofit <code>NPvrApi</code>로 서버에 도달합니다. 녹화물 재생은 <code>PlayOrchestrator</code>의 <code>NPVRPlayHandler</code>(VodType.RECORD)가 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>data/remote/api/NPvrApi.kt</code> — nPVR Retrofit 인터페이스(서버 스펙 번호 매핑)</div>
+<pre><code>interface NPvrApi {
+    // 3.18.1. Addition of NPVR (Non-Series) Recording
+    @GET(DataConfig.API_ADD_NPVR)
+    fun addNPvr(
+        @Query("channelcode") channelCode: String,
+        @Query("seriesheadid") seriesHeadId: String,
+        @Query("prevuecode") prevueCode: String,
+    ): Single&lt;BaseResponseDto&gt;
+
+    // 3.18.5. Addition of NPVR (Series) Recording
+    @GET(DataConfig.API_ADD_NPVR_SERIES)
+    fun addNPvrSeries(
+        @Query("channelcode") channelCode: String,
+        @Query("seriesheadid") seriesHeadId: String,
+        // prevueCode 생략: Web QueryManager.js - addNPvrSeries 참조
+        @Query("istotalseason") isTotalSeason: String? = "1",
+    ): Single&lt;BaseResponseDto&gt;
+
+    // 4.2.2. User Recording Restriction Notification Interface
+    @GET(DataConfig.API_LIMIT_NPVR)
+    fun limitNPvr(...): Single&lt;NPvrLimitDto&gt;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/data/src/main/java/com/altimedia/data/remote/api/NPvrApi.kt" target="_blank" rel="noopener">data/remote/api/NPvrApi.kt</a><span class="src">nPVR Retrofit API (추가/삭제/제한/시간/상태/목록)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/domain/src/main/java/com/altimedia/domain/repository/NPvrRepository.kt" target="_blank" rel="noopener">domain/repository/NPvrRepository.kt</a><span class="src">nPVR 도메인 repository 인터페이스</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/core/coodinator/src/main/java/com/altimedia/core/coodinator/record/RecordCoordinator.kt" target="_blank" rel="noopener">core/coodinator/.../record/RecordCoordinator.kt</a><span class="src">녹화 예약/취소/삭제 조율 + 결과/에러 네비게이션</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/play/handler/NPVRPlayHandler.kt" target="_blank" rel="noopener">ui/play/handler/NPVRPlayHandler.kt</a><span class="src">녹화물(VodType.RECORD/PPV) 재생 핸들러</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/utils/coordinator/RecordCoordinatorImpl.kt" target="_blank" rel="noopener">ui/utils/coordinator/RecordCoordinatorImpl.kt</a><span class="src">RecordCoordinator 구현</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f03.html">← VOD 재생</a>
+      <a href="f05.html">구매·결제 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>sprint/LS0626_release</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tivibu_4k 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

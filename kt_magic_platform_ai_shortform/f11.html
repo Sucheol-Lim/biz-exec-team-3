@@ -1,0 +1,185 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_shortform · 결과 확인·다운로드 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결과 확인·다운로드 — kt_magic_platform_ai_shortform 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 지니숏츠 (AI 숏폼 플랫폼)</a><span class="sep">›</span>
+      <span class="here">결과 확인·다운로드</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">데스크톱 웹 (Vue 3 SPA) · JavaScript</span>
+    </div>
+    <h1>결과 확인·다운로드</h1>
+    <p class="one-liner">생성 잡 결과를 5초 간격으로 폴링·표시하고 생성 방식별로 그룹핑하며, 해시태그·설명 편집, 영상 다운로드, 편집기 진입을 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform" target="_blank" rel="noopener"><code>kt_magic_platform_ai_shortform</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>result/ShortformHighlightResult.vue</code></div></div>
+      <div class="item"><div class="k">폴링 간격</div><div class="v"><code>GET_JOB_INTERVAL = 5초</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>결과 화면(<code>ShortformHighlightResult.vue</code>)은 <code>history.state.jobId</code>로 진입해 <code>JobResultTemplate.vue</code>의 <code>getJobResult(getResult, jobId)</code>로 잡 상태를 조회합니다. 잡이 완료/에러가 아니면 <code>setTimeout</code>으로 5초마다 재조회(폴링)하며, <code>onGetJob</code> 콜백으로 받은 <code>job</code>을 화면 상태에 반영합니다. 완료(<code>jobStatus === 0</code>) 시 <code>getNmsResult(jobId)</code>로 NMS 상세 결과(<code>shortformResults</code>)를 가져옵니다.</p>
+    <p>결과는 <code>groupedResults</code> computed가 <code>shortformType</code> 기준으로 그룹핑하고, 쇼핑(<code>contentType === 0</code>) 여부에 따라 <code>shoppingResults</code>/<code>movieDramaResults</code>의 <code>shortformIndex</code>를 매칭합니다. 카드별로 해시태그·설명을 인라인 편집(<code>editHashTag</code>/<code>updateHashTag</code> → <code>putHashTagDescription</code>)할 수 있고, 해시태그는 콤마↔#표기로 변환됩니다.</p>
+    <p>다운로드는 그룹별 전체 다운로드(<code>downloadShortformTypeVideos</code>)와 개별 다운로드를 제공합니다. <code>resultFilePath</code>를 절대 URL로 변환해 <code>&lt;a download&gt;</code>로 내려받으며, 파일명은 <code>requestName</code>의 금칙문자를 치환해 안전화합니다. 편집기 진입은 <code>goToEditPage</code>가 <code>jobId</code>·<code>resultId</code> 쿼리로 새 창을 엽니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      폴링 종료 조건은 <code>JobStatus.SUCCESS</code>/<code>ERROR</code>이며, 컴포넌트 unmount 시 <code>clearJobTimeout()</code>으로 타이머를 정리합니다. 재생성(<code>regenerateShortform</code>)은 원본 입력 경로를 추출해 생성 설정 화면으로 되돌립니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant RES as ShortformHighlightResult.vue
+    participant JRT as JobResultTemplate (getJobResult)
+    participant API as api.shortform
+    participant SVR as Magic / NMS
+
+    RES-&gt;&gt;JRT: onMounted → getJobResult(getResult, jobId)
+    JRT-&gt;&gt;API: getResult(jobId)
+    API-&gt;&gt;SVR: GET .../aiShortformGenerationE2E
+    SVR--&gt;&gt;JRT: job (jobStatus)
+    alt 진행중
+        JRT-&gt;&gt;JRT: setTimeout 5초 후 재조회
+    else 완료
+        RES-&gt;&gt;API: getNmsResult(jobId)
+        API-&gt;&gt;SVR: GET /nms/magic/shortform?jobId=...
+        SVR--&gt;&gt;RES: shortformResults
+        RES-&gt;&gt;RES: groupedResults (shortformType별 그룹핑)
+    end
+    RES-&gt;&gt;RES: 해시태그/설명 편집 · 다운로드 · 편집기 진입
+      </div>
+      <p class="cap"><strong>흐름.</strong> 잡 상태를 5초 폴링하고, 완료 시 NMS 상세 결과를 받아 방식별로 그룹핑해 표시합니다. 카드에서 해시태그 편집·다운로드·편집 진입을 제공합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ShortformHighlightResult {
+        +job
+        +shortformResultData
+        +groupedResults
+        +downloadShortformTypeVideos()
+        +updateHashTag()
+        +goToEditPage()
+        +regenerateShortform()
+    }
+    class JobResultTemplate {
+        +getJobResult(getResult, jobId)
+        +onGetJob(callback)
+        +clearJobTimeout()
+    }
+    class shortformApi {
+        +getResult(jobId)
+        +getNmsResult(jobId)
+    }
+    class styleApi {
+        +putHashTagDescription(resultId, data)
+    }
+
+    ShortformHighlightResult --&gt; JobResultTemplate : 폴링 위임
+    JobResultTemplate --&gt; shortformApi : getResult
+    ShortformHighlightResult --&gt; shortformApi : getNmsResult
+    ShortformHighlightResult --&gt; styleApi : 해시태그/설명 저장
+      </div>
+      <p class="cap"><strong>관계.</strong> 결과 화면이 <code>JobResultTemplate</code>의 폴링 헬퍼로 잡을 조회하고, 완료 후 NMS 결과를 받아 그룹핑·다운로드·편집·해시태그 저장을 수행합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>user/src/components/common/api/result/JobResultTemplate.vue</code> — 5초 폴링</div>
+<pre><code>const GET_JOB_INTERVAL = 5
+
+export async function getJobResult (getResult, jobId) {
+  result = await getResult(jobId)
+  job = result.data.result.job
+  typeof onGetJob._callback === 'function' &amp;&amp; onGetJob._callback(job, result.data, result)
+
+  if (JobStatus.SUCCESS.isStatus(job.jobStatus) || JobStatus.ERROR.isStatus(job.jobStatus)) {
+    // 완료된 작업
+  } else {
+    getJobTimeout = setTimeout(() =&gt; getJobResult(getResult, jobId), GET_JOB_INTERVAL * 1000)
+  }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>user/src/views/common/api/result/ShortformHighlightResult.vue</code> — 방식별 그룹핑</div>
+<pre><code>const groupedResults = computed(() =&gt; {
+  return shortformResultData.value
+    ? shortformResultData.value.shortformResults.reduce((acc, item, index) =&gt; {
+        const type = item.shortformType;
+        if (!acc[type]) acc[type] = [];
+        acc[type].push(reactive({ ...item, shortformIndex: /* 쇼핑/영화드라마별 인덱스 */ }));
+        return acc;
+      }, {})
+    : {};
+});</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/result/ShortformHighlightResult.vue" target="_blank" rel="noopener">result/ShortformHighlightResult.vue</a><span class="src">결과 표시·그룹핑·해시태그/설명·다운로드·편집 진입</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/components/common/api/result/JobResultTemplate.vue" target="_blank" rel="noopener">components/common/api/result/JobResultTemplate.vue</a><span class="src">getJobResult 5초 폴링 · onGetJob · clearJobTimeout</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/api/api.js" target="_blank" rel="noopener">api/api.js</a><span class="src">shortform.getResult / getNmsResult</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/assets/js/refs/JobStatus.js" target="_blank" rel="noopener">assets/js/refs/JobStatus.js</a><span class="src">잡 상태 코드(SUCCESS/ERROR/READY/RUNNING)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f10.html">← 단일/멀티 편집기 분기</a>
+      <a href="f12.html">재인코딩 저장 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_shortform 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

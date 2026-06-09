@@ -1,0 +1,193 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_shortform · AI 숏폼 자동 생성 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 숏폼 자동 생성 — kt_magic_platform_ai_shortform 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 지니숏츠 (AI 숏폼 플랫폼)</a><span class="sep">›</span>
+      <span class="here">AI 숏폼 자동 생성</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">데스크톱 웹 (Vue 3 SPA) · JavaScript</span>
+    </div>
+    <h1>AI 숏폼 자동 생성</h1>
+    <p class="one-liner">원본 영상을 Magic 엔진에 보내 세로형 숏폼을 자동 생성합니다. 콘텐츠 유형·생성 방식·클립 수·인물 수·영상 비율 등을 설정해 <code>aiShortformGenerationE2E</code> 잡으로 요청합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform" target="_blank" rel="noopener"><code>kt_magic_platform_ai_shortform</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 클래스/파일</div><div class="v"><code>stores/upload.js</code> · <code>api/api.js</code></div></div>
+      <div class="item"><div class="k">잡 엔드포인트</div><div class="v"><code>aiShortformGenerationE2E</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>AI 숏폼 자동 생성은 본 애플리케이션의 진입 기능입니다. <code>ShortformHighlight.vue</code> 화면에서 사용자가 콘텐츠 유형·생성 방식·클립 수·인물 수·영상 비율·로고·자막·BGM·인트로 등을 설정하면, 그 설정과 업로드된 원본 영상이 KT AI 엔진(어뮤즈랩 연동)에 전달되어 세로형 숏폼 영상이 생성됩니다.</p>
+    <p>생성 요청은 <code>useUploadStore.generateRequest()</code>가 담당합니다. 화면에서 수집한 <code>data</code>를 서버 규약에 맞는 <code>param</code>(requestName·contentType·shortformTypeList·styleList·generationParam·encodingParam)으로 조립하고, 자막 파일이 있으면 함께 <code>FormData</code>로 묶어 <code>api.api.shortform[1].requestJob(form, uploadFilePath)</code>를 호출합니다. 이 호출은 결국 <code>POST /api/magic/shortform/v1/aiShortformGenerationE2E?uploadFilePath=...</code> 로 나갑니다.</p>
+    <p>요청이 접수되면 잡은 비동기로 처리되며, 결과는 별도의 결과 화면(<code>ShortformHighlightResult.vue</code>)에서 폴링·표시됩니다. 생성 파라미터는 <code>contentType</code>과 <code>shortformType</code> 인덱스 조합에 따라 <code>numVideoClips</code>·<code>numPersons</code>·<code>clipShotTime</code> 등이 선택적으로 채워지는 구조입니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      <code>generateRequest()</code>는 선택되지 않은 생성 방식(<code>selectedStyle</code>이 빈 객체)을 인덱스 단위로 걸러내어, 실제 선택된 방식만 <code>shortformTypeList</code>·<code>styleList</code>·<code>generationParam</code>·<code>encodingParam</code> 배열에 정렬해 보냅니다. 즉 하나의 요청으로 여러 생성 방식을 동시에 의뢰할 수 있습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant SH as ShortformHighlight.vue
+    participant UP as useUploadStore
+    participant FAC as api/factory ($api)
+    participant API as api/api.js (shortform)
+    participant ENG as Magic 엔진 (KT AI)
+
+    U-&gt;&gt;SH: 콘텐츠 유형·생성 방식·파라미터 설정 후 생성 요청
+    SH-&gt;&gt;UP: generateRequest(data, uploadFilePath)
+    Note over UP: param 조립 (requestName, contentType, shortformTypeList, styleList, generationParam, encodingParam)
+    UP-&gt;&gt;UP: FormData append param (+ subtitleFile)
+    UP-&gt;&gt;FAC: api.api.shortform[1].requestJob(form, filePath)
+    FAC-&gt;&gt;API: requestJob(body, uploadFilePath)
+    API-&gt;&gt;ENG: POST /api/magic/shortform/v1/aiShortformGenerationE2E?uploadFilePath=...
+    ENG--&gt;&gt;API: jobId (접수)
+    API--&gt;&gt;UP: 응답
+    Note over UP,SH: 실패 시 alert("작업 요청에 실패하였습니다")
+      </div>
+      <p class="cap"><strong>흐름.</strong> 화면 설정값이 <code>generateRequest</code>에서 서버 규약 <code>param</code>으로 변환되고, <code>FormData</code>에 담겨 <code>aiShortformGenerationE2E</code> 잡으로 제출됩니다. 결과 폴링은 결과 화면에서 별도로 이뤄집니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ShortformHighlight {
+        +contentType
+        +shortformType
+        +submit()
+    }
+    class useUploadStore {
+        +metaDatas
+        +uploadingFiles
+        +uploadFile(data)
+        +generateRequest(data, filePath)
+    }
+    class shortformApi {
+        +requestJob(body, uploadFilePath)
+        +getResult(jobId)
+        +getNmsResult(jobId)
+        +reqestEncoding(data)
+    }
+    class factory {
+        +api
+        +auth
+        +shortform
+    }
+    class MagicEngine {
+        +aiShortformGenerationE2E
+    }
+
+    ShortformHighlight --&gt; useUploadStore : 생성 요청 위임
+    useUploadStore --&gt; factory : api.api.shortform 사용
+    factory --&gt; shortformApi : 도메인 모듈 주입
+    shortformApi ..&gt; MagicEngine : POST aiShortformGenerationE2E
+      </div>
+      <p class="cap"><strong>관계.</strong> 화면(<code>ShortformHighlight</code>)은 <code>useUploadStore</code>에 생성 요청을 위임하고, 스토어는 전역 주입된 <code>factory</code>의 <code>shortform</code> 모듈을 통해 Magic 엔진의 E2E 생성 잡을 호출합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>user/src/stores/upload.js</code> — 생성 파라미터 조립과 잡 요청</div>
+<pre><code>async generateRequest(data, filePath) {
+  let param = {}
+  param.requestName = data.name
+  param.contentType = data.contentType
+  param.contentName = data.contentName
+  param.shortformTypeList = data.shortformType
+    .map((shortform, index) =&gt; Object.keys(shortform.selectedStyle).length !== 0 ? index : null)
+    .filter((index) =&gt; index !== null)
+  // styleList / generationParam / encodingParam 도 선택된 방식만 정렬해 채움
+  // ...
+  let form = new FormData()
+  form.append('param', JSON.stringify(param))
+  if (data.useSubtitle) form.append('file', data.subtitleFile)
+
+  let response = await api.api.shortform[1].requestJob(form, filePath)  // 잡 요청
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>user/src/api/api.js</code> — shortform 도메인의 E2E 생성 잡 정의</div>
+<pre><code>shortform: {
+  [1]: {
+    requestJob(body, uploadFilePath) {
+      return axios.post(`api/magic/shortform/v1/aiShortformGenerationE2E?uploadFilePath=${uploadFilePath}`, body);
+    },
+  },
+  async getResult(jobId) {
+    return request(axios, `/api/magic/shortform/jobs/${jobId}/aiShortformGenerationE2E`);
+  },
+  async getNmsResult(jobId) {
+    return request(axios, `/nms/magic/shortform?jobId=${jobId}`);
+  },
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/stores/upload.js" target="_blank" rel="noopener">stores/upload.js</a><span class="src">generateRequest 파라미터 조립 · FormData · 잡 요청</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/api/api.js" target="_blank" rel="noopener">api/api.js</a><span class="src">shortform.requestJob / getResult / getNmsResult / reqestEncoding 정의</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/ShortformHighlight.vue" target="_blank" rel="noopener">views/common/api/ShortformHighlight.vue</a><span class="src">생성 설정 화면 (유형·방식·파라미터 입력)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/api/factory.js" target="_blank" rel="noopener">api/factory.js</a><span class="src">도메인 모듈 집약 · $api 전역 주입</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">콘텐츠 유형별 생성 방식 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_shortform 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

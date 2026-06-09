@@ -1,0 +1,191 @@
+<!doctype html>
+<!-- hcn_android · 음성 UX(VUX) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>음성 UX (VUX) — hcn_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">HCN Android EPG · 런처</a><span class="sep">›</span>
+      <span class="here">음성 UX (VUX)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">HCN (현대HCN)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) STB · Java</span>
+    </div>
+    <h1>음성 UX (VUX)</h1>
+    <p class="one-liner"><code>STTManager</code>가 외부 음성 클라이언트 라이브러리(<code>voiceclientlib-0.9.24</code>의 <code>VoiceableClient</code>)를 빌더로 구성하고 오디오 상태(<code>AudioState</code>)에 따라 음성 세션을 열고 닫으며, <code>VuxMain</code>·프롬프트 UI가 음성 UX를 조율합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/hcn_android" target="_blank" rel="noopener"><code>hcn_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>STTManager</code> · <code>VuxMain</code> · <code>VoiceableClient</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">음성 프롬프트 · STT 세션</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>VUX(Voice UX)는 음성으로 STB를 제어하는 기능입니다. <code>vux-module</code>의 핵심은 <code>STTManager</code> 싱글턴으로, 외부 음성 클라이언트 AAR(<code>voiceclientlib-0.9.24</code>, 패키지 <code>com.alticast.mmux.voiceclientlib</code>)의 <code>VoiceableClient</code>를 사용합니다. 생성자에서 <code>VoiceableClient.with(ctx)</code> 빌더에 상태 콜백(<code>setVoiceableStateCB(this)</code>)·사용자 ID(<code>setUserID(subscribeId)</code>)·접속 환경(<code>setConnection(...)</code>)·언어(<code>KO_KR</code>)·페어링 코드(<code>setPassThroughInfo</code>)를 설정해 클라이언트를 빌드합니다. 접속 환경은 임차망 여부·테스트벤치 여부에 따라 <code>VUX_LIVE_PUB</code>·<code>VUX_TB_DIR</code>·<code>VUX_LIVE_STB_LB</code> 등으로 분기합니다.</p>
+    <p>음성 인식 시작/종료는 현재 오디오 상태(<code>AudioState</code>)를 기준으로 동작합니다. <code>startListening()</code>은 상태가 <code>STOPPED</code>·<code>PHRASE_SPOTTING</code>·<code>PHRASE_SPOTTED</code>일 때 <code>openVoiceSession()</code>으로 세션을 열고, 그 외에는 <code>closeVoiceSession()</code>으로 정리합니다. <code>closeListening()</code>은 <code>STARTED</code>·<code>LISTENING</code> 상태에서 세션을 닫습니다. 상태 변화는 <code>VoiceableStateCB</code> 콜백으로 돌아오고, 화면에는 프롬프트 토스트/다이얼로그(<code>PromptToast</code>·<code>PromptDialogFragment</code>)가 표시됩니다. 음성 키 매핑은 <code>MgwMappingTable</code>·<code>VoiceKeyReceiver</code>가 담당합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      음성 세션은 상태 기계(<code>AudioState</code>)로 제어됩니다. <code>STTManager</code>가 직접 마이크를 다루지 않고 <code>VoiceableClient</code>에 위임하며, 현재 상태에 따라 open/close를 선택하므로 호출 측이 상태를 추적하지 않아도 안전하게 세션을 토글할 수 있습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자 (음성 키)
+    participant VK as VoiceKeyReceiver
+    participant STT as STTManager
+    participant VC as VoiceableClient (voiceclientlib)
+    participant UI as PromptDialog / Toast
+
+    U-&gt;&gt;VK: 음성 호출 키
+    VK-&gt;&gt;STT: startListening()
+    STT-&gt;&gt;VC: getAudioState()
+    alt STOPPED / PHRASE_SPOTTING / PHRASE_SPOTTED
+        STT-&gt;&gt;VC: openVoiceSession()
+    else 그 외 상태
+        STT-&gt;&gt;VC: closeVoiceSession()
+    end
+    VC--&gt;&gt;STT: VoiceableStateCB (상태 변화)
+    STT-&gt;&gt;UI: 프롬프트 표시 (듣는 중/결과)
+    U-&gt;&gt;STT: 발화 종료
+    STT-&gt;&gt;VC: closeListening() → closeVoiceSession()
+      </div>
+      <p class="cap"><strong>흐름.</strong> 음성 키가 들어오면 <code>STTManager</code>가 현재 <code>AudioState</code>에 따라 <code>VoiceableClient</code>의 세션을 열거나 닫고, 상태 콜백을 받아 프롬프트 UI를 갱신합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class STTManager {
+        +getInstance(ctx, subId) STTManager
+        +getInstance() STTManager
+        +startListening()
+        +closeListening()
+        +getStatus() AudioState
+    }
+    class VoiceableStateCB {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class VoiceableClient {
+        &lt;&lt;voiceclientlib AAR&gt;&gt;
+        +with(ctx) VoiceableClientBuilder
+        +getAudioState() AudioState
+        +openVoiceSession()
+        +closeVoiceSession()
+    }
+    class AudioState {
+        &lt;&lt;enumeration&gt;&gt;
+        STOPPED
+        STARTED
+        PHRASE_SPOTTING
+        LISTENING
+    }
+    class VuxMain {
+        +getInstance() VuxMain
+        +init(VuxEventHandler)
+    }
+    class VoiceKeyReceiver
+
+    STTManager ..|&gt; VoiceableStateCB : 구현
+    STTManager o-- VoiceableClient : 음성 세션 위임
+    STTManager ..&gt; AudioState : 상태 기반 분기
+    VoiceKeyReceiver --&gt; STTManager : startListening 트리거
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>STTManager</code>는 <code>VoiceableStateCB</code>를 구현하고 <code>VoiceableClient</code>(외부 AAR)에 세션을 위임하며, <code>AudioState</code>로 open/close를 분기합니다. 키 트리거는 <code>VoiceKeyReceiver</code>가 전달합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>vux-module/.../STTManager.java</code> — VoiceableClient 빌드와 상태 기반 세션 토글</div>
+<pre><code>public STTManager(Context ctx, String subscribeId) {
+    sessionInfo = subscribeId;
+    VoiceableEnv.Connection conValue =
+        (DebugConfig.isTestbed) ? VoiceableEnv.Connection.VUX_TB_LB
+                                : VoiceableEnv.Connection.VUX_LIVE_STB_LB;
+    VoiceableClientBuilder builder = VoiceableClient.with(ctx)
+            .setVoiceableStateCB(this)
+            .setUserID(sessionInfo)
+            .setConnection(conValue)
+            .setLanguage(VoiceableEnv.Language.KO_KR);
+    voiceableClient = builder.build();
+}
+
+public void startListening() {
+    AudioState state = voiceableClient.getAudioState();
+    switch (state) {
+        case STOPPED: case PHRASE_SPOTTING: case PHRASE_SPOTTED:
+            voiceableClient.openVoiceSession();   // 세션 시작
+            break;
+        default:
+            voiceableClient.closeVoiceSession();  // 그 외 상태 정리
+            break;
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/vux-module/src/main/java/com/altimedia/module/vux/STTManager.java" target="_blank" rel="noopener">vux-module/.../STTManager.java</a><span class="src">VoiceableClient 구성 · AudioState 기반 세션 open/close</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/vux-module/src/main/java/com/altimedia/module/vux/VuxMain.java" target="_blank" rel="noopener">vux-module/.../VuxMain.java</a><span class="src">VUX 진입 · init(VuxEventHandler)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/vux-module/src/main/java/com/altimedia/module/vux/receiver/VoiceKeyReceiver.java" target="_blank" rel="noopener">vux-module/.../receiver/VoiceKeyReceiver.java</a><span class="src">음성 호출 키 수신 → startListening</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/vux-module/src/main/java/com/altimedia/module/vux/util/MgwMappingTable.java" target="_blank" rel="noopener">vux-module/.../util/MgwMappingTable.java</a><span class="src">음성 명령 → 키 매핑 테이블</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/voiceclientlib-0.9.24" target="_blank" rel="noopener">voiceclientlib-0.9.24/</a><span class="src">외부 음성 클라이언트 AAR (com.alticast.mmux.voiceclientlib)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f11.html">← RCU OTA · 블루투스</a>
+      <a href="f13.html">자동 재부팅 · 슬립 타이머 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">hcn_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

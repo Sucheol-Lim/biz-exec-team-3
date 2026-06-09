@@ -1,0 +1,183 @@
+<!doctype html>
+<!-- skb_cloud_local_android · 검색(글로벌/프로그램) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>검색 (글로벌/프로그램) — skb_cloud_local_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local EPG (Android)</a><span class="sep">›</span>
+      <span class="here">검색 (글로벌/프로그램)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>검색 (글로벌/프로그램)</h1>
+    <p class="one-liner"><code>LocalSearchProvider</code>(authority <code>com.android.tv.search</code>)가 Android TV 글로벌 검색 쿼리를 받아 <code>TvProviderSearch</code>로 채널·인풋·VOD를 검색하고, <code>ProgramSearchProvider</code>·<code>ProgramSearchActivity</code>가 프로그램 검색을 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_android" target="_blank" rel="noopener"><code>skb_cloud_local_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>UC500_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>LocalSearchProvider</code> · <code>TvProviderSearch</code> · <code>ProgramSearchProvider</code> · <code>ProgramSearchActivity</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">Android TV 글로벌/프로그램 검색</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>Android TV의 글로벌 검색(런처 검색 바)은 등록된 <code>ContentProvider</code>의 <code>query()</code>를 통해 추천 결과를 모읍니다. 본 앱은 <code>LocalSearchProvider</code>를 authority <code>com.android.tv.search</code>로, <code>ProgramSearchProvider</code>를 <code>com.android.tv.search.program</code>으로 매니페스트에 선언해 검색 결과를 공급합니다.</p>
+    <p><code>LocalSearchProvider.query()</code>는 URI의 마지막 세그먼트에서 질의어를, 쿼리 파라미터에서 결과 개수(<code>SUGGEST_PARAMETER_LIMIT</code>)와 액션 타입을 추출한 뒤 <code>SearchInterface.search()</code>를 호출합니다. 기본 구현 <code>TvProviderSearch</code>(<code>implements SearchInterface</code>)는 <code>TvContract</code> 기반으로 채널(<code>searchChannels</code>)·TV 인풋(<code>searchInputs</code>)·VOD(<code>searchVod</code>)·콘텐츠(<code>searchContent</code>)를 액션 타입에 따라 검색하고, 결과를 <code>GoogleSearchResult</code> 리스트로 모아 추천 커서로 변환해 반환합니다.</p>
+    <p>프로그램 검색은 별도로 <code>ProgramSearchProvider</code>가 동일한 <code>SearchInterface</code> 경로로 처리하며, 검색 결과 화면은 <code>ProgramSearchActivity</code>(<code>extends BaseActivity</code>)가 담당합니다. 검색 설정은 <code>SearchConfigManager</code>(채널/콘텐츠 개수 제한 등)와 <code>ServiceConfiguration</code>로 관리됩니다.</p>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant TV as Android TV 런처 검색
+    participant LSP as LocalSearchProvider
+    participant SI as SearchInterface
+    participant TPS as TvProviderSearch
+    participant CT as TvContract / EPG Provider
+
+    TV-&gt;&gt;LSP: query(uri = .../search/{질의어})
+    LSP-&gt;&gt;LSP: 질의어 / limit / action 파싱
+    LSP-&gt;&gt;SI: search(query, limit, action, isVod)
+    SI-&gt;&gt;TPS: search(...)
+    TPS-&gt;&gt;CT: searchChannels / searchInputs / searchVod
+    CT--&gt;&gt;TPS: 매칭 항목
+    TPS--&gt;&gt;LSP: List~GoogleSearchResult~
+    LSP--&gt;&gt;TV: createSuggestionsCursor (추천 커서)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 런처가 검색 URI로 <code>query()</code>를 호출하면 질의어/제한/액션을 파싱해 <code>TvProviderSearch</code>로 채널·인풋·VOD를 검색하고, 결과를 추천 커서로 반환합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ContentProvider {
+        &lt;&lt;abstract&gt;&gt;
+        +query(uri, ...) Cursor
+    }
+    class LocalSearchProvider {
+        +AUTHORITY String
+        +query(uri, ...) Cursor
+    }
+    class ProgramSearchProvider {
+        +query(uri, ...) Cursor
+    }
+    class SearchInterface {
+        &lt;&lt;interface&gt;&gt;
+        +search(query, limit, action, isVod) List~GoogleSearchResult~
+    }
+    class TvProviderSearch {
+        +search(...) List~GoogleSearchResult~
+        -searchChannels(...)
+        -searchVod(...)
+    }
+    class GoogleSearchResult
+    class ProgramSearchActivity {
+        +onCreate(Bundle)
+    }
+
+    LocalSearchProvider --|&gt; ContentProvider
+    ProgramSearchProvider --|&gt; ContentProvider
+    TvProviderSearch ..|&gt; SearchInterface
+    LocalSearchProvider --&gt; SearchInterface : search 위임
+    ProgramSearchProvider --&gt; SearchInterface : search 위임
+    TvProviderSearch ..&gt; GoogleSearchResult
+      </div>
+      <p class="cap"><strong>관계.</strong> 두 프로바이더가 <code>ContentProvider</code>를 상속하고 <code>SearchInterface</code>(구현 <code>TvProviderSearch</code>)에 검색을 위임하며, <code>ProgramSearchActivity</code>가 결과 화면을 띄웁니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>module/search/provider/LocalSearchProvider.java</code> — 글로벌 검색 쿼리 처리</div>
+<pre><code>public static final String AUTHORITY = "com.android.tv.search";
+
+public Cursor query(Uri uri, String[] projection, String selection,
+                    String[] selectionArgs, String sortOrder) {
+    SearchInterface search = mSearchInterface;
+    if (search == null) {
+        search = new TvProviderSearch(getContext());
+    }
+    String query = uri.getLastPathSegment();
+    int limit = getQueryParamater(uri, SearchManager.SUGGEST_PARAMETER_LIMIT, DEFAULT_SEARCH_LIMIT);
+    int action = getQueryParamater(uri, SUGGEST_PARAMETER_ACTION, DEFAULT_SEARCH_ACTION);
+    List&lt;GoogleSearchResult&gt; results = new ArrayList&lt;&gt;();
+    if (!TextUtils.isEmpty(query)) {
+        results.addAll(search.search(query, limit, action, true));
+    }
+    return createSuggestionsCursor(results);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>module/search/provider/TvProviderSearch.java</code> — 액션 타입별 검색 분기</div>
+<pre><code>public List&lt;GoogleSearchResult&gt; search(String query, int limit, int action, boolean isVod) {
+    // action에 따라 채널/인풋/VOD/콘텐츠 검색
+    results.addAll(searchChannels(query, channelsFound, SearchConfigManager.LIMIT_CHANNEL));
+    results.addAll(searchInputs(query, limit));
+    // list = searchVod(query, limit) / searchContent(query, limit)
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/search/provider/LocalSearchProvider.java" target="_blank" rel="noopener">module/search/provider/LocalSearchProvider.java</a><span class="src">글로벌 검색 ContentProvider · authority com.android.tv.search</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/search/provider/TvProviderSearch.java" target="_blank" rel="noopener">module/search/provider/TvProviderSearch.java</a><span class="src">SearchInterface 구현 · 채널/인풋/VOD/콘텐츠 검색</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/search/provider/ProgramSearchProvider.java" target="_blank" rel="noopener">module/search/provider/ProgramSearchProvider.java</a><span class="src">프로그램 검색 ContentProvider</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/ProgramSearchActivity.java" target="_blank" rel="noopener">android/tv/local/ProgramSearchActivity.java</a><span class="src">프로그램 검색 결과 화면</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/AndroidManifest.xml" target="_blank" rel="noopener">app/src/main/AndroidManifest.xml</a><span class="src">검색 프로바이더 authority 선언(com.android.tv.search / .program)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f10.html">← 미디어 재생 연동(UMP)</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f12.html">블루투스 RCU / HDMI →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>UC500_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

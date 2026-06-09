@@ -1,0 +1,176 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_shortform · 텍스트·자막 편집 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>텍스트·자막 편집 — kt_magic_platform_ai_shortform 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 지니숏츠 (AI 숏폼 플랫폼)</a><span class="sep">›</span>
+      <span class="here">텍스트·자막 편집</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">데스크톱 웹 (Vue 3 SPA) · JavaScript</span>
+    </div>
+    <h1>텍스트·자막 편집</h1>
+    <p class="one-liner">텍스트 박스 정렬, 화면 기준 정렬(가로·세로), 폰트·색상·라인하이트·박스 높이 등 자막/텍스트 스타일을 세밀하게 조정합니다. 최근 커밋 다수가 텍스트·자막 박스 로직 개선에 집중되어 있습니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform" target="_blank" rel="noopener"><code>kt_magic_platform_ai_shortform</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 파일</div><div class="v"><code>tools/TextEditTools.vue</code> · <code>utils/boxUtils.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">편집기 우측 툴 패널</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>텍스트·자막 편집은 우측 툴 패널의 <code>TextEditTools.vue</code>·<code>SubtitleEditTools.vue</code>와 박스 계산 유틸 <code>boxUtils.js</code>가 함께 담당합니다. 툴 패널에서는 텍스트 정렬(<code>titleParam.align</code> 0/1/2 = 좌/중앙/우), 화면 기준 가로·세로 위치 정렬, 폰트(<code>FONT_SIZE</code> 옵션), 색상, 라인하이트, 박스 높이 등을 조정하고 그 결과를 부모로 <code>emit('update:titleParam', ...)</code> 합니다.</p>
+    <p>정렬 계산은 <code>boxUtils</code>의 함수들이 원본 영상 해상도 기준으로 좌표를 산출합니다. <code>updateAlign</code>·<code>updateBoxHorizontalAlign</code>은 가로 정렬을, <code>updateVerticalAlign</code>은 세로 정렬(상단/중앙/하단)을 처리하며, 텍스트·자막·로고 각각에 대해 <code>moveTitleBox</code>/<code>resizeTitleBox</code>/<code>moveSubtitleBox</code>/<code>resizeSubtitleBox</code>·<code>updateTitleBoxSize</code>·<code>updateSubtitleBoxPosition</code> 등 세분화된 함수가 있습니다.</p>
+    <p>스타일 자체(하이라이트 폰트·색상)는 <code>elementClipboardManager.js</code>의 <code>CommonHighlightTextStyle</code>가 텍스트·자막 공용 모델로 다루어, 타이틀과 자막의 하이라이트 스타일 파라미터를 서로 변환합니다(<code>convertTitleHighlightStyleParamToCommonHighlightStyleParam</code> 등).</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      텍스트/자막 박스의 높이·라인하이트·리사이즈는 영상 좌표계(<code>videoSource.videoWidth/Height</code>)와 박스 좌표(<code>position[x,y,w,h]</code>)를 함께 다루므로, 정렬 함수들이 박스 폭/높이를 인자로 받아 중앙·우측·하단 위치를 정확히 재계산합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant TET as TextEditTools.vue
+    participant BU as boxUtils
+    participant PV as PreviewPanel.vue
+    participant ST as editStateStore
+
+    U-&gt;&gt;TET: 정렬/폰트/색상/라인하이트/박스 높이 변경
+    TET-&gt;&gt;BU: updateAlign / updateVerticalAlign / resizeTitleBox
+    BU-&gt;&gt;BU: param.position 좌표 재계산 (videoSource 기준)
+    TET-&gt;&gt;ST: emit update:titleParam → 상태 반영
+    ST--&gt;&gt;PV: 갱신된 텍스트/자막 박스 스타일
+    PV--&gt;&gt;U: 미리보기에 즉시 반영
+      </div>
+      <p class="cap"><strong>흐름.</strong> 툴 패널 입력이 <code>boxUtils</code> 정렬·리사이즈 함수로 좌표를 재계산하고, 상태로 반영되어 미리보기 텍스트/자막 박스가 즉시 갱신됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class TextEditTools {
+        +titleParam
+        +isTextShow
+        +emit update_titleParam()
+    }
+    class SubtitleEditTools {
+        +subtitleParam
+        +emit update_subtitleParam()
+    }
+    class boxUtils {
+        +createTitleBox()
+        +moveTitleBox()
+        +resizeTitleBox()
+        +createSubtitleBox()
+        +moveSubtitleBox()
+        +resizeSubtitleBox()
+        +updateAlign()
+        +updateBoxHorizontalAlign()
+        +updateVerticalAlign()
+    }
+    class CommonHighlightTextStyle {
+        +fontColor
+        +fontPath
+        +fontSize
+        +getTitleHighlightStyleParam()
+        +getSubtitleHighlightStyleParam()
+    }
+
+    TextEditTools ..&gt; boxUtils : 정렬/리사이즈 계산
+    SubtitleEditTools ..&gt; boxUtils : 정렬/리사이즈 계산
+    TextEditTools ..&gt; CommonHighlightTextStyle : 하이라이트 스타일
+    SubtitleEditTools ..&gt; CommonHighlightTextStyle : 하이라이트 스타일
+      </div>
+      <p class="cap"><strong>관계.</strong> 텍스트·자막 툴이 동일한 <code>boxUtils</code> 좌표 유틸과 공용 <code>CommonHighlightTextStyle</code> 모델을 공유하여 정렬·스타일을 일관되게 다룹니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>user/src/views/common/api/edit/assets/js/utils/boxUtils.js</code> — 세로 정렬 좌표 계산</div>
+<pre><code>export function updateVerticalAlign(align, param, box, videoSource, boxHeight) {
+  let [x, y, w, h] = param.position;
+  if (boxHeight) h = boxHeight;
+  switch (align) {
+    case 0: param.position[1] = 0; break;                                   // 상단
+    case 1: param.position[1] = Math.floor((videoSource.videoHeight - h) / 2); break; // 중앙
+    case 2: param.position[1] = videoSource.videoHeight - h; break;         // 하단
+  }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>user/src/views/common/api/edit/components/tools/TextEditTools.vue</code> — 정렬 토글과 업데이트 emit</div>
+<pre><code>const emit = defineEmits([ /* update:titleParam ... */ ]);
+// 정렬 버튼: 0=좌, 1=중앙, 2=우
+// @click="() =&gt; titleParam.align = 0/1/2"
+
+emit('update:titleParam', { /* 갱신된 정렬/폰트/색상/라인하이트/박스 높이 */ });</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/components/tools/TextEditTools.vue" target="_blank" rel="noopener">edit/components/tools/TextEditTools.vue</a><span class="src">텍스트 정렬·화면 정렬·폰트·색상 툴</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/components/tools/SubtitleEditTools.vue" target="_blank" rel="noopener">edit/components/tools/SubtitleEditTools.vue</a><span class="src">자막 박스 정렬·배경·높이 툴</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/assets/js/utils/boxUtils.js" target="_blank" rel="noopener">edit/assets/js/utils/boxUtils.js</a><span class="src">박스 생성·이동·리사이즈·가로/세로 정렬 좌표 계산</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/composables/elementClipboardManager.js" target="_blank" rel="noopener">edit/composables/elementClipboardManager.js</a><span class="src">CommonHighlightTextStyle (텍스트/자막 공용 하이라이트 스타일)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f05.html">← Konva 미리보기 캔버스</a>
+      <a href="f07.html">BGM·내레이션 사운드 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_shortform 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

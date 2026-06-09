@@ -1,0 +1,187 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_poster · 마스크 기반 부분 제거(maskImage 생성·전송) 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마스크 기반 부분 제거 — kt_magic_platform_ai_poster 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 포스터 (지니 포스터 편집툴)</a><span class="sep">›</span>
+      <span class="here">마스크 기반 부분 제거</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">PC 웹 (Vue 3 SPA) · Canvas</span>
+    </div>
+    <h1>마스크 기반 부분 제거</h1>
+    <p class="one-liner">선택 영역은 캔버스에서 흑백 마스크 이미지(<code>maskImage</code>, base64 PNG)로 생성되어 요청 본문에 포함됩니다. 전체 제거 시에는 마스크 없이 <code>imageUrl</code>만 전송하며, 선택 제거 시 흰색 픽셀이 하나도 없으면 요청을 막습니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster" target="_blank" rel="noopener"><code>kt_magic_platform_ai_poster</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 함수</div><div class="v"><code>removeSelected()</code> · <code>getApiMaskBase64String()</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">텍스트 제거 요청 페이로드 구성</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>마스크는 "어디를 지울지"를 서버에 알리는 흑백 PNG입니다. <code>PreviewPanel.vue</code>는 화면 표시용 캔버스와 별개로 전송용 <code>apiMaskCanvas</code>를 유지하는데, 이 캔버스는 처음에 전체를 검정(<code>#000</code>=유지)으로 채우고, 사각형·브러쉬가 칠한 영역만 흰색(<code>#fff</code>=제거)으로 표시합니다. 사용자가 "제거" 버튼을 누르면 <code>removeSelected()</code>가 모드(<code>all</code>/<code>select</code>)에 따라 마스크를 마무리하고 base64 문자열로 추출합니다.</p>
+    <p>전체 모드(<code>all</code>)에서는 이미지 영역 전체를 흰색으로 칠한 마스크를 만들 수 있지만, 실제 <code>EditArea.handleRemove()</code>는 전체 모드일 때 <code>removeSelected()</code>를 호출하지 않고 <code>{ imageUrl }</code>만 전송합니다. 선택 모드(<code>select</code>)에서는 <code>hasAnyWhitePixel()</code>로 흰색 픽셀이 실제 존재하는지 검사하고, 없으면 <code>null</code>을 반환해 빈 요청을 차단합니다. 추출된 마스크는 <code>getApiMaskBase64String()</code>이 <code>toDataURL("image/png")</code>에서 헤더(<code>data:image/png;base64,</code>)를 제거한 순수 base64로 만들어 <code>{ imageUrl, maskImage }</code> 형태로 보냅니다.</p>
+    <div class="callout">
+      <div class="ct">마스크 색 규약</div>
+      전송용 마스크에서 <strong>흰색(#fff) = 제거 대상</strong>, <strong>검정(#000) = 유지</strong>입니다. 화면에는 핑크 반투명으로 보여 주지만(maskCanvas), 서버로 가는 값은 이 흑백 규약을 따르는 별도 캔버스(apiMaskCanvas)에서 추출합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant EA as EditArea.vue
+    participant PP as PreviewPanel.vue
+    participant AC as apiMaskCanvas
+    participant API as api.poster
+
+    EA-&gt;&gt;PP: removeSelected() (선택 모드)
+    alt selectionMode == 'all'
+        PP-&gt;&gt;AC: 전체 #000 + 이미지 박스 #fff
+    else selectionMode == 'select'
+        PP-&gt;&gt;PP: hasAnyWhitePixel(apiMaskCtx)
+        Note over PP: 흰 픽셀 없으면 return null (요청 차단)
+    end
+    PP-&gt;&gt;PP: getApiMaskBase64String() → toDataURL
+    PP--&gt;&gt;EA: { maskImage: base64 }
+    PP-&gt;&gt;PP: clearMask() · selectedRects 초기화
+    EA-&gt;&gt;API: postTextRemoval(projectId, {imageUrl, maskImage})
+      </div>
+      <p class="cap"><strong>흐름.</strong> 선택 모드는 흰 픽셀 존재를 검증한 뒤 base64 마스크를 만들어 반환하고, 추출 직후 캔버스를 초기화합니다. 전체 모드는 마스크 없이 imageUrl만 전송하는 별도 경로를 탑니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class PreviewPanel {
+        -apiMaskCanvas
+        -apiMaskCtx
+        -selectionMode
+        +removeSelected() maskResult
+        +getApiMaskBase64String() string
+        +hasAnyWhitePixel(ctx, w, h) bool
+        +applyRectToMask(absRect)
+        +clearMask()
+    }
+    class EditArea {
+        +handleRemove()
+    }
+    class MaskResult {
+        +maskImage string
+    }
+
+    EditArea ..&gt; PreviewPanel : removeSelected()
+    PreviewPanel ..&gt; MaskResult : 반환
+    PreviewPanel o-- apiMaskCanvas : 전송용 흑백 마스크
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>removeSelected()</code>가 <code>apiMaskCanvas</code>를 마무리하고 <code>{ maskImage }</code>를 반환하면, <code>EditArea.handleRemove()</code>가 이를 요청 본문에 합쳐 전송합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/components/panels/PreviewPanel.vue</code> — removeSelected(): 모드별 마스크 마무리</div>
+<pre><code>async function removeSelected() {
+    if (!apiMaskCanvas || !apiMaskCtx) return null;
+    const image = imageLayer.findOne('Image');
+    if (!image) return null;
+
+    if (selectionMode.value === 'all') {
+        apiMaskCtx.fillStyle = '#000';                              // 배경 유지
+        apiMaskCtx.fillRect(0, 0, apiMaskCanvas.width, apiMaskCanvas.height);
+        const box = image.getClientRect({ relativeTo: stage });
+        apiMaskCtx.fillStyle = '#fff';                             // 이미지 전체 = 제거
+        apiMaskCtx.fillRect(box.x, box.y, box.width, box.height);
+    } else if (selectionMode.value === 'select') {
+        const hasArea = hasAnyWhitePixel(apiMaskCtx, apiMaskCanvas.width, apiMaskCanvas.height);
+        if (!hasArea) return null;                                 // 선택 영역 없음 → 차단
+    } else {
+        return null;
+    }
+
+    const maskBase64String = getApiMaskBase64String();
+    clearMask(); selectedRects.value = []; clearOverlay();
+    return { maskImage: maskBase64String };
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/components/panels/PreviewPanel.vue</code> — base64 추출과 흰 픽셀 검사</div>
+<pre><code>function getApiMaskBase64String() {
+    if (!apiMaskCanvas) return null;
+    const dataUrl = apiMaskCanvas.toDataURL("image/png");
+    return dataUrl.replace(/^data:image\/png;base64,/, "");   // 순수 base64만
+}
+
+function hasAnyWhitePixel(ctx, w, h) {
+    const img = ctx.getImageData(0, 0, w, h).data;
+    for (let i = 0; i &lt; img.length; i += 4) {
+        if (img[i] &gt; 200 &amp;&amp; img[i + 1] &gt; 200 &amp;&amp; img[i + 2] &gt; 200) return true;
+    }
+    return false;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/panels/PreviewPanel.vue" target="_blank" rel="noopener">posteredit/components/panels/PreviewPanel.vue</a><span class="src">apiMaskCanvas 초기화(#000) · applyRectToMask(#fff) · removeSelected · getApiMaskBase64String · hasAnyWhitePixel</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/EditArea.vue" target="_blank" rel="noopener">posteredit/components/EditArea.vue</a><span class="src">handleRemove에서 전체=imageUrl만, 선택=imageUrl+maskImage 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/api/poster.js" target="_blank" rel="noopener">user/src/api/poster.js</a><span class="src">postTextRemoval(projectId, data) — text-removals 엔드포인트</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">← 영역 그리기 도구</a>
+      <a href="f04.html">이미지 확장 (Outpainting) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_poster 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

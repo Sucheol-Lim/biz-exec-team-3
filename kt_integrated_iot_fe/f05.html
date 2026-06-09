@@ -1,0 +1,191 @@
+<!doctype html>
+<!-- kt_integrated_iot_fe · 통계 요약·분석(Nivo/D3 차트) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>통계 요약·분석 — kt_integrated_iot_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT 통합 IoT 관제 FE</a><span class="sep">›</span>
+      <span class="here">통계 요약·분석</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관제 콘솔 (React SPA)</span>
+    </div>
+    <h1>통계 요약·분석</h1>
+    <p class="one-liner">Nivo·D3 차트로 측정소 비교, 이벤트·디바이스 통계, AI산업안전DX 설비 이용률·자원환경, SMART GREEN 생육 디바이스 분석 등을 시각화하고 CSV 다운로드를 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/summary</code> · <code>components/chart</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">@nivo · d3 · 사이트별 분기</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>Summary</code> 화면(<code>pages/summary/index.tsx</code>)은 세션의 <code>site.code</code>에 따라 사이트별 요약 컴포넌트(<code>airmap/DashBoard</code>, <code>aidx/Overall</code>, SafeMate 4종, <code>smartgreen/overall</code>)를 분기 렌더링합니다. 추가 분석 화면으로 AI산업안전DX 설비 이용률(<code>EquipmentUtilization</code>)·자원환경(<code>ResourceEnvironment</code>), SMART GREEN 생육 디바이스 분석(<code>GrowthDevice</code>), 측정소 분석(<code>StationAnalysis</code>) 등이 라우팅에 등록되어 있습니다.</p>
+    <p>차트는 <code>components/chart</code> 아래의 Nivo 래퍼들(<code>NivoStackedBarChart</code>, <code>NivoGroupedBarChart</code>, <code>NivoLineChart</code>, <code>NivoPie</code>, <code>NivoComposedChart</code> 등)을 사용합니다. 각 래퍼는 <code>@nivo/bar</code>·<code>@nivo/line</code> 등의 <code>Responsive*</code> 컴포넌트를 감싸고, <code>useChartBar</code>·<code>useChartLine</code>·<code>useChartTheme</code> 훅으로 데이터 가공과 라이트/다크 테마를 적용합니다. 게이지·일부 커스텀 시각화에는 D3가 함께 쓰입니다.</p>
+    <p>데이터는 React Query로 도메인 API(예: <code>rooftopDoorApi</code>, <code>intFireDetectorApi</code>, <code>airmap</code>·<code>smartGreen</code> 모듈 등)에서 조회합니다. 요약 화면의 다운로드 버튼은 <code>downloadFileFromResponse</code>로 Content-Disposition 기반 CSV 저장을 수행합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      차트 데이터 가공 로직을 <code>useChartBar</code>/<code>useChartLine</code> 훅으로 분리해, 동일한 Nivo 래퍼를 여러 사이트·지표에서 재사용합니다. 라벨 한글화는 <code>labelMap</code>으로 키→라벨 매핑을 주입합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Sum as Summary (pages/summary)
+    participant RQ as React Query
+    participant API as 도메인 API 모듈
+    participant Hook as useChartBar / useChartLine
+    participant Nivo as Nivo*Chart 래퍼
+    participant DL as downloadFileFromResponse
+
+    Sum-&gt;&gt;Sum: site.code 로 사이트 요약 컴포넌트 선택
+    Sum-&gt;&gt;RQ: useQuery(통계 조회)
+    RQ-&gt;&gt;API: GET 통계/요약
+    API--&gt;&gt;RQ: 통계 데이터
+    RQ--&gt;&gt;Sum: data
+    Sum-&gt;&gt;Hook: 데이터 가공(keys/indexBy)
+    Hook--&gt;&gt;Nivo: 가공된 시리즈 + 테마
+    Nivo--&gt;&gt;Sum: 차트 렌더
+    opt CSV 다운로드
+        Sum-&gt;&gt;API: 다운로드(blob) 요청
+        API--&gt;&gt;DL: AxiosResponse(Blob)
+        DL--&gt;&gt;Sum: Content-Disposition 파일 저장
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 사이트별 요약 컴포넌트가 통계를 조회·가공해 Nivo 차트로 시각화하고, 필요 시 CSV로 다운로드합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class Summary {
+        -site
+        +getFormattedDateRange(days)
+        +render() Element
+    }
+    class NivoStackedBarChart {
+        +data
+        +indexBy
+        +keys
+        +labelMap
+    }
+    class useChartBar {
+        +가공(series) ChartData
+    }
+    class useChartTheme {
+        +theme(mode) NivoTheme
+    }
+    class DomainApi {
+        +summaryHistoryCollection()
+    }
+    class ApiClient {
+        +downloadFileFromResponse(res)
+    }
+
+    Summary --&gt; NivoStackedBarChart : 차트 렌더
+    NivoStackedBarChart ..&gt; useChartBar : 데이터 가공
+    NivoStackedBarChart ..&gt; useChartTheme : 테마 적용
+    Summary ..&gt; DomainApi : 통계 조회
+    Summary ..&gt; ApiClient : CSV 다운로드
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>Summary</code>가 도메인 API로 통계를 받아 Nivo 래퍼로 그리고, 데이터 가공·테마는 차트 훅이 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/components/chart/NivoStackedBarChart.tsx</code> — Nivo + 차트 훅 조합</div>
+<pre><code>import { ResponsiveBar } from '@nivo/bar';
+import useChartBar from '@/hooks/useChartBar';
+import useChartTheme from '@/hooks/useChartTheme';
+
+interface NivoStackedBarChartProps {
+  data: { [key: string]: any }[];
+  indexBy: string;
+  keys: string[] | undefined;
+  chartColors?: string[];
+  labelMap?: { [key: string]: string }; // 키를 한글 라벨로 매핑
+  maxValueScale?: number;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/summary/index.tsx</code> — 통계 다운로드(CSV)</div>
+<pre><code>const rooftopDownloadMutation = useMutation({
+  mutationFn: () =&gt;
+    rooftopDoorApi.summaryHistoryCollection(
+      { size: MAX_DATA_ROW, page: 0, startDate, endDate,
+        serviceTargetId: headerServiceTarget?.serviceTargetId ?? '' },
+      true,
+    ),
+  onSuccess: (res) =&gt; {
+    downloadFileFromResponse(res, `safemate_roof_summary_${dayjs().format('YYYYMMDD')}.csv`);
+  },
+});</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/index.tsx" target="_blank" rel="noopener">src/pages/summary/index.tsx</a><span class="src">사이트별 요약 컴포넌트 분기 · CSV 다운로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/chart/NivoStackedBarChart.tsx" target="_blank" rel="noopener">src/components/chart/NivoStackedBarChart.tsx</a><span class="src">@nivo/bar 래퍼 · labelMap 한글화</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/hooks/useChartBar.ts" target="_blank" rel="noopener">src/hooks/useChartBar.ts</a><span class="src">막대 차트 데이터 가공 훅</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/hooks/useChartTheme.ts" target="_blank" rel="noopener">src/hooks/useChartTheme.ts</a><span class="src">Nivo 라이트/다크 테마 훅</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/aidx/EquipmentUtilization.tsx" target="_blank" rel="noopener">src/pages/summary/aidx/EquipmentUtilization.tsx</a><span class="src">AI산업안전DX 설비 이용률 분석 화면</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f04.html">실시간 이벤트 수신</a>
+      <a href="f06.html">이력 조회 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_integrated_iot_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

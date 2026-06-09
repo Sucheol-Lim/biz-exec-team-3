@@ -1,0 +1,176 @@
+<!doctype html>
+<!-- skb.cloud.home · PIN·시청제한 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PIN · 시청제한 — skb.cloud.home 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Cloud Home</a><span class="sep">›</span>
+      <span class="here">PIN · 시청제한</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">STB 클라우드 UI · JavaScript</span>
+    </div>
+    <h1>PIN · 시청제한</h1>
+    <p class="one-liner">클라우드 PIN 모드, 연령 등급(Parental Rating), 성인/CA 차단 등 시청제한과 PIN 입력을 처리합니다(<code>PinManager</code>, <code>ConfigServiceManager</code>, <code>clad.config.CladConfigService</code>).</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb.cloud.home" target="_blank" rel="noopener"><code>skb.cloud.home</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>common/adapter/PinManager.js</code></div></div>
+      <div class="item"><div class="k">단말 RPC</div><div class="v"><code>clad.config.CladConfigService.managePin</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>PIN 처리는 <code>PinManager</code>가 입구이고, 실제 검증은 단말 설정 서비스에 위임됩니다. <code>PinManager</code>는 성인 PIN(<code>checkUserPin</code>), 구매 PIN(<code>checkPurchasePin</code>), PIN 조회(<code>getPin</code>), 변경(<code>changeUserPin`/`changePurchasePin</code>)을 제공합니다. PIN 값은 base64 로 인코딩해 전달되고, 내부적으로 <code>{ id: 'checkUserPin', param: ... }</code> 형태의 메시지를 만들어 <code>ConfigServiceManager.managePin</code>으로 넘깁니다.</p>
+    <p><code>ConfigServiceManager.managePin(message)`은 메시지를 JSON 문자열로 만들어 단말 RPC `CladConfigService.managePin</code>에 전달하고, 콜백 응답(JSON)을 파싱해 <code>id</code>별로 결과를 분기합니다(<code>checkUserPin`/`checkPurchasePin`/`getPin`/`changeUserPin`/`changePurchasePin</code>). 10초 내 응답이 없으면 타임아웃으로 실패 처리합니다. 시청제한 정책은 <code>CladConfigService</code>의 <code>setCloudPinMode(enable)</code>(클라우드 PIN 모드), <code>getParentalRating`/`setParentalRating</code>(연령 등급)으로 다루며, 실시간 채널의 성인/CA/연령 차단 결과는 <code>ChannelEventListener.onChannelEvent</code>(권한 enum, 실시간 TV 시청 문서 참고)로 통보됩니다.</p>
+    <div class="callout">
+      <div class="ct">단말 위임 + 타임아웃</div>
+      PIN 정답 자체를 클라우드가 들고 있지 않고 단말에 위임(<code>managePin</code>)하는 구조입니다. 응답 지연 시 <code>DEFAULT_TIMEOUT</code>(약 10초)으로 false 처리해 화면이 멈추지 않게 합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as PIN 입력 화면
+    participant PIN as PinManager
+    participant CSM as ConfigServiceManager
+    participant CFG as CladConfigService (단말 RPC)
+
+    UI-&gt;&gt;PIN: checkUserPin(pin, callback)
+    PIN-&gt;&gt;PIN: pin = base64 인코딩
+    PIN-&gt;&gt;CSM: managePin({id:'checkUserPin', param})
+    CSM-&gt;&gt;CFG: managePin(JSON.stringify(message))
+    alt 정상 응답
+        CFG--&gt;&gt;CSM: ri, rv (JSON)
+        CSM-&gt;&gt;CSM: parse → id별 결과 분기
+        CSM--&gt;&gt;PIN: true / false
+    else 10초 무응답
+        CSM-&gt;&gt;CSM: 타임아웃 → false
+    end
+    PIN--&gt;&gt;UI: 인증 결과
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>PinManager</code>가 base64 인코딩한 PIN 메시지를 <code>ConfigServiceManager.managePin</code>으로 넘기고, 단말 RPC 응답을 <code>id</code>별로 파싱해 결과를 돌려줍니다. 무응답 시 타임아웃 처리합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class PinManager {
+        +checkUserPin(pin, callback)
+        +checkPurchasePin(pin, callback)
+        +getPin(callback)
+        +changeUserPin(newPin, callback)
+        +changePurchasePin(newPin, callback)
+    }
+    class ConfigServiceManager {
+        +managePin(message, callback)
+        +setCloudPinModeAsync(isEnter, callback)
+        -connectionTimer
+    }
+    class CladConfigService {
+        &lt;&lt;interface&gt;&gt;
+        +managePin(STRING) STRING
+        +setCloudPinMode(BOOLEAN) BOOLEAN
+        +getParentalRating() I32
+        +setParentalRating(I32) BOOLEAN
+    }
+
+    PinManager --&gt; ConfigServiceManager : managePin 위임
+    ConfigServiceManager ..&gt; CladConfigService : RPC 호출
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>PinManager</code>가 PIN 명령을 메시지로 만들어 <code>ConfigServiceManager.managePin`로 넘기고, 이는 단말 `CladConfigService</code> RPC 로 검증·정책 처리됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>common/adapter/PinManager.js</code> — 성인 PIN 체크(base64 + managePin 메시지)</div>
+<pre><code>checkUserPin : function (pin, callback) {
+    pin = Buffer.from(pin).toString('base64');
+    let sendData = { 'id': 'checkUserPin', 'param': pin };
+    this.W.ConfigServiceManager.managePin(sendData, callback);
+},</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>common/adapter/ConfigServiceManager.js</code> — managePin RPC + id별 분기 + 타임아웃</div>
+<pre><code>managePin : function (message, callback) {
+    if (this.W.RCU.isemul) { callback &amp;&amp; callback(false); return; }
+    var self = this;
+    self.W.CladConfigService.managePin(JSON.stringify(message), function (ri, rv) {
+        self.W.safeClearTimeout(self.connectionTimer);
+        var jsonData = rv ? JSON.parse(rv) : {};
+        if (jsonData.id == 'checkUserPin' &amp;&amp; jsonData.response == true)        callback &amp;&amp; callback(true);
+        else if (jsonData.id == 'getPin' &amp;&amp; jsonData.response)                 callback &amp;&amp; callback(Buffer.from(jsonData.response, 'base64').toString('ascii'));
+        else                                                                  callback &amp;&amp; callback(false);
+    });
+    // 10초 무응답 → false
+    self.connectionTimer = self.W.safeTimeoutSilently(function () {
+        callback &amp;&amp; callback(false); callback = null;
+    }, self.W.Config.DEFAULT_TIMEOUT);
+},</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/common/adapter/PinManager.js" target="_blank" rel="noopener">common/adapter/PinManager.js</a><span class="src">성인/구매 PIN 체크·조회·변경 (base64 + managePin 메시지)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/common/adapter/ConfigServiceManager.js" target="_blank" rel="noopener">common/adapter/ConfigServiceManager.js</a><span class="src">managePin RPC 래퍼 · id별 응답 분기 · 타임아웃 · setCloudPinModeAsync</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/cloud_adaptor.js" target="_blank" rel="noopener">cloud_adaptor.js</a><span class="src">clad.config.CladConfigService.managePin / setCloudPinMode / getParentalRating 정의</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/common/component/pin" target="_blank" rel="noopener">common/component/pin</a><span class="src">PIN 입력 공통 UI 컴포넌트</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f12.html">이전: TV 청구서 / 고객만족도</a>
+      <a href="f14.html">추천 · 날씨 · 쿠폰 캐싱 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb.cloud.home 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

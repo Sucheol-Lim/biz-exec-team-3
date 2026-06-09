@@ -1,0 +1,173 @@
+<!doctype html>
+<!-- skb.cloud.home · 마이홈 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마이홈 — skb.cloud.home 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Cloud Home</a><span class="sep">›</span>
+      <span class="here">마이홈</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">STB 클라우드 UI · JavaScript</span>
+    </div>
+    <h1>마이홈</h1>
+    <p class="one-liner">쿠폰·공지사항, 최근 시청 VOD, 구매목록, 즐겨찾기, 가입내역, 월정액 내역을 조회·삭제합니다(<code>scene/myHomeSub</code>, <code>scene/history</code>). 데이터는 <code>UPMSManager</code>·<code>CouponManager</code>·<code>ACMSManager</code>가 공급합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb.cloud.home" target="_blank" rel="noopener"><code>skb.cloud.home</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>scene/history</code> · <code>scene/myHomeSub</code></div></div>
+      <div class="item"><div class="k">데이터 소스</div><div class="v"><code>UPMSManager</code> / <code>CouponManager</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>마이홈은 사용자의 개인 데이터를 모은 영역으로, <code>scene/myHomeSub</code>(쿠폰/캐시·리스트형 서브 화면)과 <code>scene/history</code>(이력)로 나뉩니다. 이력 영역은 최근 시청(<code>watchingList</code>), 구매목록(<code>purchaseList</code>), 찜한 VOD(<code>myFavoriteVod</code>), 즐겨찾기 메뉴(<code>myFavoriteMenu</code>)로 구성되며 각각 Scene/View/Ctrl 3종 세트로 만들어집니다.</p>
+    <p>데이터 연동은 주로 <code>UPMSManager</code>가 담당합니다. 최근 시청은 <code>getUsersWatchHitory(offset, limit)</code>·삭제는 <code>deleteUsersWatchHitory</code>, 구매목록은 <code>getPurchases</code>·숨김은 <code>postUsersPurchasesHidden</code>, 찜 목록은 <code>getCollections`/`getMycontents</code> 로 조회·삭제합니다. 월정액·가입내역은 결제 정보(<code>getUsersPurchasePayments</code>)와 구매 이력을 함께 표시하고, 쿠폰/캐시 영역은 <code>CouponManager</code>(잔액·쿠폰박스)와 캐싱(<code>CouponCacheManager</code>)을 사용합니다. 공지사항은 <code>ACMSManager.getNotice`/`getNoticeDetail</code> 로 받아 보여 줍니다.</p>
+    <div class="callout">
+      <div class="ct">페이징 + 삭제 + 포커스 보정</div>
+      이력 목록은 페이징 컴포넌트(Paging/Page/Focus)로 구성되며, 삭제 후 남은 항목 수에 따라 포커스 인덱스를 다시 잡아야 합니다. 최근 master 작업에 구매내역 삭제 팝업 후 포커스/표시 보정이 포함되어 있습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant WL as WatchingListCtrl (최근 시청)
+    participant UPMS as UPMSManager
+    participant PL as PurchaseListCtrl (구매목록)
+
+    WL-&gt;&gt;UPMS: getUsersWatchHitory(offset, limit)
+    UPMS--&gt;&gt;WL: 최근 시청 목록
+    U-&gt;&gt;WL: 항목 삭제
+    WL-&gt;&gt;UPMS: deleteUsersWatchHitory(history_id)
+    UPMS--&gt;&gt;WL: 결과 → 포커스 인덱스 보정
+    U-&gt;&gt;PL: 구매목록 진입
+    PL-&gt;&gt;UPMS: getPurchases(offset, limit, ...)
+    UPMS--&gt;&gt;PL: 구매 목록
+    U-&gt;&gt;PL: 숨김 처리
+    PL-&gt;&gt;UPMS: postUsersPurchasesHidden(purchaseId)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 각 이력 Ctrl 이 <code>UPMSManager</code>로 페이징 조회하고, 삭제/숨김 후 목록·포커스를 재구성합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class WatchingListCtrl {
+        +load(offset, limit)
+        +remove(history_id)
+    }
+    class PurchaseListCtrl {
+        +load(offset, limit)
+        +hide(purchaseId)
+    }
+    class MyFavoriteVodScene {
+        +onCreate(ctx)
+    }
+    class MyHomeListScene {
+        +onCreate(ctx)
+    }
+    class UPMSManager {
+        +getUsersWatchHitory(offset, limit, cb)
+        +deleteUsersWatchHitory(history_id, cb)
+        +getPurchases(offset, limit, ...)
+        +postUsersPurchasesHidden(purchaseId, cb)
+        +getCollections(...)
+    }
+    class CouponManager {
+        +getTotalCpnMoney3(cb)
+        +getCouponBox(status, cb)
+    }
+    class ACMSManager {
+        +getNotice(req, cb)
+    }
+
+    WatchingListCtrl ..&gt; UPMSManager
+    PurchaseListCtrl ..&gt; UPMSManager
+    MyFavoriteVodScene ..&gt; UPMSManager
+    MyHomeListScene ..&gt; CouponManager
+    MyHomeListScene ..&gt; ACMSManager : 공지사항
+      </div>
+      <p class="cap"><strong>관계.</strong> 이력/리스트 화면이 <code>UPMSManager</code>(시청·구매·찜)와 <code>CouponManager</code>(쿠폰/캐시), <code>ACMSManager</code>(공지)에 의존합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>common/interface/UPMSManager.js</code> — 최근 시청 이력 조회/삭제</div>
+<pre><code>function getUsersWatchHitory(offset, limit, callback, cbParameter, catchCallback, isGetUrl) {
+    /* 최근 시청 VOD 목록(페이징) 조회 */
+}
+function deleteUsersWatchHitory(history_id, callback, cbParameter, catchCallback, isGetUrl) {
+    /* 시청 이력 삭제 */
+}
+function getPurchases(offset, limit, productCat, productType, includeHidden, callback, ...) {
+    /* 구매목록(가입내역·월정액 포함) 조회 */
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/history/watchingList/WatchingListCtrl.js" target="_blank" rel="noopener">scene/history/watchingList/WatchingListCtrl.js</a><span class="src">최근 시청 VOD 목록·삭제·포커스 보정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/history/purchaseList/PurchaseListCtrl.js" target="_blank" rel="noopener">scene/history/purchaseList/PurchaseListCtrl.js</a><span class="src">구매목록 조회·숨김</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/history/myFavoriteVod/MyFavoriteVodScene.js" target="_blank" rel="noopener">scene/history/myFavoriteVod/MyFavoriteVodScene.js</a><span class="src">찜한 VOD 목록</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/myHomeSub/list/MyHomeListScene.js" target="_blank" rel="noopener">scene/myHomeSub/list/MyHomeListScene.js</a><span class="src">마이홈 리스트형 서브 화면(공지·쿠폰 등)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/common/interface/UPMSManager.js" target="_blank" rel="noopener">common/interface/UPMSManager.js</a><span class="src">시청 이력·구매목록·찜 조회/삭제 API</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f08.html">이전: 4방향 라이브</a>
+      <a href="f10.html">홍보채널 / 홈쇼핑 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb.cloud.home 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!doctype html>
+<!-- ott-tvapp · 실시간 채널 시청 기능 상세 — SoorynPlayer 라이브 재생 + Channels ContentProvider -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>실시간 채널 시청 — ott-tvapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KCTV 제주 OTT Android TV 앱 (ott-tvapp)</a><span class="sep">›</span>
+      <span class="here">실시간 채널 시청</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KCTV 제주</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>실시간 채널 시청</h1>
+    <p class="one-liner"><code>ctrl/Player</code>가 <code>SoorynPlayer</code> 계열 <code>KctvLivePlayer</code>로 멀티캐스트 라이브 채널을 재생하고, 채널 맵·프로그램 정보는 <code>ctrl/Channels</code> ContentProvider(<code>com.alticast.kctv.provider</code>)로 관리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/ott-tvapp" target="_blank" rel="noopener"><code>ott-tvapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>android14/marusys</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ctrl/Player</code> · <code>ctrl/Channels</code></div></div>
+      <div class="item"><div class="k">재생 엔진</div><div class="v"><code>SoorynPlayer · KctvLivePlayer</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>라이브 채널 재생은 <code>ctrl/Player</code>가 총괄합니다. <code>Player.init()</code>이 내부 <code>Live</code> 객체와 이벤트 리스너(<code>KctvPlayerEventListenerImpl</code>)·결과 콜백(<code>KctvPlayerResultCallbackImpl</code>)을 만들고, <code>SurfaceView</code>가 유효해지는 시점에 <code>KctvLivePlayer</code>를 생성합니다. 사내 <code>SoorynPlayer</code> AAR을 임베드해 멀티캐스트 라이브 스트림을 받아 그립니다.</p>
+    <p>채널 전환은 <code>Player.tuneLiveChannel(EPGChannel toGo, ...)</code>이 입구입니다. 같은 채널이면 무시하고, 오디오 채널 전환·시청 차단(<code>Block</code>)·호텔 프로모·CH-VOD 여부를 점검한 뒤 <code>Live.setDataSource()</code>가 채널 스트림 URI와 서비스 ID로 <code>livePlayer.playback()</code>을 호출합니다. 채널 요청/변경은 <code>CHANNEL_REQUEST</code>·<code>CHANNEL_CHANGED</code> 메시지로 UI 핸들러에 통지됩니다.</p>
+    <p>채널·편성 데이터는 <code>ctrl/Channels</code>가 <code>ContentProvider</code>로 노출합니다. 매니페스트에 <code>authorities="com.alticast.kctv.provider"</code>로 등록되어 있고, <code>query()</code>가 키즈/일반 모드에 따라 채널 맵(<code>ChannelMap</code>)을 순회하며 번호·이름·아이콘(차단/선호/유료/오디오/VOD) 컬럼을 <code>MatrixCursor</code>로 반환합니다.</p>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as PlaybackActivity (키 입력)
+    participant PL as ctrl/Player
+    participant LV as Player.Live
+    participant KP as KctvLivePlayer (SoorynPlayer)
+    participant CH as ctrl/Channels
+    participant H as MyHandler (UI)
+
+    UI-&gt;&gt;PL: tuneLiveChannel(toGo, needStop)
+    PL-&gt;&gt;PL: 같은 채널 / Block / 호텔프로모 / CH-VOD 점검
+    PL-&gt;&gt;H: obtainMessage(CHANNEL_REQUEST, toGo)
+    PL-&gt;&gt;LV: setDataSource(toGo, needStop, msgDelay)
+    LV-&gt;&gt;KP: playback(Uri, serviceId, true, audioMode)
+    KP--&gt;&gt;PL: KctvPlayerEventListener 이벤트
+    PL-&gt;&gt;H: obtainMessage(CHANNEL_CHANGED, msgObj)
+    H-&gt;&gt;CH: query(provider Uri, selection)
+    CH--&gt;&gt;H: MatrixCursor (번호/이름/아이콘)
+    H-&gt;&gt;UI: OSD / 채널 정보 갱신
+      </div>
+      <p class="cap"><strong>흐름.</strong> 키 입력이 <code>tuneLiveChannel()</code>로 들어와 차단·모드 점검 후 <code>Live.setDataSource()</code> → <code>playback()</code>으로 스트림을 시작하고, 채널 메타는 <code>Channels</code> ContentProvider가 공급합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class Player {
+        +EPGChannel currentCh
+        +EPGChannel lastCh
+        +init(handler, context, surfaceView, subtitleView)
+        +tuneLiveChannel(EPGChannel toGo, boolean needStop) boolean
+        +stop(boolean forVod)
+        +destroy()
+        +setClosedCaption()
+        +getLivePlayer() KctvLivePlayer
+    }
+    class Live {
+        -int retry
+        +init(context, surfaceView, subtitleView)
+        +setDataSource(EPGChannel toGo, boolean needStop, int msgDelay)
+        +stop()
+        +release()
+    }
+    class KctvLivePlayer {
+        +playback(Uri, short serviceId, boolean, boolean audioMode)
+        +stop()
+        +selectTrack(type, group, index)
+    }
+    class Channels {
+        +query(Uri, projection, selection, args, sortOrder) Cursor
+        +onCreate() boolean
+        +isChVod(EPGChannel) boolean
+        +isAudio(EPGChannel) boolean
+    }
+    class ChannelMap {
+        +values() Collection
+    }
+    class EPGChannel {
+        +getServiceId() int
+        +getStream() String
+        +getNumber() int
+    }
+
+    Player o-- Live : 소유
+    Live --&gt; KctvLivePlayer : playback 호출
+    Player --&gt; EPGChannel : currentCh
+    Channels --&gt; ChannelMap : query 시 순회
+    Channels ..&gt; EPGChannel
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>Player</code>가 내부 <code>Live</code>를 소유하고 <code>KctvLivePlayer</code>로 재생하며, <code>Channels</code> ContentProvider가 <code>ChannelMap</code>의 <code>EPGChannel</code>을 커서로 노출합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ctrl/Player.java</code> — Live.setDataSource: 채널 URI로 playback 시작</div>
+<pre><code>if (livePlayer == null) {
+    playerLive.init(context, mSurfaceView, mSubtitleView);
+}
+if (livePlayer != null) {
+    if (needStop) livePlayer.stop();
+
+    String uri = toGo.getStream();
+    if (uri == null) uri = "";
+    livePlayer.setRestartPlayerWhenErrorOccurs(true);
+    setAudioLanguage();
+    boolean audioMode = Config.getAudioOutput() == Config.AUDIO_OUTPUT_AC3;
+    livePlayer.playback(Uri.parse(uri), (short) toGo.getServiceId(), true, audioMode);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ctrl/Channels.java</code> — ContentProvider.query: 채널 맵을 커서로 노출</div>
+<pre><code>public Cursor query(Uri uri, String[] projection, String selection,
+                    String[] selectionArgs, String sortOrder) {
+    MatrixCursor cursor = new MatrixCursor(new String[]{ BaseColumns._ID, "num", "name", "icon" });
+    ChannelMap target = Config.isKids ? surfableKids : accessible;
+    for (EPGChannel ch : target.values()) {
+        if (!skipChannel.containsKey(ch.getNumber())
+            &amp;&amp; String.valueOf(ch.getNumber()).startsWith(selection)) {
+            int icon = 0;
+            if (isBlocked(ch)) icon = 1;
+            else if (isFav(ch)) icon = 2;
+            else if (isChVod(ch)) icon = 4;
+            else if (isAudio(ch)) icon = 5;
+            cursor.addRow(new Object[]{ ch.getServiceId(),
+                String.format("%03d", ch.getNumber()), ch.getName(), icon });
+        }
+    }
+    return cursor;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/Player.java" target="_blank" rel="noopener">ctrl/Player.java</a><span class="src">라이브 재생 컨트롤러 · tuneLiveChannel / 내부 Live · KctvLivePlayer 래핑</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/Channels.java" target="_blank" rel="noopener">ctrl/Channels.java</a><span class="src">채널 ContentProvider(com.alticast.kctv.provider) · query</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/Programs.java" target="_blank" rel="noopener">ctrl/Programs.java</a><span class="src">편성/프로그램 정보 모델 (현재 프로그램, 메타 컬럼)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/data/ChannelMap.java" target="_blank" rel="noopener">data/ChannelMap.java</a><span class="src">채널 맵 데이터 모델</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/EPGChannel.java" target="_blank" rel="noopener">ott/EPGChannel.java</a><span class="src">채널 엔티티 (serviceId / stream / number)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f01.html">홈 런처 겸용</a>
+      <a href="f03.html">VOD / CH-VOD 재생 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>android14/marusys</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">ott-tvapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

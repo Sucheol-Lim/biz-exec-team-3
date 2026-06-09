@@ -1,0 +1,201 @@
+<!doctype html>
+<!-- skb_cloud_local_android · EPG 외부 노출(AIDL) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EPG 외부 노출(AIDL) — skb_cloud_local_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local EPG (Android)</a><span class="sep">›</span>
+      <span class="here">EPG 외부 노출(AIDL)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>EPG 외부 노출(AIDL)</h1>
+    <p class="one-liner"><code>IEpgAIDLService</code>가 <code>com.alticast.android.tv.local.action.EPGService</code> 액션의 exported 서비스로 <code>IEpgService.aidl</code> 인터페이스를 구현해, 3rd party 앱에 채널 이동·홈 진입·UserPreference·PIN 확인·단말 정보 등 EPG 기능을 노출합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_android" target="_blank" rel="noopener"><code>skb_cloud_local_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>UC500_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>IEpgAIDLService</code> · <code>IEpgService.aidl</code> · <code>ChannelController</code> · <code>CloudHomeMain</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">타 앱에 EPG 기능 공개(IPC)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>본 로컬 EPG 앱은 셋톱 위에서 동작하는 다른 3rd party 앱(VOD·부가 서비스 등)에 자신의 EPG/단말 기능을 IPC로 제공합니다. 이를 위해 <code>IEpgService.aidl</code>에 단말·사용자 관련 메서드를 정의하고, <code>IEpgAIDLService</code>(<code>extends Service</code>)가 <code>IEpgService.Stub</code>을 구현한 바인더를 <code>onBind()</code>로 반환합니다. 서비스는 <code>AndroidManifest.xml</code>에 <code>com.alticast.android.tv.local.action.EPGService</code> 액션과 <code>exported="true"</code>로 선언되어 외부에서 바인딩할 수 있습니다.</p>
+    <p>AIDL 인터페이스는 UserPreference 읽기/쓰기(<code>readUserPreference</code>/<code>writeUserPreference</code>), 사용자/구매 PIN 확인(<code>checkUserPIN</code>/<code>checkPurchasePIN</code>), SRM 주소(<code>getSrmAddress</code>), 채널 이동(<code>selectChannel</code>), 홈 메뉴 실행(<code>showHomeMenu</code>), 단말 정보(<code>getStbModel</code>·<code>getSmartCardId</code>·<code>getSoCode</code>·<code>getCustomerId</code>·<code>getContractId</code>)를 제공합니다.</p>
+    <p>구현은 내부 매니저로 위임합니다. <code>readUserPreference</code>/<code>writeUserPreference</code>·PIN 확인은 <code>UserPreferenceManager</code>로, <code>selectChannel(srcId)</code>은 <code>ChannelDataManager.findChannelBySourceId()</code>로 채널을 찾아 <code>ChannelController.set3rdPartyTuneCh()</code>로 설정한 뒤 앱을 포그라운드로 복귀(<code>returnForeground</code>)시키고, <code>showHomeMenu()</code>는 <code>CloudHomeMain.showHomeMenu()</code>로, 단말 정보는 <code>DeviceInfoManager</code>로 처리합니다. 즉 외부 앱은 EPG의 내부 구조를 몰라도 AIDL 한 인터페이스로 핵심 기능을 호출할 수 있습니다.</p>
+    <div class="callout">
+      <div class="ct">3rd party 채널 이동 패턴</div>
+      <code>selectChannel(srcId)</code>은 외부 앱이 닫히면서 지정 채널로 이동하도록 설계되어, 즉시 튠 대신 <code>set3rdPartyTuneCh()</code>로 대상 채널을 예약하고 <code>returnForeground()</code>로 EPG를 전면 복귀시킵니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant EXT as 3rd party 앱
+    participant SVC as IEpgAIDLService
+    participant STUB as IEpgService.Stub
+    participant CDM as ChannelDataManager
+    participant CC as ChannelController
+    participant CHM as CloudHomeMain
+
+    EXT-&gt;&gt;SVC: bindService(action=EPGService)
+    SVC--&gt;&gt;EXT: onBind() → IEpgService 바인더
+    EXT-&gt;&gt;STUB: selectChannel(srcId)
+    STUB-&gt;&gt;CDM: findChannelBySourceId(srcId)
+    CDM--&gt;&gt;STUB: ExChannel
+    STUB-&gt;&gt;CC: set3rdPartyTuneCh(ch)
+    STUB-&gt;&gt;SVC: returnForeground() (EPG 전면 복귀)
+    EXT-&gt;&gt;STUB: showHomeMenu()
+    STUB-&gt;&gt;CHM: showHomeMenu()
+      </div>
+      <p class="cap"><strong>흐름.</strong> 외부 앱이 EPGService에 바인딩해 <code>IEpgService</code> 바인더를 얻고, <code>selectChannel</code>로 채널을 예약·복귀하거나 <code>showHomeMenu</code>로 클라우드 홈을 띄웁니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class Service {
+        &lt;&lt;abstract&gt;&gt;
+        +onBind(Intent) IBinder
+    }
+    class IEpgService {
+        &lt;&lt;interface&gt;&gt;
+        +readUserPreference(upName) String
+        +writeUserPreference(upName, value) boolean
+        +checkUserPIN(pin) boolean
+        +selectChannel(srcId)
+        +showHomeMenu()
+        +getStbModel() String
+        +getSmartCardId() String
+    }
+    class IEpgAIDLService {
+        -IEpgService.Stub mBinder
+        +onBind(Intent) IBinder
+    }
+    class ChannelDataManager {
+        +findChannelBySourceId(srcId) ExChannel
+    }
+    class ChannelController {
+        +set3rdPartyTuneCh(ExChannel)
+    }
+    class CloudHomeMain {
+        +showHomeMenu() boolean
+    }
+    class UserPreferenceManager {
+        +get(name) String
+        +checkUserPIN(pin) boolean
+    }
+
+    IEpgAIDLService --|&gt; Service
+    IEpgAIDLService ..|&gt; IEpgService : Stub 구현
+    IEpgAIDLService --&gt; ChannelDataManager
+    IEpgAIDLService --&gt; ChannelController
+    IEpgAIDLService --&gt; CloudHomeMain
+    IEpgAIDLService --&gt; UserPreferenceManager
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>IEpgAIDLService</code>가 <code>Service</code>를 상속하고 <code>IEpgService</code>(AIDL) Stub을 구현하며, 각 메서드를 내부 매니저(<code>ChannelController</code>·<code>CloudHomeMain</code>·<code>UserPreferenceManager</code> 등)로 위임합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>module/ump/service/IEpgAIDLService.java</code> — AIDL Stub 구현 · 3rd party 채널 이동</div>
+<pre><code>private final IEpgService.Stub mBinder = new IEpgService.Stub() {
+    @Override
+    public void selectChannel(int srcId) throws RemoteException {
+        LastIdHolder.getInstance().clearLastId();
+        ExChannel ch = ChannelDataManager.getInstance().findChannelBySourceId(srcId);
+        ChannelController.getInstance().set3rdPartyTuneCh(ch);   // 채널 예약
+        returnForeground(context);                                // EPG 전면 복귀
+    }
+    @Override
+    public void showHomeMenu() throws RemoteException {
+        returnForeground(context);
+        CloudHomeMain.getInstance().showHomeMenu();
+    }
+};
+
+@Override
+public IBinder onBind(Intent arg0) {
+    return mBinder;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>aidl/com/alticast/epg/tbroad/android/IEpgService.aidl</code> — 외부 노출 인터페이스(발췌)</div>
+<pre><code>interface IEpgService {
+    String readUserPreference(String upName);
+    boolean writeUserPreference(String upName, String value);
+    boolean checkUserPIN(String pin);
+    boolean checkPurchasePIN(String pin);
+    void selectChannel(int srcId);   // 3rd party가 닫히며 채널 이동
+    void showHomeMenu();
+    String getStbModel();
+    String getSmartCardId();
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/ump/service/IEpgAIDLService.java" target="_blank" rel="noopener">module/ump/service/IEpgAIDLService.java</a><span class="src">IEpgService.Stub 구현 · 채널 이동/홈/PIN/단말 정보 위임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/aidl/com/alticast/epg/tbroad/android/IEpgService.aidl" target="_blank" rel="noopener">aidl/com/alticast/epg/tbroad/android/IEpgService.aidl</a><span class="src">외부 노출 EPG 서비스 AIDL 인터페이스 정의</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/AndroidManifest.xml" target="_blank" rel="noopener">app/src/main/AndroidManifest.xml</a><span class="src">EPGService 액션 · exported 서비스 선언</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/si/ChannelController.java" target="_blank" rel="noopener">module/si/ChannelController.java</a><span class="src">set3rdPartyTuneCh — 외부 요청 채널 예약</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f14.html">← 알림 / TTS / 예약</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f01.html">First Screen / 런처 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>UC500_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

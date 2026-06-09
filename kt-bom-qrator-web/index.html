@@ -1,0 +1,464 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KT BOM Qrator Web (언바운드 위젯 앱) — 과제 설명</title>
+<style>
+:root{
+  --accent:#d6001c;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">olleh tv 웹 미들웨어 STB (OIPF/HbbTV 위젯)</span>
+      <span class="badge gray">JavaScript (ES5)</span>
+    </div>
+    <h1>KT BOM Qrator Web — 언바운드 위젯 미들웨어 앱</h1>
+    <p class="one-liner">KT olleh tv 셋톱박스의 웹 미들웨어 위에서 방송 화면 위에 떠 동작하는 BOM(Brokering Open Market) 언바운드 웹 애플리케이션입니다. qrator 상위 컨트롤러가 위젯 UI, 샤프키, 각종 트리거 등 서브앱의 표시·전환을 관리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web" target="_blank" rel="noopener"><code>kt-bom-qrator-web</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-01-23 · e17d06c (KTBOM-282) remove impl by link_type=3</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>dvb.appId:4e30.3009</code> / widget v2.6.4 (package.json 1.0.0)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>이 프로젝트는 KT olleh tv 웹 미들웨어 환경에서 구동되는 <strong>BOM(Brokering Open Market) 언바운드(unbound) 웹 애플리케이션</strong>입니다. <code>package.json</code>의 description은 "bom(qrator, widget ui, brokering) unbound, web application"으로 명시되어 있으며, 단말 위젯 패키지인 <code>.wgt</code> 형태로 빌드되어 셋톱박스에 배포됩니다. <code>public/src/index.html</code>의 저작권 헤더에는 "BOM(Brokering Open Market) System version 1.0 / Copyright kt corp"가 명시되어 있습니다.</p>
+    <p>앱의 매니페스트(<code>public/src/config.xml</code>)는 W3C Widget 규격(<code>http://www.w3.org/ns/widgets</code>)을 따르며, 위젯 id는 <code>dvb.appId:4e30.3009</code>, 이름은 "Smart AppStore", 설명은 "olleh tv Web Middleware Smart AppStore", 해상도는 1920×1080, 버전은 2.6.4로 정의되어 있습니다. 즉 KT olleh tv의 스마트 앱스토어/브로커링 진입 위젯에 해당합니다.</p>
+    <p>대상 플랫폼은 OIPF/HbbTV 계열의 웹 미들웨어를 탑재한 KT olleh tv 셋톱박스(STB)입니다. <code>index.html</code>에 <code>&lt;object type="video/broadcast"&gt;</code> 방송 객체와 OIPF 단말 API 래퍼(<code>oipfUtil.js</code>)가 포함되어 있어, 방송 스트림 위에 오버레이로 떠 동작하는 TV 단말 웹 앱임을 알 수 있습니다. 사내 Confluence 기준 BOM 언바운드는 Web(본 저장소, UHD/AOSP/ATV/Smart 형상)과 ACAP(별도 저장소) 두 형상으로 나뉘며, 본 문서는 그중 Web 형상을 다룹니다.</p>
+    <div class="callout">
+      <div class="ct">언바운드(unbound) 앱이란</div>
+      특정 채널(bound)에 종속되지 않고 단말 전역에서 동작하는 애플리케이션을 의미합니다. 본 앱은 <code>APP_TYPE.UNBOUND(4)</code> 타입으로, 옵저버(observer)·홈포탈 같은 외부 단말 컴포넌트와 비동기 메시지로 협의하며 방송 화면 위에 위젯/트리거 UI를 표시·종료합니다.
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">qrator 상위 컨트롤러</div><div class="d">여러 서브앱의 표시/숨김 상태를 <code>stateManager</code>(init / show / show.inactive / hide)로 관리하는 본체입니다. 기본 활성 서브앱은 <code>brk</code>이며, 활성 서브앱 전환과 가시성을 통제합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">Brokering 위젯 UI (brk)</div><div class="d">BOM 서버와 연동해 위젯 상품 목록/상세를 표시하는 핵심 UI입니다. <code>brk_api</code>, <code>brk_amoc</code>, <code>brk_itemList</code>, <code>brk_detailList</code>, <code>brk_oipf</code>, <code>brk_liveAgent</code> 컴포넌트로 구성됩니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">샤프(#)키 처리 (sharp)</div><div class="d">리모컨 # 키로 실행 가능한 BOM 앱을 선택하는 sharp UI입니다. 채널뷰(chview), 비밀번호(pwd), 아람(aram), 서비스 에러 팝업을 제공합니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">BOM 채널 트리거</div><div class="d">특정 채널 시청 시 노출되는 채널 연동형 BOM 캠페인 트리거입니다. 시청 시간(watchingTime)·노출 시간대(display_time) 조건과 바운드/언바운드 앱 실행 상태를 확인해 표시합니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">BOM VOD 트리거</div><div class="d">VOD 재생 시작 시점에 노출되는 VOD 연동형 BOM 캠페인 트리거입니다. 트리거 블록 상태가 아닐 때 동작합니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">CMP(캠페인) 채널 트리거</div><div class="d">스케줄 푸시 기반 캠페인 편성정보 트리거입니다. 알림형(REACT_TYPE=1)과 반응형으로 나뉘며, 다른 앱 실행 시 노출 방식(EXEC_TYPE)에 따라 분기 처리됩니다.</div></a>
+      <a class="card" href="f07.html"><div class="t">큐톤(Cue-tone) 광고 트리거</div><div class="d">방송 큐톤 광고 메시지 수신 시 광고 연동 트리거를 노출합니다. BOM 서버의 <code>getCuetoneCmpInfo(BW016)</code> 응답으로 캠페인 정보를 받아 처리합니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">쇼핑키 / 결제 연동</div><div class="d">리모컨 쇼핑키 입력 시 결제 모듈(tvpay)을 연동하는 서브앱입니다. <code>payModuleView</code>로 TV 결제 라우터(tvpay_module)와 연결됩니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">요청-응답 메시지 라우터</div><div class="d">메서드별 큐·인플라이트·타임아웃(기본 5000ms)을 가진 비동기 메시지 라우터입니다. 옵저버/홈포탈 등 외부 컴포넌트와의 메시지 교환을 직렬화합니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">qDaemon 백그라운드 매니저</div><div class="d">시나리오 관리를 위한 내부 매니저 묶음입니다. 채널 트리거(<code>chTriggerManager</code>), 스토리지 데이터(<code>storageDataManager</code>), 라이브 에이전트(<code>liveAgentManager</code>)를 관리합니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">동적 서브앱 로딩(부트스트랩)</div><div class="d"><code>app-manifest</code>의 선언을 <code>loader</code>가 순차 로드한 뒤 <code>qrator.init()</code>으로 기동하는 부트스트랩 구조입니다. 모듈 번들러 없이 클래식 스크립트로 동작합니다.</div></a>
+      <a class="card" href="f12.html"><div class="t">링크 타입별 실행 분기</div><div class="d"><code>link_type</code>에 따라 BOM 앱 실행(1)·채널 이동(2/8)·매시업(4)·홈포탈 VOD/카테고리/시리즈(5/6/7)·위젯 재시작(11)·안드로이드 네이티브/브로드캐스트 인텐트(21/22) 등으로 분기합니다.</div></a>
+      <a class="card" href="f13.html"><div class="t">서비스 미지원 단말 안내</div><div class="d">미지원(ACAP 등) 단말에서 전체 화면 안내 이미지를 표시합니다. 원격 이미지 서버를 우선 시도하고, 네트워크 오류나 https 미지원 시 로컬 리소스로 대체합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">3-프로파일 빌드/배포 파이프라인</div><div class="d">Gulp 기반으로 L(운영)/S(BMT)/D(개발) 3종 프로파일을 빌드해 <code>.wgt</code>로 패키징하고, 빌드 환경값(<code>build-env.js</code>) 주입 후 FTP로 일괄 업로드합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>저장소는 빌드 도구(Gulp) 영역과 실제 앱 소스(<code>public/src/</code>) 영역으로 나뉩니다. 앱은 모듈 번들러 없이 ES5 바닐라 JavaScript로 작성되며, <code>index.html</code>이 모든 스크립트의 로드 순서를 정의하고 즉시실행함수(IIFE)와 전역 <code>window</code> 객체로 컴포넌트를 노출하는 클래식 스크립트 방식입니다.</p>
+    <pre class="tree">kt-bom-qrator-web/
+├─ gulpfile.js              # 빌드/패키징/FTP 배포 파이프라인 정의(메인 진입)
+├─ package.json             # 의존성 및 npm 스크립트(tt: mocha 테스트)
+├─ .env.example             # FTP/로컬경로/릴리스 메타 환경변수 템플릿
+├─ README / README_CLAUDE.md# 빌드·릴리스 가이드, 과제 개요
+├─ config/                  # 프로파일별 서버 엔드포인트(빌드 시 주입)
+│  ├─ config-live.json      #  L: 운영 (serverTo "L")
+│  ├─ config-bmt.json       #  S: BMT (serverTo "S")
+│  └─ config-develop.json   #  D: 개발 (serverTo "D")
+├─ tools/                   # 배포 보조 스크립트(deploy-dist.bat/.ps1)
+└─ public/
+   ├─ src/                  # 실제 앱 소스(빌드 입력)
+   │  ├─ config.xml         # W3C Widget 매니페스트(id 4e30.3009, 1920x1080, v2.6.4)
+   │  ├─ index.html         # 앱 엔트리. 방송 object + 스크립트 로드 순서 정의
+   │  ├─ common/js/
+   │  │  ├─ core/           # build-env / bootstrap-env / bootstrap-sim
+   │  │  ├─ boot/           # app-manifest, loader, bootstrap(서브앱 동적 로딩)
+   │  │  ├─ lib/            # jQuery, Backbone, Underscore, CryptoJS, keyEvent
+   │  │  ├─ core-constants.js  # AID/APP_TYPE/SUB_APP_NAME/link_type 등 전역 상수
+   │  │  ├─ oipfUtil.js     # OIPF 단말 API 래퍼
+   │  │  └─ postMessageUtil / apiParamUtil / cryptoUtil / config / util
+   │  ├─ qrator/js/         # 상위 컨트롤러(서브앱 상태 관리·라우팅)
+   │  │  ├─ main.js                 # qrator 본체(stateManager, show/hide)
+   │  │  ├─ request-reply-router.js # 요청-응답 메시지 라우터(큐/타임아웃)
+   │  │  └─ view/popup/bomExitPopup.js
+   │  └─ apps/              # 서브앱 모음
+   │     ├─ brk/            # Brokering 위젯 UI(component/handler/service/view)
+   │     ├─ sharp/          # 샤프(#)키 처리 UI
+   │     ├─ qDaemon/        # chTrigger/storageData/liveAgent 매니저
+   │     ├─ bomChannelTrigger/  # BOM 채널 연동 트리거
+   │     ├─ bomVodTrigger/      # BOM VOD 연동 트리거
+   │     ├─ cmpChannelTrigger/  # CMP(캠페인) 채널 트리거
+   │     ├─ CuetoneADTrigger/   # 큐톤 광고 연동 트리거
+   │     └─ shoppingKey/        # 쇼핑키(결제 모듈 연동)
+   ├─ docs/                 # PlantUML 흐름도(트리거/BOM App 실행/배경이미지 등)
+   └─ test/                 # Mocha 테스트 및 서버 응답 샘플(.http)</pre>
+
+    <h3>주요 모듈 · 컴포넌트</h3>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>모듈</th><th>위치</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td>qrator (main)</td><td><code>qrator/js/main.js</code></td><td>상위 컨트롤러. <code>stateManager</code>로 서브앱 가시성과 활성 앱(<code>currentApp</code>, 기본 <code>brk</code>)을 전환합니다.</td></tr>
+        <tr><td>request-reply-router</td><td><code>qrator/js/request-reply-router.js</code></td><td>메서드별 큐(<code>_queues</code>)·인플라이트(<code>_inflight</code>)·타임아웃(기본 5000ms)을 가진 비동기 메시지 라우터입니다.</td></tr>
+        <tr><td>부트스트랩/로더</td><td><code>common/js/boot/</code></td><td><code>app-manifest</code> 선언을 <code>loader</code>가 순차 로드하고 <code>bootstrap</code>이 <code>qrator.init()</code>으로 기동합니다.</td></tr>
+        <tr><td>core-constants</td><td><code>common/js/core-constants.js</code></td><td><code>AID</code>(observer 3000/homeportal 3001/brk 3009/mashup 3020), <code>APP_TYPE</code>, <code>SUB_APP_NAME</code>, <code>link_type</code> 등 전역 상수를 deepFreeze로 동결해 노출합니다.</td></tr>
+        <tr><td>oipfUtil</td><td><code>common/js/oipfUtil.js</code></td><td>OIPF 단말 API 래퍼. 방송 객체·미디어 재생 시간 등 단말 기능을 추상화합니다.</td></tr>
+        <tr><td>brk (Brokering)</td><td><code>apps/brk/</code></td><td>위젯 상품 목록/상세 UI. <code>component</code>(api/amoc/itemList/detailList/oipf/liveAgent), <code>handler</code>, <code>service</code>, <code>view</code>로 구성됩니다.</td></tr>
+        <tr><td>sharp</td><td><code>apps/sharp/</code></td><td>샤프(#)키 입력 처리. 채널뷰·비밀번호·아람·서비스에러 팝업 제공.</td></tr>
+        <tr><td>qDaemon</td><td><code>apps/qDaemon/</code></td><td>데몬성 매니저. <code>chTriggerManager</code>·<code>storageDataManager</code>·<code>liveAgentManager</code>.</td></tr>
+        <tr><td>bom/cmp/vod Trigger</td><td><code>apps/bomChannelTrigger</code> 외</td><td>각 트리거는 <code>constants / main / component(*Api) / model(*Model) / view(*View)</code>의 MVC 유사 구조를 따릅니다.</td></tr>
+        <tr><td>CuetoneADTrigger</td><td><code>apps/CuetoneADTrigger/</code></td><td>큐톤 광고 연동 트리거(<code>CuetoneAD</code>/<code>CuetoneADModel</code>/<code>CuetoneADTrigger</code>).</td></tr>
+        <tr><td>shoppingKey</td><td><code>apps/shoppingKey/</code></td><td>쇼핑키 처리 및 결제 모듈(tvpay) 연동 뷰(<code>payModuleView</code>).</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>계층 · 외부 연동</h3>
+    <p>구조는 (1) 공통 코어/유틸 계층(<code>common/js</code>), (2) 상위 컨트롤러 계층(<code>qrator</code>), (3) 서브앱 계층(<code>apps/*</code>)으로 나뉩니다. 외부 연동은 크게 두 갈래입니다. 하나는 단말 내부 컴포넌트와의 postMessage 기반 비동기 메시지(옵저버 <code>4e30.3000</code>, 홈포탈 <code>4e30.3001</code>, 매시업 매니저 <code>4e30.3020</code>)이고, 다른 하나는 BOM 서버군과의 HTTP 연동입니다. 빌드 프로파일별 엔드포인트는 <code>config-*.json</code>에 정의되며, 운영(L) 기준으로 e7works(<code>mapi.bom.kt.com/unbound</code>), sharp_ui(<code>mapi.bom.kt.com/sharpui</code>), live_agent(<code>agent.bom.kt.com</code>), cache/image(<code>img.bom.kt.com</code>), tvpay_module(<code>paygate.tvhub.co.kr</code>)로 연결됩니다.</p>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>언어/런타임</td><td>JavaScript (ES5, 브라우저)</td><td>-</td><td>셋톱박스 웹 미들웨어에서 동작. 모듈 번들러 없이 IIFE + 전역 <code>window</code> 클래식 스크립트</td></tr>
+        <tr><td>위젯 규격</td><td>W3C Widget (config.xml)</td><td>widget v2.6.4</td><td>id <code>dvb.appId:4e30.3009</code>, 1920×1080, OIPF/HbbTV 방송 object 사용</td></tr>
+        <tr><td>FE 라이브러리</td><td>jQuery</td><td>1.11.2</td><td><code>common/js/lib/</code> 및 index.html 로드 경로 기준</td></tr>
+        <tr><td>FE 라이브러리</td><td>Underscore / Backbone</td><td>min</td><td>유틸/뷰·모델 패턴 보조 (파일명 기준, 정확한 버전 미표기)</td></tr>
+        <tr><td>FE 라이브러리</td><td>CryptoJS</td><td>3.1.2</td><td>파라미터 암호화(<code>cryptoUtil.js</code>)</td></tr>
+        <tr><td>FE 라이브러리</td><td>locationMVM (slim/dom)</td><td>-</td><td>사내 MVM/뷰 관련 라이브러리 (추정)</td></tr>
+        <tr><td>FE 라이브러리</td><td>tlab.dev.keyEvent</td><td>0.1.0</td><td>리모컨 키 이벤트 처리</td></tr>
+        <tr><td>빌드 시스템</td><td>Node.js + Gulp</td><td>gulp ^4.0.2</td><td><code>gulpfile.js</code>에 dist/package/release 파이프라인 정의</td></tr>
+        <tr><td>빌드 플러그인</td><td>gulp-uglify / gulp-zip / gulp-ftp</td><td>1.5.4 / 4.2.0 / 1.1.0</td><td>JS 압축, <code>.wgt</code>(zip) 패키징, FTP 업로드</td></tr>
+        <tr><td>빌드 보조</td><td>browser-sync / del / dotenv / minimist</td><td>2.29.3 / 6.0.0 / 17.2.2</td><td>로컬 서버, 산출물 정리, <code>.env</code> 로드, CLI 인자 파싱</td></tr>
+        <tr><td>테스트</td><td>Mocha / Chai / jsdom / Puppeteer</td><td>10.2.0 / 4.3.10 / 23.0.0 / 21.5.2</td><td><code>npm run tt</code>로 <code>public/test/**</code> 실행</td></tr>
+        <tr><td>설계 문서</td><td>PlantUML</td><td>-</td><td><code>public/docs/</code>의 트리거/실행 흐름 다이어그램</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+
+    <h3>1) 앱 부팅 시퀀스</h3>
+    <ol class="steps">
+      <li><span class="st">index.html 로드</span><span class="sd">방송 <code>&lt;object type="video/broadcast"&gt;</code>와 라이브러리(jQuery·Underscore·Backbone·CryptoJS·keyEvent), 공통 유틸·코어 스크립트를 순서대로 로드합니다.</span></li>
+      <li><span class="st">매니페스트 기반 동적 로딩</span><span class="sd"><code>app-manifest</code>가 선언한 서브앱 스크립트 트리를 <code>loader.loadAppScripts(...)</code>가 순차적으로 로드합니다.</span></li>
+      <li><span class="st">qrator.init() 기동</span><span class="sd">document ready 후 <code>bootstrap</code>이 <code>qrator.init()</code>을 호출합니다. 상태를 <code>init</code>으로 두고 <code>storageDataManager</code>·<code>chTriggerManager</code> 등 매니저를 초기화합니다.</span></li>
+      <li><span class="st">기본 서브앱 표시</span><span class="sd"><code>stateManager</code>가 기본 활성 서브앱 <code>brk</code>를 show 상태로 전환하고 키 이벤트를 등록해 사용자 입력을 받기 시작합니다.</span></li>
+    </ol>
+
+    <h3>2) 채널 트리거 표시 흐름 (Web, Confluence 시나리오 기준)</h3>
+    <ol class="steps">
+      <li><span class="st">채널 이동 성공 감지</span><span class="sd"><code>onChannelChangeSucceeded</code> 콜백으로 채널 이동을 감지하고, 동일 채널 재튜닝이 아닌 경우에만 캠페인 표시 처리를 시작합니다.</span></li>
+      <li><span class="st">기존 트리거 종료 + 캠페인 시작</span><span class="sd">진행 중인 vod/bom/cmp 트리거를 종료한 뒤 현재 채널 캠페인 처리를 시작합니다.</span></li>
+      <li><span class="st">노출 조건 평가</span><span class="sd">하루 보지 않기 설정, 채널 sid 매칭, 노출 스케줄(DISP_TIME/display_time), 시청 시간(watchingTime), 사용자 동의·패키지 코드 등 조건을 확인합니다.</span></li>
+      <li><span class="st">반응 타입(REACT_TYPE) 분기</span><span class="sd">반응 항목이 있으면 캠페인 조건(플랫폼/가입상품/마케팅 동의/관심지수 등) 체크 후 CMP 트리거를, 없으면 BOM 트리거를 표시합니다.</span></li>
+      <li><span class="st">iframe/앱 상태에 따른 최종 표시</span><span class="sd">미디어 재생 시간(<code>getMediaTime()</code>)으로 iframe 노출 여부를 판단하고, 바운드/언바운드 앱 실행 상태와 <code>obs_requestShow</code> 응답에 따라 표시하거나 종료합니다.</span></li>
+    </ol>
+
+    <h3>3) 큐톤 광고 트리거 처리 흐름</h3>
+    <ol class="steps">
+      <li><span class="st">큐톤 메시지 수신</span><span class="sd">방송 Cue-tone 광고 메시지를 수신하면 큐톤 광고 트리거 처리를 시작합니다.</span></li>
+      <li><span class="st">BOM 서버 조회</span><span class="sd"><code>getCuetoneCmpInfo(BW016)</code>로 stbType(WEBAPP=2)·serviceType(OTV/OTS) 등을 담아 캠페인 정보를 요청합니다.</span></li>
+      <li><span class="st">라우터를 통한 직렬화</span><span class="sd">요청-응답 라우터가 메서드 큐로 요청을 직렬화하고, 5000ms 타임아웃 내 응답을 처리합니다.</span></li>
+      <li><span class="st">트리거 표시 및 충돌 처리</span><span class="sd">수신한 캠페인으로 광고 트리거를 노출합니다. 실행 중 채널 트리거 요청이 오면 큐톤 트리거를 제거 후 채널 트리거로 전환합니다.</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>빌드는 <code>gulpfile.js</code>에 등록된 task 이름을 기준으로 합니다. 산출물은 단말 위젯 패키지 <code>.wgt</code>(zip) 형태이며, 빌드 타임에 <code>public/dist/common/js/core/build-env.js</code>로 런타임 환경값(serverTo, endpoints, versions, generatedAt)이 주입됩니다.</p>
+
+    <h3>1. 설치 · 환경 설정</h3>
+    <pre><code>npm i
+cp .env.example .env   # FTP/로컬경로/릴리스 메타 입력 (.env는 커밋 제외)</code></pre>
+    <p><code>.env</code> 주요 항목은 <code>FTP_HOST/USER/PASS/REMOTE_PATH</code>(기본 원격 경로 <code>/home/01_kt-web-bomunbound/</code>), <code>RELEASE_PATH/WORKING_PATH</code>, <code>RELEASE_VER/RELEASE_BRK_VER/RELEASE_TEST_TO</code>입니다. 프로파일 엔드포인트는 <code>config/config-live.json</code>·<code>config-bmt.json</code>·<code>config-develop.json</code> 3개가 필요하며 키는 <code>e7works, sharp_ui, live_agent, cache, image, tvpay_module</code>입니다.</p>
+
+    <h3>2. 프로파일별 dist 빌드</h3>
+    <pre><code>gulp dist:live      # L (운영)
+gulp dist:bmt       # S (BMT)
+gulp dist:develop   # D (개발)</code></pre>
+    <p><code>distPipeline</code>은 <code>setTarget → cleanFiles → uglifyJs → copyCommonFiles → copyResFiles → createBuildEnv → verifyDistBuildEnv</code> 순으로 동작합니다.</p>
+
+    <h3>3. 패키징 (.wgt 생성, 업로드 없음)</h3>
+    <pre><code>gulp package:live
+gulp package:bmt
+gulp package:develop</code></pre>
+    <p><code>packagePipeline</code>은 dist 빌드 후 <code>makeReleaseRule → createWgt → recordArtifact</code>로 <code>.wgt</code>를 만들고 아티팩트를 기록합니다.</p>
+
+    <h3>4. 릴리스 (패키지 + FTP 업로드)</h3>
+    <pre><code>gulp release:live | release:bmt | release:develop   # 개별 업로드
+gulp release:all                                    # L/S/D 일괄 빌드 후 한 번에 업로드
+gulp release:all --ver 3.9.01 --brkV 3.9.02 --date 20250905 --testTo K2  # CLI 인자가 .env보다 우선</code></pre>
+    <p><code>release:all</code>은 <code>resetArtifacts → package:live → package:bmt → package:develop → deployAll</code> 순으로 3개 <code>.wgt</code>를 모아 일괄 업로드합니다. 산출물 파일명 패턴은 <code>KT-BRK-QRATOR-WEB-V&lt;버전&gt;_&lt;YYYYMMDD&gt;_&lt;testTo&gt;_&lt;serverTo&gt;.wgt</code>, FTP 경로는 <code>&lt;FTP_REMOTE_PATH&gt;/&lt;YYYYMMDD&gt;_V&lt;버전&gt;/</code>입니다.</p>
+
+    <h3>5. 로컬 미리보기 · 테스트</h3>
+    <pre><code>gulp server     # browser-sync로 public/dist 서빙 (먼저 gulp dist:* 필요)
+npm run tt      # mocha (public/test/**, timeout 30s)</code></pre>
+    <div class="callout warn">
+      <div class="ct">README와 task 이름 차이</div>
+      기존 <code>README</code>의 <code>gulp default</code>·<code>gulp package_live</code>·<code>gulp release_all</code> 표기는 현재 <code>gulpfile.js</code>의 실제 task 이름(<code>dist:*</code>, <code>package:*</code>, <code>release:*</code>)과 다릅니다. 실행 시에는 위 colon(<code>:</code>) 표기를 사용해야 합니다. 또한 <code>package.json</code>의 기본 <code>test</code> 스크립트는 미설정(exit 1) 상태이며 실제 테스트는 <code>tt</code>로 실행합니다.
+    </div>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>최근 작업은 트리거 처리 안정화에 집중되어 있습니다. KTBOM-291을 중심으로 CMP 채널 트리거의 실행 흐름과 키 처리(VK_ESCAPE/VK_F11)·알림 타입·상태 정리(clear state)를 재구현했고, KTBOM-282로 <code>link_type=3</code>(deprecated unicast) 구현을 제거했습니다. 그 사이 C2001767 계열 이슈로 BOM 서버 오류·타임아웃 시 서비스 에러 팝업 노출 정책과 로딩바 종료, 트리거 이미지 로드 실패 처리 등을 다듬었습니다.</p>
+    <ul class="commits">
+      <li><span class="date">2026-01-23</span><span class="msg">(KTBOM-282) remove impl by link_type=3</span></li>
+      <li><span class="date">2026-01-13</span><span class="msg">do not process RESTART only if Bom App is running with BOM_APP_INFO settings</span></li>
+      <li><span class="date">2026-01-13</span><span class="msg">add log</span></li>
+      <li><span class="date">2026-01-12</span><span class="msg">add logging comment</span></li>
+      <li><span class="date">2026-01-12</span><span class="msg">(KTBOM-291) change the processing flow when Bom App is executed through a cmp channel trigger</span></li>
+      <li><span class="date">2026-01-08</span><span class="msg">(KTBOM-291) remove dead code, no call showFake in cmp channel trigger</span></li>
+      <li><span class="date">2026-01-08</span><span class="msg">(KTBOM-291) if run BomApp, change to clear state in the cmp channel trigger</span></li>
+      <li><span class="date">2026-01-08</span><span class="msg">(KTBOM-291) modify alert type in the cmp channel trigger</span></li>
+      <li><span class="date">2026-01-08</span><span class="msg">change to increase readability</span></li>
+      <li><span class="date">2026-01-08</span><span class="msg">simple replace</span></li>
+      <li><span class="date">2026-01-05</span><span class="msg">(KTBOM-291) change VK_ESCAPE/VK_F11 in cmp channel trigger</span></li>
+      <li><span class="date">2025-12-29</span><span class="msg">(C2001767-7) service error in bom server request error</span></li>
+      <li><span class="date">2025-12-29</span><span class="msg">(KTBOM-291) replace impl. CMP ch trigger</span></li>
+      <li><span class="date">2025-12-15</span><span class="msg">add comment</span></li>
+      <li><span class="date">2025-12-15</span><span class="msg">(C2001767-11) remove show service error popup when it occurs timeout or api_error</span></li>
+      <li><span class="date">2025-12-11</span><span class="msg">remove invalid link type</span></li>
+      <li><span class="date">2025-12-11</span><span class="msg">(C2001767-8) close loading bar when received obs_startAndroidNativeApp/obs_broadcastIntent</span></li>
+      <li><span class="date">2025-12-11</span><span class="msg">(C2001767-7) trigger end if trigger image load error occurs</span></li>
+      <li><span class="date">2025-12-09</span><span class="msg">add comment</span></li>
+      <li><span class="date">2025-11-27</span><span class="msg">(KTBOM-288) When a qrt_updateStore message is delivered, the brk module handles it</span></li>
+    </ul>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li><code>README_CLAUDE.md</code><span class="src">저장소 / 과제 개요·구조·빌드 가이드</span></li>
+      <li><code>README</code><span class="src">저장소 / 빌드·릴리스 가이드(한국어)</span></li>
+      <li><code>public/src/config.xml</code>, <code>public/src/index.html</code><span class="src">저장소 / 위젯 매니페스트·엔트리포인트</span></li>
+      <li><code>public/src/common/js/core-constants.js</code><span class="src">저장소 / AID·APP_TYPE·SUB_APP_NAME·link_type 전역 상수</span></li>
+      <li><code>public/docs/*.puml</code><span class="src">저장소 / PlantUML 트리거·실행 흐름 다이어그램</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3500277774">KT_BOM_UNBOUND (허브 페이지)</a><span class="src">Confluence ORGAPPDEV · 3500277774</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3500277899">[참고] BOM 언바운드 소스 구조 개요</a><span class="src">Confluence ORGAPPDEV · 3500277899</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3671819016">[참고] BOM 언바운드 모듈/연동 맵</a><span class="src">Confluence ORGAPPDEV · 3671819016</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/4012146746">[시나리오] 서비스 동작 시나리오</a><span class="src">Confluence ORGAPPDEV · 4012146746</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

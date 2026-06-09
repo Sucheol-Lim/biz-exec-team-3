@@ -1,0 +1,187 @@
+<!doctype html>
+<!-- skb.cloud.home · VOD 탐색·상세 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VOD 탐색 · 상세 — skb.cloud.home 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Cloud Home</a><span class="sep">›</span>
+      <span class="here">VOD 탐색 · 상세</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">STB 클라우드 UI · JavaScript</span>
+    </div>
+    <h1>VOD 탐색 · 상세</h1>
+    <p class="one-liner">VOD 목록·카테고리·상세(단편/시리즈/패키지) 화면을 제공합니다(<code>scene/vod</code>, <code>scene/vodDetail</code>). 콘텐츠 메타와 연관 추천은 <code>ACMSManager</code>·<code>RCMDManager</code>로 받고 예고편·3분 미리보기를 지원합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb.cloud.home" target="_blank" rel="noopener"><code>skb.cloud.home</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>scene/vodDetail</code> (single/series/package)</div></div>
+      <div class="item"><div class="k">데이터 소스</div><div class="v"><code>ACMSManager</code> / <code>RCMDManager</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>VOD 영역은 목록/탐색(<code>scene/vod</code>)과 상세(<code>scene/vodDetail</code>)로 나뉩니다. 상세는 콘텐츠 유형에 따라 <code>vodDetail/single</code>(단편), <code>vodDetail/series</code>(시리즈), <code>vodDetail/package</code>(패키지) 세 가지 Scene 으로 분기되며, 공통 요소(구매 버튼·연관 탭·스크롤바·팝업)는 <code>vodDetail/common</code>이 담당합니다.</p>
+    <p>상세 메타데이터는 <code>ACMSManager</code>가 SDP 에서 가져옵니다. <code>getContent(contentId)</code>로 콘텐츠 정보를, <code>getProductsOfContent(contentId)</code>로 구매 상품을, 시리즈는 <code>getProgramsSeries(seriesId, season)</code>으로 회차를 조회합니다. 연관 추천(같은 장르·배우·감독)은 <code>RCMDManager.getVodDetailRelatedContents</code>가 SDP <code>/rcmd/so/recommend</code>에서 받아 연관 탭에 채웁니다. 예고편/3분 미리보기는 <code>UMPMediaPlayer.startVodTrailer</code>·<code>startTrailer</code>로 재생합니다(상세 재생 흐름은 VOD 재생 기능 문서 참고).</p>
+    <div class="callout">
+      <div class="ct">상세 유형 분기</div>
+      단편·시리즈·패키지는 화면 레이아웃과 구매 단위가 달라 각각 <code>SingleScene</code>·<code>SeriesScene</code>·<code>PackageScene</code>으로 분리되어 있습니다. 진입 시 콘텐츠 타입에 따라 적절한 Scene 을 push 합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant VOD as scene/vod (목록)
+    participant DET as SingleScene / SeriesScene / PackageScene
+    participant VDM as VodDetailManager
+    participant ACMS as ACMSManager (SDP)
+    participant RCMD as RCMDManager (SDP)
+    participant UMP as UMPMediaPlayer
+
+    VOD-&gt;&gt;DET: 콘텐츠 선택 → 유형별 상세 push
+    DET-&gt;&gt;VDM: 상세 데이터 준비
+    VDM-&gt;&gt;ACMS: getContent(contentId)
+    ACMS--&gt;&gt;VDM: 콘텐츠 메타
+    VDM-&gt;&gt;ACMS: getProductsOfContent(contentId)
+    ACMS--&gt;&gt;VDM: 구매 상품
+    DET-&gt;&gt;RCMD: getVodDetailRelatedContents(...)
+    RCMD--&gt;&gt;DET: 연관 추천 목록
+    opt 예고편/미리보기
+        DET-&gt;&gt;UMP: startVodTrailer() / startTrailer()
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 목록에서 콘텐츠를 고르면 유형별 상세 Scene 이 열리고, <code>ACMSManager</code>로 메타·상품을, <code>RCMDManager</code>로 연관 추천을 채웁니다. 예고편은 <code>UMPMediaPlayer</code> 트레일러 재생을 호출합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class SingleScene {
+        +onCreate(ctx)
+    }
+    class SeriesScene {
+        +onCreate(ctx)
+    }
+    class PackageScene {
+        +onCreate(ctx)
+    }
+    class VodDetailManager {
+        +prepare(contentId)
+    }
+    class ACMSManager {
+        +getContent(contentId, callback)
+        +getProductsOfContent(contentId, callback)
+        +getProgramsSeries(seriesId, season, callback)
+    }
+    class RCMDManager {
+        +getVodDetailRelatedContents(dp, titleid, ...)
+    }
+    class UMPMediaPlayer {
+        +startVodTrailer(callback)
+        +startTrailer(callback)
+    }
+
+    SingleScene ..&gt; VodDetailManager
+    SeriesScene ..&gt; VodDetailManager
+    PackageScene ..&gt; VodDetailManager
+    VodDetailManager ..&gt; ACMSManager : 메타/상품 조회
+    SingleScene ..&gt; RCMDManager : 연관 추천
+    SeriesScene ..&gt; RCMDManager : 연관 추천
+    SingleScene ..&gt; UMPMediaPlayer : 예고편
+      </div>
+      <p class="cap"><strong>관계.</strong> 유형별 상세 Scene 이 <code>VodDetailManager</code>를 통해 <code>ACMSManager</code> 메타/상품을 받고, 연관 추천은 <code>RCMDManager</code>, 예고편은 <code>UMPMediaPlayer</code>로 처리합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>common/interface/RCMDManager.js</code> — VOD 상세 연관 추천 조회</div>
+<pre><code>function getVodDetailRelatedContents(dp, titleid, adultyn, rating,
+        max_items, genre, actor, director, callback, ...) {
+    var requestData = {
+        dp: dp, cust: W.User.USER_ID, pc: '',
+        titleid: titleid, adultyn: adultyn, rating: rating,
+        max_items: max_items, frmt: 'json'
+    };
+    if (genre)    requestData['genre']    = genre;
+    if (actor)    requestData['actor']    = actor;
+    if (director) requestData['director'] = director;
+
+    return d.ajax.call2(W, "get", true,
+        W._Util.getSDPUrl('/rcmd/so/recommend'), 'json',
+        requestData, callback, cbParameter, catchCallback);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>common/interface/ACMSManager.js</code> — 콘텐츠 메타/상품 조회</div>
+<pre><code>function getContent(contentId, callback, ...) { /* 콘텐츠 메타 조회 */ }
+function getProductsOfContent(contentId, callback, ...) { /* 구매 상품 목록 */ }
+function getProgramsSeries(seriesId, season, callback, ...) { /* 시리즈 회차 */ }</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/vodDetail/VodDetailManager.js" target="_blank" rel="noopener">scene/vodDetail/VodDetailManager.js</a><span class="src">VOD 상세 데이터 준비·유형 분기 관리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/vodDetail/single/SingleScene.js" target="_blank" rel="noopener">scene/vodDetail/single/SingleScene.js</a><span class="src">단편 VOD 상세 화면</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/vodDetail/series/SeriesScene.js" target="_blank" rel="noopener">scene/vodDetail/series/SeriesScene.js</a><span class="src">시리즈 VOD 상세 화면(회차/시즌)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/vodDetail/package/PackageScene.js" target="_blank" rel="noopener">scene/vodDetail/package/PackageScene.js</a><span class="src">패키지 VOD 상세 화면</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/common/interface/ACMSManager.js" target="_blank" rel="noopener">common/interface/ACMSManager.js</a><span class="src">콘텐츠 메타·상품·시리즈 조회(getContent / getProductsOfContent / getProgramsSeries)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/common/interface/RCMDManager.js" target="_blank" rel="noopener">common/interface/RCMDManager.js</a><span class="src">연관 추천 콘텐츠 조회(/rcmd/so/recommend)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f03.html">이전: 실시간 TV 시청</a>
+      <a href="f05.html">VOD 구매 · 결제 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb.cloud.home 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

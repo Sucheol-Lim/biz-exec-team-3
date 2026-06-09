@@ -1,0 +1,459 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Türk Telekom Tivibu STB 시스템 앱(EPG SYSAPP) — 과제 설명</title>
+<style>
+:root{
+  --accent:#1f6feb;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">WebX STB (OIPF/HbbTV 브라우저 미들웨어)</span>
+      <span class="badge gray">JavaScript (ES6 / AMD)</span>
+    </div>
+    <h1>Türk Telekom Tivibu STB 시스템 앱 (EPG SYSAPP)</h1>
+    <p class="one-liner">터키 Türk Telekom의 IPTV 서비스 Tivibu 셋톱박스를 위한 WebX 기반 시스템 애플리케이션입니다. Live TV·EPG·미니가이드·VOD/시리즈·녹화·예약·결제(PPV)·부모 잠금·프로필·설정 등 STB의 핵심 화면과 기능을 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp" target="_blank" rel="noopener"><code>turk-webx-tivibu-sysapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-05-20 · d5641a2c update a version to 1.1.75</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>tt-sysapp</code> / 1.1.75</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>본 프로젝트는 터키 통신사 Türk Telekom의 IPTV 서비스인 <strong>Tivibu</strong>를 위한 셋톱박스(STB) 시스템 애플리케이션입니다. STB의 기본 사용자 환경을 구성하는 EPG(전자 프로그램 가이드)와 Live TV 시청, 미니가이드, 채널 리스트, 검색, VOD/시리즈 상세, 녹화(Recording), 예약·리마인더, 부모 잠금(Parental Lock), 결제(PPV/구매), 프로필, 설정 등 STB의 핵심 화면과 기능을 하나의 웹 애플리케이션으로 제공합니다. 사내에서는 이 과제를 <strong>SYSAPP</strong>으로 부릅니다.</p>
+    <p>대상 단말은 <strong>WebX 플랫폼</strong> 기반 STB입니다. WebX는 OIPF/HbbTV 계열의 브라우저 기반 STB 미들웨어로, 앱은 이 미들웨어가 제공하는 브라우저(WebKit 계열) 위에서 동작합니다. 라이브 방송 영상은 OIPF의 <code>oipfObjectFactory.createVideoBroadcastObject()</code>로 생성한 Video Broadcast Object(VBO)를 통해 출력하며, VOD 등 OTT 재생에는 HTML5 <code>&lt;video&gt;</code> 요소를 병행합니다. 기준 레이아웃 해상도는 1280×720(720p)이며, <code>AppConfig.PC_BROWSER</code> 플래그로 PC 브라우저에서의 개발·디버깅 모드도 지원합니다.</p>
+    <p>실제 운영 환경에서 STB은 ZTE의 클라우드 EPG 서버에 올라간 클라이언트를 부팅 시 내려받아 실행합니다. STB이 켜지면 미들웨어가 localApp을 구동해 환경을 점검하고, ZTE의 EAS 서버(개통/로그인 페이지)가 단말의 개통 여부를 판단한 뒤 EPG 서버로 리다이렉트합니다. 배포되는 앱과 API는 <code>frameXXXX</code> 형태의 framecode(ZTE 클라우드 저장소 ID)로 구분됩니다. 본 SYSAPP은 그 EPG 서버에 송출되는 클라이언트 측 애플리케이션입니다.</p>
+    <p>UI는 TAL(TV Application Layer, <code>antie</code> 네임스페이스) 프레임워크를 기반으로 작성되어 있으며, 다국어 리소스로 터키어(<code>tr.json</code>)와 영어(<code>en.json</code>)를 포함합니다. 빌드 산출물은 일반(default) 버전과, 애니메이션을 비활성화한 구형 단말용 legacy 버전으로 분리되어 제공됩니다.</p>
+    <div class="callout">
+      <div class="ct">단말 브랜드</div>
+      Confluence 문서에 따르면 STB 브랜드는 Humax, Airties, Vestel 세 가지가 있으며, 개발·검증에는 보통 Humax 이미지를 사용합니다. 릴리스 패키지의 framecode(예: Humax용 <code>frame3709</code>/<code>frame4091</code>, Legacy용 <code>frame3729</code>/<code>frame4002</code>)는 ZTE SMS(송출 시스템)에 지정되어 있어 별도 요구가 없는 한 변경하지 않습니다.
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">Live TV 시청</div><div class="d">OIPF Video Broadcast Object로 방송 채널을 출력합니다. 채널 전환, 신호 약함(SignalWeak), 미가입 채널(Unsubscribed) 처리 등을 <code>LiveTVController</code>가 담당합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">EPG / TV 가이드</div><div class="d">전체 채널·시간대 편성표를 제공하는 가이드 화면입니다. <code>GuideController</code>와 <code>ui2022/guide</code>가 편성 데이터를 렌더링하고 프로그램 상세로 연결합니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">미니가이드 / 인포 배너</div><div class="d">시청 중 채널·프로그램 정보를 띄우는 미니가이드와 인포 배너입니다. <code>MiniGuideController</code>가 타임아웃 기반으로 표시·자동 숨김을 제어합니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">채널 리스트 · 필터</div><div class="d">채널 목록과 즐겨찾기, 장르·구독 기준의 채널 리스트 필터링을 제공합니다. 최근 스프린트에서 필터링 규칙과 디자인이 개선되었습니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">검색 / 검색 상세</div><div class="d">콘텐츠명·채널 검색과 결과 상세 화면입니다. <code>SearchController</code>·<code>SearchDetailController</code>와 화상 키보드(OSK)가 연동됩니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">VOD / 시리즈 상세 · 재생</div><div class="d">VOD·시리즈(시즌/에피소드) 상세와 재생을 제공합니다. <code>VodPlayController</code>·<code>TVDetailController</code>와 <code>SeriesUtil</code> 등 시리즈 모델이 사용됩니다.</div></a>
+      <a class="card" href="f07.html"><div class="t">녹화(Recording)</div><div class="d">프로그램 녹화 예약·관리 기능입니다. <code>RecordingController</code>가 녹화 목록과 에피소드 단위 녹화를 처리합니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">예약 · 리마인더</div><div class="d">방송 시청 예약과 리마인더 팝업을 제공합니다. <code>ReminderController</code>·<code>ReminderPopupController</code>가 시각 도래 시 알림을 띄웁니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">결제 / PPV / 구매</div><div class="d">유료 콘텐츠 구매(PPV)와 결제 흐름입니다. <code>PPVController</code>·<code>PurchaseManager</code>와 캠페인·쿠폰 팝업 컨트롤러가 함께 동작합니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">부모 잠금 / 핀 관리</div><div class="d">연령 등급에 따른 콘텐츠 잠금, 채널 잠금, PIN 입력·생성을 제공합니다. <code>LockManager</code>·<code>PinController</code>·<code>ParentalLockChController</code>가 처리합니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">프로필 / 사용자 설정</div><div class="d">사용자 프로필 선택과 환경설정을 제공합니다. <code>ProfileController</code>·<code>ProfileManager</code>·<code>UserConfigManager</code>가 프로필별 설정을 관리합니다.</div></a>
+      <a class="card" href="f12.html"><div class="t">설정 · 시스템 관리</div><div class="d">언어·화면·시스템 설정과 함께 OTA 펌웨어 업데이트(<code>OTAController</code>), 전원 상태 관리(<code>PowerController</code>), 시계(<code>ClockController</code>) 등을 포함합니다.</div></a>
+      <a class="card" href="f13.html"><div class="t">PIP / 모자이크 / 5채널</div><div class="d">PIP(화면 속 화면), 모자이크 채널(<code>MosaicChannelController</code>), 5채널 뷰(<code>FiveChannelController</code>) 등 다중 영상 화면을 지원합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">광고 / 캠페인 / 알림</div><div class="d">Google IMA/GPT 기반 광고 삽입(<code>AdController</code>·<code>AdBannerController</code>), 캠페인·쿠폰 팝업, 알림 프레임(<code>NotificationController</code>)을 제공합니다.</div></a>
+      <a class="card" href="f15.html"><div class="t">CAS · 핑거프린트 · 보안</div><div class="d">조건부 접근(<code>CAManager</code>·<code>CasController</code>), 핑거프린트 표시(<code>FingerprintController</code>), HDCP 처리(<code>HDCPController</code>) 등 보안·DRM 연동을 담당합니다.</div></a>
+      <a class="card" href="f16.html"><div class="t">하트비트 · 로그 업로드</div><div class="d">서버 연결 상태 점검(<code>HeartbeatController</code>·<code>ServerManager</code>), 로그 업로드(<code>LogUploadController</code>), 모바일 접속(<code>MobileAccessController</code>) 등 운영 기능을 제공합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>앱은 RequireJS(AMD) 모듈로 구성되며, 엔트리 HTML(<code>index.html</code>)이 라이브러리·설정·번들을 로드한 뒤 <code>app/SysApp</code>을 require해 <code>new SysApp(...)</code>으로 애플리케이션을 시작합니다. 코드는 크게 세 계층으로 나뉩니다. (1) <code>tal/</code>의 TAL(antie) 프레임워크, (2) <code>static/core/</code>의 플랫폼·시스템 추상화 레이어, (3) <code>static/app/</code>의 Tivibu 비즈니스 로직·화면 레이어입니다.</p>
+    <pre class="tree">turk-webx-tivibu-sysapp/
+├─ index.html              # 엔트리 HTML. require 설정, lib/configs/bundle 로드, 부팅 화면, video/app/iframe DOM
+├─ deviceconfig.js         # 단말 디바이스 설정(PC/STB 분기). 입력 키맵, 스트리밍 코덱, 720p 레이아웃
+├─ require.config.js       # RequireJS path 별칭(antie/app/core/comp/layouts/test)
+├─ Gruntfile.js            # Grunt 빌드 태스크 정의(default/legacy/build/release/release_all/test)
+├─ package.json            # 패키지명 tt-sysapp, devDependencies(Grunt 툴체인)
+├─ tal/                    # TAL(antie) 프레임워크 (vendored, BBC 오픈소스)
+│  ├─ config/devices/      # default-webkit-default.json (디바이스 설정 템플릿)
+│  └─ static/script/       # antie 코어: application.js, class.js, widgets, devices(anim/mediaplayer/storage 등), lib(require.js, moment)
+└─ static/
+   ├─ app/                 # 애플리케이션 레이어 (Tivibu 비즈니스 로직/화면)
+   │  ├─ NavSIMain.js       # 앱 부트 오케스트레이터. 컨트롤러/매니저 초기화 진입점
+   │  ├─ SysApp.js          # antie.Application 확장. 루트 컨테이너 설정, 키 이벤트 위임
+   │  ├─ AppConfig.js       # 앱 전역 설정(VERSION 1.1.75, 타임아웃, 애니메이션, 페이지 크기 등)
+   │  ├─ Priority.js / Additional.js / ErrorCode.js / FocusManager.js / Frame.js / RootWindow.js
+   │  ├─ controller/        # 화면/기능 컨트롤러 약 63종 (Guide, LiveTV, MiniGuide, Search, Recording, PPV, Profile, OTA 등)
+   │  ├─ osd/               # 각 컨트롤러에 대응하는 OSD(화면 렌더링) 모듈 + OSDConstant/OSDLibrary
+   │  ├─ ui/                # 1차 UI 위젯/뷰 (home, search, tvdetail, playbar, setting, profile 등)
+   │  ├─ ui2022/            # 2022 리뉴얼 UI (guide, home, menu, searchdetail, tvdetail 등)
+   │  ├─ data/              # 데이터 매니저/모델 (ChannelDataManager, HomeDataManager, ProfileManager, QueryManager, MesManager 등)
+   │  ├─ http/              # ServerManager (API 요청 큐/에러 처리)
+   │  ├─ player/ ads/ message/ monitor/ events/ osk/ up/ util/
+   ├─ core/                # 플랫폼/시스템 추상화 레이어
+   │  ├─ sys/               # SystemInterface(OIPF VBO/CAS), SysConfig, ExtensionInterface
+   │  ├─ channel/           # Channel/ChannelList/ChannelRing/ChannelDB 등 채널 모델·제어
+   │  ├─ controller/        # OSDController, KeyEventManager, HotKeyController, UIKeyController
+   │  ├─ network/ http/ message/ osd/ pip/ util/
+   ├─ layouts/             # 720p.js / 540p.js / 1080p.js 레이아웃 정의
+   ├─ style/               # LESS 스타일 소스 (720p.less → 720p.css 컴파일)
+   ├─ res/                 # 리소스(icon, img, video, msg[en/tr])
+   ├─ lib/                 # moment.min.js, polyfill.js
+   ├─ test/ testData/      # 테스트 진입(주석 처리) / 목 데이터(USE_TEST_DATA)</pre>
+
+    <h3>주요 모듈 · 클래스</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>모듈 / 클래스</th><th>위치</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td><code>SysApp</code></td><td>static/app/SysApp.js</td><td><code>antie.Application</code> 확장. 루트 컨테이너 구성, 프레임워크 준비 후 <code>run()</code>에서 NavSIMain 로드, 키 이벤트를 KeyEventManager로 위임합니다.</td></tr>
+          <tr><td><code>NavSIMain</code></td><td>static/app/NavSIMain.js</td><td>앱 초기화 오케스트레이터. 50종 이상의 컨트롤러·매니저(부팅, 홈, 가이드, 채널, PIP, 전원, 잠금, CA, 녹화, OTA, 구매, 프로필, 알림, 하트비트 등)를 구성합니다.</td></tr>
+          <tr><td><code>AppConfig</code></td><td>static/app/AppConfig.js</td><td>버전(1.1.75), PC_BROWSER 플래그, 각종 타임아웃·애니메이션·페이지 크기·부트 비디오 버전 등 런타임 정책 상수입니다.</td></tr>
+          <tr><td><code>SystemInterface</code></td><td>static/core/sys/SystemInterface.js</td><td>OIPF 객체 팩토리로 메인/서브 Video Broadcast Object, Configuration, CA System 객체를 생성·관리하는 STB 하드웨어·미들웨어 접점입니다.</td></tr>
+          <tr><td><code>SysConfig</code></td><td>static/core/sys/SysConfig.js</td><td>컴포넌트 타입(video/audio/subtitle)과 전원 상태(ON/STANDBY/HIBERNATE 등) 상수 정의입니다.</td></tr>
+          <tr><td>채널 도메인</td><td>static/core/channel/</td><td><code>Channel</code>·<code>ChannelList</code>·<code>ChannelRing</code>(순환)·<code>ChannelDB</code>/<code>ChannelListDB</code>(저장)·<code>ChannelType</code> 등 채널 모델과 제어입니다.</td></tr>
+          <tr><td>키 입력</td><td>static/core/controller/</td><td><code>KeyEventManager</code>·<code>HotKeyController</code>·<code>UIKeyController</code>. 리모컨 키맵은 <code>deviceconfig.js</code>의 <code>input.map</code>(PC/STB 분리)에 정의됩니다.</td></tr>
+          <tr><td>controller ↔ osd 페어</td><td>static/app/controller · static/app/osd</td><td>각 기능을 로직(컨트롤러)과 렌더링(OSD)으로 분리한 페어 구조. Guide, LiveTV, MiniGuide, ChannelList, TVDetail, Search, Playbar, Reminder, Recording, PPV, Profile, Setting 등이 해당합니다.</td></tr>
+          <tr><td>데이터 레이어</td><td>static/app/data/</td><td><code>ChannelDataManager</code>·<code>HomeDataManager</code>·<code>ProgramCacheManager</code>·<code>ProfileManager</code>·<code>QueryManager</code>/<code>QueryConstants</code>(API 쿼리)·<code>MesManager</code>(WebSocket 메시지/이벤트) 등 서버 데이터 캐싱·모델링입니다.</td></tr>
+          <tr><td><code>ServerManager</code></td><td>static/app/http/ServerManager.js</td><td>API 요청 큐 관리, 하트비트 연결 상태 확인, 특정 에러코드 무시 처리를 담당합니다.</td></tr>
+          <tr><td>TAL(antie)</td><td>tal/static/script/</td><td>BBC의 빅스크린 TV 앱 프레임워크. Application·Widget·Device 추상화(애니메이션, 미디어플레이어, 스토리지, 부모 안내 등)를 제공합니다.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>계층 관계는 다음과 같습니다. <code>app</code> 레이어의 컨트롤러는 화면 흐름과 비즈니스 로직을 담당하고, 방송 출력·채널 제어·키 입력 등 하드웨어에 가까운 동작은 <code>core</code> 레이어를 통해 추상화합니다. <code>core</code>는 다시 OIPF/HbbTV 미들웨어 API(<code>oipfObjectFactory</code> 등)와 TAL의 device 추상화를 사용합니다. 외부 연동으로는 ZTE의 EPG 서버(콘텐츠·편성 API, framecode 단위), EAS 서버(개통·로그인), MES(WebSocket 메시지 채널), 그리고 Google IMA SDK/GPT(광고)가 있습니다. <code>require.config.js</code>·<code>index.html</code>에 <code>comp: static/comp</code> 별칭이 정의되어 있으나 해당 디렉토리는 현재 존재하지 않으며, UI 컴포넌트는 <code>static/app/ui/comp</code>·<code>static/app/ui2022/comp</code>에 위치합니다.</p>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>언어</td><td>JavaScript (ES6, AMD 모듈)</td><td>esversion:6</td><td><code>jshint</code> 옵션 기준. 빌드 시 uglify로 난독화 가능합니다.</td></tr>
+          <tr><td>UI 프레임워크</td><td>TAL (TV Application Layer, antie)</td><td>vendored</td><td>BBC 오픈소스 빅스크린 TV 앱 프레임워크. <code>tal/</code>에 포함됩니다.</td></tr>
+          <tr><td>모듈 시스템</td><td>RequireJS (AMD)</td><td>2.x (런타임 require.js 2.0.0, 빌드 requirejs ^2.3.6)</td><td>번들 엔트리는 <code>app/NavSIMain</code>입니다.</td></tr>
+          <tr><td>빌드 시스템</td><td>Grunt</td><td>grunt ^1.3.0 / grunt-cli ^1.3.2</td><td>빌드 정의는 <code>Gruntfile.js</code>입니다.</td></tr>
+          <tr><td>스타일</td><td>LESS</td><td>grunt-contrib-less ^2.0.0</td><td>autoprefix·clean-css 플러그인 적용. <code>720p.less → 720p.css</code>로 컴파일됩니다.</td></tr>
+          <tr><td>STB 런타임</td><td>OIPF / HbbTV 계열 API</td><td>WebX 미들웨어</td><td><code>oipfObjectFactory</code>, Video Broadcast Object, Configuration/CA System 객체 사용입니다.</td></tr>
+          <tr><td>날짜·시간</td><td>moment.js</td><td>moment.min.js</td><td><code>static/lib/</code>에 포함됩니다.</td></tr>
+          <tr><td>호환성</td><td>polyfill.js</td><td>-</td><td>구형 브라우저 폴리필. <code>static/lib/</code>에 포함됩니다.</td></tr>
+          <tr><td>광고</td><td>Google IMA SDK / GPT</td><td>ima3 / gpt.js</td><td><code>index.html</code>에서 외부 로드(<code>imasdk.googleapis.com</code>, <code>securepubads.g.doubleclick.net</code>)됩니다.</td></tr>
+          <tr><td>빌드 보조</td><td>requirejs/uglify/concat/copy/clean/processhtml/zip/browser-sync/watch</td><td>각 grunt-contrib 플러그인</td><td>번들·난독화·빌드 변수 치환·릴리스 패키징·개발 서버용입니다.</td></tr>
+          <tr><td>다국어</td><td>JSON 리소스(터키어/영어)</td><td>tr.json / en.json</td><td><code>static/res/msg/</code>에 위치합니다.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="callout"><strong>참고.</strong> <code>package.json</code>의 <code>test</code> 스크립트는 플레이스홀더(<code>echo "Error: no test specified"</code>)로, 자동화된 단위 테스트는 구성되어 있지 않습니다.</p>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+
+    <h3>STB 부팅 시퀀스 (Confluence 기준)</h3>
+    <ol class="steps">
+      <li><span class="st">미들웨어(MW) → localApp 구동</span><span class="sd">STB이 켜지면 미들웨어가 먼저 localApp을 구동합니다. localApp은 클라이언트 시작 전 STB 환경(네트워크 연결, DNS, NTP, EAS connectivity)을 점검하고, 문제가 있으면 에러를 노출한 뒤 120초 후 failsafe 모드로 전환합니다.</span></li>
+      <li><span class="st">EAS 로그인 페이지 → 개통 판단</span><span class="sd">localApp이 EAS(ZTE) 서버의 Login 페이지에 단말 값(stbmac, stbip, stbid, stbmodel, terminaltype, language, vendor, systemversion, startupurl)을 전달합니다. 개통된 단말이면 EPG 서버로 리다이렉트하고, 미개통이면 Provisionid 입력 화면을 노출합니다.</span></li>
+      <li><span class="st">EPG 서버 → SYSAPP 로드</span><span class="sd">Login 페이지가 STB의 UP 영역에 loginstatus·sessionid·interfaceurl·epgdomain·usertoken·framecode 등을 기록하고, framecode(예: frame2799/4091)로 식별되는 EPG 서버 저장소에서 본 SYSAPP 클라이언트를 로드합니다.</span></li>
+      <li><span class="st">SysApp 초기화 → 부팅 화면</span><span class="sd"><code>index.html</code>이 lib/configs/bundle을 로드하고 <code>new SysApp(...)</code>을 생성합니다. Türk Telekom 로고와 진행바가 있는 부팅 화면(<code>static-loading-screen</code>)이 표시됩니다.</span></li>
+      <li><span class="st">NavSIMain → 컨트롤러·매니저 구성</span><span class="sd"><code>SysApp.run()</code>이 <code>app/NavSIMain</code>을 로드해 <code>initialize()</code>를 호출하고, 부팅·홈·가이드·채널·전원·잠금·CA·녹화·구매·하트비트 등 50종 이상의 컨트롤러를 초기화합니다.</span></li>
+      <li><span class="st">Live TV 진입</span><span class="sd">초기화가 끝나면 채널 데이터·편성 정보를 받아 <code>SystemInterface</code>의 Video Broadcast Object로 첫 채널 방송을 출력하고, 사용자 입력 대기 상태로 전환합니다.</span></li>
+    </ol>
+
+    <h3>Live TV 시청 · 채널 전환 흐름</h3>
+    <ol class="steps">
+      <li><span class="st">리모컨 키 입력</span><span class="sd">리모컨 키가 <code>core/controller/KeyEventManager</code>로 전달되고, <code>deviceconfig.js</code>의 키맵에 따라 채널 업/다운·숫자 입력 등으로 해석됩니다.</span></li>
+      <li><span class="st">채널 결정 · 권한 점검</span><span class="sd"><code>ChannelRing</code>·<code>ChannelList</code>가 다음 채널을 결정하고, 부모 잠금(<code>LockManager</code>)·구독(Unsubscribed)·CA(<code>CAManager</code>) 조건을 점검합니다. 잠긴 채널이면 PIN 입력을 요구합니다.</span></li>
+      <li><span class="st">방송 튜닝</span><span class="sd"><code>SystemInterface</code>가 Video Broadcast Object로 해당 채널을 튜닝합니다. 신호가 약하면 <code>SignalWeakController</code>가, 미가입이면 <code>UnsubscribedChController</code>가 안내 화면을 표시합니다.</span></li>
+      <li><span class="st">미니가이드 표시</span><span class="sd"><code>MiniGuideController</code>가 현재·다음 프로그램 정보를 인포 배너로 띄우고, 설정된 타임아웃이 지나면 자동으로 숨깁니다.</span></li>
+    </ol>
+
+    <h3>릴리스 패키징 흐름 (Confluence 기준)</h3>
+    <ol class="steps">
+      <li><span class="st">release_all 빌드</span><span class="sd"><code>grunt release_all</code>을 실행하면 default·legacy 두 종류를 각각 debug/release 로그 레벨로 빌드해 <code>release/</code> 폴더에 4개 zip을 생성합니다.</span></li>
+      <li><span class="st">framecode별 패키지 산출</span><span class="sd">산출물은 framecode로 구분됩니다. Humax Release <code>frame3709.zip</code>, Humax Debug <code>frame4091.zip</code>, Legacy Release <code>frame3729.zip</code>, Legacy Debug <code>frame4002.zip</code>입니다.</span></li>
+      <li><span class="st">FTP 업로드 · 릴리스 메일</span><span class="sd">Türk Telekom이 지정한 SFTP에 버전 폴더를 만들어 업로드하고, 릴리스 노트와 함께 해당 버전에서 수정한 Jira(<code>VLTRANLAND</code>) 내용을 포함한 릴리스 메일을 발송합니다.</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>빌드는 Node.js 환경에서 Grunt로 수행합니다. 의존성 설치 후 목적에 맞는 Grunt 태스크를 실행합니다.</p>
+    <pre><code># 1) 의존성 설치
+npm install
+
+# 2) 기본 빌드 (dist/ 생성: 번들 + 720p CSS + index.html)
+npx grunt              # 또는 grunt-cli 전역 설치 시: grunt
+
+# 3) 로컬 개발 서버 (browser-sync + watch, dist 서빙)
+npx grunt test
+
+# 4) 난독화 포함 빌드
+npx grunt build
+
+# 5) 릴리스 패키징 (난독화 + portal.jsp 생성 + zip, default/legacy 전체)
+npx grunt release_all</code></pre>
+    <p><code>Gruntfile.js</code>에 정의된 주요 태스크는 다음과 같습니다.</p>
+    <ul>
+      <li><code>default</code> — <code>prebuild</code>(clean/copy/concat/less:default) → <code>requirejs:build</code>(번들, 비난독화) → <code>processhtml:default</code>. 산출물은 <code>dist/index.html</code>, <code>dist/js/bundle.js</code>입니다.</li>
+      <li><code>legacy</code> — 구형 단말용 빌드. <code>less:legacy</code>(<code>720p_legacy.less</code>)를 사용하고, <code>index.html</code> 빌드 시 애니메이션 비활성화 디바이스 모디파이어(<code>antie/devices/anim/noanim</code>)를 주입합니다.</li>
+      <li><code>build</code> / <code>build_legacy</code> — uglify로 난독화한 빌드입니다.</li>
+      <li><code>release</code> / <code>release_legacy</code> / <code>release_all</code> — debug/release 두 로그 레벨로 빌드 후 <code>release/frameXXXX.zip</code>으로 패키징하고 <code>portal.jsp</code>를 생성합니다.</li>
+      <li><code>test</code> — <code>default</code> 빌드 후 <code>browserSync</code> + <code>watch</code>로 개발 서버를 구동합니다.</li>
+    </ul>
+    <p>빌드 시 RequireJS 번들 엔트리는 <code>app/NavSIMain</code>이며, <code>app/SysApp</code>과 다수의 <code>antie/devices/*</code> 모듈(미디어플레이어 html5, 스토리지 cookie, css3transform 애니메이션, parentalguidance 등)이 함께 포함됩니다. <code>processhtml</code> 단계에서 <code>log_level</code>(debug/error)과 <code>is_legacy</code>(true/false) 변수가 <code>index.html</code> 빌드 토큰에 주입됩니다.</p>
+    <h3>환경 설정 · 디버깅</h3>
+    <ul>
+      <li>PC 브라우저에서 디버깅하려면 <code>static/app/AppConfig.js</code>의 <code>AppConfig.PC_BROWSER</code>를 <code>true</code>로 설정합니다. 기본값은 <code>false</code>(STB 모드)입니다.</li>
+      <li>단말 설정·키맵·코덱·레이아웃은 <code>deviceconfig.js</code>에서 PC/STB로 분기해 정의합니다. 기준 레이아웃은 720p입니다.</li>
+      <li>실제 STB 개발 시에는 PC에 웹 서버를 띄우고, STB의 inspector 콘솔(포트 19222)에서 <code>window.location</code> 또는 <code>startupurl</code>(UP 영역) 설정으로 PC의 개발 클라이언트를 로드합니다(Confluence 기준).</li>
+    </ul>
+    <p>산출물 형태는 일반 빌드의 경우 <code>dist/</code>(index.html + js/bundle.js + 720p CSS), 릴리스의 경우 framecode 단위 zip(<code>release/frame3709.zip</code> 등)과 <code>portal.jsp</code>입니다.</p>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>최근 작업은 1.1.7x 대 유지보수·개선이 중심입니다. 채널 리스트 필터링 규칙·디자인 개선(스프린트 <code>LS0526/channellistfilter</code>), legacy 단말의 라이브 비디오·인포 배너·채널 로고 표시 문제 수정(<code>LS0526/legacylivevideo</code>), VOD 리모컨 사용성·에피소드 북마크·텍스트 복수형 처리 등 다수의 <code>VLTRANLAND</code> Jira 이슈가 반영되었고, 생성 CSS/.DS_Store untrack 등 빌드 정리와 버전 1.1.75 갱신으로 마무리되었습니다.</p>
+    <ul class="commits">
+      <li><span class="date">2026-05-20</span><span class="msg">update a version to 1.1.75 (d5641a2c)</span></li>
+      <li><span class="date">2026-05-20</span><span class="msg">build: untrack generated CSS and .DS_Store (e5c9f0c6)</span></li>
+      <li><span class="date">2026-05-20</span><span class="msg">Merge branch 'sprint/LS0526/channellistfilter' (a043bf59)</span></li>
+      <li><span class="date">2026-05-20</span><span class="msg">[VLTRANLAND-1845] Legacy : Live is starting stream behind the detail pages (3493535c)</span></li>
+      <li><span class="date">2026-05-20</span><span class="msg">[VLTRANLAND-1847] Legacy : Info banner moving problem (9f622513)</span></li>
+      <li><span class="date">2026-05-20</span><span class="msg">[VLTRANLAND-1844] Wrong Text in Watch process (e085d3a7)</span></li>
+      <li><span class="date">2026-05-20</span><span class="msg">[VLTRANLAND-1797] Channel List Filtering Rule and Design Improvement (27ba00a6)</span></li>
+      <li><span class="date">2026-05-14</span><span class="msg">Merge branch 'sprint/LS0426/dev_release' and update a version to 1.1.74 (11a7c6cf)</span></li>
+      <li><span class="date">2026-05-14</span><span class="msg">Merge branch 'sprint/LS0526/textpluralform' into sprint/LS0426/dev_release (de42a810)</span></li>
+      <li><span class="date">2026-05-14</span><span class="msg">Merge branch 'sprint/LS0526/legacylivevideo' into sprint/LS0426/dev_release (22f49602)</span></li>
+      <li><span class="date">2026-05-11</span><span class="msg">fix minor (233cc4c5)</span></li>
+      <li><span class="date">2026-05-11</span><span class="msg">[VLTRANLAND-1818][VLTRANLAND-1819] Legacy: channel logo stretched in Guide, live video streaming with logo in TV Guide (62f7f66a)</span></li>
+      <li><span class="date">2026-05-07</span><span class="msg">[VLTRANLAND-1310] Recorded (kaydedildi) text should be Episodes (1b386589)</span></li>
+      <li><span class="date">2026-04-22</span><span class="msg">update a version to 1.1.73.5_LS0426_DEV_RELEASE_3 (32cfc1e3)</span></li>
+      <li><span class="date">2026-04-22</span><span class="msg">[VLTRANLAND-1779] resetScroll logic modify &amp; clear timer (2b902f9f)</span></li>
+      <li><span class="date">2026-04-22</span><span class="msg">[VLTRANLAND-1760] modify thumbnail longpress jumptime (f10533b0)</span></li>
+      <li><span class="date">2026-04-30</span><span class="msg">[VLTRANLAND-1789] fix percentData reference in IconTextProgressButton (d6e8f25e)</span></li>
+      <li><span class="date">2026-04-20</span><span class="msg">[VLTRANLAND-1730] modify continue button action (f84ba3d2)</span></li>
+      <li><span class="date">2026-04-23</span><span class="msg">[VLTRANLAND-1738] VOD remote control usage (VOD kumanda kullanımı) (f8bb6582)</span></li>
+      <li><span class="date">2026-04-22</span><span class="msg">update a version to 1.1.73.6 (b3ec4031)</span></li>
+    </ul>
+    <p class="callout">이슈 트래커는 Jira 프로젝트 키 <code>VLTRANLAND</code>를 사용합니다. 스프린트 브랜치는 <code>sprint/LS0526/&lt;feature&gt;</code> 형태로, 단일 기능 브랜치는 <code>LSxxxx_&lt;feature&gt;</code> 형태로 운용됩니다.</p>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li><code>README.md</code> — 과제 개요·기술 스택·프로젝트 구조·빌드 방법 (저장소 루트)<span class="src">저장소 / README</span></li>
+      <li><code>index.html</code> · <code>Gruntfile.js</code> · <code>deviceconfig.js</code> · <code>static/app/AppConfig.js</code> — 엔트리·빌드·디바이스·런타임 설정 검증 근거<span class="src">저장소 / 소스</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3451388730">STB Booting Process</a> — MW/localApp/EAS/EPG 부팅 시퀀스, framecode 개념<span class="src">Confluence (ORGAPPDEV) · pageId 3451388730</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3451388798">How to release SYSAPP</a> — Grunt release_all, framecode별 zip, FTP 업로드·릴리스 메일<span class="src">Confluence (ORGAPPDEV) · pageId 3451388798</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3447160905">STB Develop Environment</a> — STB 이미지·개통·상품 변경, 개발 환경·inspector·로그 수집<span class="src">Confluence (ORGAPPDEV) · pageId 3447160905</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3514990951">TurkTelekom Migration Project</a> — 과제 상위 프로젝트 페이지 (본문 비어 있음)<span class="src">Confluence (ORGAPPDEV) · pageId 3514990951</span></li>
+      <li>저장소 URL — <code>git@bitbucket.org:altimedia/turk-webx-tivibu-sysapp.git</code><span class="src">형상 정보 / Bitbucket</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

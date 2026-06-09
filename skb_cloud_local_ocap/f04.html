@@ -1,0 +1,206 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap · 클라우드 연동(하이브리드) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>클라우드 연동 (하이브리드) — skb_cloud_local_ocap 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local App OCAP</a><span class="sep">›</span>
+      <span class="here">클라우드 연동 (하이브리드)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP / MHP STB · Java</span>
+    </div>
+    <h1>클라우드 연동 (하이브리드)</h1>
+    <p class="one-liner"><code>CloudHomeMain</code>이 <code>CloudConnector</code>로 서버 측 클라우드 앱(<code>com.tbroad.cloud.ep3</code>)과 세션을 맺고, 키 입력(<code>CloudKeyHandler</code>)·화면 표시(commandShow)·PIP(<code>HomePIPManager</code>)를 연계하는 하이브리드 UI 구조입니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap" target="_blank" rel="noopener"><code>skb_cloud_local_ocap</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>OCAP_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>cloud/CloudHomeMain.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">로컬 STB ↔ 클라우드 서버 세션 연동</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>이 앱의 가장 큰 구조적 특징은 클라우드 하이브리드입니다. 홈 화면 UI는 STB 로컬에서 전부 그리지 않고, 서버 측 클라우드 앱(<code>com.tbroad.cloud.ep3</code>)이 렌더링한 화면을 STB가 받아 표시합니다. 로컬 앱은 이 연동의 클라이언트 역할을 하며, 진입점은 싱글톤 <code>CloudHomeMain</code>입니다. <code>CloudHomeMain</code>은 <code>ConnectCallbackListener</code>·<code>ShowHomeCallbackListener</code>·<code>PowerModeChangeListener</code>를 구현해 연결 결과, 홈 표시 요청, 전원 모드 변화를 모두 한 곳에서 받습니다.</p>
+    <p>부팅 시 <code>HomeMain.start()</code>는 연결 상태가 <code>CONNECTED</code>가 될 때까지 <code>CloudHomeMain.startConnect()</code>를 시도합니다. <code>startConnect()</code>는 홈 액션·자동시작 플래그·IAD(인앱 광고) 등을 담은 JSON 메시지를 만들어 <code>connect()</code> → <code>CloudConnector.requestConnect()</code>로 서버에 세션을 요청합니다. 연결 옵션과 복구 타입(<code>RECOVERY_NONE</code>/<code>ONCE</code>/<code>AUTO</code>)에 따라 세션이 수립되며, 결과는 <code>CONNECT_SUCCESS</code>·<code>CONNECT_SESSION_RESULT_FAIL</code> 등 코드로 콜백됩니다.</p>
+    <p>연결 후 키 입력은 <code>CloudKeyHandler</code>(<code>LayeredKeyHandler</code> 구현)가 받아 현재 서비스 상태(<code>STATE_CLOUD</code> 등)에 따라 클라우드로 키를 전달하거나 로컬에서 처리합니다. 세션 유효성은 <code>CloudSessionRuleChecker</code>가 타이머로 주기 점검하고, 하트비트 오류나 네트워크 단절 시 <code>RecoveryManager</code>가 재연결·복구를 담당합니다. PIP 화면은 <code>HomePIPManager</code>가 다룹니다.</p>
+    <div class="callout">
+      <div class="ct">세션 · 키 · 화면 3축 연계</div>
+      <code>CloudConnector</code>(세션), <code>CloudKeyHandler</code>(키 입력 라우팅), <code>commandShow()</code>/<code>onMessage()</code>(화면 표시 명령)가 클라우드 연동의 세 축입니다. ICS·TLS·worker(<code>cloud/ics</code>·<code>cloud/tls</code>·<code>cloud/worker</code>)가 하위 통신·작업 처리를 담당합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant HM as HomeMain (부팅)
+    participant CHM as CloudHomeMain
+    participant CMM as CloudHomeCommendManager
+    participant CON as CloudConnector
+    participant SRV as Cloud 서버 (ep3)
+    participant KEY as CloudKeyHandler
+
+    HM-&gt;&gt;CHM: startConnect()
+    CHM-&gt;&gt;CHM: setConnectionState(CONNECTING)
+    CHM-&gt;&gt;CMM: getActionCommon() (JSON 액션 메시지)
+    CMM--&gt;&gt;CHM: message (KEY_HOME, AUTO_START, IAD...)
+    CHM-&gt;&gt;CON: connect(message, RECOVERY_NONE)
+    CON-&gt;&gt;SRV: requestConnect(option)
+    SRV--&gt;&gt;CON: 세션 결과 (CONNECT_SUCCESS 등)
+    CON-&gt;&gt;CHM: onConnect callback
+    CHM-&gt;&gt;CHM: setConnectionState(CONNECTED)
+    CHM-&gt;&gt;SRV: commandShow(ACTION_HOME)
+    SRV--&gt;&gt;CHM: onMessage(홈 화면 표시 명령)
+    Note over CHM,SRV: 이후 키 입력은 CloudKeyHandler가 라우팅
+    KEY-&gt;&gt;CHM: handleKeyEvent → 클라우드로 키 전달
+      </div>
+      <p class="cap"><strong>흐름.</strong> 부팅 시 <code>startConnect()</code>가 JSON 액션 메시지로 세션을 요청하고, 성공하면 <code>commandShow()</code>로 홈 화면 표시를 요청합니다. 이후 키 입력은 <code>CloudKeyHandler</code>가 상태에 따라 라우팅합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class CloudHomeMain {
+        -CloudConnector clConnector
+        -int connectionState
+        +getInstance() CloudHomeMain
+        +startConnect()
+        +disconnect(byUser)
+        +commandShow(bool, action)
+        +onMessage(id, message) boolean
+        +getConnectionState() int
+    }
+    class ConnectCallbackListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class ShowHomeCallbackListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class PowerModeChangeListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class CloudConnector {
+        +CONNECT_SUCCESS
+        +requestConnect(option, recoveryType, ch, listener)
+        +disconnect(byUser)
+    }
+    class CloudKeyHandler {
+        +getInstance() CloudKeyHandler
+        +handleKeyEvent(event) boolean
+        +enabel()
+        +disable()
+    }
+    class CloudSessionRuleChecker {
+        +getInstance() CloudSessionRuleChecker
+        +setCheckTime(t)
+    }
+    class RecoveryManager
+    class HomePIPManager
+    class CloudHomeCommendManager {
+        +getActionCommon() JSONObject
+    }
+
+    CloudHomeMain ..|&gt; ConnectCallbackListener : implements
+    CloudHomeMain ..|&gt; ShowHomeCallbackListener : implements
+    CloudHomeMain ..|&gt; PowerModeChangeListener : implements
+    CloudHomeMain o-- CloudConnector : 세션
+    CloudHomeMain ..&gt; CloudHomeCommendManager : 액션 메시지
+    CloudHomeMain ..&gt; CloudKeyHandler : 키 라우팅
+    CloudHomeMain ..&gt; CloudSessionRuleChecker : 세션 점검
+    CloudHomeMain ..&gt; RecoveryManager : 복구
+    CloudHomeMain ..&gt; HomePIPManager : PIP
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>CloudHomeMain</code>이 연결·표시·전원 콜백을 모두 구현하며, <code>CloudConnector</code>로 세션을, <code>CloudKeyHandler</code>로 키를, <code>CloudSessionRuleChecker</code>/<code>RecoveryManager</code>로 세션 유지·복구를 조율합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>cloud/CloudHomeMain.java</code> — 세션 연결 요청과 JSON 액션 메시지 구성</div>
+<pre><code>public void startConnect() {
+    setCloudState();
+    setConnectionState(CONNECTING);
+
+    CloudHomeCommendManager.getInstance().remakeChannelInfo();
+    JSONObject message = CloudHomeCommendManager.getInstance().getActionCommon();
+    try {
+        message.put(CloudHomeCommendManager.KEY_ACTION, MessageToCloud.KEY_HOME);
+        message.put(CloudHomeCommendManager.KEY_AUTO_START, true);
+        String homeIad = HomeIAdManager.getInstance().getRandomHomeIAD();
+        if (homeIad != null) {
+            message.put(CloudHomeCommendManager.KEY_HOME_IAD, homeIad);
+        }
+        message.put(CloudHomeCommendManager.WEATHER_IDX, CloudConfig.getInstance().getWeatherIdx());
+    } catch (JSONException e) {
+        e.printStackTrace();
+    }
+    connect(message, CloudConnector.RECOVERY_NONE);   // 서버에 세션 요청
+    oneAdIDCheck();
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/cloud/CloudHomeMain.java" target="_blank" rel="noopener">cloud/CloudHomeMain.java</a><span class="src">클라우드 연동 진입점 — 연결/표시/전원 콜백, 세션 상태 관리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/cloud/CloudConnector.java" target="_blank" rel="noopener">cloud/CloudConnector.java</a><span class="src">서버 세션 수립·해제 (requestConnect / 결과 코드)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/cloud/CloudKeyHandler.java" target="_blank" rel="noopener">cloud/CloudKeyHandler.java</a><span class="src">키 입력 라우팅 (LayeredKeyHandler 구현 · handleKeyEvent)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/cloud/CloudSessionRuleChecker.java" target="_blank" rel="noopener">cloud/CloudSessionRuleChecker.java</a><span class="src">세션 유효성 주기 점검 (TVTimer 기반)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/cloud/RecoveryManager.java" target="_blank" rel="noopener">cloud/RecoveryManager.java</a><span class="src">하트비트 오류·단절 시 재연결·복구</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/cloud/HomePIPManager.java" target="_blank" rel="noopener">cloud/HomePIPManager.java</a><span class="src">클라우드 연동 PIP 화면 관리</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f03.html">← 홈 화면 · 팝업 UI</a>
+      <a href="f05.html">방송 품질 계측 (TiMS) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>OCAP_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

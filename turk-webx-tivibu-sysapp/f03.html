@@ -1,0 +1,198 @@
+<!doctype html>
+<!-- turk-webx-tivibu-sysapp · 미니가이드 / 인포 배너 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>미니가이드 / 인포 배너 — turk-webx-tivibu-sysapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Türk Telekom Tivibu STB 시스템 앱 (EPG SYSAPP)</a><span class="sep">›</span>
+      <span class="here">미니가이드 / 인포 배너</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">WebX STB · JavaScript (ES6/AMD)</span>
+    </div>
+    <h1>미니가이드 / 인포 배너</h1>
+    <p class="one-liner"><code>MiniGuideController</code>가 <code>MiniGuideFrame</code>을 띄워 시청 중 채널·현재/다음 프로그램 정보를 인포 배너로 표시하고, 무동작 타이머(<code>addIdleListener</code>)로 자동 숨김을 제어합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp" target="_blank" rel="noopener"><code>turk-webx-tivibu-sysapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>controller/MiniGuideController.js</code> · <code>ui/miniGuide/MiniGuideFrame.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">인포 배너 · 타임아웃 자동 숨김</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>미니가이드(인포 배너)는 Live TV 시청 중 채널을 바꾸거나 INFO 키를 누를 때 화면 하단에 잠시 떠오르는 정보 띠입니다. 현재 채널 번호·이름과 현재/다음 프로그램 제목·시간을 보여 줍니다. <code>MiniGuideController</code>는 생성 시 <code>MiniGuideFrame</code>을 만들어 <code>RootWindow</code>에 등록하고, 표시·갱신·숨김을 프레임 lifecycle로 처리합니다.</p>
+    <p>채널 전환 시 <code>LiveTVController</code>가 <code>NavSIMain.showMiniGuide(channel, ...)</code>를 호출하면 미니가이드가 갱신되며 표시됩니다. 숨김은 <code>guideFrame.hideAnimation()</code>으로 애니메이션을 재생한 뒤 <code>RootWindow.hideFrame</code>으로 프레임을 내립니다. 일정 시간 입력이 없으면 자동으로 사라지도록 <code>KeyEventManager.addIdleListener</code> 기반의 무동작 타이머(<code>setNoActionTimer</code>)를 두며, 타임아웃 기본값은 <code>AppConfig.MINIGUIDE_TIMEOUT</code>입니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      자동 숨김은 OSD를 직접 끄는 대신 <code>OSDController.resetOSD(OSDConstant.MINIGUIDE)</code>를 호출해, OSD 우선순위 관리 체계 안에서 일관되게 닫히도록 합니다. 표시·숨김 모두 <code>KeyEventManager</code>의 idle listener를 등록/해제하여 자원 누수를 막습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant LTV as LiveTVController
+    participant NAV as NavSIMain
+    participant MGC as MiniGuideController
+    participant MGF as MiniGuideFrame
+    participant KEM as KeyEventManager
+    participant OSD as OSDController
+
+    LTV-&gt;&gt;NAV: showMiniGuide(channel, true)
+    NAV-&gt;&gt;MGC: show(param) / update(param)
+    MGC-&gt;&gt;MGF: RootWindow.showFrame('miniGuideFrame')
+    MGC-&gt;&gt;KEM: addKeyListener(this)
+    MGC-&gt;&gt;KEM: addIdleListener(MINIGUIDE_TIMEOUT)
+    Note over MGF: 채널·현재/다음 프로그램 표시
+    alt 타임아웃 도래 (무동작)
+        KEM-&gt;&gt;MGC: idle 콜백
+        MGC-&gt;&gt;OSD: resetOSD(OSDConstant.MINIGUIDE)
+        MGC-&gt;&gt;MGF: hideAnimation() → RootWindow.hideFrame
+    else 키 입력
+        KEM-&gt;&gt;MGC: onKeyDown(keyEvent)
+        MGC-&gt;&gt;MGF: dispatchKeyDown(keyEvent)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 채널 전환으로 <code>showMiniGuide()</code>가 호출되면 배너가 뜨고 무동작 타이머가 시작됩니다. 타임아웃이 지나면 <code>resetOSD</code>로 OSD 체계를 통해 자동으로 닫힙니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class MiniGuideController {
+        -guideFrame MiniGuideFrame
+        -frameName string
+        -noActionTimer
+        +show(param)
+        +update(param)
+        +hide(param)
+        +setNoActionTimer(time)
+        +clearNoActionTimer()
+        +onKeyDown(keyEvent)
+        +reset()
+    }
+    class MiniGuideFrame {
+        +dispatchKeyDown(keyEvent)
+        +hideAnimation(cb)
+        +reset()
+        +isVisible() bool
+    }
+    class KeyEventManager {
+        +addKeyListener(l)
+        +addIdleListener(time, keys, cb)
+        +removeIdleListener(t)
+    }
+    class OSDController {
+        +resetOSD(constant)
+    }
+
+    MiniGuideController --&gt; MiniGuideFrame : 소유 · 키 위임
+    MiniGuideController --&gt; KeyEventManager : idle 타이머
+    MiniGuideController --&gt; OSDController : 자동 숨김
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>MiniGuideController</code>가 <code>MiniGuideFrame</code>을 소유하고, <code>KeyEventManager</code>의 idle listener로 타임아웃을 관리하며, 만료 시 <code>OSDController</code>를 통해 닫습니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>controller/MiniGuideController.js</code> — 무동작 타이머</div>
+<pre><code>setNoActionTimer: function(time) {
+    this.clearNoActionTimer();
+    var self = this;
+    this.noActionTimer = SYSAPP.KeyEventManager.addIdleListener(
+        time == undefined ? AppConfig.MINIGUIDE_TIMEOUT : time * 1000,
+        [],
+        function() {
+            SYSAPP.OSDController.resetOSD(OSDConstant.MINIGUIDE);   // 타임아웃 → 자동 숨김
+        });
+},
+
+clearNoActionTimer: function() {
+    if (this.noActionTimer) {
+        SYSAPP.KeyEventManager.removeIdleListener(this.noActionTimer);
+        this.noActionTimer = null;
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>controller/MiniGuideController.js</code> — 표시·숨김 lifecycle</div>
+<pre><code>show: function show(param) {
+    SYSAPP.RootWindow.showFrame(this.frameName, param);
+    this.addKeyEventListener();
+},
+
+hide: function hide(param) {
+    this.removeKeyEventListener();
+    var self = this;
+    this.guideFrame.hideAnimation(function() {
+        SYSAPP.RootWindow.hideFrame(self.frameName, param);   // 애니메이션 후 프레임 내림
+    });
+    this.clearNoActionTimer();
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/MiniGuideController.js" target="_blank" rel="noopener">controller/MiniGuideController.js</a><span class="src">미니가이드 프레임 lifecycle · 무동작 타이머 · 키 위임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/ui/miniGuide/MiniGuideFrame.js" target="_blank" rel="noopener">ui/miniGuide/MiniGuideFrame.js</a><span class="src">인포 배너 화면 위젯 · 표시/숨김 애니메이션</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/LiveTVController.js" target="_blank" rel="noopener">controller/LiveTVController.js</a><span class="src">채널 전환 시 showMiniGuide 호출</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/core/controller/KeyEventManager.js" target="_blank" rel="noopener">core/controller/KeyEventManager.js</a><span class="src">키 리스너 · idle listener(addIdleListener)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f02.html">← EPG / TV 가이드</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f04.html">채널 리스트 · 필터 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">turk-webx-tivibu-sysapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp · 음성 주문(STT) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>음성 주문 (STT) — AI Kiosk WebApp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp</a><span class="sep">›</span>
+      <span class="here">음성 주문 (STT)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">React 웹앱 · Azure Speech SDK</span>
+    </div>
+    <h1>음성 주문 (STT)</h1>
+    <p class="one-liner">Azure Cognitive Services Speech SDK로 마이크 입력을 받아 "아메리카노 한 잔" 같은 자연어 발화를 텍스트로 변환합니다. 타임아웃 기반 연속 인식(<code>startSpeechRecognition</code>)과 1회 인식(<code>startSpeechRecognitionOnce</code>) 두 방식을 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 모듈</div><div class="v"><code>voice/AzureSTTManager.js</code> · <code>hook/useSTT.jsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">음성 주문 플로우의 입력 진입점</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>음성 주문의 첫 단계는 사용자의 발화를 텍스트로 옮기는 STT(Speech-to-Text)입니다. 메뉴 화면에서 마이크 버튼을 누르면 <code>useSTT</code> 훅의 <code>startSTTAsync()</code>가 호출되고, 이 훅은 단말이 Android WebView인지에 따라 <code>AzureSTTManager.azureMicOpen</code>(브라우저 마이크) 또는 <code>azureMicOpenAndroid</code>(네이티브 브리지)를 선택해 호출합니다. 브라우저 경로에서는 Azure Speech SDK의 <code>SpeechRecognizer</code>가 기본 마이크 입력을 받아 인식합니다.</p>
+    <p><code>AzureSTTManager</code>는 두 가지 인식 방식을 제공합니다. <code>startSpeechRecognition(timeout)</code>은 <code>startContinuousRecognitionAsync</code>로 연속 인식을 시작하고, 중간 결과(<code>recognizing</code>)와 최종 결과(<code>recognized</code>)를 받을 때마다 타임아웃을 갱신하다가 발화가 인식되면 <code>azureMicClose()</code>로 마이크를 닫고 콜백에 텍스트를 넘깁니다. <code>startSpeechRecognitionOnce(timeout)</code>은 <code>recognizeOnceAsync</code>로 한 문장만 인식하는 단발 모드입니다. 인식 언어는 i18n 현재 언어에 따라 <code>ko-KR</code> 또는 <code>en-US</code>로 설정됩니다.</p>
+    <p>인식 결과 텍스트는 <code>voice-state-store</code>의 <code>setSTTText</code>로 화면에 실시간 반영되고, 최종 결과는 <code>useSTT</code>에서 <code>STTModifier</code>로 오인식을 보정한 뒤 LLM 질의로 넘어갑니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      마이크 시작 직전 <code>onBeforeRecordStartAsync</code> 콜백이 실행되어 "삐" 안내음(siri_open.wav)을 재생합니다. 인식이 일정 시간 무음이면 타임아웃이 발동해 <code>azureMicClose()</code>로 마이크를 자동 종료하고 자원을 회수합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자 (마이크 버튼)
+    participant HK as useSTT (hook)
+    participant STT as AzureSTTManager
+    participant SDK as Azure Speech SDK (SpeechRecognizer)
+    participant VS as voice-state-store
+
+    U-&gt;&gt;HK: startSTTAsync()
+    HK-&gt;&gt;STT: setOnBeforeRecordStartAsync(안내음)
+    HK-&gt;&gt;STT: azureMicOpen(callback)
+    STT-&gt;&gt;STT: startSpeechRecognition(5000)
+    STT-&gt;&gt;SDK: new SpeechRecognizer(speechConfig, audioConfig)
+    STT-&gt;&gt;SDK: PhraseListGrammar.addPhrase(메뉴/구어체)
+    STT-&gt;&gt;SDK: startContinuousRecognitionAsync()
+    loop 발화 인식
+        SDK--&gt;&gt;STT: recognizing(중간 결과)
+        STT-&gt;&gt;VS: setSTTText(중간 텍스트)
+    end
+    SDK--&gt;&gt;STT: recognized(최종 결과)
+    STT-&gt;&gt;VS: setSTTText(최종 텍스트)
+    STT-&gt;&gt;STT: azureMicClose()
+    STT--&gt;&gt;HK: callback(true, transcript)
+    HK-&gt;&gt;HK: STTModifier(transcript) 보정 후 resolve
+      </div>
+      <p class="cap"><strong>흐름.</strong> 마이크 버튼 → <code>useSTT</code> → <code>AzureSTTManager</code>가 SDK 인식기를 만들고 PhraseList를 적용한 뒤 연속 인식을 시작합니다. 중간/최종 결과가 스토어에 반영되고, 최종 텍스트는 보정 후 다음 단계(LLM 질의)로 넘어갑니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class useSTT {
+        +startSTTAsync() Promise
+        +stopSTTAsync() Promise
+        +clearSTTText()
+        +playSiriOpenSound()
+    }
+    class AzureSTTManager {
+        -recognizer
+        -callback
+        -phraseListKR
+        -phraseListEN
+        +initialize()
+        +azureMicOpen(callback)
+        +azureMicClose()
+        +startSpeechRecognition(timeout)
+        +startSpeechRecognitionOnce(timeout)
+        +setPhraseListKR(phrase)
+        +setOnBeforeRecordStartAsync(cb)
+    }
+    class SpeechRecognizer {
+        +startContinuousRecognitionAsync()
+        +recognizeOnceAsync()
+        +stopContinuousRecognitionAsync()
+    }
+    class voiceStateStore {
+        +setSTTText(text)
+        +sttOn()
+        +sttOff()
+    }
+    class STTModifier {
+        +STTModifier(sttText) string
+    }
+
+    useSTT --&gt; AzureSTTManager : azureMicOpen / Close
+    useSTT ..&gt; STTModifier : 결과 보정
+    AzureSTTManager --&gt; SpeechRecognizer : 생성/제어
+    AzureSTTManager --&gt; voiceStateStore : setSTTText
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>useSTT</code>가 진입점이 되어 싱글턴 <code>AzureSTTManager</code>를 제어하고, 매니저는 Azure SDK의 <code>SpeechRecognizer</code>를 직접 다루며 결과를 <code>voice-state-store</code>에 반영합니다. 최종 텍스트는 <code>STTModifier</code>로 보정됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/voice/AzureSTTManager.js</code> — 연속 인식 시작과 언어/PhraseList 적용</div>
+<pre><code>recognizer = new SpeechRecognizer(speechConfig, audioConfig);
+
+phraseListGrammar = PhraseListGrammar.fromRecognizer(recognizer);
+if (i18n.language == "en") {
+    phraseListGrammar.addPhrase(phraseListEN);
+} else {
+    phraseListGrammar.addPhrase(phraseListKR);
+}
+
+recognizer.recognizing = (s, e) =&gt; processRecognizingTranscript(e);
+recognizer.recognized  = (s, e) =&gt; processRecognizedTranscript(e);
+
+recognizer.startContinuousRecognitionAsync(
+    () =&gt; {
+        timeoutId = setTimeout(() =&gt; {
+            self.azureMicClose();          // 무음 타임아웃 시 마이크 종료
+            if (self.callback) { self.callback(false); self.callback = null; }
+        }, timeout);
+    },
+    (err) =&gt; console.error("Error starting recognition(CONTINOUS):", err)
+);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/hook/useSTT.jsx</code> — 마이크 개폐 선택과 결과 보정</div>
+<pre><code>const isAndroid = /Android/i.test(window.navigator.userAgent) &amp;&amp; window.android;
+const azureMicOpen  = isAndroid ? AzureSTTManager.azureMicOpenAndroid  : AzureSTTManager.azureMicOpen;
+
+azureMicOpen((result, data) =&gt; {
+    if (result) {
+        let newSTTText = STTModifier(data);          // 오인식 보정
+        setSTTText(newSTTText ? STTModifier(data) : "");
+        resolve(newSTTText);
+    } else if (getSTTText()) {
+        setSTTText(STTModifier(getSTTText()));
+        resolve(getSTTText());
+    } else {
+        reject("voice recog result false");
+    }
+});</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/voice/AzureSTTManager.js" target="_blank" rel="noopener">src/voice/AzureSTTManager.js</a><span class="src">Azure STT 매니저 · 연속/단발 인식, 마이크 개폐, PhraseList 적용</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/hook/useSTT.jsx" target="_blank" rel="noopener">src/hook/useSTT.jsx</a><span class="src">STT 훅 · 브라우저/Android 경로 선택, 안내음 재생, 결과 보정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/store/voice-state-store.js" target="_blank" rel="noopener">src/store/voice-state-store.js</a><span class="src">STT 텍스트·마이크 on/off 상태 보관</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/util/STTModifier.js" target="_blank" rel="noopener">src/util/STTModifier.js</a><span class="src">인식 결과 오인식 보정 (자세한 내용은 f09 참고)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">LLM 자연어 질의 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">AI Kiosk WebApp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

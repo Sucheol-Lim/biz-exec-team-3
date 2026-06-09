@@ -1,0 +1,190 @@
+<!doctype html>
+<!-- kt_aaos_inside · TTS·사운드 안내 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TTS·사운드 안내 — kt_aaos_inside 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT AAOS Demokit P1 음성인식 앱</a><span class="sep">›</span>
+      <span class="here">TTS·사운드 안내</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive OS · Java</span>
+    </div>
+    <h1>TTS·사운드 안내</h1>
+    <p class="one-liner"><code>ViaGuidancePlayer</code>·<code>ViaMediaPlayer</code>·<code>ViaSoundPlayer</code>가 Inside SDK가 합성한 TTS 응답과 시작 효과음(<code>Sound2_Marimba.mp3</code>)·종료음(<code>ding.mp3</code>)을 재생해 음성비서의 청각 피드백을 담당합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_aaos_inside" target="_blank" rel="noopener"><code>kt_aaos_inside</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feature/support_stt</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>player/ViaGuidancePlayer.java</code> 외</div></div>
+      <div class="item"><div class="k">사운드 자산</div><div class="v"><code>Sound2_Marimba.mp3</code> · <code>R.raw.ding</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>안내 재생은 두 갈래입니다. 첫째, 호출어 감지 직후 <code>InsideVoiceManager.playGuidance()</code>가 <code>ViaGuidancePlayer</code>를 생성해 시작 효과음(<code>Sound2_Marimba.mp3</code>)을 <code>AssetFileDescriptor</code>로 재생합니다. 둘째, 응답 안내가 필요할 때 <code>startTTS(msg)</code>가 Inside SDK의 <code>agent_getTTS(msg)</code>로 합성 결과 문자열을 받아 <code>ViaGuidancePlayer.initPlayer(ttsMsg)</code>로 재생합니다.</p>
+    <p>TTS 데이터는 base64 인코딩 mp3 형태라 <code>GVoiceMediaDataSource</code>(커스텀 <code>MediaDataSource</code>)로 디코딩해 <code>MediaPlayer.setDataSource()</code>에 주입합니다. 재생이 끝나면 <code>OnCompletionCallback.onGuidanceComplete(isTTS)</code> 콜백이 발생해, TTS였으면 오디오 포커스를 해제하고 호출어 감지를 재시작합니다. 미디어 스트림(TTS mediastream)은 <code>ViaMediaPlayer.playWav()</code>가, 종료 효과음은 <code>ViaSoundPlayer</code>가 <code>SoundPool</code>로 재생합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      효과음과 TTS는 <code>AudioAttributes</code>를 분리합니다. 효과음은 <code>CONTENT_TYPE_MUSIC</code>, TTS는 <code>CONTENT_TYPE_SPEECH</code>·<code>USAGE_ASSISTANCE_ACCESSIBILITY</code>로 재생해 차량 오디오 라우팅 정책과 일관되게 동작합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant IVM as InsideVoiceManager
+    participant SDK as Inside SDK
+    participant GP as ViaGuidancePlayer
+    participant DS as GVoiceMediaDataSource
+    participant MP as MediaPlayer
+
+    Note over IVM: 응답 안내 TTS 요청
+    IVM-&gt;&gt;SDK: agent_getTTS(msg)
+    SDK--&gt;&gt;IVM: ttsMsg (base64 mp3)
+    IVM-&gt;&gt;GP: new ViaGuidancePlayer(this, true).initPlayer(ttsMsg)
+    GP-&gt;&gt;DS: new GVoiceMediaDataSource(ttsMsg)
+    GP-&gt;&gt;MP: setDataSource(ds) / prepareAsync()
+    MP--&gt;&gt;GP: onPrepared() → start()
+    MP--&gt;&gt;GP: onCompletion()
+    GP-&gt;&gt;IVM: onGuidanceComplete(isTTS=true)
+    IVM-&gt;&gt;IVM: releaseAudioFocus() / startKwsDetect()
+      </div>
+      <p class="cap"><strong>흐름.</strong> SDK가 합성한 base64 TTS를 <code>GVoiceMediaDataSource</code>로 디코딩해 <code>MediaPlayer</code>로 재생하고, 완료 콜백에서 포커스 해제·호출어 재시작으로 마무리합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ViaGuidancePlayer {
+        -MediaPlayer mediaPlayer
+        -boolean isTTS
+        +initPlayer(String msg)
+        +initPlayer(AssetFileDescriptor afd)
+        -startPlayer(msg)
+        -stopPlayer()
+    }
+    class OnCompletionCallback {
+        &lt;&lt;interface&gt;&gt;
+        +onGuidanceComplete(boolean isTTS)
+    }
+    class ViaMediaPlayer {
+        +playWav(payload)
+        +isPlaying() boolean
+        +stop()
+    }
+    class ViaSoundPlayer {
+        +initSounds()
+        +play(context)
+        +destroy()
+    }
+    class GVoiceMediaDataSource {
+        +readAt(pos, buffer, off, size) int
+        +getSize() long
+    }
+    class InsideVoiceManager {
+        +startTTS(msg)
+        -playGuidance()
+        +onGuidanceComplete(isTTS)
+    }
+
+    InsideVoiceManager ..|&gt; OnCompletionCallback
+    InsideVoiceManager --&gt; ViaGuidancePlayer : 효과음·TTS 재생
+    InsideVoiceManager --&gt; ViaMediaPlayer : mediastream 재생
+    ViaGuidancePlayer --&gt; GVoiceMediaDataSource : base64 디코딩 소스
+    ViaGuidancePlayer ..&gt; OnCompletionCallback : 완료 콜백
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>InsideVoiceManager</code>가 재생을 조율하고, <code>ViaGuidancePlayer</code>(효과음/TTS)·<code>ViaMediaPlayer</code>(스트림)·<code>ViaSoundPlayer</code>(SoundPool)가 역할을 분담하며, base64 TTS는 <code>GVoiceMediaDataSource</code>로 디코딩됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>inside/InsideVoiceManager.java</code> — TTS 합성 후 재생, 완료 시 후처리</div>
+<pre><code>public void startTTS(@NonNull String msg) {
+    String ttsMsg = getTTS(msg);                  // insideSDK.agent_getTTS(msg)
+    if (ttsMsg != null &amp;&amp; !ttsMsg.isEmpty()) {
+        voiceState = InsideVoiceState.REQ_TTS;
+        requestAudioFocusForRecognition(true, msg, ttsMsg, false);
+    }
+}
+@Override public void onGuidanceComplete(boolean isTTS) {
+    if (isTTS) {
+        releaseAudioFocus();
+        if (insideSDK.isKwsStart) KwsDetector.getInstance().startKwsDetect();
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>player/ViaGuidancePlayer.java</code> — base64 TTS를 커스텀 DataSource로 재생</div>
+<pre><code>mediaPlayer.setAudioAttributes(new AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build());
+mediaPlayer.setDataSource(new GVoiceMediaDataSource(msg));   // base64 mp3 디코딩
+mediaPlayer.prepareAsync();
+mediaPlayer.setOnPreparedListener(mp -&gt; mp.start());
+mediaPlayer.setOnCompletionListener(mp -&gt; stopPlayer());     // 재생 완료 → onGuidanceComplete</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/player/ViaGuidancePlayer.java" target="_blank" rel="noopener">player/ViaGuidancePlayer.java</a><span class="src">효과음(AssetFileDescriptor)·TTS(base64) MediaPlayer 재생·완료 콜백</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/player/ViaMediaPlayer.java" target="_blank" rel="noopener">player/ViaMediaPlayer.java</a><span class="src">TTS mediastream(playWav) 재생·미디어 상태 콜백</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/player/ViaSoundPlayer.java" target="_blank" rel="noopener">player/ViaSoundPlayer.java</a><span class="src">SoundPool 기반 종료 효과음(R.raw.ding) 재생</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/player/GVoiceMediaDataSource.java" target="_blank" rel="noopener">player/GVoiceMediaDataSource.java</a><span class="src">base64 인코딩 TTS를 MediaPlayer용 MediaDataSource로 디코딩</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f07.html">차량 공조 제어</a>
+      <a href="f09.html">표준 STT 서비스 경로 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feature/support_stt</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_aaos_inside 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

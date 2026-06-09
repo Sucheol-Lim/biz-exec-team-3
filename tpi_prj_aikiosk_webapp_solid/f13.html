@@ -1,0 +1,168 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp_solid · file:// 단독 실행 기능 상세 — base "./" + no-crossorigin 플러그인 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>file:// 단독 실행 — tpi_prj_aikiosk_webapp_solid 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp (SolidJS)</a><span class="sep">›</span>
+      <span class="here">file:// 단독 실행</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹앱 · Android WebView 키오스크 (Galaxy Tab S8)</span>
+    </div>
+    <h1>file:// 단독 실행</h1>
+    <p class="one-liner"><code>base: "./"</code>와 <code>no-crossorigin</code> 플러그인으로 빌드 산출물이 별도 서버 없이 파일 프로토콜에서 그대로 실행됩니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp_solid</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>vite.config.js</code> · <code>index.jsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">파일 프로토콜 단독 패키징</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>키오스크 단말은 Android WebView에 빌드 산출물을 패키징해 띄우므로, 앱이 웹 서버 없이 <code>file://</code> 프로토콜에서 그대로 동작해야 합니다. 이를 위해 <code>vite.config.js</code>는 두 가지를 설정합니다. 첫째, <code>base: "./"</code>로 모든 에셋 참조를 상대 경로로 빌드해 절대 경로(<code>/</code>)에 의존하지 않게 합니다. 둘째, 커스텀 플러그인 <code>noCrossorigin</code>이 <code>transformIndexHtml</code>에서 생성된 HTML의 모든 <code>crossorigin</code> 속성을 제거합니다. <code>file://</code>에서는 CORS가 적용되어 <code>crossorigin</code> 속성이 스크립트/스타일 로드를 막기 때문입니다.</p>
+    <p>화면 스케일도 이 운용 방식과 맞물립니다. <code>index.jsx</code>가 <code>window.onload</code>에서 <code>window.innerHeight / 1480</code> 비율로 <code>body</code>의 <code>zoom</code>을 조정해, 924x1480 고정 설계를 단말 해상도에 맞춰 확대/축소합니다. 라우팅도 <code>HashRouter</code>를 써서 해시 기반으로 동작하므로 서버 측 경로 매칭이 필요 없습니다(기능 08). 빌드 모드(<code>release</code>/<code>production</code>)는 에셋 인라인 제한(<code>assetsInlineLimit: 0</code>)과 파일명 규칙(<code>assets/[name].[ext]</code>)을 다르게 두지만, 상대 경로·crossorigin 제거 원칙은 공통입니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      <code>noCrossorigin</code>은 Vite가 모듈 스크립트에 자동으로 붙이는 <code>crossorigin</code>을 일괄 제거하는 후처리입니다. 이 한 줄 플러그인이 없으면 <code>file://</code> WebView에서 모듈/스타일이 로드되지 않아 화면이 비게 됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant DEV as 빌드 (vite build)
+    participant CFG as vite.config.js
+    participant NC as noCrossorigin 플러그인
+    participant DIST as dist/index.html
+    participant WV as Android WebView (file://)
+
+    DEV->>CFG: base "./" 적용 (상대 경로 빌드)
+    CFG->>NC: transformIndexHtml(html)
+    NC->>NC: html.replaceAll("crossorigin", "")
+    NC-->>DIST: crossorigin 제거된 HTML 출력
+    WV->>DIST: file:// 로 로드
+    Note over WV,DIST: 상대 경로 + crossorigin 없음 → 정상 로드
+    WV->>WV: window.onload → zoom = innerHeight/1480
+      </div>
+      <p class="cap"><strong>흐름.</strong> 빌드 시 상대 경로로 묶고 <code>crossorigin</code>을 제거한 HTML을 만들어, WebView가 <code>file://</code>로 열어도 모듈·에셋이 정상 로드되고 화면 스케일이 단말 해상도에 맞춰집니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class viteConfig {
+        +base "./"
+        +plugins
+        +build (release / production)
+        +envPrefix "APP_"
+    }
+    class noCrossorigin {
+        +name "no-crossorigin"
+        +transformIndexHtml(html)
+    }
+    class indexJsx {
+        +InitializeWindow()
+        +modifyWindowZoom(el, percentage)
+    }
+
+    viteConfig --> noCrossorigin : plugins 포함
+    viteConfig ..> indexJsx : base "./" 산출물 로드
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>vite.config.js</code>가 상대 경로 빌드와 <code>noCrossorigin</code> 후처리를 적용하고, 실행 시 <code>index.jsx</code>가 단말 해상도에 맞춰 zoom을 조정합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>vite.config.js</code> — base "./" + crossorigin 제거 플러그인</div>
+<pre><code>// disable crossorigin for work on file protocol
+const noCrossorigin = () =&gt; {
+  return {
+    name: "no-crossorigin",
+    transformIndexHtml(html) {
+      return html.replaceAll("crossorigin", "");
+    },
+  };
+};
+
+const config = {
+  base: "./",                       // 상대 경로 빌드
+  plugins: [ solid(), /* ... */ noCrossorigin() ],
+  envPrefix: "APP_",
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/index.jsx</code> — 단말 해상도 대응 zoom</div>
+<pre><code>function InitializeWindow() {
+  modifyWindowZoom(document.body, (window.innerHeight / 1480) * 100);
+}
+function modifyWindowZoom(domElement, percentage) {
+  domElement.style["zoom"] = percentage + "%";
+}
+window.onload = InitializeWindow;</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/vite.config.js" target="_blank" rel="noopener">vite.config.js</a><span class="src">base "./" · noCrossorigin 플러그인 · release/production 빌드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/index.jsx" target="_blank" rel="noopener">index.jsx</a><span class="src">window.innerHeight/1480 비율 zoom 초기화</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/index.html" target="_blank" rel="noopener">index.html</a><span class="src">#root · #popup-area · /src/index.jsx 진입 HTML</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f12.html">← 전역 팝업 시스템</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f14.html">레벨별 로깅 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tpi_prj_aikiosk_webapp_solid 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

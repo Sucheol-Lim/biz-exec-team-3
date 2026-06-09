@@ -1,0 +1,192 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_shortform · 타임라인 영상 편집기 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>타임라인 영상 편집기 — kt_magic_platform_ai_shortform 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 지니숏츠 (AI 숏폼 플랫폼)</a><span class="sep">›</span>
+      <span class="here">타임라인 영상 편집기</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">데스크톱 웹 (Vue 3 SPA) · JavaScript</span>
+    </div>
+    <h1>타임라인 영상 편집기</h1>
+    <p class="one-liner">저장소에서 가장 비중이 큰 모듈입니다. 비디오·이미지·텍스트·자막·로고·BGM·내레이션 요소를 타임라인 위에서 배치·이동·리사이즈하며 편집하고, 드롭/제약/줌 처리를 컴포저블로 분리해 다룹니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform" target="_blank" rel="noopener"><code>kt_magic_platform_ai_shortform</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>panels/TimelinePanel.vue</code> · <code>elements/*ElementBar.vue</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">결과 영상 편집 핵심 모듈</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>타임라인 편집기는 <code>TimelinePanel.vue</code>를 중심으로 동작합니다. <code>ELEMENT_TYPE</code>(video·text·subtitle·logo·image·bgm·narration)별 트랙을 두고, 각 트랙에는 요소 바 컴포넌트(<code>VideoElementBar</code>·<code>TextElementBar</code>·<code>SubtitleElementBar</code>·<code>BgmElementBar</code>·<code>NarrationElementBar</code>·<code>LogoElementBar</code>·<code>ImageElementBar</code>)가 배치됩니다. 타임 길이는 <code>DURATION_RATIO</code>(=20) 상수로 픽셀 환산됩니다.</p>
+    <p>편집 로직은 다수 컴포저블로 분리됩니다. <code>useTimelineOperations</code>가 요소 추가·이동·삭제 같은 타임라인 조작을, <code>useTimelineDropHandler</code>가 드롭 위치 계산·검증(<code>calculateDropPosition</code>/<code>validateDrop</code>)을, <code>useTimelineConstraints</code>·<code>useElementConstraints</code>가 겹침·범위 제약을, <code>useLayerManager</code>가 레이어/순서를, <code>useTimelineContextMenu</code>가 우클릭 메뉴를, <code>useTimelineZoom</code>이 줌과 타임마커 생성을 담당합니다.</p>
+    <p>요소 조작은 <code>editStateStore</code>(Pinia)의 <code>processDataOperation(dropData, ..., OperateFrom)</code>를 통해 일원화됩니다. <code>OperateFrom</code>은 조작 출처(<code>PREVIEW</code>·<code>TIMELINE</code>·<code>LEFT_PANEL</code>)를 구분해, 미리보기 캔버스에서의 드래그와 타임라인에서의 드래그, 좌측 패널에서의 드롭을 같은 데이터 모델로 수렴시킵니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      썸네일·파형은 <code>generateThumbnailsForMultipleSections</code>·<code>extractAudioFromVideo</code>/<code>generateWaveformData</code>/<code>drawWaveform</code> 유틸로 비동기 생성되어 트랙 바에 표시됩니다. 시간 단위는 내부적으로 ms로 다루며 <code>timeToMilliseconds</code>·<code>millisecondsToTime</code> 등으로 변환합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant TL as TimelinePanel.vue
+    participant DROP as useTimelineDropHandler
+    participant OPS as useTimelineOperations
+    participant ST as editStateStore
+    participant BAR as *ElementBar.vue
+
+    U-&gt;&gt;TL: 요소 드래그/드롭 또는 바 이동·리사이즈
+    TL-&gt;&gt;DROP: calculateDropPosition() / validateDrop()
+    DROP--&gt;&gt;TL: 드롭 위치 · 유효 여부
+    TL-&gt;&gt;OPS: 요소 추가/이동 조작
+    OPS-&gt;&gt;ST: processDataOperation(dropData, OperateFrom.TIMELINE)
+    ST-&gt;&gt;ST: 제약 적용 (useTimelineConstraints / useElementConstraints)
+    ST--&gt;&gt;BAR: 갱신된 요소 데이터 반영
+    BAR--&gt;&gt;U: 트랙 바 위치·길이 갱신 표시
+      </div>
+      <p class="cap"><strong>흐름.</strong> 드롭/드래그 입력은 드롭 핸들러에서 위치·유효성을 계산한 뒤 <code>editStateStore</code>로 모여 제약을 거치고, 트랙 바 컴포넌트에 반영됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class TimelinePanel {
+        +timelineConfig
+        +timeMarkers
+        +render tracks()
+    }
+    class BaseElementBar {
+        +elementType
+        +start
+        +duration
+        +onMove()
+        +onResize()
+    }
+    class editStateStore {
+        +editState
+        +videoParam
+        +processDataOperation(dropData, OperateFrom)
+    }
+    class useTimelineOperations {
+        +addElement()
+        +moveElement()
+        +removeElement()
+    }
+    class useTimelineDropHandler {
+        +calculateDropPosition()
+        +validateDrop()
+    }
+    class useLayerManager {
+        +reorder()
+    }
+
+    TimelinePanel o-- BaseElementBar : 트랙 요소 렌더링
+    TimelinePanel --&gt; useTimelineOperations : 조작 위임
+    TimelinePanel --&gt; useTimelineDropHandler : 드롭 계산
+    useTimelineOperations --&gt; editStateStore : processDataOperation
+    TimelinePanel --&gt; useLayerManager : 레이어 순서
+    BaseElementBar &lt;|-- VideoElementBar
+    BaseElementBar &lt;|-- TextElementBar
+    BaseElementBar &lt;|-- SubtitleElementBar
+    BaseElementBar &lt;|-- BgmElementBar
+    BaseElementBar &lt;|-- NarrationElementBar
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>TimelinePanel</code>이 요소별 <code>*ElementBar</code>(공통 <code>BaseElementBar</code> 파생)를 렌더링하고, 조작은 컴포저블을 거쳐 <code>editStateStore</code>의 단일 진입점으로 수렴됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>user/src/views/common/api/edit/components/panels/TimelinePanel.vue</code> — 트랙·컴포저블 구성</div>
+<pre><code>import { ELEMENT_TYPE, DROP_TYPE } from '../../assets/js/constants.js';
+import VideoElementBar from '../elements/VideoElementBar.vue';
+import TextElementBar from '../elements/TextElementBar.vue';
+import BgmElementBar from '../elements/BgmElementBar.vue';
+import NarrationElementBar from '../elements/NarrationElementBar.vue';
+
+import { useTimelineOperations } from '../../composables/useTimelineOperations.js';
+import { useTimelineDropHandler } from '../../composables/useTimelineDropHandler.js';
+import { useLayerManager } from '../../composables/useLayerManager.js';
+import { useTimelineContextMenu } from '../../composables/useTimelineContextMenu.js';
+
+const { VIDEO, NARRATION, SUBTITLE, TEXT, BGM, LOGO, IMAGE } = ELEMENT_TYPE;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>user/src/views/common/api/edit/assets/js/constants.js</code> — 요소 타입과 타임라인 상수</div>
+<pre><code>export const DURATION_RATIO = 20;  // 타임라인 시간→픽셀 환산
+export const ELEMENT_TYPE = {
+  VIDEO: 'video', TEMPLATE: 'template', TEXT: 'text', SUBTITLE: 'subtitle',
+  LOGO: 'logo', IMAGE: 'image', BGM: 'bgm', NARRATION: 'narration', BACKGROUND: 'background',
+}
+export const OperateFrom = { PREVIEW: 'preview', TIMELINE: 'timeline', LEFT_PANEL: 'left-panel' }</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/components/panels/TimelinePanel.vue" target="_blank" rel="noopener">edit/components/panels/TimelinePanel.vue</a><span class="src">타임라인 패널 · 트랙 렌더링 · 줌/마커</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/components/elements/BaseElementBar.vue" target="_blank" rel="noopener">edit/components/elements/BaseElementBar.vue</a><span class="src">요소 바 공통 베이스(이동·리사이즈)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/composables/useTimelineOperations.js" target="_blank" rel="noopener">edit/composables/useTimelineOperations.js</a><span class="src">요소 추가·이동·삭제 조작 로직</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/composables/useTimelineConstraints.js" target="_blank" rel="noopener">edit/composables/useTimelineConstraints.js</a><span class="src">겹침·범위 제약 적용</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/assets/js/constants.js" target="_blank" rel="noopener">edit/assets/js/constants.js</a><span class="src">ELEMENT_TYPE · DURATION_RATIO · OperateFrom 등 상수</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f03.html">← 대용량 청크 업로드</a>
+      <a href="f05.html">Konva 미리보기 캔버스 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_shortform 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

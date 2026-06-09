@@ -1,0 +1,176 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_poster · 토큰 사용량 사전 조회(token-usage) 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>토큰 사용량 사전 조회 — kt_magic_platform_ai_poster 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 포스터 (지니 포스터 편집툴)</a><span class="sep">›</span>
+      <span class="here">토큰 사용량 사전 조회</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">PC 웹 (Vue 3 SPA) · 과금</span>
+    </div>
+    <h1>토큰 사용량 사전 조회</h1>
+    <p class="one-liner">텍스트 제거·이미지 확장 각각에 대해 작업 전 예상 토큰 사용량을 조회하는 API를 호출하고, "작업 완료 시 N토큰이 차감됩니다" 안내를 노출합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster" target="_blank" rel="noopener"><code>kt_magic_platform_ai_poster</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 함수</div><div class="v"><code>postTextRemovalTokenUsage</code> · <code>postImageExpansionTokenUsage</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">과금 안내 · 작업 전 사전 조회</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>텍스트 제거(REMOVE)와 이미지 확장(EXPAND)은 작업 완료 시 토큰을 차감하는 과금형 기능입니다. 사용자가 실제로 토큰을 쓰기 전에 예상 차감량을 알 수 있도록, 각 작업 진입 시점에 사전 조회 API를 호출합니다. 텍스트 제거는 <code>EditArea.vue</code>가 마운트 후 <code>fetchTextRemovalTokenUsage()</code>로 <code>postTextRemovalTokenUsage({ imageUrl })</code>를 호출해 <code>response.data.amount</code>를 <code>textRemovalTokenAmount</code>에 저장하고, 하단 토큰 안내(<code>common.tokenInfo</code> = "작업 완료 시 {cost}토큰이 차감됩니다")에 바인딩합니다.</p>
+    <p>이미지 확장은 <code>ImageExtensionPopup.vue</code>가 <code>fetchImageExpansionTokenUsage()</code>로 <code>postImageExpansionTokenUsage({ imageUrl, items: [{width:100,height:100,alignment:'Middle'}] })</code>를 호출해 <strong>배너 1개당 단가</strong>(<code>imageExpansionTokenUnitPrice</code>)를 받습니다. 이후 선택한 배너 개수(템플릿 contents 수 또는 커스텀 유효 행 수)를 곱해 총 예상 토큰(<code>imageExpansionTokenAmount</code>)을 computed로 산출해 보여 줍니다.</p>
+    <div class="callout">
+      <div class="ct">기본 토큰 단가</div>
+      <code>PosterEdit.vue</code>의 <code>TOKEN_COST</code> 상수는 <code>REMOVE: 20</code>, <code>EXPAND: 80</code>입니다. 다만 화면에 표시되는 값은 이 상수가 아니라 서버 <code>token-usage</code> 응답의 <code>amount</code>를 따르며, 확장은 단가 × 배너 수로 합산합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant EA as EditArea.vue
+    participant POP as ImageExtensionPopup.vue
+    participant API as api.poster
+
+    Note over EA: 편집 진입 (onMounted)
+    EA-&gt;&gt;API: postTextRemovalTokenUsage({ imageUrl })
+    API--&gt;&gt;EA: { amount }
+    EA-&gt;&gt;EA: textRemovalTokenAmount = amount → 안내 문구
+
+    Note over POP: 확장 팝업 진입 (onMounted)
+    POP-&gt;&gt;API: postImageExpansionTokenUsage({ imageUrl, items:[1개 샘플] })
+    API--&gt;&gt;POP: { amount } (배너 1개당 단가)
+    POP-&gt;&gt;POP: 총 토큰 = 단가 × 선택 배너 수 (computed)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 텍스트 제거는 이미지 URL만으로 예상량을 받고, 이미지 확장은 단가를 받아 선택한 배너 수만큼 곱해 총액을 계산합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class EditArea {
+        -textRemovalTokenAmount
+        +fetchTextRemovalTokenUsage()
+    }
+    class ImageExtensionPopup {
+        -imageExpansionTokenUnitPrice
+        +imageExpansionTokenAmount
+        +fetchImageExpansionTokenUsage()
+    }
+    class PosterApi {
+        +postTextRemovalTokenUsage(data)
+        +postImageExpansionTokenUsage(data)
+    }
+    class PosterEdit {
+        +TOKEN_COST
+    }
+
+    EditArea ..&gt; PosterApi : postTextRemovalTokenUsage
+    ImageExtensionPopup ..&gt; PosterApi : postImageExpansionTokenUsage
+    PosterEdit ..&gt; EditArea : TOKEN_COST prop
+      </div>
+      <p class="cap"><strong>관계.</strong> 두 진입 컴포넌트가 각자 token-usage 엔드포인트를 호출하고, 확장 팝업은 단가에 배너 수를 곱해 총액 computed를 노출합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/components/EditArea.vue</code> — 텍스트 제거 예상 토큰 조회</div>
+<pre><code>const textRemovalTokenAmount = ref(null)
+
+async function fetchTextRemovalTokenUsage() {
+    const imageUrl = currentImageUrlForApi.value
+    if (!imageUrl) return
+    const response = await api.poster.postTextRemovalTokenUsage({ imageUrl })
+    textRemovalTokenAmount.value = response?.data?.amount ?? null
+}
+// 화면 안내: t('common.tokenInfo', { cost: textRemovalTokenAmount })
+//          → "작업 완료 시 {cost}토큰이 차감됩니다"</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/components/popups/ImageExtensionPopup.vue</code> — 단가 조회 + 총액 계산</div>
+<pre><code>async function fetchImageExpansionTokenUsage() {
+    if (!props.imageUrl) return
+    const response = await api.poster.postImageExpansionTokenUsage({
+        imageUrl: props.imageUrl,
+        items: [{ width: 100, height: 100, alignment: 'Middle' }],   // 단가 샘플 1건
+    })
+    imageExpansionTokenUnitPrice.value = response?.data?.amount ?? null
+}
+
+const imageExpansionTokenAmount = computed(() =&gt; {
+    if (imageExpansionTokenUnitPrice.value === null) return null
+    const count = isCustomMode.value
+        ? customContents.value.filter(validateRow).length
+        : (selectedTemplate.value.contents?.length ?? 0)
+    return imageExpansionTokenUnitPrice.value * count          // 단가 × 배너 수
+})</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/api/poster.js" target="_blank" rel="noopener">user/src/api/poster.js</a><span class="src">postTextRemovalTokenUsage / postImageExpansionTokenUsage — text-removals·image-expansions/token-usage</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/EditArea.vue" target="_blank" rel="noopener">posteredit/components/EditArea.vue</a><span class="src">fetchTextRemovalTokenUsage · textRemovalTokenAmount · 토큰 안내 바인딩</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/popups/ImageExtensionPopup.vue" target="_blank" rel="noopener">posteredit/components/popups/ImageExtensionPopup.vue</a><span class="src">fetchImageExpansionTokenUsage · 단가×배너수 총액 computed</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/PosterEdit.vue" target="_blank" rel="noopener">posteredit/PosterEdit.vue</a><span class="src">TOKEN_COST = { REMOVE: 20, EXPAND: 80 }</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f09.html">← 원본 되돌리기 / 다시 편집</a>
+      <a href="f11.html">프로젝트 목록 관리 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_poster 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

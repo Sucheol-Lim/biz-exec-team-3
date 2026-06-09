@@ -1,0 +1,444 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KT 통합 IoT 관제 FE — 과제 설명</title>
+<style>
+:root{
+  --accent:#d6001c;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">웹 관제 콘솔 (React SPA)</span>
+      <span class="badge gray">TypeScript</span>
+    </div>
+    <h1>KT 통합 IoT 관제 FE</h1>
+    <p class="one-liner">KT의 여러 IoT 서비스(Air Map, AI산업안전DX, SafeMate, 한전 AMI, SMART GREEN 등)를 하나의 웹 콘솔에서 모니터링·관제하는 프론트엔드입니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-05-11 · 84dc932c [KT 코드분석] 조건문 단순화.</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>kt_iot</code> / 1.0.0 (추정)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>본 과제는 KT가 개별적으로 운영하던 여러 IoT 서비스를 하나의 웹 콘솔에서 통합 관제하기 위한 프론트엔드입니다. 사이트(서비스) 단위로 화면이 분기되며, 지도 기반 현황, 종합 현황, 이력, 통계 요약, 디바이스·서비스 대상·구역 관리, 공지·자료실·문의, SMS 발송·알림, AI 에이전트 대화 등 관제 운영에 필요한 기능을 단일 애플리케이션으로 제공합니다.</p>
+    <p>대상 플랫폼은 웹 브라우저 기반 데스크톱 관제 콘솔입니다. React 19 + Vite 기반의 SPA로 구현되어 있으며, 엔트리 HTML의 타이틀은 "KT IoT"입니다. 화면은 사이트 단위로 진입하며 URL은 모두 <code>/:site</code> 세그먼트로 시작합니다.</p>
+    <p><code>src/config.ts</code>의 <code>SITE_LIST</code>·<code>SITE_MENU</code>에 정의된 대상 서비스는 Air Map(대기질 측정 관제, 과천 관제센터 별도 진입점 포함), AI산업안전DX(산업대기질·자원순환·산업환경·탄소중립·제조공정 등 환경 DX), SafeMate(지능형 화재 감지기·옥상 비상문·소방시설 모니터링·지능형 비상벨 4종), 한전 AMI(AMI 회선·공사 현황 관제), SMART GREEN(생육 디바이스 관제)입니다.</p>
+    <div class="callout">
+      <div class="ct">사업 맥락 (Confluence 근거)</div>
+      각각 존재하던 KT의 IoT 서비스들을 하나로 통합하는 과제입니다. R&amp;R 상 KT가 IoT 플랫폼을, H2Net이 통합 관리 F/E·BFF·Edge 서버·Mobile App을, Altimedia가 전체 UX 및 통합 관제 F/E와 관제용 일부 관리 페이지(AXDX Client)를 담당합니다. 본 저장소는 그중 관제 F/E(지도형·카드형)에 해당합니다.
+    </div>
+    <p>사용자 권한(<code>USER_ROLES</code>)은 서비스 고객 / 서비스 관제요원 / 서비스 운영자 / 서비스 관리자 / 플랫폼 관리자 5단계로 구분되며, 라우팅 단에서 권한 레벨에 따라 사이트 간 전환을 제어합니다. 인증은 reCAPTCHA v3·RSA 키 기반 로그인과 BFF(Back-end For Front-end) API를 통해 이뤄집니다.</p>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">멀티 사이트 통합 관제</div><div class="d">Air Map·AI산업안전DX·SafeMate(4종)·한전 AMI·SMART GREEN을 하나의 콘솔에서 사이트 단위로 분기해 관제합니다. URL은 모두 <code>/:site</code>로 시작합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">지도형 대시보드</div><div class="d">KT 자체 지도 SDK(kt-map-sdk-js / geomaster / geoanalysis) 기반으로 디바이스·시설물·이벤트 마커를 지도에 표출하고, 마커 다이얼로그·그리기 컨트롤을 제공합니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">카드형 종합 현황</div><div class="d">react-grid-layout 기반 위젯 그리드로 실시간 디바이스·시설물 현황, 이벤트 현황 등을 카드 형태로 구성하고 배치를 저장합니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">실시간 이벤트 수신</div><div class="d">STOMP over WebSocket으로 관제 이벤트를 실시간 수신합니다. GZIP 페이로드를 pako로 해제하고, 알림(Alarm)·이벤트 마커로 라우팅합니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">통계 요약·분석</div><div class="d">Nivo·D3 차트로 측정소별 비교, 이벤트·디바이스 통계, AI산업안전DX 설비 이용률·자원환경, SMART GREEN 생육 디바이스 분석 등을 시각화합니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">이력 조회</div><div class="d">이벤트 발생 이력, 디바이스 제어·등록/삭제 이력, 문자 발송 이력 등을 조회하고 Content-Disposition 기반 파일 다운로드를 지원합니다.</div></a>
+      <a class="card" href="f07.html"><div class="t">디바이스·서비스대상·구역 관리</div><div class="d">디바이스, 서비스 대상, 구역(Zone)을 목록·상세·등록·수정·삭제하는 관제용 관리 페이지를 제공합니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">SMS 발송 및 알림 설정</div><div class="d">이벤트 대상에 대한 SMS 발송(sms-send)과 알림 설정(sms-alert-settings)을 운영합니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">AI 에이전트 대화</div><div class="d">WebSocket의 threadId·isActiveAgent 판별로 에이전트 응답을 분리 수신하며, aiagent 모달에서 스레드·메시지 기반 대화를 제공합니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">게시판·자료실·문의</div><div class="d">공지사항(notice), 자료실(resource), 문의(contact-us)를 목록·상세·편집 단위로 제공합니다. 자료실은 파일 확장자 제한 등 보안성 검증이 반영되어 있습니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">권한 기반 사이트 전환 제어</div><div class="d">SiteGuard·checkPermission이 권한 레벨에 따라 사이트 간 전환을 판정합니다. 부적합 접근 시 WebSocket 해제·세션 정리 후 로그인으로 이동합니다.</div></a>
+      <a class="card" href="f12.html"><div class="t">보안 로그인·마스킹</div><div class="d">RSA(jsrsasign) 암호화와 Google reCAPTCHA v3 토큰 기반 로그인, 개인정보 마스킹/해제, OTP·비밀번호 변경 등 인증 모달을 제공합니다.</div></a>
+      <a class="card" href="f13.html"><div class="t">과천 관제센터 특화 화면</div><div class="d">Air Map 하위 과천 진입점에 통신 상태·미수신·센싱 오류·전송 실패 등 측정망 운영 특화 화면을 별도로 제공합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">테마·레이아웃 커스터마이징</div><div class="d">MUI 테마(palette·typography) 커스터마이징과 사이트별 메뉴 구성, 화면 배경색·로고 설정 등 운영 환경에 맞춘 외형 조정을 지원합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>React 19 SPA로, <code>src/main.tsx</code>에서 다수의 Provider 트리를 구성하고 <code>src/routes/route.tsx</code>가 사이트 가드와 코드 스플리팅된 페이지 라우팅을 담당하는 단일 페이지 구조입니다. 데이터 패칭은 TanStack React Query, 클라이언트 상태는 Redux Toolkit과 다수의 React Context로 분리되어 있으며, 실시간 채널은 STOMP WebSocket Provider가 전역으로 관리합니다.</p>
+    <pre class="tree">kt_integrated_iot_fe/
+├─ index.html              # 엔트리 HTML (#root, main.tsx 로드, 다음 postcode 스크립트)
+├─ vite.config.ts          # Vite 설정 (모드별 빌드, geoanalysis 워커 복사, zip 패킹)
+├─ tsconfig*.json          # TS 설정 (app/node 분리, @/* → src/* 별칭)
+├─ eslint.config.js / .prettierrc
+├─ .env.local / .env.prod  # 환경 변수 (API·WebSocket 주소, 지도·reCAPTCHA 키 등)
+├─ scripts/clearViteCache.js
+├─ public/                 # 정적 자원 (kt.svg, 빌드 시 복사되는 assets/worker-*)
+├─ uml/                    # 서비스별 UML 문서 (airmap, ami, common, dx, gwacheon, safemate, smartgreen)
+└─ src/
+   ├─ main.tsx             # 앱 부트스트랩 (Provider 트리 구성, 진입점)
+   ├─ App.tsx              # 보조 앱 컴포넌트 (QueryClient + Routes)
+   ├─ config.ts            # 사이트 목록·코드·권한·레이아웃 상수 (SITE_LIST/SITE_MENU/USER_ROLES)
+   ├─ routes/              # 라우팅 (route.tsx 사이트 가드, ProtectedRoute.tsx)
+   ├─ layout/              # MainLayout/AuthLayout, Header, Sidebar, Footer, menu/, popup/
+   ├─ pages/               # 화면 (사이트·기능별 페이지, React.lazy 코드 스플리팅)
+   ├─ components/          # 재사용 컴포넌트 (chart, map, table, widget, markerDialog, search ...)
+   ├─ modal/               # 모달 (auth, search, aiagent, Alarm, CommonModal, ErrorDialog)
+   ├─ contexts/            # Context Provider (Config, Header, WebSocket, HomeMapState, DrawControl ...)
+   ├─ hooks/               # 커스텀 훅 (차트, 검색, 즐겨찾기, 지도 컨트롤, 날짜 등)
+   ├─ api/                 # ApiClient(Axios) + 도메인별 호출 모듈
+   ├─ themes/              # MUI 테마 커스터마이징 (palette, typography, components)
+   ├─ types/               # 타입 정의 (api.d.ts, config, theme, widget, favorite ...)
+   ├─ utils/               # 유틸 (util, rsa, MapUtils, localStorage, airQuality ...)
+   └─ assets/              # 이미지·맵 리소스 (메뉴 아이콘 SVG 등)</pre>
+    <h3>주요 모듈 · 클래스</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>모듈/파일</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td><code>src/main.tsx</code></td><td>앱 부트스트랩. ReCaptcha → Config → Header → MUI 테마 → QueryClient → WebSocket → HomeMapState → DrawControl → BrowserRouter → AliveScope → ErrorDialog → Routes 순으로 Provider를 구성합니다. <code>Alt + V</code>로 버전/업데이트 일자를 표시합니다.</td></tr>
+          <tr><td><code>src/config.ts</code></td><td>사이트 목록(SITE_LIST), 메뉴(SITE_MENU), 권한(USER_ROLES), 레이아웃/그리드 상수, AI산업안전DX 서비스 타입 등 전역 상수를 정의합니다.</td></tr>
+          <tr><td><code>src/routes/route.tsx</code></td><td>모든 경로가 <code>/:site</code>로 시작. SiteGuard가 URL site 유효성과 권한 기반 전환 가능 여부(hasRole)를 검사하며 페이지는 전부 React.lazy로 스플리팅됩니다.</td></tr>
+          <tr><td><code>src/routes/ProtectedRoute.tsx</code></td><td>세션의 <code>site.code</code> 유무로 로그인 여부를 판단해 인증 후 화면(MainLayout)을 보호합니다.</td></tr>
+          <tr><td><code>src/api/ApiClient.ts</code></td><td>Axios 인스턴스. baseURL은 <code>VITE_API_PATH</code>. 요청 시 accessToken을 Bearer로, realcode를 <code>unitServiceCode</code> 헤더로 주입. 401 시 세션 정리·로그인 리다이렉트, 그 외 에러는 공통 ErrorDialog 처리.</td></tr>
+          <tr><td><code>src/api/common.ts</code></td><td>로그인/로그아웃, RSA 키, ID/PW 찾기, 사용자 정보, 서비스 대상, WebSocket 구독 등 공통 API. 인증은 <code>bff/monitor/*</code> 경로, 로그인 시 <code>X-RECAPTCHA-TOKEN</code> 전송.</td></tr>
+          <tr><td>도메인 API 모듈</td><td><code>airmap.ts</code>·<code>ami.ts</code>·<code>safemate.ts</code>/<code>apiSafemate.ts</code>·<code>intFireDetector.ts</code>·<code>smartBell.ts</code>·<code>fireFacility.ts</code>·<code>rooftopDoor.ts</code>·<code>gwacheon.ts</code>·<code>smartGreen.ts</code>·<code>aiEnvDx.ts</code>·<code>device.ts</code>·<code>serviceTarget.ts</code>·<code>area.ts</code>·<code>board.ts</code>·<code>aiAgent.ts</code> 등 사이트·기능별로 분리.</td></tr>
+          <tr><td><code>src/contexts/WebSocketProvider.tsx</code></td><td>STOMP over WebSocket(brokerURL=<code>VITE_WEBSOCKET_SERVER</code>). 구독 큐 ID 수신·구독, GZIP 판별 후 pako 해제·JSON 파싱, threadId/isActiveAgent로 에이전트 응답·관제 이벤트 라우팅, 재연결·최대 5회 재시도.</td></tr>
+          <tr><td>Context 모음</td><td>ConfigContext, HeaderProvider, HomeMapStateContext, DrawControlContext, MapControlContext, MarkerDialogContext, EventOccurrenceMarkersContext, AlarmProvider, ErrorDialogContext.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>계층 · 외부 연동</h3>
+    <p>프레젠테이션(pages/components/layout) → 상태·캐싱(React Query·Redux·Context) → 통신(ApiClient·도메인 API·WebSocketProvider) 계층으로 구성됩니다. 외부 연동은 REST API(<code>VITE_API_PATH</code>, BFF 경유), STOMP WebSocket(<code>VITE_WEBSOCKET_SERVER</code>), KT 지도 SDK(<code>VITE_KT_MAP_API_KEY</code>), Google reCAPTCHA v3(<code>VITE_RECAPTCHA_SITE_KEY</code>), 카카오(다음) 우편번호 스크립트입니다. KT가 IoT 플랫폼·BFF를, Altimedia가 본 관제 F/E를 담당하는 구조입니다.</p>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>언어</td><td>TypeScript</td><td>~5.8.3</td><td>strict, noUnusedLocals/Parameters, 타깃 ES2022</td></tr>
+          <tr><td>UI 프레임워크</td><td>React / React DOM</td><td>^19.1.1</td><td>SPA, React.lazy 코드 스플리팅</td></tr>
+          <tr><td>빌드 도구</td><td>Vite</td><td>^7.3.2</td><td>@vitejs/plugin-react, vite-plugin-svgr, vite-plugin-zip-pack, ESM</td></tr>
+          <tr><td>라우팅</td><td>React Router DOM</td><td>^7.9.1</td><td>모든 경로 <code>/:site</code> 세그먼트 시작</td></tr>
+          <tr><td>상태 관리</td><td>Redux Toolkit</td><td>^2.9.0</td><td>클라이언트 상태</td></tr>
+          <tr><td>데이터 패칭</td><td>TanStack React Query</td><td>^5.90.2</td><td>retry:0, refetchOnWindowFocus:false (+devtools)</td></tr>
+          <tr><td>상태 보존</td><td>react-activation</td><td>^0.13.4</td><td>KeepAlive(AliveScope) 페이지 전환 보존</td></tr>
+          <tr><td>UI 컴포넌트</td><td>MUI / Ant Design / Emotion</td><td>MUI ^7.3.2, antd ^6.0.0</td><td>Pretendard 폰트, MUI 테마 커스터마이징</td></tr>
+          <tr><td>차트/시각화</td><td>Nivo / D3</td><td>Nivo ^0.99.0, d3 ^7.9.0</td><td>bar/line/pie 등</td></tr>
+          <tr><td>지도 SDK</td><td>kt-map-sdk-js / geomaster / geoanalysis</td><td>^0.3.2 / ^0.1.9 / ^0.0.5</td><td>KT 자체 지도 SDK, geoanalysis 워커 빌드 시 복사</td></tr>
+          <tr><td>실시간 통신</td><td>@stomp/stompjs / pako</td><td>^7.3.0 / ^2.1.0</td><td>STOMP over WebSocket, GZIP 페이로드 해제</td></tr>
+          <tr><td>폼/검증</td><td>Formik / Yup</td><td>^2.4.9 / ^1.7.1</td><td>폼 상태·스키마 검증</td></tr>
+          <tr><td>보안/인증</td><td>jsrsasign / reCAPTCHA v3</td><td>^11.1.0 / -</td><td>RSA(src/utils/rsa.ts), react-google-recaptcha-v3</td></tr>
+          <tr><td>레이아웃</td><td>react-grid-layout / react-resizable</td><td>^1.5.2 / ^3.0.5</td><td>위젯 그리드 배치</td></tr>
+          <tr><td>날짜/로깅</td><td>dayjs / loglevel</td><td>^1.11.18 / ^1.9.2</td><td>customParseFormat, src/logger.ts</td></tr>
+          <tr><td>린트/포맷</td><td>ESLint / Prettier</td><td>ESLint 9</td><td>typescript-eslint, eslint-plugin-react(-hooks/-refresh)</td></tr>
+          <tr><td>패키지 매니저</td><td>npm</td><td>-</td><td>package-lock.json 기준</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+    <h3>1. 앱 부팅 · 인증 시퀀스</h3>
+    <ol class="steps">
+      <li><span class="st">앱 부트스트랩</span><span class="sd"><code>main.tsx</code>가 #root에 React 19 루트를 마운트하고 ReCaptcha·Config·Header·MUI 테마·QueryClient·WebSocket·HomeMapState·DrawControl·Router·AliveScope·ErrorDialog Provider 트리를 순서대로 구성합니다.</span></li>
+      <li><span class="st">사이트 진입 · 가드 검사</span><span class="sd"><code>/:site</code> 경로로 진입하면 SiteGuard가 URL의 site가 SITE_LIST에 있는지, 세션 사이트와 이동 대상 간 전환이 권한 레벨상 허용되는지 검사합니다.</span></li>
+      <li><span class="st">로그인 (RSA + reCAPTCHA)</span><span class="sd">AuthLayout 아래 Login에서 RSA 키로 암호화한 자격증명과 reCAPTCHA v3 토큰(<code>X-RECAPTCHA-TOKEN</code>)을 <code>bff/monitor/token</code>으로 전송하고 accessToken·site 정보를 세션에 저장합니다.</span></li>
+      <li><span class="st">보호 라우트 진입</span><span class="sd">ProtectedRoute가 세션 <code>site.code</code> 유무로 로그인 여부를 판단해 MainLayout 아래 보호된 화면으로 진입시킵니다. 이후 모든 API 요청은 Bearer 토큰과 <code>unitServiceCode</code> 헤더를 자동 주입합니다.</span></li>
+      <li><span class="st">WebSocket 구독</span><span class="sd"><code>commonApi.subscription()</code>으로 큐 ID를 받아 세션에 저장한 뒤 STOMP 채널을 구독해 실시간 관제 이벤트 수신을 시작합니다.</span></li>
+    </ol>
+    <h3>2. 실시간 이벤트 수신 처리</h3>
+    <ol class="steps">
+      <li><span class="st">메시지 수신</span><span class="sd">STOMP 채널로 메시지가 도착하면 페이로드 앞 바이트(0x1f 0x8b)로 GZIP 압축 여부를 판별합니다.</span></li>
+      <li><span class="st">해제 · 파싱</span><span class="sd">압축이면 <code>pako.inflate</code>로 해제하고 UTF-8 디코딩 후 JSON으로 파싱합니다.</span></li>
+      <li><span class="st">라우팅 분기</span><span class="sd">threadId가 있고 AI 에이전트가 활성(isActiveAgent)이면 lastMessage(에이전트 응답)로, 그 외에는 lastEvent(관제 이벤트)로 라우팅합니다.</span></li>
+      <li><span class="st">화면 반영 · 알림</span><span class="sd">관제 이벤트는 지도 마커·위젯·Alarm으로 반영하고, 연결 오류 시 최대 5회 재시도 후 오류 처리합니다.</span></li>
+    </ol>
+    <h3>3. 데이터 조회 · 다운로드 흐름</h3>
+    <ol class="steps">
+      <li><span class="st">조회 요청</span><span class="sd">페이지 진입 시 React Query 훅이 도메인 API 모듈을 호출하며, ApiClient가 baseURL·인증 헤더를 적용해 BFF REST API로 요청합니다.</span></li>
+      <li><span class="st">캐싱 · 렌더링</span><span class="sd">응답은 React Query 캐시에 저장되고 차트(Nivo/D3)·테이블·위젯으로 렌더링됩니다. KeepAlive로 페이지 전환 시 상태가 보존됩니다.</span></li>
+      <li><span class="st">파일 다운로드</span><span class="sd">이력·통계 다운로드 요청은 <code>downloadFileFromResponse</code>가 Content-Disposition 헤더를 해석해 파일로 저장합니다.</span></li>
+      <li><span class="st">오류 처리</span><span class="sd">401이면 세션을 비우고 <code>/:site/login</code>으로 리다이렉트하며, 그 외 오류는 공통 ErrorDialog(네트워크 오류 status 999)로 표시합니다.</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p><code>package.json</code>의 scripts와 <code>vite.config.ts</code>를 근거로 합니다. 패키지 매니저는 npm입니다.</p>
+    <pre><code># 의존성 설치
+npm install
+
+# 개발 서버 (Vite dev, VITE_ 환경변수 로드)
+npm run dev
+
+# 프로덕션 모드 미리보기 빌드 + 미리보기 서버
+npm run preview          # vite-build 후 vite preview --host
+npm run preview-rel      # release 모드 빌드 후 미리보기
+
+# 빌드 산출물 미리보기
+npm run vite-preview
+
+# Vite 캐시 정리
+npm run clean:vite       # scripts/clearViteCache.js 실행
+
+# release 빌드 (log/live 플래그 조합 4종 순차 생성 → release/*.zip)
+npm run release</code></pre>
+    <p>환경 설정은 <code>.env.local</code>(ENV_NAME <code>local</code>) / <code>.env.prod</code>(ENV_NAME <code>testbed</code>)에서 <code>VITE_API_PATH</code>(REST API), <code>VITE_WEBSOCKET_SERVER</code>(STOMP WebSocket), <code>VITE_KT_MAP_API_KEY</code>(지도 SDK 키), <code>VITE_RECAPTCHA_SITE_KEY</code>, <code>VITE_API_SESSION_TIMEOUT</code>, 버전·업데이트 일자 등을 정의합니다. <code>VITE_ENV_NAME === 'local'</code>이면 라우팅에 개발용 가이드 화면(Guide)이 추가됩니다.</p>
+    <p>산출물 형태는 <code>vite.config.ts</code>가 command(serve/build)와 mode에 따라 분기합니다. <code>mode === 'release'</code>일 때 esbuild minify·CSS 단일 번들·vite-plugin-zip-pack으로 <code>release/</code>에 <code>YYYYMMDD_&lt;APP_NAME&gt;_&lt;VERSION&gt;_&lt;NETWORK&gt;_&lt;LOG_LEVEL&gt;_.zip</code> 형태로 패킹합니다. CLI 인자 <code>log</code>/<code>live</code>로 로그 레벨(DEBUG/INFO)과 네트워크 환경(Prod/Stag)을 주입합니다. geoanalysis 워커 파일은 빌드 시 <code>public/assets</code> · <code>dist/assets</code>로 복사됩니다.</p>
+    <div class="callout warn">
+      <div class="ct">주의</div>
+      <code>build:prod</code> 스크립트는 <code>node scripts/zip.js</code>를 호출하지만 현재 저장소에는 <code>scripts/zip.js</code>가 없어(존재 파일은 <code>clearViteCache.js</code>뿐) 그대로 실행 시 실패합니다(확인 필요). 또한 <code>package.json</code>의 description·main·homepage 등 일부 메타와 <code>README.md</code>는 Vite React 템플릿 기본값이 남아 있어 실제 프로젝트 내용과 일치하지 않습니다.
+    </div>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>최근 작업은 크게 두 흐름입니다. 하나는 KT 보안성 검증·미노출 요청 반영으로, SafeMate 관련 버튼·필터, 자료실 파일 확장자 제한, 디바이스 CSV 다운로드·마스킹 해제 버튼 미노출, 옥상 비상문 디바이스 수정 등이 다수 처리되었습니다. 다른 하나는 코드 분석에 따른 정리 작업으로, <code>console.log</code> 제거와 조건문 단순화가 마지막 커밋들로 이어집니다.</p>
+    <ul class="commits">
+      <li><span class="date">2026-05-11</span><span class="msg">[KT 코드분석] 조건문 단순화.</span></li>
+      <li><span class="date">2026-05-11</span><span class="msg">[KT 코드 분석] console.log 제거.</span></li>
+      <li><span class="date">2026-05-11</span><span class="msg">console log 제거</span></li>
+      <li><span class="date">2026-04-30</span><span class="msg">My 에 마스킹헤제 버튼 미노출 처리</span></li>
+      <li><span class="date">2026-04-30</span><span class="msg">마스킹 해제 버튼 미노출 처리</span></li>
+      <li><span class="date">2026-04-29</span><span class="msg">[KT 검증사항] 에러코드 제외하고 문구만 노출.</span></li>
+      <li><span class="date">2026-04-28</span><span class="msg">KT미노출요청</span></li>
+      <li><span class="date">2026-04-28</span><span class="msg">KT미노출요청 Safemate 필터 설정, 제어 설정 버튼 주석 처리</span></li>
+      <li><span class="date">2026-04-28</span><span class="msg">허용하지 않는 확장자 업로드 시 alert 문구 제거</span></li>
+      <li><span class="date">2026-04-28</span><span class="msg">KT보안성검증 (자료실-파일 확장자)</span></li>
+      <li><span class="date">2026-04-28</span><span class="msg">CustomFile alert 제거</span></li>
+      <li><span class="date">2026-04-28</span><span class="msg">CustomFile 수정</span></li>
+      <li><span class="date">2026-04-28</span><span class="msg">CustomFile 수정</span></li>
+      <li><span class="date">2026-04-28</span><span class="msg">KT미노출요청 (Safemate Event widget '조치' 버튼 제거)</span></li>
+      <li><span class="date">2026-04-27</span><span class="msg">KT미노출요청 (Safemate 서비스대상 검색 '전체' 조건 제거)</span></li>
+      <li><span class="date">2026-04-27</span><span class="msg">KT미노출요청(비상벨 등록자 ID 마스킹 해제 버튼)</span></li>
+      <li><span class="date">2026-04-27</span><span class="msg">스마트 그린 디바이스 CSV 미노출 처리</span></li>
+      <li><span class="date">2026-04-27</span><span class="msg">KT미노출요청(Safemate 디바이스 csv 다운로드)</span></li>
+      <li><span class="date">2026-04-27</span><span class="msg">KT미노출요청(옥상비상문 디바이스 수정 생성 마스터 미노출 및 파라미터 수정)</span></li>
+      <li><span class="date">2026-04-27</span><span class="msg">산업안전 DX 디바이스 관리에 csv 다운로드 미노출 처리</span></li>
+    </ul>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li><code>kt_integrated_iot_fe/README_CLAUDE.md</code><span class="src">저장소 README (과제 개요·구조·모듈 정리)</span></li>
+      <li><code>kt_integrated_iot_fe/README.md</code><span class="src">저장소 README (Vite React 템플릿 기본값 — 실제 내용과 불일치)</span></li>
+      <li><code>kt_integrated_iot_fe/src/config.ts · main.tsx · routes/route.tsx · api/ApiClient.ts · contexts/WebSocketProvider.tsx</code><span class="src">소스 코드 (구조·동작 직접 검증)</span></li>
+      <li><code>kt_integrated_iot_fe/uml/</code><span class="src">서비스별 UML 문서 (airmap, ami, common, dx, gwacheon, safemate, smartgreen)</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3945988107">KT IoT 통합 관제 (3945988107)</a><span class="src">Confluence · 사업 개요·R&amp;R</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3946184718">요구사항 정의서 (3946184718)</a><span class="src">Confluence · 공통/특화 기능 요구사항</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3987341326">개발 가이드 (3987341326)</a><span class="src">Confluence · 개발 참고 (본문 거의 비어 있음)</span></li>
+      <li><code>git@bitbucket.org:altimedia/kt_integrated_iot_fe.git</code><span class="src">원격 저장소 (Bitbucket)</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!doctype html>
+<!-- kt_ford_aosp_podcast_app · 멀티윈도우·해상도 대응 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>멀티윈도우·해상도 대응 — kt_ford_aosp_podcast_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford 차량용 팟캐스트 앱</a><span class="sep">›</span>
+      <span class="here">멀티윈도우·해상도 대응</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive · Java</span>
+    </div>
+    <h1>멀티윈도우·해상도 대응</h1>
+    <p class="one-liner">가로/세로(landscape/portrait)와 half/full 화면 조합, 단말별 해상도에 맞춰 <code>layout</code>·<code>layout-port</code>·<code>layout-ldpi</code> 다중 리소스와 Airbnb Paris 동적 스타일로 화면을 재구성합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app" target="_blank" rel="noopener"><code>kt_ford_aosp_podcast_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop-exoplayer</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>MainActivity</code> · <code>PodcastViewModel</code> · Paris</div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">멀티윈도우 half/full · 방향 · dpi 리소스</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>차량 인포테인먼트는 분할 화면(멀티윈도우, half)과 전체 화면(full), 그리고 가로/세로 방향이 런타임에 바뀝니다. <code>MainActivity</code>는 <code>configChanges</code>로 <code>screenLayout|screenSize|smallestScreenSize|orientation|uiMode</code>를 직접 처리하도록 선언되어 있고, 멀티윈도우 진입/이탈은 <code>onMultiWindowModeChanged()</code>에서 <code>PodcastViewModel.setIsInMultiWindowMode()</code>로 상태를 갱신합니다. 각 Fragment는 이 LiveData(<code>getIsInMultiWindowMode()</code>)를 관찰해 <code>showMultiWindowView()</code>로 half/full 레이아웃을 전환합니다.</p>
+    <p>레이아웃 전환은 두 방식을 병행합니다. 첫째, 정적 리소스 한정자(<code>res/layout</code> 가로 기본, <code>res/layout-port</code> 세로, <code>res/layout-ldpi</code> 저밀도, <code>res/values-port</code>·<code>res/values-ldpi</code>·<code>res/values-mdpi</code> 등)로 단말 구성에 맞는 레이아웃·치수를 자동 선택합니다. 둘째, Airbnb Paris(<code>Paris.style(view).apply(R.style.xxx_half/full)</code>)로 동일 뷰에 half/full 스타일을 코드에서 즉시 적용해 분할 화면 전환을 부드럽게 처리합니다. 또한 <code>GridLayoutManager</code>의 span 수·방향(가로/세로)을 <code>getSpanCount()</code>에서 멀티윈도우·방향 조합에 따라 계산해 목록 그리드를 재배치합니다.</p>
+    <div class="callout">
+      <div class="ct">방향 강제 정합</div>
+      <code>MainActivity.setConfigFromRealOrientation()</code>는 실제 단말 방향(<code>Utils.getScreenOrientation()</code>)과 전달된 <code>Configuration.orientation</code>이 어긋나면 <code>updateConfiguration()</code>으로 방향을 강제 정렬해, 차량 단말에서 방향 보고가 일관되지 않을 때 발생하는 레이아웃 깨짐을 보정합니다. <code>uiMode</code>가 바뀌면 nav_host Fragment를 detach/attach로 재생성합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SYS as 시스템(차량 단말)
+    participant ACT as MainActivity
+    participant VM as PodcastViewModel
+    participant FR as Fragment (Main/Podcast/PlayControl)
+    participant PRS as Paris (style)
+
+    SYS-&gt;&gt;ACT: onMultiWindowModeChanged(isInMultiWindow)
+    ACT-&gt;&gt;VM: setIsInMultiWindowMode(isInMultiWindow)
+    VM--&gt;&gt;FR: getIsInMultiWindowMode().observe()
+    FR-&gt;&gt;FR: showMultiWindowView(half/full)
+    alt half(멀티윈도우)
+        FR-&gt;&gt;PRS: apply(R.style.xxx_half)
+    else full
+        FR-&gt;&gt;PRS: apply(R.style.xxx_full)
+    end
+    FR-&gt;&gt;FR: getSpanCount() → GridLayoutManager span/방향 재설정
+
+    SYS-&gt;&gt;ACT: onConfigurationChanged(newConfig)
+    ACT-&gt;&gt;ACT: setConfigFromRealOrientation(newConfig)
+    opt uiMode 변경
+        ACT-&gt;&gt;ACT: nav_host Fragment detach → attach (재생성)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 멀티윈도우/구성 변경 → ViewModel 상태 갱신 → Fragment가 Paris 스타일과 그리드 span을 half/full에 맞게 재적용합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class MainActivity {
+        -int uiMode
+        +onMultiWindowModeChanged(half)
+        +onConfigurationChanged(newConfig)
+        -setConfigFromRealOrientation(config)
+    }
+    class PodcastViewModel {
+        +setIsInMultiWindowMode(half)
+        +getIsInMultiWindowMode() LiveData
+        +isInMultiWindowMode() boolean
+        +getRealOrientation() int
+    }
+    class MainFragment {
+        -showMultiWindowView(half)
+        -getSpanCount(half) int
+        -updateRecyclerViewStyle(half)
+    }
+    class PodcastFragment {
+        -showHalfWindowView()
+        -showFullWindowView()
+        -getSpanCount(half) int
+    }
+    class Paris {
+        +style(view)$
+    }
+
+    MainActivity --&gt; PodcastViewModel : 멀티윈도우/방향 상태 설정
+    MainFragment --&gt; PodcastViewModel : 상태 관찰
+    PodcastFragment --&gt; PodcastViewModel : 상태 관찰
+    PodcastFragment ..&gt; Paris : half/full 스타일 적용
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>MainActivity</code>가 멀티윈도우·방향 상태를 <code>PodcastViewModel</code>에 모으고, 각 Fragment가 이를 관찰해 Paris 스타일과 그리드 span으로 화면을 재구성합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/PodcastFragment.java</code> — half/full 스타일 동적 적용</div>
+<pre><code>private void showHalfWindowView() {
+    Paris.style(binding.layoutPodcastBody.recyclerviewPodcastList).apply(R.style.recyclerview_podcast_sub_half);
+    Paris.style(binding.layoutPodcastBody.getRoot()).apply(R.style.layout_podcast_body_half);
+}
+
+private void showFullWindowView() {
+    Paris.style(binding.layoutPodcastBody.recyclerviewPodcastList).apply(R.style.recyclerview_podcast_sub_full);
+    Paris.style(binding.layoutPodcastBody.getRoot()).apply(R.style.layout_podcast_body_full);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/PodcastFragment.java</code> — 멀티윈도우·방향에 따른 그리드 span 계산</div>
+<pre><code>private int getSpanCount(boolean isInMultiWindowMode) {
+    int spanCount;
+    if (podcastViewModel.getRealOrientation() == Configuration.ORIENTATION_LANDSCAPE) {
+        spanCount = 1;
+    } else {
+        if (isInMultiWindowMode) {
+            spanCount = 1;
+        } else {
+            spanCount = 3;
+        }
+    }
+    return spanCount;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/java/com/altimedia/automotive/kt/service/podcast/ui/MainActivity.java" target="_blank" rel="noopener">ui/MainActivity.java</a><span class="src">onMultiWindowModeChanged · onConfigurationChanged · 방향 강제 정합</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/java/com/altimedia/automotive/kt/service/podcast/ui/PodcastFragment.java" target="_blank" rel="noopener">ui/PodcastFragment.java</a><span class="src">showHalf/FullWindowView · Paris 스타일 · getSpanCount</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/res/layout-port" target="_blank" rel="noopener">app/src/main/res/layout-port</a><span class="src">세로 전용 레이아웃 변형(fragment_play_control 등)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/res/layout-ldpi" target="_blank" rel="noopener">app/src/main/res/layout-ldpi</a><span class="src">저밀도(ldpi) 레이아웃 변형 · values-ldpi/mdpi/port 치수</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/AndroidManifest.xml" target="_blank" rel="noopener">app/src/main/AndroidManifest.xml</a><span class="src">Activity configChanges 선언(screenSize/orientation/uiMode)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f09.html">← 런처 제어 연동</a>
+      <a href="f11.html">야간(Night) 모드 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop-exoplayer</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_podcast_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

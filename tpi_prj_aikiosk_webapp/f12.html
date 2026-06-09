@@ -1,0 +1,182 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp · 볼륨 제어 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>볼륨 제어 — AI Kiosk WebApp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp</a><span class="sep">›</span>
+      <span class="here">볼륨 제어</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android 볼륨 브리지 · zustand</span>
+    </div>
+    <h1>볼륨 제어</h1>
+    <p class="one-liner"><code>VolumeManager</code>가 Android 단말 볼륨 브리지를 호출하고 <code>volume-store</code>가 현재/최대 볼륨을 보관하며, <code>useAndroidVolume</code> 훅이 증감·효과음 재생을 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 모듈</div><div class="v"><code>util/VolumeManager.js</code> · <code>hook/useAndroidVolume.jsx</code> · <code>store/volume-store.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">음성 안내 청취 환경 조절</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>음성 안내(TTS)가 핵심인 키오스크이므로 단말 볼륨을 다룰 수 있어야 합니다. 볼륨 제어는 세 계층으로 나뉩니다. <code>VolumeManager</code>(브리지), <code>volume-store</code>(상태), <code>useAndroidVolume</code>(UI 로직)입니다.</p>
+    <p><code>VolumeManager</code>는 <code>window.android</code> 네이티브 인터페이스를 감싼 어댑터입니다. <code>getVolume</code>·<code>getMaxVolume</code>·<code>setVolume</code>으로 단말 볼륨을 읽고 쓰며, <code>initialize()</code> 때 <code>window.android.setVolumeCallback("volumeChangeCallback")</code>로 단말의 하드웨어 볼륨 변경 콜백을 등록합니다. 단말이 볼륨을 바꾸면 <code>volumeChangeCallback(volume)</code>이 호출되어 스토어에 반영되므로, 물리 볼륨 버튼 조작과 앱 상태가 동기화됩니다.</p>
+    <p><code>volume-store</code>는 <code>currentVolume</code>(기본 7)과 <code>maxVolume</code>(기본 15)을 보관합니다. <code>setVolume</code>은 스토어 값을 갱신하면서 <code>VolumeManager.setVolume(volume / maxVolume)</code>로 0~1 정규화 비율을 단말에 전달합니다. <code>useAndroidVolume</code> 훅은 <code>increaseVolume</code>/<code>decreaseVolume</code>로 0~최대 범위 내 증감을 처리하고, 변경 시 "blop" 효과음(<code>MP_Blop.mp3</code>)을 재생해 사용자에게 피드백을 줍니다. 화면에서는 <code>VolumeControl</code> 컴포넌트가 이 훅을 사용합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      앱 상태(<code>volume-store</code>)와 단말 볼륨은 양방향 동기화됩니다. 앱에서 바꾸면 브리지로 단말에 반영되고, 단말 하드웨어 키로 바꾸면 콜백으로 스토어에 반영됩니다. 정규화 비율(0~1)로 단말과 통신해 단말 최대 볼륨 스케일에 의존하지 않습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as VolumeControl
+    participant HK as useAndroidVolume
+    participant VS as volume-store
+    participant VM as VolumeManager
+    participant NAT as window.android
+
+    UI-&gt;&gt;HK: increaseVolume()
+    HK-&gt;&gt;VS: setVolume(newVolume)
+    VS-&gt;&gt;VM: setVolume(volume / maxVolume)
+    VM-&gt;&gt;NAT: setVolume(비율)
+    HK-&gt;&gt;HK: playBlopSound() 피드백
+    Note over NAT,VM: 하드웨어 키 조작 시
+    NAT--&gt;&gt;VM: volumeChangeCallback(volume)
+    VM-&gt;&gt;VS: setVolume(volume)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 화면 조작은 훅 → 스토어 → 매니저 → 단말로 내려가고, 하드웨어 볼륨 키 조작은 단말 콜백 → 매니저 → 스토어로 올라와 양방향 동기화됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class useAndroidVolume {
+        +currentVolume
+        +maxVolume
+        +setVolume(v)
+        +increaseVolume()
+        +decreaseVolume()
+        -playBlopSound()
+    }
+    class volumeStore {
+        +currentVolume
+        +maxVolume
+        +setVolume(v)
+        +resetVolume()
+    }
+    class VolumeManager {
+        +initialize()
+        +getVolume()
+        +getMaxVolume()
+        +setVolume(ratio)
+        +volumeChangeCallback(v)
+    }
+    class AndroidBridge {
+        &lt;&lt;interface&gt;&gt;
+        +getVolume()
+        +getMaxVolume()
+        +setVolume(ratio)
+        +setVolumeCallback(name)
+    }
+
+    useAndroidVolume --&gt; volumeStore : setVolume
+    volumeStore --&gt; VolumeManager : setVolume(ratio)
+    VolumeManager --&gt; AndroidBridge : window.android.*
+    AndroidBridge ..&gt; VolumeManager : volumeChangeCallback
+      </div>
+      <p class="cap"><strong>관계.</strong> 훅이 스토어를, 스토어가 매니저를 호출하고, 매니저가 Android 브리지를 다룹니다. 단말 콜백은 매니저를 거쳐 다시 스토어로 반영됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/util/VolumeManager.js</code> — 단말 볼륨 브리지와 콜백 등록</div>
+<pre><code>initialize: function () {
+    window.VolumeManager = this;
+    window.volumeChangeCallback = this.volumeChangeCallback.bind(this);
+    if (window.android &amp;&amp; window.android.setVolumeCallback) {
+        window.android.setVolumeCallback("volumeChangeCallback");   // 하드웨어 키 콜백
+    }
+},
+setVolume: function (volume) { return window?.android?.setVolume(volume); },
+volumeChangeCallback: function (volume) {
+    useVolumeStore.getState().setVolume(volume);                    // 단말 → 스토어
+},</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/store/volume-store.js</code> — 정규화 비율로 단말에 전달</div>
+<pre><code>setVolume: (volume) =&gt; {
+    set((state) =&gt; {
+        VolumeManager.setVolume(volume / state.maxVolume);   // 0~1 정규화
+        return { currentVolume: +volume };
+    });
+},</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/util/VolumeManager.js" target="_blank" rel="noopener">src/util/VolumeManager.js</a><span class="src">Android 볼륨 브리지 어댑터 · 하드웨어 키 콜백 등록</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/store/volume-store.js" target="_blank" rel="noopener">src/store/volume-store.js</a><span class="src">현재/최대 볼륨 상태 · 정규화 비율 전달</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/hook/useAndroidVolume.jsx" target="_blank" rel="noopener">src/hook/useAndroidVolume.jsx</a><span class="src">증감 로직 · 범위 제한 · blop 효과음 피드백</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/component/popup/HelpPopup/VolumeControl/VolumeControl.jsx" target="_blank" rel="noopener">src/component/popup/HelpPopup/VolumeControl/VolumeControl.jsx</a><span class="src">볼륨 조절 UI</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f11.html">← 미조작 타이머 · 도움말</a>
+      <a href="f13.html">세로 대화면 줌 보정 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">AI Kiosk WebApp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

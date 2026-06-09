@@ -1,0 +1,457 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TBroad(SKB) Local EPG (Android) — 과제 설명</title>
+<style>
+:root{
+  --accent:#ff6a00;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">Android TV (Leanback)</span>
+      <span class="badge gray">Java</span>
+    </div>
+    <h1>TBroad(SKB) Local EPG (Android)</h1>
+    <p class="one-liner">티브로드(SK브로드밴드) 케이블/IPTV 셋톱박스의 First Screen으로 동작하는 Android TV 로컬 EPG 겸 메인 런처 애플리케이션입니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_android" target="_blank" rel="noopener"><code>skb_cloud_local_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>UC500_log_2025</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-03-20 · c283f340 [Log]버전변경.</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>com.alticast.android.tv.local</code> / 3.2.5.0050 (3250050)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>본 과제는 티브로드(현 SK브로드밴드, 이하 SKB) 케이블/IPTV 셋톱박스에서 동작하는 Android TV용 <strong>로컬 EPG(전자 프로그램 가이드)</strong> 겸 <strong>메인 런처</strong> 애플리케이션입니다. 단말의 First Screen(부팅 직후 첫 화면) 역할을 수행하며, <code>MainActivity</code>가 <code>HOME</code>/<code>LAUNCHER</code> 카테고리를 가진 진입점으로 등록되어 셋톱박스 전원 인가 시 가장 먼저 실행됩니다.</p>
+    <p>Android Leanback 기반의 TV UI로 라이브 채널 시청, 미니 EPG, 채널 리스트, 오디오 채널, DCA(채널 직접 입력), 예약, 검색 등 방송 기능을 제공합니다. 동시에 SI(Service Information), OOB/Inband 채널맵, CAS(수신제한), QSM/TIMS(품질계측), Stabilizer(단말 안정화), TTS(음성 안내), 블루투스 RCU, SDV(Switched Digital Video) 등 셋톱박스 플랫폼 기능을 폭넓게 다루는 시스템 애플리케이션입니다.</p>
+    <p>로컬 모드와 클라우드 모드를 빌드 타입으로 전환할 수 있는 것이 특징으로, <code>CLOUD</code>/<code>CLOUD_BARE</code>/<code>CLOUD_SAT</code> 플래그와 <code>module/cappl</code>(클라우드 앱 플랫폼)·<code>module/ccs</code>(Cloud Home/PIP)·<code>clad</code>/<code>cladimpl</code>(Cloud App 인터페이스/구현)를 통해 클라우드 홈·앱 플랫폼 연동을 지원합니다.</p>
+    <div class="callout">
+      <div class="ct">UC500 / log 브랜치 맥락</div>
+      분석 기준 브랜치 <code>UC500_log_2025</code>는 BKO UC-500 신규 셋톱(KAON 등)을 대상으로 Android 9(API 28)에서 <strong>Android 12(API 31)</strong>로 업그레이드한 코드 베이스에서, 품질계측·로그 수집 고도화(TIMS/COQP)와 관련 기능을 집중적으로 반영한 분기입니다. 단말 패키지명은 <code>com.alticast.android.tv.local</code>이며 <code>INJECT_EVENTS</code>, <code>REBOOT</code>, EPG provider 접근, <code>taurus.cl_prj</code> uses-library 등 셋톱박스 전용 시스템 권한을 사용합니다.
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">First Screen / 런처</div><div class="d"><code>MainActivity</code>가 <code>HOME</code>·<code>LAUNCHER</code>·<code>FORCE_LAUNCH_ON_BOOT</code> intent-filter를 가진 진입점으로 부팅 직후 실행되어, 부팅 화면(<code>BootingFragment</code>) 표시 후 재생 화면으로 전환합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">라이브 채널 시청</div><div class="d"><code>ui/main/fragment</code>의 <code>TvViewer</code>/<code>PlaybackFragment</code>로 라이브 채널을 재생하고, FCC(Fast Channel Change) 기반의 빠른 채널 전환을 지원합니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">미니 EPG / 채널 리스트</div><div class="d"><code>ui/miniepg</code>에서 미니 EPG, 채널 리스트, 오디오 채널, DCA(채널 직접 입력) 화면을 제공하며 키 롱프레스 처리·차단 채널 표시 등을 다룹니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">SI · 채널맵 구성</div><div class="d"><code>module/si</code>(Service Information), <code>module/oob</code>(Out-Of-Band 채널맵·캠페인·홈 광고), <code>module/inband</code>(오디오/로고/I-frame)로 채널 메타데이터와 스트림 정보를 수신·구성합니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">SDV (Switched Digital Video)</div><div class="d"><code>module/sdv</code>에서 부팅 시 MC 데이터 획득, SDV 서비스 시작/종료, 412 에러 처리, Rejoin 등 스위치드 디지털 비디오 채널을 처리합니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">CAS (수신제한)</div><div class="d"><code>module/cas</code>의 <code>CaManagerImpl</code>로 유료/제한 채널 시청 제어를 담당합니다. 별도 <code>cas-module</code>도 존재하나 현재 빌드 미참여입니다.</div></a>
+      <a class="card" href="f07.html"><div class="t">품질계측 · 로그 수집</div><div class="d"><code>module/tims</code>·<code>module/qsm</code>(<code>qsm2lib.jar</code>)·<code>module/qagent</code>로 TIMS/COQP 품질계측과 로그 수집을 수행합니다. TCP/UDP 포트가 <code>BuildConfig</code>에 정의되어 있습니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">단말 안정화 / 전원</div><div class="d"><code>module/stabilizer</code>(<code>StabilizerService</code>·<code>StabilizerAlarmReceiver</code>·<code>BootReceiver</code>)로 스탠바이·재부팅·자가진단 알람을 관리하고, <code>module/powermode</code>로 전원 상태를 제어합니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">클라우드 홈 / CAPPL</div><div class="d"><code>module/cappl</code>(최대 모듈)과 <code>module/ccs</code>(<code>CloudHomeMain</code>·<code>HomePIPManager</code>), <code>clad</code>/<code>cladimpl</code>로 클라우드 홈·앱 플랫폼(Windmill) 연동을 처리합니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">미디어 재생 연동(UMP)</div><div class="d"><code>aidl</code>의 <code>UnitedMediaPlayer</code>/<code>UMPEventListener</code>와 <code>module/ump</code>로 외부 미디어 플레이어 서비스(<code>com.castis.ump</code>)와 AIDL 연동합니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">검색 (글로벌/프로그램)</div><div class="d"><code>module/search</code>의 <code>LocalSearchProvider</code>(authority <code>com.android.tv.search</code>)와 <code>ProgramSearchProvider</code>로 Android TV 글로벌 검색·프로그램 검색을 지원합니다(<code>ProgramSearchActivity</code>).</div></a>
+      <a class="card" href="f12.html"><div class="t">블루투스 RCU / HDMI</div><div class="d"><code>module/bluetooth</code>의 <code>BluetoothManager</code>·<code>RcuFirmwareVersionController</code>·<code>HdmiManager</code>로 리모컨 페어링·펌웨어·HDMI를 다룹니다.</div></a>
+      <a class="card" href="f13.html"><div class="t">핫키 입력 처리</div><div class="d"><code>module/globalkey</code>의 <code>GlobalKeyReceiver</code>가 <code>GLOBAL_BUTTON</code>·<code>BYPASS_KEYEVENT</code> 인텐트로 셋톱 핫키를 수신·처리합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">알림 / TTS / 예약</div><div class="d"><code>ui/notification</code>의 <code>TBNotificationListenerService</code>(시스템 알림 수신), <code>module/tts</code>(음성 안내·<code>VolumeChangeReceiver</code>), <code>module/reserve</code>(시청·녹화 예약)를 제공합니다.</div></a>
+      <a class="card" href="f15.html"><div class="t">EPG 외부 노출(AIDL)</div><div class="d"><code>IEpgAIDLService</code>(<code>com.alticast.android.tv.local.action.EPGService</code> 액션, <code>IEpgService.aidl</code>)로 타 앱에 EPG 기능을 노출합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>단일 애플리케이션 모듈(<code>:app</code>)과 로컬 라이브러리 모듈(<code>:wind3Lib-1.1.6</code>)로 구성되며, 소스 약 526개 <code>.java</code> 파일의 대부분이 <code>com.alticast.android.tv.local</code> 패키지 아래에 있습니다. 앱 본체는 진입점/상태 머신, 기능 모듈 묶음(<code>module/</code>), Leanback UI(<code>ui/</code>)의 세 축으로 나뉘며, OCAP/JavaTV SI 스택과 클라우드 앱 인터페이스는 <code>clad</code>/<code>cladimpl</code>로 분리되어 있습니다.</p>
+    <pre class="tree">skb_cloud_local_android/
+├── build.gradle                 # 루트 빌드 (AGP 7.0.2, google/jcenter)
+├── settings.gradle              # 활성 모듈: ':app', ':wind3Lib-1.1.6'
+├── gradle.properties            # AndroidX/Jetifier 활성, JVM 옵션
+├── cert/                        # 서명 키 (tbroad_signning_key.jks)
+├── app/
+│   ├── build.gradle             # 다수 BuildConfig 플래그 + 커스텀 빌드타입
+│   ├── libs/                    # javatv.jar, qsm2lib.jar, taurus_lib.jar 등
+│   └── src/main/
+│       ├── AndroidManifest.xml  # 권한, MainActivity(HOME), 서비스/리시버/프로바이더
+│       ├── aidl/                # UnitedMediaPlayer, IEpgService AIDL
+│       ├── assets/              # cloud.properties, dm_config_*.ini, stabilizer*.properties
+│       ├── jniLibs/             # 네이티브 라이브러리 (android-rop)
+│       ├── res/                 # Leanback UI 리소스
+│       └── java/com.alticast/
+│           ├── android/tv/local/   # 앱 본체
+│           │   ├── (루트) EpgApplication, MainActivity, StateController …
+│           │   ├── module/          # 기능 모듈 (cappl, ccs, si, sdv, oob …)
+│           │   └── ui/              # Leanback UI (main, miniepg, controller …)
+│           ├── clad/, cladimpl/    # CLAD(Cloud App) 인터페이스/구현 + OCAP SI/미디어/TV
+│           └── stub/               # 스텁 클래스
+├── wind3Lib-1.1.6/              # Windmill 라이브러리 AAR (활성 모듈)
+├── wind3Lib-release_1.1.3/      # 이전 버전 AAR (미사용 추정)
+├── cas-module/                  # CAS 모듈 (settings.gradle 미포함 → 빌드 미참여)
+├── cloud_sdk_v1.11/             # Cloud SDK AAR (빌드 미참여)
+└── leakcanary-android-2.0-beta-3/  # LeakCanary AAR (디버그용, 의존성 주석)</pre>
+
+    <h3>주요 모듈 · 클래스</h3>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>구분</th><th>모듈 / 클래스</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td>진입점</td><td><code>MainActivity</code></td><td>First Screen / HOME 런처. 부팅 후 각종 매니저 초기화 및 화면 전환 주관.</td></tr>
+        <tr><td>Application</td><td><code>EpgApplication</code></td><td><code>android-rop</code> 네이티브 로드, 액티비티 라이프사이클 콜백 관리.</td></tr>
+        <tr><td>상태 머신</td><td><code>StateController</code> · <code>State</code> · <code>ServiceStateManager</code></td><td>부팅·동작·스탠바이 등 단말 상태 관리.</td></tr>
+        <tr><td>메시지 라우팅</td><td><code>MainHandler</code> · <code>MainHandlerMessage</code></td><td>메시지 기반으로 화면·기능 라우팅.</td></tr>
+        <tr><td>클라우드 (83)</td><td><code>module/cappl</code></td><td>클라우드 앱 플랫폼(CAPPL). 코드량 최대 모듈.</td></tr>
+        <tr><td>클라우드 홈 (33)</td><td><code>module/ccs</code> · <code>CloudHomeMain</code> · <code>HomePIPManager</code></td><td>Cloud Home·PIP 처리.</td></tr>
+        <tr><td>SI (28)</td><td><code>module/si</code></td><td>Service Information 수신·파싱.</td></tr>
+        <tr><td>SDV (23)</td><td><code>module/sdv</code></td><td>Switched Digital Video 채널 처리.</td></tr>
+        <tr><td>OOB (17)</td><td><code>module/oob</code> · <code>ChannelMapManager</code> · <code>PlatformInfoManager</code></td><td>Out-Of-Band 채널맵·캠페인·홈 광고·플랫폼 정보.</td></tr>
+        <tr><td>품질/로그 (16)</td><td><code>module/tims</code> · <code>module/qsm</code> · <code>module/qagent</code></td><td>TIMS/COQP 품질계측 및 로그 수집.</td></tr>
+        <tr><td>검색 (13)</td><td><code>module/search</code> · <code>LocalSearchProvider</code> · <code>ProgramSearchProvider</code></td><td>글로벌/프로그램 검색 프로바이더.</td></tr>
+        <tr><td>Inband (11)</td><td><code>module/inband</code> · <code>AudioDataManager</code> · <code>IframeManager</code> · <code>LogoManager</code></td><td>오디오·로고·I-frame 인밴드 데이터.</td></tr>
+        <tr><td>CAS (11)</td><td><code>module/cas</code> · <code>CaManagerImpl</code></td><td>수신제한(유료 채널 시청 제어).</td></tr>
+        <tr><td>UMP (9)</td><td><code>module/ump</code> · <code>IEpgAIDLService</code></td><td>외부 미디어 플레이어 AIDL 연동 + EPG 서비스 노출.</td></tr>
+        <tr><td>안정화 (7)</td><td><code>module/stabilizer</code> · <code>StabilizerService</code> · <code>BootReceiver</code></td><td>스탠바이·재부팅·자가진단 알람.</td></tr>
+        <tr><td>블루투스 (7)</td><td><code>module/bluetooth</code> · <code>BluetoothManager</code> · <code>RcuFirmwareVersionController</code></td><td>RCU 페어링·펌웨어·HDMI.</td></tr>
+        <tr><td>UI 레이어</td><td><code>ui/controller</code> · <code>UiLayerManager</code></td><td>Leanback UI 레이어 관리.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>계층 · 외부 연동</h3>
+    <p>UI 계층(<code>ui/</code>)은 미니 EPG·재생·다이얼로그·CCS 화면을 담당하고, 기능 모듈 계층(<code>module/</code>)은 방송·플랫폼 도메인 로직을 캡슐화하며, 그 아래 <code>clad</code>/<code>cladimpl</code>이 OCAP/JavaTV SI·미디어 스택과 클라우드 앱 인터페이스를 추상화합니다. 외부 연동은 (1) AIDL을 통한 외부 미디어 플레이어(<code>com.castis.ump</code>) 및 EPG 서비스 노출, (2) <code>com.android.providers.tv</code> EPG 프로바이더 접근, (3) <code>taurus.cl_prj</code> uses-library 및 <code>android-rop</code> 네이티브 라이브러리를 통한 셋톱 플랫폼(TIS/taurus) 제어, (4) <code>okhttp3</code> 기반의 TIMS/COQP/ADAMS 품질계측 서버 및 클라우드(Windmill/CAPPL) 서버 통신으로 이루어집니다. <code>&lt;queries&gt;</code>에는 watchdog·startset·vod_service·agent 등 협력 패키지가 선언되어 있습니다.</p>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>언어</td><td>Java</td><td>—</td><td>소스 약 526개 .java 파일. 빌드 스크립트는 Groovy DSL.</td></tr>
+        <tr><td>플랫폼</td><td>Android TV / Leanback</td><td>Android 12</td><td><code>compileSdk/minSdk/targetSdk = 31</code>. UC-500 신규 셋톱(API 28→31 업그레이드).</td></tr>
+        <tr><td>빌드 시스템</td><td>Gradle Wrapper / AGP</td><td>7.0.2 / 7.0.2</td><td><code>buildToolsVersion 28.0.3</code>, <code>multiDexEnabled true</code>.</td></tr>
+        <tr><td>Java 호환성</td><td>JavaVersion</td><td>17 / 1_8 (혼재)</td><td>app/build.gradle 안에서 <code>defaultConfig.compileOptions=VERSION_17</code>과 <code>android.compileOptions=VERSION_1_8</code>이 병존.</td></tr>
+        <tr><td>AndroidX</td><td>useAndroidX / Jetifier</td><td>true / true</td><td>support → AndroidX 마이그레이션 및 바이너리 변환.</td></tr>
+        <tr><td>UI</td><td>androidx.leanback / constraintlayout</td><td>1.0.0 / 2.1.4</td><td>TV Leanback UI, legacy-support-v4 1.0.0 포함.</td></tr>
+        <tr><td>네트워크</td><td>OkHttp3</td><td>3.9.0</td><td>HTTP 통신.</td></tr>
+        <tr><td>직렬화</td><td>Gson</td><td>2.8.5</td><td>JSON 직렬화.</td></tr>
+        <tr><td>로컬 라이브러리</td><td>wind3Lib (AAR)</td><td>1.1.6</td><td>Windmill/CAPPL 관련 (활성 모듈).</td></tr>
+        <tr><td>로컬 JAR</td><td>javatv · qsm2lib · taurus_lib · libtauruswatchdog · ietp_java · automata</td><td>—</td><td>JavaTV/OCAP SI 스택, 품질계측, 셋톱 플랫폼 SDK(<code>compileOnly</code>), 워치독.</td></tr>
+        <tr><td>네이티브</td><td>android-rop</td><td>—</td><td><code>System.loadLibrary("android-rop")</code> 앱 시작 시 로드.</td></tr>
+        <tr><td>플랫폼 라이브러리</td><td>taurus.cl_prj</td><td>—</td><td><code>uses-library</code> 선언, 셋톱 시스템 API 접근.</td></tr>
+        <tr><td>코드 보호</td><td>ProGuard</td><td>—</td><td><code>proguard-rules.pro</code> 적용.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+
+    <h3>부팅 시퀀스 (First Screen)</h3>
+    <ol class="steps">
+      <li><span class="st">앱 기동 · 네이티브 로드</span><span class="sd"><code>EpgApplication.onCreate()</code>에서 <code>android-rop</code> 네이티브 라이브러리를 로드하고 액티비티 라이프사이클 콜백을 등록합니다.</span></li>
+      <li><span class="st">MainActivity 진입 · 부팅 화면</span><span class="sd">셋톱 전원 인가 시 <code>HOME</code> 런처인 <code>MainActivity</code>가 실행되어 로딩 시퀀스가 끝날 때까지 <code>BootingFragment</code>(activity_boot)를 표시합니다.</span></li>
+      <li><span class="st">플랫폼 매니저 초기화</span><span class="sd">채널맵(<code>ChannelMapManager</code>), 플랫폼 정보(<code>PlatformInfoManager</code>), CAS(<code>CaManagerImpl</code>), 전원 모드(<code>PowerModeManager</code>), 블루투스(<code>BluetoothManager</code>), Cloud Home(<code>CloudHomeMain</code>) 등 다수 매니저를 초기화합니다.</span></li>
+      <li><span class="st">SI / 채널맵 수신</span><span class="sd"><code>module/oob</code>·<code>module/si</code>·<code>module/inband</code>으로 OOB/Inband 채널맵과 Service Information을 수신·구성하고, 필요 시 <code>module/sdv</code>로 MC 데이터를 획득합니다.</span></li>
+      <li><span class="st">재생 화면 전환</span><span class="sd">로딩이 완료되면 <code>PlaybackFragment</code>/<code>TvViewer</code>로 전환되어 라이브 채널 시청 상태로 진입합니다. (스탠바이 재부팅 시 <code>BootingFragment</code> 라이프사이클·TIMS 초기화 타이밍이 SDK 31에 맞춰 보정되어 있습니다.)</span></li>
+    </ol>
+
+    <h3>채널 전환 (FCC / 미니 EPG)</h3>
+    <ol class="steps">
+      <li><span class="st">키 입력 수신</span><span class="sd"><code>GlobalKeyReceiver</code> 또는 액티비티 키 핸들러가 채널 UP/DOWN·숫자(DCA) 입력을 수신합니다. 미니 EPG에서는 롱프레스 중 발생한 이벤트를 무시하도록 처리합니다.</span></li>
+      <li><span class="st">채널 결정 · 차단 검사</span><span class="sd">대상 채널을 결정하고 CAS(<code>CaManagerImpl</code>) 차단 여부를 확인합니다. DCA 자동완성 리스트에는 차단 채널이 표시되지 않습니다.</span></li>
+      <li><span class="st">FCC 튠</span><span class="sd"><code>FCC</code> 플래그가 켜진 환경에서 빠른 채널 전환을 수행합니다. 8vsb 채널에서는 직전 FCC와 동일한 대상이면 중복 튠을 무시하고, 스탠바이 상태에서는 FCC 튠을 막습니다.</span></li>
+      <li><span class="st">스트림 재생 · 메타 갱신</span><span class="sd"><code>TvViewer</code>/<code>PlaybackFragment</code>가 새 채널을 재생하고, SI/Inband 데이터로 OSD·로고·미니 EPG 정보를 갱신합니다.</span></li>
+    </ol>
+
+    <h3>품질계측 · 로그 수집 (TIMS / COQP)</h3>
+    <ol class="steps">
+      <li><span class="st">초기화</span><span class="sd">부팅 시 <code>module/tims</code>·<code>module/qsm</code>이 <code>BuildConfig</code>에 정의된 TIMS(TCP 8801, UDP 50000/50001)·COQP(UDP 50002~50005) 포트와 서버 IP로 초기화됩니다.</span></li>
+      <li><span class="st">상태 수집</span><span class="sd">채널 전환·신호 상태·스탠바이·8vsb 등 단말 이벤트를 <code>qsm2lib.jar</code> 및 <code>module/qagent</code>가 수집합니다.</span></li>
+      <li><span class="st">서버 전송</span><span class="sd">수집 데이터를 TIMS/COQP 서버 또는 ADAMS 대체 수집 서버로 UDP/HTTP 전송합니다(비라이브향은 ADAMS 대체 서버 사용).</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>Gradle Wrapper(7.0.2) 기반이며 서명에 <code>cert/tbroad_signning_key.jks</code>를 사용합니다. 표준 <code>debug</code>/<code>release</code> 대신 클라우드 접속 환경을 구분하는 커스텀 빌드 타입을 정의합니다.</p>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>빌드 타입</th><th>주요 플래그</th><th>용도</th></tr></thead>
+      <tbody>
+        <tr><td><code>LIVE</code></td><td><code>LIVE=true</code>, <code>CLOUD_BARE=false</code></td><td>실 서비스 환경.</td></tr>
+        <tr><td><code>SAT</code></td><td><code>CLOUD_SAT=true</code></td><td>클라우드 SAT URL 모드.</td></tr>
+        <tr><td><code>DEV</code></td><td><code>LIVE=false</code>, <code>CLOUD_BARE=false</code></td><td>개발 환경.</td></tr>
+        <tr><td><code>CLOUD_BARE</code></td><td><code>CLOUD_BARE=true</code></td><td>클라우드 bare 서버 접속.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <pre><code># 태스크 확인
+./gradlew tasks
+
+# 빌드 타입별 APK 생성
+./gradlew assembleDEV
+./gradlew assembleLIVE
+./gradlew assembleSAT
+./gradlew assembleCLOUD_BARE
+
+# 정리
+./gradlew clean
+
+# 셋톱 단말 설치 (시스템 권한 필요)
+adb install -r ../apks/uc500_tbroad_local_3.2.5.0050_&lt;date&gt;_DEV.apk</code></pre>
+    <p>산출물은 <code>../apks/uc500_tbroad_local_&lt;versionName&gt;_&lt;yyyyMMdd&gt;_&lt;variant&gt;.apk</code> 형식으로 출력됩니다(현재 <code>versionName "3.2.5.0050"</code>, <code>versionCode 3250050</code>). 환경 설정은 <code>assets/cloud.properties</code>, <code>windmill.properties</code>, <code>dm_config_live.ini</code>/<code>dm_config_test.ini</code>, <code>stabilizer*.properties</code>로 관리합니다.</p>
+    <div class="callout warn">
+      <div class="ct">빌드 전 주의</div>
+      <code>signingConfigs.tbroad</code>의 <code>storeFile</code> 경로가 <code>C:/AndroidStudioProjects/...</code>로 하드코딩되어 있습니다. 실제 빌드 시 저장소 내 <code>cert/tbroad_signning_key.jks</code> 경로로 맞춰야 합니다(macOS 경로 예시가 주석으로 존재). 시스템 권한이 필요하므로 일반 에뮬레이터에서는 정상 동작하지 않을 수 있습니다.
+    </div>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>분석 기준 브랜치 <code>UC500_log_2025</code>의 최근 작업은 <strong>로그 수집·품질계측 고도화([Log])</strong>와 <strong>UI/UX 검수 반영([UIUX])</strong>이 큰 축입니다. 2025년 9~11월에는 예약/중복 팝업 문구와 미니 EPG GUI 등 UI 검수 반영, ADAMS 대체 수집 서버 전환, 8vsb 채널의 FCC 중복 튠 방지가 이어졌고, 11~12월에는 로그 수집 고도화·리부팅/자가진단 제어·스탠바이 재부팅 시 SDK 31 라이프사이클 타이밍 보정이 반영되었으며, 2026년 들어 DCA 차단 채널 표시 수정과 미니 EPG 키 처리 보정 후 버전을 갱신했습니다.</p>
+    <ul class="commits">
+      <li><span class="date">2026-03-20</span><span class="msg">[Log]버전변경.</span></li>
+      <li><span class="date">2026-03-20</span><span class="msg">[Log]miniEpg에서 up, down 키 롱프레스인 경우 키 처리중 올라오는 이벤트는 무시 하도록 수정.</span></li>
+      <li><span class="date">2026-02-24</span><span class="msg">[Log]DCA 자동완성 리스트에 차단채널 표시되지 않도록 수정.</span></li>
+      <li><span class="date">2025-12-11</span><span class="msg">[Log]standby에 FCC tune되지 않도록 수정.</span></li>
+      <li><span class="date">2025-12-11</span><span class="msg">[Log]delay 3초로 맞춤.</span></li>
+      <li><span class="date">2025-12-05</span><span class="msg">[Log]standby 재부팅시 BootingFragment onStart 미호출로 TiMS 초기화 누락 문제 수정 (SDK 31 라이프사이클 타이밍 차이) 및 품질계측 UDP 반영.</span></li>
+      <li><span class="date">2025-12-04</span><span class="msg">[Log]팝업 hide 시간 및 사이즈 수정.</span></li>
+      <li><span class="date">2025-12-02</span><span class="msg">[Log]버전 변경.</span></li>
+      <li><span class="date">2025-12-02</span><span class="msg">[Log]추가 요구사항 반영.</span></li>
+      <li><span class="date">2025-11-20</span><span class="msg">[Log]리부팅, 자가진단 제어 기능 추가.</span></li>
+      <li><span class="date">2025-11-14</span><span class="msg">[Log]로그수집 고도화 반영.</span></li>
+      <li><span class="date">2025-11-14</span><span class="msg">[Log]버전.</span></li>
+      <li><span class="date">2025-11-04</span><span class="msg">[UIUX]예약 팝업 문구 변경.</span></li>
+      <li><span class="date">2025-11-04</span><span class="msg">[UIUX]예약 및 중복 팝업 문구 변경.</span></li>
+      <li><span class="date">2025-10-29</span><span class="msg">[UIUX]버전변경.</span></li>
+      <li><span class="date">2025-10-27</span><span class="msg">[UIUX]예약 중복 팝업 UI검수 반영.</span></li>
+      <li><span class="date">2025-10-16</span><span class="msg">[UIUX]UI검수 반영.</span></li>
+      <li><span class="date">2025-09-23</span><span class="msg">[UIUX]비라이브향 로컬앱 Adams 대체 수집 서버로 변경. (IP : 172.18.67.25)</span></li>
+      <li><span class="date">2025-09-23</span><span class="msg">[8vsb]동일 채널에서 FCC 여러번 시도 시 up/down 채널이 8vsb이면 이전 FCC와 동일하면 무시. CPM-450</span></li>
+      <li><span class="date">2025-09-02</span><span class="msg">[UIUX]miniepg gui 반영 / version 3.2.4.0010.</span></li>
+    </ul>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li><code>/Users/lim/Altimedia/workspace_biz_3rd/skb_cloud_local_android/README.md</code><span class="src">저장소 README (과제 개요 1차 근거)</span></li>
+      <li><code>app/build.gradle</code> · <code>app/src/main/AndroidManifest.xml</code><span class="src">소스 — 빌드 플래그/빌드타입, 권한·컴포넌트(서비스/리시버/프로바이더) 검증 근거</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/2861945163">01.Local App (Confluence)</a><span class="src">Confluence ORGAPPDEV — Repository/FTP·Local App Specification 산출물 위치</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3408560871">BKO UC-500 신규 셋탑 (Confluence)</a><span class="src">Confluence ORGAPPDEV — Android 9→12 업그레이드 작업 및 SKB 환경 맞춤 체크 항목</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3271066738">ANDROID SDV (Confluence)</a><span class="src">Confluence ORGAPPDEV — SDV 부팅 MC 데이터/서비스 시작·종료/412/Rejoin</span></li>
+      <li>Repository — <code>git@bitbucket.org:altimedia/skb_cloud_local_android.git</code><span class="src">형상 저장소 (Bitbucket)</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>UC500_log_2025</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

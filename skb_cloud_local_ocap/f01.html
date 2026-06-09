@@ -1,0 +1,205 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap · 채널 탐색·전환(Navigator) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>채널 탐색·전환 (Navigator) — skb_cloud_local_ocap 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local App OCAP</a><span class="sep">›</span>
+      <span class="here">채널 탐색·전환 (Navigator)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP / MHP STB · Java</span>
+    </div>
+    <h1>채널 탐색·전환 (Navigator)</h1>
+    <p class="one-liner"><code>ChannelController</code>가 OCAP <code>ServiceContext</code>를 통해 채널을 튜닝하고, <code>ChannelDatabase</code>·<code>ChannelRing</code>이 채널 목록 순회를, <code>ChannelZapper</code>가 채널 up/down·이전 채널 키 입력을 처리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap" target="_blank" rel="noopener"><code>skb_cloud_local_ocap</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>OCAP_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>navigator/channel/ChannelController.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">리모컨·클라우드 채널 키 → 튜닝</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>Navigator는 가입자가 채널을 바꾸는 경로 전체를 담당합니다. 추상 클래스 <code>ChannelController</code>가 채널 선택 로직의 골격을 제공하고, OCAP 미들웨어 환경에서는 구현체 <code>OcapChannelController</code>가 <code>javax.tv.service.selection.ServiceContext</code>를 사용해 실제 튜닝을 수행합니다. 채널 모델은 <code>Channel</code>(및 케이블 전용 확장 <code>TbroadChannel</code>)로 표현되고, 정렬된 채널 묶음은 <code>ChannelRing</code>이 순환 리스트로 관리합니다.</p>
+    <p>리모컨에서 채널 up/down·이전 채널 키가 들어오면 싱글톤 <code>ChannelZapper</code>가 <code>keyPressed()</code>에서 이를 받아, <code>ChannelRing.getNextChannel()</code>/<code>getPreviousChannel()</code>로 대상 채널을 결정한 뒤 <code>ChannelController.changeChannel()</code>을 호출합니다. <code>ChannelController.changeChannel()</code>은 내부적으로 <code>selectChannel(...)</code>을 호출해 차단 채널·수신제한(CAS)·연령 제한 여부를 검사하고, 통과하면 <code>ServiceContext.select()</code>로 채널을 전환합니다.</p>
+    <p>OCAP 전용 채널 데이터(<code>navigator/channel/ocap</code>)와 TBroad 케이블 채널 모델(<code>navigator/channel/tbroad</code>)이 분리되어 있어, OCAP 미들웨어가 제공하는 SI/서비스 정보와 SK브로드밴드 케이블 고유의 채널 속성(장르·SDV 여부 등)을 함께 다룹니다.</p>
+    <div class="callout">
+      <div class="ct">차단 채널 처리</div>
+      최근 작업(2026-02-24 커밋)에서 DCA(직접 채널 접근) 자동완성 리스트에 차단 채널이 표시되지 않도록 수정되었습니다. 채널 순회·검색 단계에서 차단/수신제한 채널을 필터링하는 정책이 Navigator 전반에 반영되어 있습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant REMOTE as 리모컨 키 (CH UP/DOWN)
+    participant ZAP as ChannelZapper
+    participant RING as ChannelRing
+    participant CC as ChannelController
+    participant OCC as OcapChannelController
+    participant SC as ServiceContext (OCAP)
+
+    REMOTE-&gt;&gt;ZAP: keyPressed(code, when)
+    ZAP-&gt;&gt;ZAP: keyChannelPressed(up)
+    ZAP-&gt;&gt;RING: getNextChannel(cur) / getPreviousChannel(cur)
+    RING--&gt;&gt;ZAP: 대상 Channel
+    ZAP-&gt;&gt;CC: changeChannel(channel, select)
+    CC-&gt;&gt;CC: selectChannel(...) 차단/CAS/연령 확인
+    CC-&gt;&gt;OCC: (구현) 튜닝 수행
+    OCC-&gt;&gt;SC: select(locator)
+    SC--&gt;&gt;OCC: NormalContentEvent / SelectionFailedEvent
+    OCC-&gt;&gt;CC: notify ChannelEventListener
+    Note over CC,SC: 영상 표시 후 채널 배너/Mini EPG 갱신
+      </div>
+      <p class="cap"><strong>흐름.</strong> 채널 키가 <code>ChannelZapper</code>로 들어와 <code>ChannelRing</code>에서 대상 채널을 정한 뒤, <code>ChannelController.changeChannel()</code> → <code>OcapChannelController</code>가 <code>ServiceContext.select()</code>로 튜닝합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ChannelController {
+        &lt;&lt;abstract&gt;&gt;
+        #DefaultServiceContext serviceContext
+        #Channel currentChannel
+        +getInstance() ChannelController
+        +changeChannel(channel, select)
+        +reTune(channel)
+        +getCurrentChannel() Channel
+        #selectChannel(...)
+    }
+    class OcapChannelController {
+        +getInstance() ChannelController
+        +tuneSdvChannel(channel)
+        +selectSpecialChannel(channel)
+    }
+    class ChannelZapper {
+        -boolean byZappingService
+        +getInstance() ChannelZapper
+        +keyPressed(code, when)
+        -keyChannelPressed(up, when)
+    }
+    class ChannelRing {
+        -name
+        +getNextChannel(channel) Channel
+        +getPreviousChannel(channel) Channel
+        +getChannel(channelNum) Channel
+        +findNearestChannel(num, rule) Channel
+    }
+    class ChannelDatabase {
+        +getChannelRing(name) ChannelRing
+    }
+    class Channel {
+        +getNumber() int
+        +getMinorNumber() int
+        +getSourceId() int
+    }
+    class TbroadChannel {
+        +isSDV() boolean
+        +getService()
+    }
+    class ChannelEventListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+
+    OcapChannelController --|&gt; ChannelController : extends
+    ChannelZapper ..&gt; ChannelRing : 대상 채널 조회
+    ChannelZapper ..&gt; ChannelController : changeChannel 호출
+    ChannelController o-- ChannelEventListener : 통지
+    ChannelDatabase o-- ChannelRing : 보유
+    ChannelRing o-- Channel : 정렬 보유
+    TbroadChannel --|&gt; Channel : extends
+      </div>
+      <p class="cap"><strong>관계.</strong> 추상 <code>ChannelController</code>를 <code>OcapChannelController</code>가 구현하고, <code>ChannelZapper</code>가 키 입력을 받아 <code>ChannelRing</code> 조회 후 컨트롤러에 전환을 위임합니다. 케이블 전용 속성은 <code>TbroadChannel</code>이 확장합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>navigator/channel/ChannelController.java</code> — changeChannel은 selectChannel로 위임</div>
+<pre><code>public void changeChannel(Channel channel, boolean select, boolean fromEPG, boolean isBack) {
+    if (Log.INCLUDE) {
+        Log.message("[ChannelController] changeChannel, call selectChannel channel : " + channel);
+    }
+    selectChannel(channel, select, false, true, null, fromEPG, isBack);
+}
+
+public void reTune(Channel channel) {
+    // 동일 채널 재튜닝 (차단 해제 후 재선택 등)
+    selectChannel(channel, true, false, true, null, false, false);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>navigator/control/ChannelZapper.java</code> — 채널 키 입력 진입점</div>
+<pre><code>public void keyPressed(int code, long when) {
+    // 채널 up/down 및 이전 키 입력 처리
+    // ...
+    // 내부적으로 keyChannelPressed(up, when)을 호출해
+    // ChannelRing에서 다음/이전 채널을 찾아 전환을 요청한다.
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/navigator/channel/ChannelController.java" target="_blank" rel="noopener">navigator/channel/ChannelController.java</a><span class="src">채널 선택·전환 추상 컨트롤러 (changeChannel / reTune / selectChannel)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/navigator/channel/ocap/OcapChannelController.java" target="_blank" rel="noopener">navigator/channel/ocap/OcapChannelController.java</a><span class="src">OCAP ServiceContext 기반 튜닝 구현 (tuneSdvChannel / selectSpecialChannel)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/navigator/channel/ChannelRing.java" target="_blank" rel="noopener">navigator/channel/ChannelRing.java</a><span class="src">정렬 채널 순환 리스트 (getNextChannel / getPreviousChannel / findNearestChannel)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/navigator/channel/ChannelDatabase.java" target="_blank" rel="noopener">navigator/channel/ChannelDatabase.java</a><span class="src">채널맵 단위의 ChannelRing 보관 데이터베이스</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/navigator/control/ChannelZapper.java" target="_blank" rel="noopener">navigator/control/ChannelZapper.java</a><span class="src">리모컨 채널 키 처리·디바운스, 채널 전환 요청 (keyPressed)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/navigator/channel/tbroad/TbroadChannel.java" target="_blank" rel="noopener">navigator/channel/tbroad/TbroadChannel.java</a><span class="src">SK브로드밴드 케이블 채널 모델 (isSDV / 장르 등 확장)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">FCC 고속 채널 전환 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>OCAP_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

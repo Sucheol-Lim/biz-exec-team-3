@@ -1,0 +1,214 @@
+<!doctype html>
+<!-- kt-bom-qrator-web · CMP(캠페인) 채널 트리거 기능 상세 — 스케줄 푸시 기반 편성정보 트리거 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CMP(캠페인) 채널 트리거 — kt-bom-qrator-web 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT BOM Qrator Web (언바운드 위젯 앱)</a><span class="sep">›</span>
+      <span class="here">CMP(캠페인) 채널 트리거</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">olleh tv 웹 미들웨어 STB · JavaScript</span>
+    </div>
+    <h1>CMP(캠페인) 채널 트리거</h1>
+    <p class="one-liner">스케줄 푸시 기반 캠페인 편성정보 트리거입니다. 알림형(<code>REACT_TYPE=1</code>)과 반응형(<code>REACT_TYPE=2</code>)으로 나뉘며, 다른 앱 실행 시 노출 방식(<code>EXEC_TYPE</code> 1/2)에 따라 강제 종료-후-표시 또는 대기-후-표시로 분기합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web" target="_blank" rel="noopener"><code>kt-bom-qrator-web</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>apps/cmpChannelTrigger/main.js</code></div></div>
+      <div class="item"><div class="k">최근 이슈</div><div class="v">KTBOM-291 (실행 흐름 재구현)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>CMP 채널 트리거는 채널 트리거(f04)와 동일한 <code>chTriggerManager</code> 스케줄을 공유하지만, 캠페인의 <code>REACT_TYPE</code>이 설정된 "반응형/알림형" 캠페인을 담당합니다. 매니저의 <code>runCampaign</code>이 <code>REACT_TYPE</code>이 있는 캠페인을 발견하면 <code>checkCampaignCondition</code>(플랫폼 타입·가입 상품·마케팅 동의·관심지수·이전 채널 시청 시간 등)을 통과한 경우에 한해 <code>cmpChannelTrigger.setCampaign()</code>으로 넘어옵니다.</p>
+    <p>표시 시도(<code>_attempt</code>)는 먼저 미디어 재생 시간(<code>getMediaTime() &gt; 0</code>)으로 iframe 노출 여부를 확인합니다. 그다음 실행 타입(EXEC_TYPE)에 따라 두 경로로 갈립니다. <code>EXEC_TYPE=1</code>(<code>isForceExitAndShow</code>)은 최초 1회 다른 앱을 강제 종료하고 표시(<code>_forceExitAndShow</code>)한 뒤, 이후엔 외부 앱이 끝날 때까지 폴링합니다. <code>EXEC_TYPE=2</code>는 다른 앱이 실행 중이면 노출하지 않고 <code>CHECK_OTHER_APP</code> 상태로 대기합니다.</p>
+    <p>외부 상태 조회(<code>_queryExternalState</code>)는 바운드 앱(<code>checkRunningBoundApp</code>)과 언바운드 앱(<code>obs_isLoadingUnboundApplication</code>) 두 가지를 차례로 확인합니다. 이때 옵저버와의 표시/조회 요청은 <strong>요청-응답 라우터</strong>(<code>RequestReplyRouter.sendSerial</code>, 5000/4000ms 타임아웃)를 통해 직렬화됩니다. 키 처리는 알림형(<code>_handleAlertKey</code>)과 반응형(<code>_handleResponsiveKey</code>)으로 분리되어, RED(이동/마이크로사이트)·BLUE(하루 보지 않기)·ENTER·ESCAPE·#키 등을 다르게 처리합니다.</p>
+    <div class="callout">
+      <div class="ct">캠페인 데이터 정책 (2026.01 KTBOM-291)</div>
+      알림형(<code>REACT_TYPE=1</code>)은 <code>EXEC_TYPE=1</code> 고정, 반응형(<code>REACT_TYPE=2</code>)은 <code>EXEC_TYPE</code> 취사선택(디폴트 2)입니다. 단 ACAP 단말은 <code>EXEC_TYPE=2</code>로 설정해도 1로 동작하도록 고정됩니다. <code>BOM_APP_INFO</code>가 있으면 트리거 UI 없이 바로 BOM 앱을 실행(<code>_runPBom</code>)합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant MGR as chTriggerManager
+    participant CCT as cmpChannelTrigger
+    participant MODEL as cmpChTriggerModel
+    participant RRR as RequestReplyRouter
+    participant OBS as Observer
+    participant BRK as brk
+
+    MGR-&gt;&gt;CCT: setCampaign(camp, time) (REACT_TYPE)
+    MODEL-&gt;&gt;CCT: onRequestAttempt(reason) → _attempt()
+    CCT-&gt;&gt;CCT: _isPlaybackNotStarted() (mediaTime &lt;= 0 차단)
+    alt EXEC_TYPE=1 (force)
+        CCT-&gt;&gt;CCT: 최초 1회 _forceExitAndShow()
+    else EXEC_TYPE=2
+        CCT-&gt;&gt;RRR: _queryExternalState()
+        RRR-&gt;&gt;OBS: obs_isLoadingUnboundApplication
+        OBS--&gt;&gt;RRR: res = no
+    end
+    CCT-&gt;&gt;RRR: _requestShow() (obs_requestShow)
+    RRR-&gt;&gt;OBS: sendSerial
+    OBS--&gt;&gt;CCT: yes
+    CCT--&gt;&gt;MGR: cmpChTriggerView.show(campaign)
+
+    Note over CCT: RED(반응형) → _moveToLink
+    CCT-&gt;&gt;BRK: getTemplateId(BW013) → handleLinkType / runBomApp
+      </div>
+      <p class="cap"><strong>흐름.</strong> 매니저가 반응형 캠페인을 넘기면 <code>_attempt</code>가 미디어 시간·EXEC_TYPE을 평가하고, 요청-응답 라우터로 옵저버 표시를 직렬 요청한 뒤 트리거를 표시합니다. RED 키로 <code>getTemplateId(BW013)</code> 후 링크 실행을 brk에 위임합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class cmpChannelTrigger {
+        -runningTriggerBomApp
+        -activateKeyHandler
+        +init()
+        +setCampaign(campaign, time)
+        +hide(reason)
+        +clearState(isCloseApp)
+        +keyEventListener(event)
+        +triggerBomAppUnLoaded(app)
+    }
+    class cmpChTriggerModel {
+        -triggerState
+        +setState(state)
+        +isAlertType()
+        +isResponsiveType()
+        +isForceExitAndShow()
+        +hasShownOnce()
+        +getCurrentCampaign()
+        +startRestartDelay(ms)
+    }
+    class cmpChTriggerView {
+        +show(campaign)
+        +hide()
+        +clear()
+    }
+    class RequestReplyRouter {
+        +sendSerial(opts)
+        +handleResponse(event)
+    }
+    class cmpChTriggerApi {
+        +getTemplateId(svcContId, testYn, suc, err)
+    }
+
+    cmpChannelTrigger o-- cmpChTriggerModel : 상태 머신
+    cmpChannelTrigger o-- cmpChTriggerView : 렌더
+    cmpChannelTrigger --&gt; RequestReplyRouter : 표시/조회 직렬화
+    cmpChannelTrigger --&gt; cmpChTriggerApi : BW013 호출
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>cmpChannelTrigger</code>가 <code>cmpChTriggerModel</code>(EXEC_TYPE·REACT_TYPE 상태)·<code>cmpChTriggerView</code>를 소유하고, 옵저버 통신은 <code>RequestReplyRouter</code>로 직렬화, 링크 정보는 <code>cmpChTriggerApi(BW013)</code>로 조회합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>apps/cmpChannelTrigger/main.js</code> — _attempt: EXEC_TYPE 분기</div>
+<pre><code>function _attempt(reason) {
+    if (_isPlaybackNotStarted()) {            // iframe 노출중이면 차단
+        self.hide('playback_not_started');
+        return;
+    }
+    if (cmpChTriggerModel.isForceExitAndShow()) return _attemptExec1(reason); // EXEC_TYPE=1
+    _attemptExec2(reason);                                                    // EXEC_TYPE=2
+}
+
+function _attemptExec1(reason) {
+    if (!cmpChTriggerModel.hasShownOnce()) {  // 최초 1회는 강제 종료 후 표시
+        _forceExitAndShow();
+        return;
+    }
+    _queryExternalState(function (extState) {
+        if (extState === EXT_STATE.RUNNING) {
+            cmpChTriggerModel.setState(TRG_STATE.CHECK_OTHER_APP);
+            return;
+        }
+        _showTriggerFlow();
+    });
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>apps/cmpChannelTrigger/main.js</code> — _requestShow: 요청-응답 라우터로 표시 직렬화</div>
+<pre><code>function _requestShow(callback) {
+    RequestReplyRouter.sendSerial({
+        from: C.ID, to: qrator.aid.observer,
+        method: C.METHOD.OBS_REQUEST_SHOW,
+        payload: { method: C.METHOD.OBS_REQUEST_SHOW, from: qrator.aid.appstore },
+        ttlMs: 5000,
+        onReply: function (msg) {
+            var ok = (msg &amp;&amp; (msg.res === 'yes' || msg.res === true));
+            if (typeof callback === 'function') callback(ok);
+        },
+        onTimeout: function () { if (typeof callback === 'function') callback(false); }
+    });
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/cmpChannelTrigger/main.js" target="_blank" rel="noopener">apps/cmpChannelTrigger/main.js</a><span class="src">CMP 트리거 본체. EXEC_TYPE 분기·요청-응답 라우터·알림/반응형 키 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/cmpChannelTrigger/model/cmpChTriggerModel.js" target="_blank" rel="noopener">apps/cmpChannelTrigger/model/cmpChTriggerModel.js</a><span class="src">트리거 상태 머신·REACT_TYPE/EXEC_TYPE 판정·재시작 딜레이</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/cmpChannelTrigger/component/cmpChTriggerApi.js" target="_blank" rel="noopener">apps/cmpChannelTrigger/component/cmpChTriggerApi.js</a><span class="src">템플릿/링크 정보(BW013) API</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/qDaemon/chTriggerManager.js" target="_blank" rel="noopener">apps/qDaemon/chTriggerManager.js</a><span class="src">반응형 캠페인 조건 검사(checkCampaignCondition)와 setCampaign 전달</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f05.html">← BOM VOD 트리거</a>
+      <a href="f07.html">큐톤(Cue-tone) 광고 트리거 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt-bom-qrator-web 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

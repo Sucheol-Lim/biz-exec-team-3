@@ -1,0 +1,205 @@
+<!doctype html>
+<!-- tivibu_4k · PIP/모자이크 기능 상세 — PipView(PipChannelAdapter)/MosaicView 시퀀스·클래스 다이어그램 + 코드 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PIP · 모자이크 — tivibu_4k 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Tivibu 4K Android — IPTV/OTT 런처</a><span class="sep">›</span>
+      <span class="here">PIP · 모자이크</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV / Leanback · Kotlin</span>
+    </div>
+    <h1>PIP · 모자이크</h1>
+    <p class="one-liner"><code>PipView</code>는 별도 <code>PipChannelAdapter</code>로 보조 채널을 음소거 재생해 라이브 위에 오버레이하고, <code>MosaicView</code>는 모자이크 채널의 2×3 격자(<code>MosaicItem</code>)를 그려 여러 채널을 한 화면에서 탐색하게 합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tivibu_4k" target="_blank" rel="noopener"><code>tivibu_4k</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>sprint/LS0626_release</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ui/livetv/pip/PipView.kt</code> · <code>mosaic/MosaicView.kt</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">라이브 화면 위 오버레이 뷰</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>PIP와 모자이크는 모두 <code>LiveTvScreen</code>이 소유하는 오버레이 뷰로, 메인 채널 재생 위에 떠서 동작합니다. <code>PipView</code>는 메인 재생과 충돌하지 않도록 전용 SI 어댑터(<code>@PipChannelAdapter</code>로 주입된 <code>ChannelPlayerAdapter</code>)를 사용합니다. <code>show(channelId)</code> 호출 시 PIP 가용성(<code>isChannelPipAvailable</code>)을 확인하고, 볼륨을 0으로 낮춘 뒤(<code>setVolume(0f)</code>) 해당 채널을 튜닝합니다. 메인 오디오는 그대로 두고 보조 영상만 보여주는 구조입니다. 튜닝 실패 시 <code>hide()</code>로 정리하고 리스너에 오류를 통보합니다.</p>
+    <p><code>MosaicView</code>는 모자이크 채널(여러 채널을 한 스트림에 합성한 특수 채널)을 위한 화면입니다. 서버가 내려준 <code>TTChannelMosaicData.itemList</code>의 각 항목 좌표(left/top)를 행·열로 환산해 2행 3열 <code>GridLayout</code>에 <code>MosaicItem</code>을 배치하고, 각 셀을 실제 채널 ID에 매핑합니다. 리모컨 입력(<code>processKeyDown</code>)으로 셀 간 포커스를 이동하고, 선택한 셀의 오디오 트랙을 활성화/비활성화(<code>updateAudioTrack</code>/<code>disableAudioTrack</code>)하며, OK 시 해당 채널로 튜닝합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      PIP는 메인 플레이어를 침범하지 않도록 독립된 <code>PipChannelAdapter</code> 인스턴스로 분리되어 있고, 모자이크는 단일 모자이크 스트림 안에서 셀 좌표를 채널 ID로 역매핑해 "여러 채널을 보는 것처럼" 보이게 합니다. 둘 다 라이브 상태 머신(<code>LiveTvUiState.Mosaic</code> 등)과 연동해 표시/숨김을 관리합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SCR as LiveTvScreen
+    participant PIP as PipView
+    participant PCA as PipChannelAdapter (SI)
+    participant MOS as MosaicView
+    participant MCA as ChannelPlayerAdapter
+
+    Note over SCR,PCA: (A) PIP
+    SCR->>PIP: show(channelId)
+    PIP->>PIP: isChannelPipAvailable(channelId)
+    PIP->>PCA: setVolume(0f)
+    PIP->>PCA: tune(channelId) { result }
+    PCA--&gt;>PIP: PlayResult.Success / Fail
+    alt Fail
+        PIP->>PIP: hide() + listener.onError()
+    end
+
+    Note over SCR,MCA: (B) 모자이크
+    SCR->>MOS: setMosaicData(TTChannelMosaicData)
+    MOS->>MOS: itemList 좌표 → 2x3 GridLayout(MosaicItem)
+    SCR->>MOS: processKeyDown(keyCode)
+    MOS->>MOS: 셀 포커스 이동 + updateAudioTrack(index)
+    MOS->>MCA: 선택 셀 채널 tune (OK)
+      </div>
+      <p class="cap"><strong>흐름.</strong> (A) PIP는 전용 어댑터로 음소거 튜닝하며 실패 시 자동 숨김합니다. (B) 모자이크는 서버 좌표를 격자로 환산해 셀을 그리고, 키 입력으로 포커스/오디오를 바꾸며 선택 채널로 튜닝합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class LiveTvScreen
+    class PipView {
+        -ChannelPlayerAdapter pipChannelAdapter
+        +show(channelId)
+        +hide()
+        +setSize(...)
+        -isChannelPipAvailable(channelId) boolean
+    }
+    class MosaicView {
+        -MosaicUseCase mosaicUseCase
+        -mosaicList
+        +setMosaicData(data)
+        +processKeyDown(keyCode, event) boolean
+        +show() / hide()
+        -updateAudioTrack(index)
+    }
+    class MosaicItem {
+        +index
+        +row
+        +col
+        +channelId
+    }
+    class ChannelPlayerAdapter {
+        &lt;&lt;interface&gt;&gt;
+        +tune(channelId, cb)
+        +setVolume(v)
+        +stop(cb)
+    }
+    class TTChannelMosaicData {
+        +itemList
+    }
+
+    LiveTvScreen o-- PipView : 소유
+    LiveTvScreen o-- MosaicView : 소유
+    PipView --&gt; ChannelPlayerAdapter : PipChannelAdapter
+    MosaicView o-- MosaicItem : 격자 셀
+    MosaicView ..&gt; TTChannelMosaicData
+    MosaicView --&gt; ChannelPlayerAdapter : 셀 채널 tune
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>LiveTvScreen</code>이 두 오버레이를 소유합니다. <code>PipView</code>는 전용 <code>PipChannelAdapter</code>로 보조 재생하고, <code>MosaicView</code>는 <code>TTChannelMosaicData</code>를 <code>MosaicItem</code> 격자로 변환해 채널 어댑터로 튜닝합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/livetv/pip/PipView.kt</code> — 가용성 확인 후 음소거 튜닝</div>
+<pre><code>fun show(channelId: ChannelId) {
+    if (!isChannelPipAvailable(channelId = channelId)) return
+
+    isVisible = true
+    listener?.onVisible()
+    pipChannelAdapter.setVolume(0f)                 // 보조 영상만, 오디오는 메인 유지
+    pipChannelAdapter.tune(channelId = channelId) { result -&gt;
+        when (result) {
+            is PlayResult.Success -&gt; if (isVisible) isPlaying = true
+            is PlayResult.Fail -&gt; { hide(); listener?.onError() }
+        }
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/livetv/mosaic/MosaicView.kt</code> — 서버 좌표를 2×3 격자로 환산</div>
+<pre><code>fun setMosaicData(mosaicData: TTChannelMosaicData) {
+    clearMosaicData()
+    val columnPositions = mosaicData.itemList.map { it.left }.distinct().sorted()
+    val rowPositions    = mosaicData.itemList.map { it.top  }.distinct().sorted()
+
+    binding.mosaicArea.apply { rowCount = 2; columnCount = 3 }
+
+    mosaicData.itemList.forEachIndexed { index, data -&gt;
+        val row = rowPositions.indexOf(data.top)
+        val col = columnPositions.indexOf(data.left)
+        val mosaicItem = MosaicItem(context, index, row, col, /* ... */ channelId = data.id)
+        // 셀을 격자에 추가하고 channelId 매핑
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/pip/PipView.kt" target="_blank" rel="noopener">ui/livetv/pip/PipView.kt</a><span class="src">PIP 오버레이 · PipChannelAdapter 음소거 튜닝 · 위치/크기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/mosaic/MosaicView.kt" target="_blank" rel="noopener">ui/livetv/mosaic/MosaicView.kt</a><span class="src">모자이크 격자 구성 · 키 입력/오디오 트랙 · 셀 튜닝</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/mosaic/MosaicItem.kt" target="_blank" rel="noopener">ui/livetv/mosaic/MosaicItem.kt</a><span class="src">모자이크 셀(채널 매핑) 아이템</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/mosaic/MosaicUseCase.kt" target="_blank" rel="noopener">ui/livetv/mosaic/MosaicUseCase.kt</a><span class="src">모자이크 데이터/오디오 트랙 UseCase</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/LiveTvScreen.kt" target="_blank" rel="noopener">ui/livetv/LiveTvScreen.kt</a><span class="src">오버레이 호스팅 · onSelectPip · 모자이크 상태 연동</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f06.html">← 채널 필터·즐겨찾기·잠금</a>
+      <a href="f08.html">핑거프린트 오버레이 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>sprint/LS0626_release</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tivibu_4k 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

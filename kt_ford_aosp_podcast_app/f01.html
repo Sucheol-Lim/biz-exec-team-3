@@ -1,0 +1,199 @@
+<!doctype html>
+<!-- kt_ford_aosp_podcast_app · 메인 화면(추천·인기·마이팟) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>메인 화면 (추천·인기·마이팟) — kt_ford_aosp_podcast_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford 차량용 팟캐스트 앱</a><span class="sep">›</span>
+      <span class="here">메인 화면 (추천·인기·마이팟)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive · Java</span>
+    </div>
+    <h1>메인 화면 (추천·인기·마이팟)</h1>
+    <p class="one-liner"><code>MainFragment</code>가 미디어 브라우저 루트(<code>PODCAST_ROOT_ID</code>)를 구독해 추천 1위 팟, 인기팟·마이팟·추천팟 메뉴를 한 화면에 모아 보여주는 시작 화면입니다. 메뉴 항목 선택은 채널 목록으로, 일반 팟 선택은 곧바로 재생으로 이어집니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app" target="_blank" rel="noopener"><code>kt_ford_aosp_podcast_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop-exoplayer</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ui/MainFragment.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">앱 진입 시작 화면 · 콘텐츠 트리 루트</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>메인 화면은 Navigation 그래프의 시작 목적지(<code>mainFragment</code>)이며, 화면 생성 시점에 <code>PodcastViewModel.subscribeMediaItem(PODCAST_ROOT_ID, ...)</code>로 미디어 브라우저 루트를 구독합니다. 서비스(<code>PodcastBrowserService</code>)는 이 루트 구독에 대해 추천 목록을 조회한 뒤, <strong>추천 1위 팟</strong>을 재생 가능한 머리 항목으로 두고 그 뒤에 <strong>인기팟·마이팟·추천팟</strong> 3개의 브라우저블 메뉴를 붙여 <code>MediaItem</code> 리스트로 돌려줍니다.</p>
+    <p><code>MainListAdapter</code>가 이 목록을 그리드로 렌더링합니다. 항목을 누르면 <code>MainFragment.initAdapter()</code>의 클릭 리스너가 동작하는데, 누른 항목이 메뉴(인기/마이팟/추천 루트 ID)면 <code>PodcastFragment</code>로 이동해 채널 목록을 펼치고, 그렇지 않은 추천 1위 팟이면 해당 채널을 다시 구독해 첫 에피소드를 <code>playFromMediaId</code>로 재생하면서 <code>PlayControlFragment</code>로 전환합니다. 화면 하단에는 현재 재생 정보를 보여주는 미니 플레이어 바가 항상 노출됩니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      메인 화면은 콘텐츠를 직접 네트워크로 받지 않습니다. <code>MediaBrowserCompat</code> 구독만 걸고 결과는 <code>SubscriptionCallback.onChildrenLoaded()</code>로 전달받아 <code>PodcastViewModel</code>에 캐시(<code>addMediaItemList</code>)합니다. 마이팟 변경 시 서비스가 <code>notifyChildrenChanged()</code>로 통지하면 같은 콜백이 다시 호출되어 목록이 갱신됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant MF as MainFragment
+    participant VM as PodcastViewModel
+    participant MC as PodcastMediaClient
+    participant SVC as PodcastBrowserService
+    participant REQ as PodcastRequest (KT 게이트웨이)
+
+    MF-&gt;&gt;VM: onViewCreated() subscribeMediaItem(PODCAST_ROOT_ID, cb)
+    VM-&gt;&gt;MC: subscribeMediaId(PODCAST_ROOT_ID, cb)
+    MC-&gt;&gt;SVC: MediaBrowser.subscribe(PODCAST_ROOT_ID)
+    SVC-&gt;&gt;REQ: getRecommendList(count, isTop=true)
+    REQ--&gt;&gt;SVC: onGetRecommendTopList(podList)
+    Note over SVC: 추천1위 팟 + 인기/마이팟/추천 메뉴 구성
+    SVC--&gt;&gt;MF: onChildrenLoaded(PODCAST_ROOT_ID, children)
+    MF-&gt;&gt;VM: addMediaItemList(parentId, list)
+    MF-&gt;&gt;MF: adapter.notifyItemRangeChanged()
+
+    Note over MF: 사용자가 항목 클릭
+    alt 메뉴(인기/마이팟/추천) 선택
+        MF-&gt;&gt;MF: navigate(action_mainFragment_to_podcastFragment)
+    else 추천1위 팟 선택
+        MF-&gt;&gt;VM: subscribeMediaItem(pid, playListSubsCallback)
+        VM--&gt;&gt;MF: onChildrenLoaded(pid, episodes)
+        MF-&gt;&gt;SVC: transportControls.playFromMediaId(eid)
+        MF-&gt;&gt;MF: navigate(action_mainFragment_to_playControlFragment)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 화면 진입 시 루트를 구독하면 서비스가 추천 1위 팟과 3개 메뉴를 묶어 돌려주고, 항목 종류(메뉴/팟)에 따라 채널 목록 또는 재생 화면으로 분기합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class MainFragment {
+        -PodcastViewModel podcastViewModel
+        -MainListAdapter adapter
+        +onViewCreated(view, state)
+        -initAdapter()
+        -isMenuMediaItem(item) boolean
+        -observeLiveData()
+    }
+    class MainListAdapter {
+        -PodcastViewModel viewModel
+        +setNightMode(night)
+        +notifyItemRangeChanged(start, count)
+    }
+    class PodcastViewModel {
+        +subscribeMediaItem(mediaId, cb)
+        +unsubscribeMediaId(mediaId, cb)
+        +addMediaItemList(id, list)
+        +getMediaItemList(id) List~MediaItem~
+    }
+    class PodcastBrowserService {
+        +PODCAST_ROOT_ID
+        +POPULARITY_ROOT_ID
+        +MYPOD_ROOT_ID
+        +RECOMMENDED_ROOT_ID
+        +onLoadChildren(parentId, result)
+        +onGetRecommendTopList(podList, parentId, result)
+    }
+    class SubscriptionCallback {
+        &lt;&lt;abstract&gt;&gt;
+        +onChildrenLoaded(parentId, children)
+        +onError(parentId)
+    }
+
+    MainFragment o-- MainListAdapter : 소유
+    MainFragment --&gt; PodcastViewModel : 구독/관찰
+    MainFragment ..&gt; SubscriptionCallback : 익명 구현
+    PodcastViewModel --&gt; PodcastBrowserService : MediaBrowser 경유
+    SubscriptionCallback ..&gt; PodcastBrowserService : onLoadChildren 결과 수신
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>MainFragment</code>는 <code>PodcastViewModel</code>을 통해 서비스 루트를 구독하고, 익명 <code>SubscriptionCallback</code>으로 결과를 받아 <code>MainListAdapter</code>에 반영합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/MainFragment.java</code> — 항목 클릭 시 메뉴/팟 분기 처리</div>
+<pre><code>if (isMenuMediaItem(mediaItem)) {
+    //인기팟, MY팟, 추천팟
+    String mediaId = mediaItem.getDescription().getMediaId();
+    MainFragmentDirections.ActionMainFragmentToPodcastFragment action =
+            MainFragmentDirections.actionMainFragmentToPodcastFragment();
+    action.setMediaId(mediaId);
+    Navigation.findNavController(requireView()).navigate(action);
+} else {
+    isClicked.set(true);
+    podcastViewModel.subscribeMediaItem(mediaItem.getDescription().getMediaId(), playListSubsCallback);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/MainFragment.java</code> — 루트 구독 결과를 ViewModel 캐시에 반영</div>
+<pre><code>public void onChildrenLoaded(@NonNull String parentId, @NonNull List&lt;MediaBrowserCompat.MediaItem&gt; children) {
+    ArrayList&lt;MediaBrowserCompat.MediaItem&gt; list = new ArrayList&lt;&gt;(children);
+    if (podcastViewModel.getMediaItemList(parentId) == null
+            || Utils.isDiffArrayList(podcastViewModel.getMediaItemList(parentId), list)) {
+        podcastViewModel.addMediaItemList(parentId, list);
+        adapter.notifyItemRangeChanged(Constants.START_INDEX, list.size());
+    }
+    podcastViewModel.isContentLoading.setValue(false);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/java/com/altimedia/automotive/kt/service/podcast/ui/MainFragment.java" target="_blank" rel="noopener">ui/MainFragment.java</a><span class="src">시작 화면 · 루트 구독 · 항목 클릭 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/java/com/altimedia/automotive/kt/service/podcast/ui/adapter/MainListAdapter.java" target="_blank" rel="noopener">ui/adapter/MainListAdapter.java</a><span class="src">메인 목록 그리드 어댑터</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/PodcastBrowserService.java" target="_blank" rel="noopener">media/PodcastBrowserService.java</a><span class="src">onLoadChildren · onGetRecommendTopList로 루트 트리 구성</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/java/com/altimedia/automotive/kt/service/podcast/media/PodcastMediaClient.java" target="_blank" rel="noopener">media/PodcastMediaClient.java</a><span class="src">MediaBrowser 구독 위임</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">채널 에피소드 목록 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop-exoplayer</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_podcast_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

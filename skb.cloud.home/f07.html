@@ -1,0 +1,196 @@
+<!doctype html>
+<!-- skb.cloud.home · 검색(텍스트·음성) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>검색(텍스트 · 음성) — skb.cloud.home 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Cloud Home</a><span class="sep">›</span>
+      <span class="here">검색(텍스트 · 음성)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">STB 클라우드 UI · JavaScript</span>
+    </div>
+    <h1>검색(텍스트 · 음성)</h1>
+    <p class="one-liner">키보드 입력 검색과 음성 검색을 제공합니다(<code>scene/search</code>). <code>SearchManager</code>가 자동완성·인기·추천·이력·실제 검색 API 를 호출하고, 진행 중 요청 취소(ajaxStop)로 중복 연동을 막습니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb.cloud.home" target="_blank" rel="noopener"><code>skb.cloud.home</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>scene/search</code> (main / result)</div></div>
+      <div class="item"><div class="k">데이터 소스</div><div class="v"><code>SearchManager</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>검색은 입력 화면(<code>search/main</code>)과 결과 화면(<code>search/result</code>)으로 구성됩니다. <code>SearchMainScene</code>/<code>SearchMainCtrl</code>이 키보드 입력·음성 입력과 자동완성·인기·추천 키워드를 제공하고, <code>SearchResultScene</code>/<code>SearchResultCtrl</code>이 검색 결과를 보여 줍니다. 데이터 연동은 <code>SearchManager</code>가 담당합니다.</p>
+    <p><code>SearchManager</code>는 자동완성(<code>getComplete</code>), 인기 키워드(<code>getKeywordPopular</code>), 추천 키워드(<code>getKeywordRecommend</code>), 검색 이력 조회/삭제(<code>getKeywordHistory</code>/<code>deleteKeywordHistory</code>), 실제 검색(<code>getSearch</code>/<code>searchKeyword</code>), 결과 프로그램 상세(<code>getQueryPrograms</code>)를 호출합니다. 모든 요청은 <code>attachAssesToken</code>으로 <code>W.User.ACCESS_TOKEN</code>을 붙이고, <code>searchAjaxBrocker</code>가 진행 중 요청을 추적해 새 검색 시 <code>ajaxStop()</code>으로 이전 요청을 취소합니다(중복 연동·레이스 방지). 결과 없음(total=0)은 안내 팝업으로 처리합니다.</p>
+    <div class="callout">
+      <div class="ct">캐싱 · 요청 취소</div>
+      검색 결과/키워드는 <code>searchAjaxBrocker</code> 브로커 객체로 관리되어 새로운 검색이 들어오면 이전 요청을 중단합니다. 음성 검색도 동일한 <code>SearchManager.searchKeyword</code> 경로로 결과 화면으로 진입합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant MAIN as SearchMainCtrl
+    participant SM as SearchManager
+    participant SVR as 검색 서버 (SDP)
+    participant RES as SearchResultScene
+
+    MAIN-&gt;&gt;SM: getComplete(keyword) (자동완성)
+    SM-&gt;&gt;SVR: GET 자동완성
+    SVR--&gt;&gt;SM: 후보 키워드
+    MAIN-&gt;&gt;SM: searchKeyword(keyword, callback)
+    SM-&gt;&gt;SM: searchAjaxBrocker.ajaxStop() (이전 요청 취소)
+    SM-&gt;&gt;SVR: getSearch(getDefaultParameter(keyword))
+    SVR--&gt;&gt;SM: 검색 결과(hits)
+    alt total == 0
+        SM-&gt;&gt;MAIN: 결과 없음 팝업
+    else
+        SM-&gt;&gt;RES: SearchResultScene push (결과 표시)
+        RES-&gt;&gt;SM: getQueryPrograms(ids) (상세 보강)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 입력 중에는 자동완성을 받고, 검색 실행 시 이전 요청을 취소한 뒤 <code>getSearch</code>로 결과를 받아 결과 화면으로 진입합니다. 단편/영화는 <code>getQueryPrograms</code>로 상세를 보강합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class SearchMainScene {
+        +onCreate(ctx)
+    }
+    class SearchMainCtrl {
+        +onInput(keyword)
+        +onVoiceResult(text)
+    }
+    class SearchResultScene {
+        +onCreate(ctx)
+    }
+    class SearchResultCtrl {
+        +render(result)
+    }
+    class SearchManager {
+        +getComplete(req, callback)
+        +getKeywordPopular(req, callback)
+        +getKeywordRecommend(req, callback)
+        +getKeywordHistory(req, callback)
+        +deleteKeywordHistory(keyword, callback)
+        +getSearch(req, callback)
+        +searchKeyword(keyword, callback, successCallback)
+        +getQueryPrograms(ids, callback)
+    }
+    class searchAjaxBrocker {
+        +querySearch
+        +queryPrograms
+        +ajaxStop()
+    }
+
+    SearchMainScene o-- SearchMainCtrl
+    SearchResultScene o-- SearchResultCtrl
+    SearchMainCtrl ..&gt; SearchManager : 자동완성/검색
+    SearchResultCtrl ..&gt; SearchManager : 결과/상세
+    SearchManager o-- searchAjaxBrocker : 요청 취소 관리
+      </div>
+      <p class="cap"><strong>관계.</strong> 입력/결과 Scene 이 각 Ctrl 을 통해 <code>SearchManager</code>를 호출하고, <code>SearchManager</code>는 <code>searchAjaxBrocker</code>로 진행 중 요청을 취소·관리합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>common/interface/SearchManager.js</code> — 키워드 검색(이전 요청 취소 후 진입)</div>
+<pre><code>function searchKeyword(keyword, callback, successCallback) {
+    W.Loading.justLock();
+    getSearch(getDefaultParameter(keyword), function (isSuccess, responseData) {
+        W.Loading.stopAll();
+        if (isSuccess && responseData) {
+            var total = 0;
+            if (responseData.hasOwnProperty('hits')) total += responseData.hits.total;
+            if (total == 0) {
+                W.PM.pushPopup({ id: 'BasePopupScene', /* 결과 없음 안내 */ });
+            }
+            // 결과 화면(SearchResultScene)으로 진입
+        }
+    });
+}
+function getSearch(requestData, callback, cbParameter, catchCallback) {
+    searchAjaxBrocker.ajaxStop();               // 진행 중 요청 취소
+    var brocker = searchAjaxBrocker.querySearch;
+    brocker.xhr = getQuerySearch(requestData, brocker.OnCallback, cbParameter, catchCallback);
+    return searchAjaxBrocker;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>common/interface/SearchManager.js</code> — 액세스 토큰 부착</div>
+<pre><code>function attachAssesToken(requestData) {
+    if (!requestData) {
+        requestData = { access_token: W.User.ACCESS_TOKEN };
+    } else {
+        requestData.access_token = W.User.ACCESS_TOKEN;
+    }
+    return requestData;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/common/interface/SearchManager.js" target="_blank" rel="noopener">common/interface/SearchManager.js</a><span class="src">자동완성·인기·추천·이력·검색 API · 요청 취소(searchAjaxBrocker)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/search/main/SearchMainCtrl.js" target="_blank" rel="noopener">scene/search/main/SearchMainCtrl.js</a><span class="src">검색 입력·음성·자동완성 제어</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/search/result/SearchResultCtrl.js" target="_blank" rel="noopener">scene/search/result/SearchResultCtrl.js</a><span class="src">검색 결과 렌더링·상세 보강</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f06.html">이전: VOD 재생(UMP)</a>
+      <a href="f08.html">4방향 라이브 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb.cloud.home 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

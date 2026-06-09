@@ -1,0 +1,228 @@
+<!doctype html>
+<!-- turk-webx-tivibu-sysapp · Live TV 시청 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live TV 시청 — turk-webx-tivibu-sysapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Türk Telekom Tivibu STB 시스템 앱 (EPG SYSAPP)</a><span class="sep">›</span>
+      <span class="here">Live TV 시청</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">WebX STB · JavaScript (ES6/AMD)</span>
+    </div>
+    <h1>Live TV 시청</h1>
+    <p class="one-liner"><code>LiveTVController</code>가 채널 전환 요청을 받아 구독·잠금·동시시청 조건을 점검하고, <code>SystemInterface</code>의 OIPF Video Broadcast Object로 방송 채널을 튜닝·출력합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp" target="_blank" rel="noopener"><code>turk-webx-tivibu-sysapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>controller/LiveTVController.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">채널 튜닝 · 신호 약함 · 미가입 처리</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>Live TV는 STB의 기본 화면으로, 사용자가 채널을 전환하면 해당 채널의 방송을 출력합니다. 리모컨 키 입력은 <code>core/controller/KeyEventManager</code>를 거쳐 <code>ChannelController</code>에서 다음 채널을 결정하고, 그 결과(<code>Channel</code> 객체)가 <code>LiveTVController.processChannel()</code>로 전달됩니다. 컨트롤러는 채널 종류와 상태에 따라 분기 처리한 뒤, 실제 방송 튜닝은 <code>SystemInterface</code>가 관리하는 OIPF Video Broadcast Object(VBO)로 위임합니다.</p>
+    <p><code>setChannel()</code>은 채널을 선택하기 전에 여러 권한·상태 조건을 순서대로 점검합니다. PPV 채널이면 구매 OSD를, 미가입 채널이면 <code>UNSUBSCRIBED_CH</code> OSD를, 잠긴 채널이면 <code>CHANNEL_LOCK</code> OSD를 띄우고 방송 출력을 보류합니다. 정상 채널이면 현재 편성 프로그램(<code>ProgramCacheManager.getPresentProgram()</code>)을 조회해 부모 등급 잠금(<code>LockManager.isPRLock()</code>) 여부를 확인하고, 통과 시 <code>ChannelController.setChannel(param, true)</code>로 방송을 켭니다.</p>
+    <p>동시 시청 제한이 있는 고등급(High Level) 채널은 <code>ConcurrentChannelManager</code>로 다른 단말의 시청 여부를 확인하고, 충돌 시 "계속/취소" 선택 팝업을 띄웁니다. 채널이 변경되면 <code>NavSIMain.showMiniGuide()</code>로 미니가이드를 표시합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      방송 출력은 <code>LiveTVController</code>가 직접 수행하지 않고 <code>ChannelController</code> → <code>SystemInterface</code>(OIPF VBO)로 단계적으로 위임합니다. 컨트롤러는 "이 채널을 틀어도 되는가"의 정책 판단(구독·잠금·PPV·부모등급·동시시청)에 집중하고, 하드웨어에 가까운 튜닝은 core 레이어가 담당합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant KEM as KeyEventManager
+    participant CHC as ChannelController
+    participant LTV as LiveTVController
+    participant LM as LockManager
+    participant PCM as ProgramCacheManager
+    participant SI as SystemInterface (OIPF VBO)
+    participant OSD as OSDController
+
+    KEM-&gt;&gt;CHC: 채널 업/다운 · 숫자 입력
+    CHC-&gt;&gt;LTV: processChannel(channel)
+    alt 고등급(High Level) 채널
+        LTV-&gt;&gt;LTV: ConcurrentChannelManager.isWatchingOthers()
+        Note over LTV,OSD: 충돌 시 BUTTON_POPUP(계속/취소)
+    end
+    LTV-&gt;&gt;LTV: setChannel(channel)
+    alt PPV / 미가입 / 잠금
+        LTV-&gt;&gt;OSD: setOSD(PPV / UNSUBSCRIBED_CH / CHANNEL_LOCK)
+        Note over LTV: select = false (출력 보류)
+    else 정상 채널
+        LTV-&gt;&gt;PCM: getPresentProgram(code)
+        PCM--&gt;&gt;LTV: curProgram
+        LTV-&gt;&gt;LM: isPRLock(ratingid)
+        alt 부모등급 잠김
+            LTV-&gt;&gt;OSD: setOSD(PARENTAL_LOCK)
+        else 통과
+            LTV-&gt;&gt;SI: ChannelController.setChannel(ch, true)
+            SI--&gt;&gt;LTV: 방송 출력
+        end
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 키 입력으로 채널이 결정되면 <code>processChannel()</code>이 동시시청을 점검하고, <code>setChannel()</code>이 구독·잠금·PPV·부모등급 조건을 차례로 검사한 뒤 통과한 채널만 VBO로 튜닝합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class LiveTVController {
+        +show(param)
+        +hide(param)
+        +update(param)
+        +processChannel(param)
+        +setChannel(param)
+        +getCurrentChannel() Channel
+        +getAudioComponents()
+        +selectSubtitleComponent(comp)
+    }
+    class ChannelController {
+        +setChannel(ch, select)
+        +stopChannel()
+        +getCurrentChannel() Channel
+        +isMosaicChannel(ch) bool
+        +isMyTVChannel(ch) bool
+    }
+    class SystemInterface {
+        +getVBOMain()
+        +getLiveAudioComponents()
+        +selectLiveAudioComponent(comp)
+    }
+    class LockManager {
+        +isChannelLock(ch) bool
+        +isPRLock(ratingid) bool
+    }
+    class ProgramCacheManager {
+        +getPresentProgram(code, cb, force)
+    }
+    class Channel {
+        +isPPV() bool
+        +isSubscribed() bool
+        +isHighLevel() bool
+        +getChannelUrl() string
+    }
+
+    LiveTVController --&gt; ChannelController : 튜닝 위임
+    LiveTVController --&gt; LockManager : 잠금 점검
+    LiveTVController --&gt; ProgramCacheManager : 현재 편성 조회
+    LiveTVController --&gt; SystemInterface : 오디오/자막 컴포넌트
+    ChannelController --&gt; SystemInterface : OIPF VBO 제어
+    LiveTVController ..&gt; Channel : 채널 상태 판정
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>LiveTVController</code>가 정책 판단을 맡고, <code>ChannelController</code>·<code>SystemInterface</code>가 실제 OIPF VBO 튜닝을, <code>LockManager</code>·<code>ProgramCacheManager</code>가 잠금·편성 정보를 제공합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>controller/LiveTVController.js</code> — setChannel 권한·상태 점검</div>
+<pre><code>setChannel: function (param) {
+    requestChannelCode = param.code;
+    var select = true;
+    var isPPV = false;
+
+    // 1.Subscription/PPV 2.Locked channel 3.Parental error
+    if (param.isPPV()) {                 // PPV 채널
+        isPPV = true;
+        select = false;
+    } else if (!param.isSubscribed()) {  // 미가입
+        SYSAPP.OSDController.setOSD(OSDConstant.UNSUBSCRIBED_CH);
+        select = false;
+    } else if (SYSAPP.LockManager.isChannelLock(param)) {  // 채널 잠금
+        SYSAPP.OSDController.setOSD(OSDConstant.CHANNEL_LOCK);
+        select = false;
+    }
+    ...
+    SYSAPP.ProgramCacheManager.getPresentProgram(param.code, function (curProgram) {
+        if (curProgram &amp;&amp; SYSAPP.LockManager.isPRLock(curProgram.ratingid) &amp;&amp; !isPPV) {
+            SYSAPP.OSDController.setOSD(OSDConstant.PARENTAL_LOCK);  // 부모등급 잠금
+            select = false;
+        }
+        SYSAPP.ChannelController.setChannel(param, select);          // 방송 출력
+    }, true);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>controller/LiveTVController.js</code> — 오디오/자막 컴포넌트 제어 (OIPF VBO)</div>
+<pre><code>getAudioComponents: function() {
+    return SYSAPP.SystemInterface.getLiveAudioComponents();
+},
+selectSubtitleComponent: function(subtitleComp) {
+    SYSAPP.SystemInterface.getVBOMain().selectComponent(subtitleComp);
+},
+setOffSubtitleComponent: function() {
+    var vboMain = SYSAPP.SystemInterface.getVBOMain();
+    var currentComponent = vboMain.getCurrentActiveComponents(2); // 2 : Subtitle
+    if (currentComponent.length &gt; 0) {
+        vboMain.unselectComponent(currentComponent[0]);
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/LiveTVController.js" target="_blank" rel="noopener">controller/LiveTVController.js</a><span class="src">채널 전환 정책 판단 · 방송 튜닝 위임 · 오디오/자막 컴포넌트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/core/sys/SystemInterface.js" target="_blank" rel="noopener">core/sys/SystemInterface.js</a><span class="src">OIPF Video Broadcast Object 생성·튜닝·컴포넌트 제어</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/LockManager.js" target="_blank" rel="noopener">controller/LockManager.js</a><span class="src">채널 잠금 · 부모등급 잠금 판정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/SignalWeakController.js" target="_blank" rel="noopener">controller/SignalWeakController.js</a><span class="src">신호 약함(SignalWeak) 안내 화면</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/UnsubscribedChController.js" target="_blank" rel="noopener">controller/UnsubscribedChController.js</a><span class="src">미가입 채널 안내 화면</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f02.html">EPG / TV 가이드 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">turk-webx-tivibu-sysapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

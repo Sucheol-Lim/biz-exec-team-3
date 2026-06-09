@@ -1,0 +1,193 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp_solid · 장바구니 관리 기능 상세 — CartStore/CartListItem 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>장바구니 관리 — tpi_prj_aikiosk_webapp_solid 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp (SolidJS)</a><span class="sep">›</span>
+      <span class="here">장바구니 관리</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹앱 · Android WebView 키오스크 (Galaxy Tab S8)</span>
+    </div>
+    <h1>장바구니 관리</h1>
+    <p class="one-liner"><code>CartStore</code>가 장바구니 항목·총수량·총금액과 매장/포장(here·to go) 선택을 관리하고, 각 항목은 <code>CartListItem</code>이 수량·옵션·합계를 캡슐화합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp_solid</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>CartStore.jsx</code> · <code>CartList.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">장바구니 상태 · 합계 계산</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>CartStore</code>는 장바구니 목록(<code>cartList</code>)과 매장/포장 선택(<code>hereTogo</code>)을 시그널로 보관하는 전역 스토어입니다. 항목이 하나라도 있는지(<code>hasCart</code>), 총금액(<code>totalPrice</code>)·IBC 총금액(<code>totalPriceIBC</code>)·총수량(<code>totalQuantity</code>)은 <code>createMemo</code>로 목록에서 파생됩니다. 합계는 각 항목의 <code>getTotalPrice()</code>를 <code>reduce</code>로 합산해 구합니다.</p>
+    <p>장바구니 항목은 <code>CartList.js</code>의 <code>CartListItem</code> 클래스입니다. 생성 시 <code>crypto.randomUUID()</code>로 고유 id를 부여하고, 메뉴(<code>item</code>)·수량(<code>quantity</code>)·옵션(<code>ItemOption</code>)을 갖습니다. 수량은 1~99 범위로 증감(<code>increaseQuantity</code>·<code>decreaseQuantity</code>·<code>setQuantity</code>)되고, <code>getTotalPrice</code>는 메뉴 단가 × 수량으로 항목 금액을 계산합니다. 스토어는 항목 추가(<code>addCartItems</code>)·교체(<code>setCartItems</code>)·삭제(<code>deleteItem</code>, id 기준)·초기화(<code>resetCart</code>)를 제공하며, 옵션 팝업이나 음성 주문 응답이 이 API로 장바구니를 갱신합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      삭제는 항목 id로 필터링하므로 같은 메뉴를 옵션만 다르게 여러 번 담아도 개별 삭제가 가능합니다. 소스 주석에 "같은 아이템이면 수량만 늘리기"가 TODO로 남아 있어, 현재는 동일 메뉴를 별도 항목으로 추가합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant OP as OptionPopup
+    participant CS as CartStore
+    participant CI as CartListItem
+    participant UI as Cart 화면
+
+    OP->>CS: addCartItems([menuItem])
+    CS->>CS: setCartList(prev + itemArray)
+    UI->>CS: totalPrice()
+    CS->>CI: getTotalPrice() (항목별)
+    CI-->>CS: price * quantity
+    CS-->>UI: 합산 총금액
+    UI->>CS: setHereTogo(here / to go)
+    UI->>CS: deleteItem(item)
+    CS->>CS: cartList.filter(id != item.id)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 옵션 팝업이 항목을 담으면 목록이 갱신되고, 화면은 메모로 총금액/수량을 받아 표시하며, 매장/포장 선택과 삭제도 스토어 API로 처리됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class CartStore {
+        +cartList()
+        +hasCart()
+        +totalPrice()
+        +totalPriceIBC()
+        +totalQuantity()
+        +hereTogo()
+        +setCartItems(itemArray)
+        +addCartItems(itemArray)
+        +deleteItem(item)
+        +setHereTogo(value)
+        +resetCart()
+    }
+    class CartListItem {
+        +id
+        +item
+        +quantity
+        +options
+        +increaseQuantity()
+        +decreaseQuantity()
+        +setQuantity(q)
+        +getTotalPrice()
+        +getTotalPriceIBC()
+    }
+    class ItemOption {
+        +temperature
+        +caffeine
+        +syrups
+        +blend
+    }
+    class HereTogoType {
+        &lt;&lt;enumeration&gt;&gt;
+        HERE
+        TOGO
+        UNKNOWN
+    }
+
+    CartStore o-- CartListItem : cartList
+    CartListItem --> ItemOption : options
+    CartStore ..> HereTogoType
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>CartStore</code>가 <code>CartListItem</code> 목록을 보유하고, 각 항목은 <code>ItemOption</code>을 가지며, 매장/포장 상태는 <code>HereTogoType</code> 열거로 관리됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/stores/CartStore.jsx</code> — 합계 파생 + 항목 조작</div>
+<pre><code>const totalPrice = createMemo(() =&gt; {
+  if (!hasCart()) return 0;
+  return cartList().reduce((acc, item) =&gt; acc + item?.getTotalPrice?.(), 0);
+});
+const totalQuantity = createMemo(() =&gt; {
+  if (!hasCart()) return 0;
+  return cartList().reduce((acc, item) =&gt; +acc + +item?.quantity, 0);
+});
+
+const addCartItems = (itemArray) =&gt; setCartItems((prev) =&gt; [...prev, ...itemArray]);
+const deleteItem = (item) =&gt;
+  setCartItems(cartList().filter((cartItem) =&gt; cartItem.id != item.id));</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/utils/CartList.js</code> — 장바구니 항목 · 수량/합계</div>
+<pre><code>export default class CartListItem {
+  constructor(item, quantity = 1, options = new ItemOption()) {
+    this.id = window.crypto.randomUUID();
+    this.item = item;
+    this.quantity = quantity;
+    this.options = options;
+  }
+  increaseQuantity = () =&gt; { if (this.quantity &lt; 99) this.quantity++; return this; };
+  decreaseQuantity = () =&gt; { if (this.quantity &gt; 1) this.quantity--; return this; };
+  getTotalPrice = () =&gt; this.item?.price * this.quantity;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/stores/CartStore.jsx" target="_blank" rel="noopener">stores/CartStore.jsx</a><span class="src">장바구니 목록·총수량·총금액·매장/포장 상태 관리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/utils/CartList.js" target="_blank" rel="noopener">utils/CartList.js</a><span class="src">CartListItem · 고유 id · 수량 증감 · getTotalPrice</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/constants/menu.js" target="_blank" rel="noopener">constants/menu.js</a><span class="src">HereTogoType(here/to go/unknown) 정의</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f06.html">← 옵션 선택</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f08.html">키오스크 주문 플로우 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tpi_prj_aikiosk_webapp_solid 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

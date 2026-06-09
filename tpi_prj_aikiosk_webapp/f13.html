@@ -1,0 +1,178 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp · 세로 대화면 줌 보정 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>세로 대화면 줌 보정 — AI Kiosk WebApp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp</a><span class="sep">›</span>
+      <span class="here">세로 대화면 줌 보정</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">CSS zoom · 부트스트랩</span>
+    </div>
+    <h1>세로 대화면 줌 보정</h1>
+    <p class="one-liner"><code>main.jsx</code>가 <code>window.onload</code> 시점에 <code>window.innerHeight / 1480</code> 비율을 계산해 <code>body</code>의 CSS <code>zoom</code>을 설정하고, 924x1480 고정 레이아웃을 세로형 키오스크 단말 화면에 맞춥니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>src/main.jsx</code> · <code>src/index.css</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">924x1480 세로형 단말 레이아웃 적합화</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>이 앱은 모든 화면을 <code>924px × 1480px</code> 고정 픽셀 기준으로 그립니다. <code>src/index.css</code>의 <code>body</code>는 <code>width: 924px; height: 1480px;</code>로 고정되어 있고 <code>position: fixed</code>로 스크롤 없이 한 화면에 배치됩니다. 대상 단말인 삼성 갤럭시 탭 S8의 세로형 표시 영역과 정확히 일치하는 좌표계입니다. 그러나 실제 WebView·브라우저의 표시 높이는 단말·환경마다 달라서, 고정 1480px 레이아웃을 그대로 두면 화면이 잘리거나 여백이 생깁니다.</p>
+    <p>이를 보정하기 위해 부트스트랩 단계인 <code>main.jsx</code>가 <code>window.onload</code> 콜백으로 <code>InitializeWindow()</code>를 등록합니다. 이 함수는 현재 표시 높이 <code>window.innerHeight</code>를 디자인 기준 높이 <code>1480</code>으로 나눠 백분율을 만들고, <code>modifyWindowZoom()</code>이 <code>document.body.style["zoom"]</code>에 그 값을 적용합니다. 예를 들어 표시 높이가 1184px이면 <code>(1184 / 1480) × 100 = 80%</code>로 축소되어 1480px 레이아웃 전체가 화면 안에 들어옵니다. 폭이 아니라 높이를 기준으로 잡는 이유는 세로형(portrait) 키오스크에서 세로가 잘리지 않는 것이 우선이기 때문입니다.</p>
+    <p>CSS <code>zoom</code> 속성은 레이아웃 좌표계 전체를 비율로 확대·축소하므로, 화면 내 모든 컴포넌트가 924x1480 기준 좌표를 그대로 쓰면서도 단말 해상도에 자동으로 맞춰집니다. 별도의 반응형 미디어쿼리나 컴포넌트별 스케일 처리 없이 한 줄의 zoom 보정으로 전체 화면을 단말에 적합화하는 단순한 방식입니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      보정 기준은 <code>innerWidth</code>가 아니라 <code>innerHeight</code>입니다. 세로형 키오스크에서는 세로 길이가 핵심 제약이므로, 높이 비율로 zoom을 잡으면 1480px 세로 콘텐츠가 단말 높이에 정확히 맞춰지고 가로는 동일 비율로 따라 줄어듭니다. zoom 계산과 로그 출력은 <code>CommonLog</code> debug 레벨로 남깁니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant MAIN as main.jsx
+    participant WIN as window
+    participant BODY as document.body
+    participant LOG as CommonLog
+
+    MAIN-&gt;&gt;WIN: window.onload = InitializeWindow
+    Note over WIN: 페이지 로드 완료
+    WIN-&gt;&gt;MAIN: InitializeWindow() 호출
+    MAIN-&gt;&gt;WIN: window.innerHeight 읽기
+    WIN--&gt;&gt;MAIN: 표시 높이(px)
+    MAIN-&gt;&gt;LOG: debug(window innerHeight)
+    MAIN-&gt;&gt;MAIN: percentage = innerHeight / 1480 * 100
+    MAIN-&gt;&gt;LOG: debug(window zoom to N%)
+    MAIN-&gt;&gt;BODY: style.zoom = percentage + "%"
+    Note over BODY: 924x1480 레이아웃이 단말 화면에 적합화
+      </div>
+      <p class="cap"><strong>흐름.</strong> 부트스트랩에서 <code>window.onload</code>에 보정 함수를 걸어두고, 로드 완료 시 표시 높이를 1480 기준으로 환산한 백분율을 <code>body</code>의 <code>zoom</code>에 적용합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class MainBootstrap {
+        +InitializeWindow()
+        +modifyWindowZoom(domElement, percentage)
+    }
+    class Window {
+        +innerHeight
+        +onload
+    }
+    class BodyElement {
+        +style.zoom
+    }
+    class IndexCss {
+        +width 924px
+        +height 1480px
+        +position fixed
+    }
+    class CommonLog {
+        +debug(msg)
+    }
+
+    MainBootstrap --&gt; Window : onload 등록 / innerHeight 읽기
+    MainBootstrap --&gt; BodyElement : zoom 설정
+    MainBootstrap --&gt; CommonLog : 보정 로그
+    BodyElement ..&gt; IndexCss : 고정 924x1480 기준
+      </div>
+      <p class="cap"><strong>관계.</strong> 부트스트랩 모듈이 <code>window.innerHeight</code>를 읽어 zoom 비율을 산출하고 <code>body</code>에 적용합니다. <code>index.css</code>가 정한 924x1480 고정 좌표계가 zoom 보정의 기준이 됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/main.jsx</code> — onload 시 높이 비율로 body zoom 보정</div>
+<pre><code>function InitializeWindow() {
+  log.debug(`window innerHeight = ${window.innerHeight}`);
+  modifyWindowZoom(document.body, (window.innerHeight / 1480) * 100);
+}
+
+function modifyWindowZoom(domElement, percentage) {
+  log.debug(`window zoom to ${percentage}%`);
+  domElement.style["zoom"] = percentage + "%";
+}
+
+window.onload = InitializeWindow;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/index.css</code> — 924x1480 고정 레이아웃 기준</div>
+<pre><code>body {
+  margin: 0;
+  position: fixed;
+  display: flex;
+  place-items: center;
+  width: 924px;
+  height: 1480px;
+  background-color: #fff;
+  user-select: none;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/main.jsx" target="_blank" rel="noopener">src/main.jsx</a><span class="src">window.onload → InitializeWindow → modifyWindowZoom (innerHeight / 1480 비율 적용)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/index.css" target="_blank" rel="noopener">src/index.css</a><span class="src">body 924x1480 고정 · position fixed (zoom 보정 기준 좌표계)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/index.html" target="_blank" rel="noopener">index.html</a><span class="src">user-scalable=no viewport · #root 마운트 엔트리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/util/CommonLog.js" target="_blank" rel="noopener">src/util/CommonLog.js</a><span class="src">보정 과정 debug 로그 출력</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f12.html">← 볼륨 제어</a>
+      <a href="f14.html">디버그 오버레이 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">AI Kiosk WebApp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap · CAS 수신제한 연동 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CAS 수신제한 연동 — skb_cloud_local_ocap 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local App OCAP</a><span class="sep">›</span>
+      <span class="here">CAS 수신제한 연동</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP / MHP STB · Java</span>
+    </div>
+    <h1>CAS 수신제한 연동</h1>
+    <p class="one-liner"><code>CaManagerImpl</code>이 <code>CaManager</code> 인터페이스를 구현해 CAS 시스템 ID에 맞는 핸들러(<code>AltiCaHandler</code>/<code>NagraCaHandler</code>)를 생성하고, 채널 수신제한 확인·구매 요청·미리보기(<code>PreviewInfo</code>)를 TBroad CA Adaptor를 통해 처리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap" target="_blank" rel="noopener"><code>skb_cloud_local_ocap</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>OCAP_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>monitor/ca/CaManagerImpl.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">Alticast CAS + Nagra CA + TBroad CA Adaptor</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>CAS(수신제한 시스템, Conditional Access System)는 가입자 권한에 따라 채널·콘텐츠 시청을 허용/제한합니다. 본 앱은 싱글톤 <code>CaManagerImpl</code>(<code>CaManager</code> 인터페이스 구현)로 CAS 연동을 일원화합니다. <code>CaManagerImpl</code>은 부팅 시 Monitor 단계에서 초기화되며, <code>setCasSystemId()</code>로 <code>SystemInfo</code>에서 CAS 시스템 ID를 읽어온 뒤 <code>createCaHandler()</code>로 해당 CAS에 맞는 핸들러를 생성합니다.</p>
+    <p>핸들러는 공통 추상 <code>CaHandler</code>를 상속하는 <code>AltiCaHandler</code>(Alticast CAS)와 <code>NagraCaHandler</code>(Nagra CA) 두 종류가 있습니다. 채널 전환 시 <code>requestCaChannel(channel)</code>이 호출되어 해당 채널의 수신 가능 여부를 핸들러에 위임하고, 유료 채널·이벤트 구매는 <code>requestCaPurchase()</code>/<code>requestCaPurchaseWithPrdId()</code>로 처리합니다. 결과는 <code>CaResultListener</code>로 통보되어 UI(구매 팝업·차단 안내 등)에 반영됩니다.</p>
+    <p>스마트카드 상태(<code>isValidSmartCardStatus()</code>·<code>getSmartCardID()</code>)와 만료 여부(<code>getIsExpired()</code>)도 <code>CaManagerImpl</code>이 제공하며, 내부 <code>CasSystemCheckThread</code>가 CAS 시스템 상태를 주기 점검합니다. 미리보기는 <code>PreviewInfo</code>로 표현되어, 미가입 채널을 제한 시간 동안 시청하게 하는 프리뷰 기능을 다룹니다. 실제 CAS/CA 네이티브 연동은 <code>lib/</code>의 Alticast CAS와 <code>tbroad_ca_adaptor.zip</code>(TBroad CA Adaptor)을 통합니다.</p>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant MON as Monitor
+    participant CMI as CaManagerImpl
+    participant SI as SystemInfo
+    participant CAH as CaHandler (Alti/Nagra)
+    participant ADP as TBroad CA Adaptor
+    participant LIS as CaResultListener
+
+    MON-&gt;&gt;CMI: getInstance() (초기화)
+    CMI-&gt;&gt;SI: getCasSystemId()
+    SI--&gt;&gt;CMI: casSystemId
+    CMI-&gt;&gt;CMI: createCaHandler()
+    CMI-&gt;&gt;CAH: new AltiCaHandler / NagraCaHandler
+    Note over CMI,CAH: 채널 전환 시
+    CMI-&gt;&gt;CAH: requestCaChannel(channel)
+    CAH-&gt;&gt;ADP: 수신제한 확인 요청
+    ADP--&gt;&gt;CAH: 허용 / 차단 / 미리보기(PreviewInfo)
+    CAH-&gt;&gt;LIS: CaResult 통보
+    LIS--&gt;&gt;MON: 구매 팝업/차단 안내 반영
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>CaManagerImpl</code>이 CAS 시스템 ID에 맞는 핸들러를 생성하고, 채널 전환 시 <code>requestCaChannel()</code>로 수신제한을 확인합니다. 결과는 <code>CaResultListener</code>로 통보되어 UI에 반영됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class CaManager {
+        &lt;&lt;interface&gt;&gt;
+        +stop()
+        +getSmartCardID() byte
+        +isValidSmartCardStatus() boolean
+        +requestCaChannel(channel)
+        +requestCaPurchase(channel, event)
+    }
+    class CaManagerImpl {
+        -CaHandler caHandler
+        -CaResultListener listener
+        +getInstance() CaManagerImpl
+        +createCaHandler()
+        +setCasSystemId()
+        +requestCaChannel(channel)
+        +requestCaPurchaseWithPrdId(channel, prdId)
+        +previewStop(ch)
+        +getIsExpired() boolean
+    }
+    class CaHandler {
+        &lt;&lt;abstract&gt;&gt;
+        +requestCaChannel(channel)
+        +requestCaPurchase(channel, event)
+        +setCaResultListener(listener)
+    }
+    class AltiCaHandler
+    class NagraCaHandler
+    class CaResultListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class PreviewInfo
+    class CasSystemCheckThread {
+        +run()
+    }
+
+    CaManagerImpl ..|&gt; CaManager : implements
+    CaManagerImpl o-- CaHandler : 생성·보유
+    AltiCaHandler --|&gt; CaHandler : extends
+    NagraCaHandler --|&gt; CaHandler : extends
+    CaManagerImpl ..&gt; CaResultListener : 통보
+    CaHandler ..&gt; PreviewInfo : 미리보기
+    CaManagerImpl *-- CasSystemCheckThread : 상태 점검
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>CaManagerImpl</code>이 <code>CaManager</code>를 구현하고 CAS 종류에 따라 <code>AltiCaHandler</code>/<code>NagraCaHandler</code>를 생성합니다. 둘 다 추상 <code>CaHandler</code>를 상속하며, 결과는 <code>CaResultListener</code>로 통보됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>monitor/ca/CaManagerImpl.java</code> — CAS 핸들러 생성과 채널 수신제한 요청</div>
+<pre><code>public class CaManagerImpl implements CaManager {
+
+    public void createCaHandler() {
+        // CAS 시스템 ID에 따라 핸들러 선택
+        //caHandler = new NagraCaHandler("NagraCaHandler");
+        caHandler = new AltiCaHandler("AltiCaHandler");
+        if (listener != null) {
+            caHandler.setCaResultListener(listener);
+        }
+    }
+
+    public void requestCaChannel(Channel channel) {
+        if (Log.INCLUDE) {
+            Log.message("[CaManagerImpl] requestCaChannel, channel = " + channel);
+        }
+        caHandler.requestCaChannel(channel);   // 수신제한 확인을 핸들러에 위임
+    }
+
+    public void requestCaPurchaseWithPrdId(Channel channel, String prdId) {
+        caHandler.requestCaProductWithPrdId(channel, prdId);
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/monitor/ca/CaManagerImpl.java" target="_blank" rel="noopener">monitor/ca/CaManagerImpl.java</a><span class="src">CAS 연동 매니저 — 핸들러 생성·채널/구매 요청·스마트카드 상태</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/monitor/ca/CaManager.java" target="_blank" rel="noopener">monitor/ca/CaManager.java</a><span class="src">CAS 연동 인터페이스 정의</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/monitor/ca/AltiCaHandler.java" target="_blank" rel="noopener">monitor/ca/AltiCaHandler.java</a><span class="src">Alticast CAS 핸들러</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/monitor/ca/NagraCaHandler.java" target="_blank" rel="noopener">monitor/ca/NagraCaHandler.java</a><span class="src">Nagra CA 핸들러</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/monitor/ca/PreviewInfo.java" target="_blank" rel="noopener">monitor/ca/PreviewInfo.java</a><span class="src">미가입 채널 미리보기 정보</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/monitor/ca/CaResultListener.java" target="_blank" rel="noopener">monitor/ca/CaResultListener.java</a><span class="src">CAS 처리 결과 콜백 리스너</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f06.html">← STB 상태 모니터링 (Monitor)</a>
+      <a href="f08.html">SDV 스위치드 디지털 비디오 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>OCAP_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

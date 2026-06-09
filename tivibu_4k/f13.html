@@ -1,0 +1,212 @@
+<!doctype html>
+<!-- tivibu_4k · 설정·프로필 기능 상세 — SettingScreen/ProfileRepository + OTA·전역에러·FailSafe 팝업 시퀀스·클래스 다이어그램 + 코드 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>설정 · 프로필 — tivibu_4k 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Tivibu 4K Android — IPTV/OTT 런처</a><span class="sep">›</span>
+      <span class="here">설정 · 프로필</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV / Leanback · Kotlin</span>
+    </div>
+    <h1>설정 · 프로필</h1>
+    <p class="one-liner"><code>SettingScreen</code>이 채널 제어·기록·핀·캠페인·자녀 보호 등 설정 메뉴를 호스팅하고 <code>ProfileRepository</code>로 로그인 프로필을 다루며, OTA 업데이트·전역 에러·FailSafe 복구 등 시스템 운영 팝업을 <code>LayerManager</code>로 띄웁니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tivibu_4k" target="_blank" rel="noopener"><code>tivibu_4k</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>sprint/LS0626_release</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ui/setting/SettingScreen.kt</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">설정 화면 + 프로필 도메인 + 시스템 운영 UI</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>설정 화면은 <code>SettingScreen</code>(<code>ATVScreen</code>)이 좌측 메뉴(<code>SettingMenuAdapter</code>)와 우측 서브 뷰를 조합하는 마스터-디테일 구조입니다. 메뉴 항목은 <code>SettingMenuItem</code> enum으로 정의되며(<code>CHANNEL_CONTROL</code>·<code>RENTAL_PURCHASE_HISTORY</code>·<code>MY_RECORDS</code>·<code>MY_REMINDERS</code>·<code>PIN_TRANSACTIONS</code>·<code>CAMPAIGNS</code>·<code>PARENTAL_CONTROL</code>·<code>OTHER</code>·<code>LOGOUT</code>), 각 항목을 선택하면 대응하는 <code>SettingBaseView</code> 자식 뷰(즐겨찾기/잠금·렌탈 이력·녹화·리마인더·핀·캠페인·자녀 보호·기타)가 <code>childLayoutList</code> 캐시를 거쳐 표시됩니다. 진입 시 <code>SettingConfig.KEY_LINK_VIEW_TYPE</code> 번들로 특정 메뉴로 바로 점프할 수 있어, MES 알림의 "캠페인 이동" 등 외부 진입과 연동됩니다.</p>
+    <p>프로필은 <code>ProfileRepository</code>가 담당합니다. 캐싱된 로그인 프로필(<code>getCurrentProfile</code>)과 프로필 목록(<code>getCachedProfileList</code>)을 제공하고, 프로필 로그인(<code>login</code>)·추가/수정/삭제·언어 설정(<code>setLanguageData</code>)을 수행하며, 부팅 시 서버에서 프로필 데이터를 강제 갱신(<code>refreshProfileData(fromBoot=true)</code>)합니다. <code>SettingScreen</code>은 <code>SettingViewModel</code>의 프로필 LiveData를 관찰해 현재 사용자 정보를 표시합니다.</p>
+    <p>시스템 운영 UI는 <code>LayerManager</code>의 팝업 표출 API로 통합됩니다. <code>showOtaUpdatePopup()</code>은 OTA 업데이트 안내를 띄우고 10초 후 자동 진행하며(<code>OtaUpdatePopup</code>), 펌웨어/앱 다운로드는 <code>AppUpdateMonitorRepository</code>가 처리합니다. <code>showGlobalErrorPopup()</code>은 <code>GlobalErrorNotifier</code>가 통지한 에러 코드를 받아 전역 에러 팝업(<code>GlobalErrorPopup</code>, <code>preventExit</code>로 종료 차단 가능)을 표출하고, 인증/암호화 실패 등으로 정상 부팅이 불가하면 <code>FailSafeRecoveryPopup</code>으로 복구를 안내합니다.</p>
+    <div class="callout">
+      <div class="ct">FailSafe 복구와의 관계</div>
+      FailSafe는 부팅 인증 실패 시에도 최소 기능으로 앱을 띄우는 폴백 모드입니다(<a href="f10.html">로그인·프로비저닝</a> 참고). FailSafe 진입 시 <code>FailSafeInitializer</code>가 설정 메뉴를 우선 노출(<code>HomeConfig.IconMenuItem.SETTING</code>)하고 전역 키를 차단(<code>setGlobalKeyBlocked</code>)하므로, 설정 화면은 장애 상황에서 사용자가 재시도·복구·로그아웃에 접근하는 통로가 됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자(리모컨)
+    participant SS as SettingScreen
+    participant VM as SettingViewModel
+    participant PR as ProfileRepository
+    participant LM as LayerManager
+    participant POP as Ota/Error/FailSafe Popup
+
+    U-&gt;&gt;SS: 설정 진입 (KEY_LINK_VIEW_TYPE)
+    SS-&gt;&gt;SS: setupMenu() + getProfileInfo()
+    SS-&gt;&gt;VM: profile 관찰
+    VM-&gt;&gt;PR: getCurrentProfile()
+    PR--&gt;&gt;VM: UserProfile
+    U-&gt;&gt;SS: 메뉴 항목 선택
+    SS-&gt;&gt;SS: childLayoutList 에서 SettingBaseView 표시
+    Note over LM,POP: 시스템 이벤트 발생 시
+    LM-&gt;&gt;POP: showOtaUpdatePopup / showGlobalErrorPopup / showFailSafeRecoveryPopup
+    POP--&gt;&gt;LM: onButtonClick (진행/재시작/복구)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 설정 진입 시 메뉴와 프로필 정보를 세팅하고 항목 선택마다 서브 뷰를 캐시 기반으로 전환합니다. OTA·전역 에러·FailSafe 복구 같은 시스템 이벤트는 <code>LayerManager</code>가 전용 팝업으로 표출합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class SettingScreen {
+        -childLayoutList Hashtable
+        -curChildView SettingBaseView
+        -setupMenu()
+        -getProfileInfo()
+    }
+    class SettingMenuItem {
+        &lt;&lt;enumeration&gt;&gt;
+        CHANNEL_CONTROL
+        RENTAL_PURCHASE_HISTORY
+        MY_RECORDS
+        PIN_TRANSACTIONS
+        CAMPAIGNS
+        PARENTAL_CONTROL
+        OTHER
+        LOGOUT
+    }
+    class ProfileRepository {
+        &lt;&lt;interface&gt;&gt;
+        +getCurrentProfile() UserProfile
+        +getCachedProfileList() Observable
+        +login(code, fromBoot) Completable
+        +refreshProfileData(...) Completable
+    }
+    class LayerManager {
+        +showHomeSetting(bundle)
+        +showProfileScreen(bundle)
+        +showOtaUpdatePopup(cb)
+        +showGlobalErrorPopup(...)
+        +showFailSafeRecoveryPopup(cb)
+    }
+    class OtaUpdatePopup
+    class GlobalErrorPopup
+    class FailSafeRecoveryPopup
+
+    SettingScreen --&gt; SettingMenuItem : 메뉴 구성
+    SettingScreen --&gt; ProfileRepository : 프로필 조회
+    SettingScreen --&gt; LayerManager : 화면/팝업 호출
+    LayerManager ..&gt; OtaUpdatePopup
+    LayerManager ..&gt; GlobalErrorPopup
+    LayerManager ..&gt; FailSafeRecoveryPopup
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>SettingScreen</code>은 <code>SettingMenuItem</code>으로 메뉴를 구성하고 <code>ProfileRepository</code>로 프로필을 다루며, 시스템 운영 팝업은 <code>LayerManager</code>가 일괄 표출하는 진입점 역할을 합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/setting/SettingScreen.kt</code> — 진입 시 메뉴/프로필 세팅 + 점프 메뉴</div>
+<pre><code>override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    super.onViewCreated(view, savedInstanceState)
+    jumeMenu = arguments?.getString(SettingConfig.KEY_LINK_VIEW_TYPE)   // 외부 점프 진입
+    getProfileInfo()
+    setupMenu()
+}
+
+private fun getProfileInfo() {
+    viewModel.profile.observe(viewLifecycleOwner) { obj -&gt; /* 현재 프로필 표시 */ }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/popup/OtaUpdatePopup.kt</code> — OTA 안내 + 10초 자동 진행</div>
+<pre><code>timerDisposable = Observable.timer(10, TimeUnit.SECONDS)
+    .subscribe({
+        layerManager.deactivateLayer(this)
+        onButtonClick?.invoke()          // 업데이트 진행
+    }, {})
+
+override fun onKeyDown(keyCode: Int, event: AltiKeyEvent): Boolean {
+    when (keyCode) {
+        ATVKeyCode.KEY_OK   -&gt; { timerDisposable?.dispose(); layerManager.deactivateLayer(this); onButtonClick?.invoke() }
+        ATVKeyCode.KEY_EXIT,
+        ATVKeyCode.KEY_PREV -&gt; { timerDisposable?.dispose(); layerManager.deactivateLayer(this) }
+    }
+    return true
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>app/core/initializer/FailSafeInitializer.kt</code> — FailSafe 진입 시 설정 메뉴 우선 노출</div>
+<pre><code>systemServiceRepository.setGlobalKeyBlocked(isFailSafe)   // 전역 키 차단
+if (!layerManager.isHomeShowing() &amp;&amp; powerService.isActiveMode) {
+    layerManager.showHomeMenu(fromBoot = true, bundle = Bundle().apply {
+        putString(HomeConfig.KEY_LINK_MENU_CODE, HomeConfig.IconMenuItem.SETTING.id.toString())
+    })
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/setting/SettingScreen.kt" target="_blank" rel="noopener">ui/setting/SettingScreen.kt</a><span class="src">설정 메뉴/서브 뷰 호스팅 · 프로필 정보 표시 · 점프 진입</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/domain/src/main/java/com/altimedia/domain/model/setting/SettingMenuItem.kt" target="_blank" rel="noopener">domain/model/setting/SettingMenuItem.kt</a><span class="src">설정 메뉴 항목 enum</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/domain/src/main/java/com/altimedia/domain/repository/ProfileRepository.kt" target="_blank" rel="noopener">domain/repository/ProfileRepository.kt</a><span class="src">프로필 조회·로그인·갱신·언어 설정 도메인 인터페이스</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/popup/OtaUpdatePopup.kt" target="_blank" rel="noopener">ui/popup/OtaUpdatePopup.kt</a><span class="src">OTA 업데이트 안내 팝업 · 10초 자동 진행</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/popup/GlobalErrorPopup.kt" target="_blank" rel="noopener">ui/popup/GlobalErrorPopup.kt</a><span class="src">전역 에러 팝업(종료 차단 옵션 · 로딩 팝업 정리)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/popup/FailSafeRecoveryPopup.kt" target="_blank" rel="noopener">ui/popup/FailSafeRecoveryPopup.kt</a><span class="src">FailSafe 복구 안내 팝업</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/app/screen/LayerManager.kt" target="_blank" rel="noopener">app/screen/LayerManager.kt</a><span class="src">설정 화면·프로필 화면·운영 팝업 표출 진입점</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f12.html">← 재생 품질 모니터링(Conviva)</a>
+      <a href="f14.html">멀티 단말 분기 빌드 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>sprint/LS0626_release</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tivibu_4k 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

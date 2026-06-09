@@ -1,0 +1,160 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap_adaptor · 예약·녹화 및 즐겨찾기 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>예약·녹화 및 즐겨찾기 — skb_cloud_local_ocap_adaptor 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">SKB(TBroad) Local App OCAP Cloud Adaptor</a><span class="sep">›</span>
+      <span class="here">예약·녹화 및 즐겨찾기</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP STB · Java(레거시)</span>
+    </div>
+    <h1>예약·녹화 및 즐겨찾기</h1>
+    <p class="one-liner"><code>reserve/forceReserve/cancelReserve/isReserved</code>, <code>findDuplicatedReserve</code>, <code>getReservedPrograms</code> 와 즐겨찾기 추가/삭제(<code>addFavorite/removeFavorite</code>, 결과 상수 FAVORIT_*)를 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor" target="_blank" rel="noopener"><code>skb_cloud_local_ocap_adaptor</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>clad/tv/CladTVService.java</code></div></div>
+      <div class="item"><div class="k">즐겨찾기 결과 상수</div><div class="v"><code>FAVORIT_SUCCESS=1 / OVER_COUNT=2</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>예약·즐겨찾기 기능은 모두 <code>CladTVService</code> 인터페이스 안에 함께 정의됩니다. 예약은 sourceId·제목·시작/종료 시각·등급(rating)을 인자로 받는 한 묶음의 메서드 집합으로 구성됩니다. <code>reserve(...)</code> 가 일반 예약, <code>forceReserve(...)</code> 가 충돌을 무시한 강제 예약, <code>cancelReserve(...)</code> 가 예약 취소, <code>isReserved(...)</code> 가 예약 여부 조회를 담당하며 모두 boolean 으로 성공 여부를 반환합니다.</p>
+    <p>예약 충돌은 <code>findDuplicatedReserve(String startTime, String endTime)</code> 로 사전에 점검합니다. 주어진 시간대에 겹치는 기존 예약을 찾아 그 정보를 문자열로 반환하므로(없으면 null), Cloud App 은 일반 <code>reserve</code> 대신 <code>forceReserve</code> 를 쓸지 판단할 수 있습니다. 현재 예약 목록 전체는 <code>getReservedPrograms()</code> 가 리스트로 돌려줍니다.</p>
+    <p>즐겨찾기는 <code>addFavorite(int sourceId)</code> 와 <code>removeFavorite(int sourceId)</code> 로 다룹니다. 추가는 결과를 int 로 반환하는데, 그 값은 인터페이스 상수 <code>FAVORIT_FAIL(0)</code>·<code>FAVORIT_SUCCESS(1)</code>·<code>FAVORIT_OVER_COUNT(2)</code> 중 하나입니다. 즉 단순 성공/실패뿐 아니라 즐겨찾기 한도 초과 같은 사유를 구분해 전달할 수 있습니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      예약 메서드가 모두 동일한 5개 인자(<code>int sourceId, String title, String startTime, String endTime, int rating</code>)를 받는 것은, 예약 식별을 키-쌍이 아니라 프로그램 정보 전체로 매칭하기 위한 것으로 보입니다. 등급(rating)이 인자에 포함돼 시청 등급 제한 예약도 표현할 수 있습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Cloud as Cloud App
+    participant TV as CladTVService
+
+    Cloud-&gt;&gt;TV: findDuplicatedReserve(startTime, endTime)
+    alt 충돌 예약 존재
+        TV--&gt;&gt;Cloud: 겹치는 예약 정보(String)
+        Cloud-&gt;&gt;TV: forceReserve(sourceId, title, start, end, rating)
+        TV--&gt;&gt;Cloud: true
+    else 충돌 없음
+        TV--&gt;&gt;Cloud: null
+        Cloud-&gt;&gt;TV: reserve(sourceId, title, start, end, rating)
+        TV--&gt;&gt;Cloud: true
+    end
+    Cloud-&gt;&gt;TV: addFavorite(sourceId)
+    TV--&gt;&gt;Cloud: FAVORIT_SUCCESS / OVER_COUNT / FAIL
+      </div>
+      <p class="cap"><strong>흐름.</strong> 예약 전 충돌을 점검해 일반/강제 예약을 선택하고, 즐겨찾기 추가는 결과 상수로 한도 초과까지 구분해 회신합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class CladTVService {
+        &lt;&lt;interface&gt;&gt;
+        +FAVORIT_FAIL int$
+        +FAVORIT_SUCCESS int$
+        +FAVORIT_OVER_COUNT int$
+        +findDuplicatedReserve(String startTime, String endTime) String
+        +reserve(int sourceId, String title, String startTime, String endTime, int rating) boolean
+        +forceReserve(int sourceId, String title, String startTime, String endTime, int rating) boolean
+        +cancelReserve(int sourceId, String title, String startTime, String endTime, int rating) boolean
+        +isReserved(int sourceId, String title, String startTime, String endTime, int rating) boolean
+        +getReservedPrograms() List
+        +addFavorite(int sourceId) int
+        +removeFavorite(int sourceId) boolean
+    }
+    class CladTVServiceImpl {
+        +reserve(...) boolean
+        +cancelReserve(...) boolean
+        +isReserved(...) boolean
+        +getReservedPrograms() List
+        +addFavorite(int sourceId) int
+        +removeFavorite(int sourceId) boolean
+    }
+
+    CladTVServiceImpl ..|&gt; CladTVService : implements
+      </div>
+      <p class="cap"><strong>관계.</strong> 예약·즐겨찾기 메서드는 모두 <code>CladTVService</code> 의 일부이며, <code>CladTVServiceImpl</code> 이 구현합니다(본 저장소에서는 골격).</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>clad/tv/CladTVService.java</code> — 예약·즐겨찾기 시그니처(발췌)</div>
+<pre><code>String findDuplicatedReserve (String startTime, String endTime);
+boolean forceReserve (int sourceId, String title, String startTime, String endTime, int rating);
+boolean reserve (int sourceId, String title, String startTime, String endTime, int rating);
+boolean cancelReserve (int sourceId, String title, String startTime, String endTime, int rating);
+boolean isReserved (int sourceId, String title, String startTime, String endTime, int rating);
+List getReservedPrograms ();
+int addFavorite (int sourceId);          // 반환: FAVORIT_FAIL/SUCCESS/OVER_COUNT
+boolean removeFavorite (int sourceId);</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/clad/tv/CladTVService.java" target="_blank" rel="noopener">clad/tv/CladTVService.java</a><span class="src">예약·즐겨찾기 시그니처와 FAVORIT_* 결과 상수 정의</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/cladimpl/tv/CladTVServiceImpl.java" target="_blank" rel="noopener">cladimpl/tv/CladTVServiceImpl.java</a><span class="src">구현체(골격) — reserve/cancelReserve/addFavorite 등</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f05.html">← TV 채널 제어</a>
+      <a href="f07.html">비디오 리사이즈(DFC) · PIP →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap_adaptor 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

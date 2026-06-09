@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- skylife-ux3.0 · 실시간 방송(Live TV) 기능 상세 — ui/livetv + EpgChannelController + MediaPlayerHandler -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>실시간 방송(Live TV) — Skylife ATV EPG 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Skylife ATV EPG (UX3.0)</a><span class="sep">›</span>
+      <span class="here">실시간 방송(Live TV)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT SkyLife</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV(Leanback) STB · Java</span>
+    </div>
+    <h1>실시간 방송(Live TV)</h1>
+    <p class="one-liner"><code>ui/livetv</code> 화면이 실시간 채널 시청과 채널 전환, 미니 가이드(MiniEPG), 플레이바를 제공합니다. 영상 표면은 <code>MainFragment</code>의 <code>main_video_layer</code>가 담당하고, 실제 튜닝·재생은 <code>EpgChannelController</code>와 <code>MediaPlayerHandler</code>가 수행합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skylife-ux3.0" target="_blank" rel="noopener"><code>skylife-ux3.0</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feat/lw-voice-api</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>livetv/MainFragment</code> · <code>EpgChannelController</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">채널 전환 · MiniEPG · 플레이바</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>실시간 방송 화면은 <code>ui/livetv</code> 패키지가 구성합니다. <code>MainFragment</code>가 <code>main_video_layer</code> 레이아웃을 inflate해 전체화면·홈화면용 iframe 레이어를 제공하고, 미니 가이드(<code>miniepg/fragment/MiniEpgFragment</code>), 채널 변경 시 잠깐 뜨는 DCA(<code>livetv/dca/DcaComp</code>), 플레이 정보(<code>PlayInfoFragment</code>), 타임시프트(<code>TimeShiftFragment</code>) 등의 컴포넌트가 함께 배치됩니다.</p>
+    <p>채널 전환은 채널 키(CH +/−)나 번호 입력, 미니 가이드 선택을 통해 일어나며, 실제 튜닝은 <code>EpgChannelController</code>의 <code>changeChannel()</code>/<code>changeChannelForce()</code>로 위임됩니다. 컨트롤러는 위성(SAT)·DCS·IP backup 모드를 관리하며 튜닝 이벤트(<code>onTuningEvent</code>)·채널 이벤트(<code>onChannelEvent</code>)를 받아 화면을 갱신합니다. IP FCC 환경에서는 <code>stop → start → fcc prime</code>을 하나의 메인 UI 스레드에서 처리하면서 채널 키 밀림을 줄이는 튜닝 최적화(<code>TUNING_IPFCC_FAST_CHUD_*</code>)가 들어 있습니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      음성 어시스턴트의 본방송 음소거(<code>LiveTvMuter</code>)는 시스템 볼륨이 아니라 <code>MediaPlayerHandler.setMute()</code>(SkyChannelPlayer)를 직접 호출합니다. Skylife STB에서 STREAM 분리가 안 되기 때문에 player 컴포넌트 자체를 mute 하는 경로만 동작합니다. 실시간 방송 재생 컴포넌트를 직접 제어하는 이 단일 진입점 덕분에 STT/TTS 발화 동안 본방송이 깔끔하게 음소거됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자 (리모컨 CH 키)
+    participant MA as MainActivity
+    participant ECC as EpgChannelController
+    participant MPH as MediaPlayerHandler (SkyChannelPlayer)
+    participant ME as MiniEpgFragment
+
+    U-&gt;&gt;MA: CH+ / CH- / 번호 입력
+    MA-&gt;&gt;ECC: changeChannel(EpgChannel)
+    ECC-&gt;&gt;ECC: processChChange(channel, force)
+    ECC-&gt;&gt;MPH: stop / startChannel (튜닝)
+    MPH--&gt;&gt;ECC: onTuningEvent(TUNE_SUCCESS)
+    ECC-&gt;&gt;ME: 채널/프로그램 정보 갱신
+    ME--&gt;&gt;U: 미니 가이드 · 플레이바 표시
+    Note over ECC,MPH: SAT / DCS / IP backup 모드 관리
+      </div>
+      <p class="cap"><strong>흐름.</strong> 채널 키 입력이 <code>EpgChannelController.changeChannel</code>로 전달되어 <code>MediaPlayerHandler</code>가 튜닝하고, 성공 이벤트를 받아 미니 가이드와 플레이바가 갱신됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class EpgChannelControllerI {
+        &lt;&lt;interface&gt;&gt;
+        +getCurChMode() int
+        +getCurrentChannel() EpgChannel
+        +changeChannel(channel) boolean
+    }
+    class EpgChannelController {
+        -int curChMode
+        +getInstance() EpgChannelController
+        +getCurrentChannel() EpgChannel
+        +changeChannel(channel) boolean
+        +changeChannelForce(channel) boolean
+        +onTuningEvent(event, uri, msg)
+        +onChannelEvent(eventId, url)
+    }
+    class MediaPlayerHandler {
+        +startChannel(channel)
+        +stop(reason)
+        +setMute(boolean)
+        +isTimeShiftStarted() boolean
+    }
+    class MainFragment {
+        +onCreateView()
+    }
+    class MiniEpgFragment
+    class PlayInfoFragment
+    class DcaComp
+
+    EpgChannelController ..|&gt; EpgChannelControllerI
+    EpgChannelController --&gt; MediaPlayerHandler : 튜닝/재생 제어
+    MainFragment --&gt; EpgChannelController : 채널 전환 요청
+    MiniEpgFragment --|&gt; PlayInfoFragment
+    MainFragment --&gt; DcaComp : 채널 변경 표시
+      </div>
+      <p class="cap"><strong>관계.</strong> 싱글턴 <code>EpgChannelController</code>가 <code>EpgChannelControllerI</code>를 구현하며 <code>MediaPlayerHandler</code>로 튜닝/재생/음소거를 제어하고, livetv 화면 컴포넌트들이 그 결과를 표시합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>controller/nav/channel/EpgChannelController.java</code> — 채널 전환 진입점</div>
+<pre><code>public boolean changeChannel(EpgChannel channel) {
+    return changeChannel(channel, false);
+}
+
+public boolean changeChannelForce(EpgChannel channel) {
+    return changeChannel(channel, true);
+}
+
+public boolean changeChannelForce(EpgChannel channel, boolean needReqNoti) {
+    return processChChange(channel, true, needReqNoti);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>controller/nav/media/MediaPlayerHandler.java</code> — 본방송 음소거(LiveTvMuter 연동)</div>
+<pre><code>public class MediaPlayerHandler extends LivePlayerHandler
+        implements CaptionControllerEventListener {
+    // ...
+    public void setMute(boolean mute) {        // SkyChannelPlayer 직접 mute
+        // 음성 발화(STT/TTS) 동안 LiveTvMuter 가 이 경로를 호출
+    }
+    public boolean isTimeShiftStarted() { /* 타임시프트 진행 여부 */ }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/livetv/MainFragment.java" target="_blank" rel="noopener">ui/livetv/MainFragment.java</a><span class="src">실시간 영상 레이어(main_video_layer) — 전체화면/홈화면 iframe</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/livetv/miniepg/fragment/MiniEpgFragment.java" target="_blank" rel="noopener">ui/livetv/miniepg/fragment/MiniEpgFragment.java</a><span class="src">미니 가이드 — 현재/다음 프로그램, 채널 미리보기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/fifth/java/com/alticast/androidtv/epg/controller/nav/channel/EpgChannelController.java" target="_blank" rel="noopener">controller/nav/channel/EpgChannelController.java</a><span class="src">채널 전환·튜닝·SAT/DCS/IP 모드 관리, 채널/튜닝 이벤트 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/fifth/java/com/alticast/androidtv/epg/controller/nav/media/MediaPlayerHandler.java" target="_blank" rel="noopener">controller/nav/media/MediaPlayerHandler.java</a><span class="src">SkyChannelPlayer 래퍼 — start/stop, setMute, 타임시프트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/livetv/dca/DcaComp.java" target="_blank" rel="noopener">ui/livetv/dca/DcaComp.java</a><span class="src">채널 변경 시 DCA(채널 정보) 표시 컴포넌트</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f01.html">← 홈 런처</a>
+      <a href="index.html#features">목록</a>
+      <a href="f03.html">VOD 재생 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feat/lw-voice-api</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">Skylife ATV EPG 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

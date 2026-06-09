@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- hcn_android · VOD 재생(Castis UMP 연동) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VOD 재생 — hcn_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">HCN Android EPG · 런처</a><span class="sep">›</span>
+      <span class="here">VOD 재생</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">HCN (현대HCN)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) STB · Java</span>
+    </div>
+    <h1>VOD 재생</h1>
+    <p class="one-liner"><code>UmpManager</code>가 Castis UMP 서비스(<code>com.castis.vod_service</code>)에 바인딩해 <code>UnitedMediaPlayer</code> AIDL로 VOD를 재생합니다. HCN 정합상 SO Code와 TSID 스캔 목록을 <code>setNetworkInfo()</code>로 전달합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/hcn_android" target="_blank" rel="noopener"><code>hcn_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>UmpManager</code> · <code>TaurusVodTuneManager</code> · <code>EpgVod</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">Castis UMP VOD 연동</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>VOD 재생은 EPG가 직접 디코딩하지 않고 외부 Castis UMP(United Media Player) 서비스 앱에 위임합니다. <code>TaurusVodTuneManager.tuneVod(...)</code>가 진입점이며 내부적으로 <code>UmpManager</code>(싱글턴)에 위임합니다. <code>UmpManager</code>는 <code>Intent("com.castis.ump.umpService")</code>에 <code>setPackage("com.castis.vod_service")</code>를 지정해 <code>bindService(..., BIND_AUTO_CREATE)</code>로 UMP 서비스에 연결하고, 연결되면 IBinder를 <code>UnitedMediaPlayer.Stub.asInterface(iBinder)</code>로 받아 AIDL 미디어 플레이어를 획득합니다.</p>
+    <p>HCN 정합의 핵심은 네트워크 정보 전달입니다. <code>readyVodPlayer()</code>는 <code>EpgVod</code>의 <code>TsScanData</code>에서 TSID 스캔 배열(<code>tsId</code>)을 꺼내고, SO Code(<code>vodInfo.getSoCode()</code>)와 함께 <code>mediaPlayer.setNetworkInfo(soCode, -1, tsId)</code>로 UMP에 넘깁니다. 즉 노드그룹 단일 값 대신 SO Code와 TSID 스캔 전체 목록을 전달하는 방식으로 정합되어 있습니다. 이어 단말 MAC(<code>setTerminalId</code>)·광고 ID(<code>setAdId</code>)를 설정하고 <code>play(fileName, offset)</code>을 호출하며, 정상 VOD(FP·일반 VOD)면 <code>demandVODRequestID(categoryId, assetId)</code>를 추가로 요청합니다. VOD 종료 시에는 라이브 기본 이동 채널로 복귀하도록 처리됩니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      UMP 연동은 <code>ServiceConnection</code> 기반 AIDL 바인딩입니다. <code>onServiceConnected</code>에서 네트워크 정보 설정 → play 순으로 진행하고, <code>onServiceDisconnected</code>에서 <code>removeUMPEventListener</code>·<code>stop</code>으로 자원을 정리합니다. 이미 연결(<code>umpConnection != null</code>)되어 있으면 중복 바인딩을 막습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant VTM as TaurusVodTuneManager
+    participant UM as UmpManager
+    participant SVC as Castis UMP (com.castis.vod_service)
+    participant MP as UnitedMediaPlayer (AIDL)
+
+    U-&gt;&gt;VTM: VOD 선택 (EpgVod)
+    VTM-&gt;&gt;UM: readyVodPlayer(context, vodInfo, callback)
+    UM-&gt;&gt;SVC: bindService(com.castis.ump.umpService)
+    SVC--&gt;&gt;UM: onServiceConnected(iBinder)
+    UM-&gt;&gt;MP: asInterface(iBinder)
+    UM-&gt;&gt;MP: setNetworkInfo(soCode, -1, tsId 배열)
+    UM-&gt;&gt;MP: setTerminalId(hostMac) / setAdId(...)
+    UM-&gt;&gt;MP: play(fileName, offset)
+    MP--&gt;&gt;UM: iResult (UmpCode)
+    Note over UM,MP: UMPEventListener 로 재생 이벤트 수신
+    UM-&gt;&gt;SVC: onServiceDisconnected → stop / 채널 복귀
+      </div>
+      <p class="cap"><strong>흐름.</strong> VOD 선택 시 <code>TaurusVodTuneManager</code>가 <code>UmpManager</code>로 위임하고, UMP 서비스에 바인딩해 <code>setNetworkInfo(soCode, -1, tsId)</code>로 HCN 정합 정보를 넘긴 뒤 <code>play()</code>를 호출합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class TaurusVodTuneManager {
+        +getInstance() TaurusVodTuneManager
+        +tuneVod(context, EpgVod, VodHandler)
+        +removeUmp()
+        +getCurrentVod() EpgVod
+    }
+    class UmpManager {
+        +getInstance() UmpManager
+        +readyVodPlayer(context, EpgVod, listener)
+        +readyVodOapPlayer(context, VodOap, listener)
+        -ServiceConnection umpConnection
+        -UnitedMediaPlayer mediaPlayer
+    }
+    class UnitedMediaPlayer {
+        &lt;&lt;AIDL&gt;&gt;
+        +setNetworkInfo(soCode, ng, tsId)
+        +setTerminalId(mac)
+        +play(fileName, offset) int
+        +stop()
+    }
+    class EpgVod {
+        +getSoCode() int
+        +getTsScanData() TsScanData
+        +getFileName() String
+        +getHostMac() String
+    }
+    class UmpManagementListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+
+    TaurusVodTuneManager --&gt; UmpManager : 재생 위임
+    UmpManager --&gt; UnitedMediaPlayer : AIDL 바인딩/play
+    UmpManager ..&gt; EpgVod : 네트워크 정보 추출
+    UmpManager ..&gt; UmpManagementListener : 이벤트 콜백
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>TaurusVodTuneManager</code>가 <code>UmpManager</code>에 위임하고, <code>UmpManager</code>는 <code>EpgVod</code>에서 SO Code·TSID를 꺼내 <code>UnitedMediaPlayer</code> AIDL로 재생을 요청합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>epg-module/.../playback/manager/UmpManager.java</code> — UMP 바인딩 후 네트워크 정보 전달과 재생</div>
+<pre><code>public void readyVodPlayer(Context context, final EpgVod vodInfo, final UmpManagementListener callback) {
+    if (umpConnection != null) return;                 // 중복 바인딩 방지
+    TsScanData tsScanData = vodInfo.getTsScanData();
+    final int[] tsId = (tsScanData != null) ? tsScanData.getTsId() : null;
+
+    umpConnection = new ServiceConnection() {
+        @Override public void onServiceConnected(ComponentName cn, IBinder iBinder) {
+            mediaPlayer = UnitedMediaPlayer.Stub.asInterface(iBinder);
+            mediaPlayer.setUMPEventListener(new UmpSessionListener(vodInfo, callback));
+            mediaPlayer.setNetworkInfo(vodInfo.getSoCode(), -1, tsId);   // SO Code + TSID 스캔 목록
+            mediaPlayer.setTerminalId(vodInfo.getHostMac().toLowerCase());
+            int iResult = mediaPlayer.play(vodInfo.getFileName(), offset);
+        }
+    };
+
+    Intent castisIntent = new Intent("com.castis.ump.umpService");
+    castisIntent.setPackage("com.castis.vod_service");
+    context.bindService(castisIntent, umpConnection, Context.BIND_AUTO_CREATE);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/epg-module/src/main/java/com/altimedia/module/epg/playback/manager/UmpManager.java" target="_blank" rel="noopener">epg-module/.../playback/manager/UmpManager.java</a><span class="src">Castis UMP 서비스 바인딩 · setNetworkInfo(SO Code, TSID) · play</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/epg-module/src/main/java/com/altimedia/module/epg/playback/manager/TaurusVodTuneManager.java" target="_blank" rel="noopener">epg-module/.../playback/manager/TaurusVodTuneManager.java</a><span class="src">VOD 튜닝 진입 · UmpManager 위임 · removeUmp</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/epg-module/src/main/java/com/altimedia/module/epg/playback/manager/vod/EpgVod.java" target="_blank" rel="noopener">epg-module/.../playback/manager/vod/EpgVod.java</a><span class="src">VOD 정보 모델 (SO Code · TsScanData · fileName)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/epg-module/src/main/java/com/altimedia/module/epg/playback/manager/vod/UmpCode.java" target="_blank" rel="noopener">epg-module/.../playback/manager/vod/UmpCode.java</a><span class="src">UMP play 결과 코드 (PLAY_SUCCESS 등)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f05.html">← 가입 상품별 채널 히든</a>
+      <a href="f07.html">PVR 녹화 · 예약 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">hcn_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

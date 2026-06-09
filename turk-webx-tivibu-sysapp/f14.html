@@ -1,0 +1,179 @@
+<!doctype html>
+<!-- turk-webx-tivibu-sysapp · 광고 / 캠페인 / 알림 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>광고 / 캠페인 / 알림 — turk-webx-tivibu-sysapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Türk Telekom Tivibu STB 시스템 앱 (EPG SYSAPP)</a><span class="sep">›</span>
+      <span class="here">광고 / 캠페인 / 알림</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">WebX STB · JavaScript (ES6/AMD)</span>
+    </div>
+    <h1>광고 / 캠페인 / 알림</h1>
+    <p class="one-liner">Google GPT/IMA SDK로 광고를 삽입하고(<code>AdController</code>·<code>AdBannerController</code>), 캠페인·쿠폰 팝업과 알림 프레임(<code>NotificationController</code>·<code>NotificationFrameController</code>)을 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp" target="_blank" rel="noopener"><code>turk-webx-tivibu-sysapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>controller/AdController.js</code> · <code>AdBannerController.js</code> · <code>NotificationController.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">GPT/IMA 광고 · 캠페인 · 알림 프레임</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>광고는 Google 광고 스택을 사용합니다. <code>index.html</code>이 GPT(<code>securepubads.g.doubleclick.net/tag/js/gpt.js</code>)와 IMA SDK(<code>imasdk.googleapis.com/js/sdkloader/ima3.js</code>)를 외부 로드합니다. <code>AdController</code>는 GPT 슬롯에 렌더링된 광고 크리에이티브의 메타데이터를 읽어 클릭 시 어디로 보낼지(컬럼/VOD/채널)를 해석합니다. 구체적으로 슬롯 iframe 안 이미지의 <code>alt</code> 속성을 <code>|</code>로 분리해, 타입 코드(0=컬럼, 1=VOD, 2=채널)와 대상 코드를 추출합니다. 배너 광고 화면은 <code>AdBannerController</code>(<code>ui/ads/AdBannerFrame</code>)가 담당합니다.</p>
+    <p>캠페인·쿠폰은 PPV 구매 흐름과 연계되는 프로모션으로, <code>CampaignPopupController</code>·<code>CampaignCouponPopupController</code>가 팝업을 띄웁니다. 알림은 두 갈래입니다. <code>NotificationController</code>(<code>ui/notification/NotificationFrame</code>)는 앱 내 알림 UI를, <code>NotificationFrameController</code>는 외부 알림 페이지(<code>NOTIFICATION_PAGE_URL</code>)를 별도 iframe(<code>frmNotificationElm</code>)으로 띄우는 프레임 기반 알림을 관리합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      광고 클릭 타깃을 별도 API가 아니라 크리에이티브 이미지의 <code>alt</code> 메타데이터에 인코딩해 전달하는 방식이라, 광고 시스템이 콘텐츠 딥링크(컬럼/VOD/채널)를 유연하게 지정할 수 있습니다. 알림은 앱 내 UI와 외부 iframe 페이지를 분리해 운영 알림을 독립적으로 갱신합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant IDX as index.html
+    participant GPT as Google GPT/IMA
+    participant AD as AdController
+    participant ABF as AdBannerController
+    participant NAV as 화면 이동
+
+    IDX-&gt;&gt;GPT: gpt.js / ima3.js 로드
+    GPT--&gt;&gt;ABF: 슬롯에 광고 크리에이티브 렌더링
+    Note over AD: 광고 클릭 시
+    AD-&gt;&gt;AD: getGoogleAdInfo(slotName)
+    AD-&gt;&gt;AD: iframe img.alt 파싱 (type|code)
+    alt type 0 = 컬럼
+        AD-&gt;&gt;NAV: columncode 로 이동
+    else type 1 = VOD
+        AD-&gt;&gt;NAV: programcode 로 이동
+    else type 2 = 채널
+        AD-&gt;&gt;NAV: channelcode 로 이동
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> GPT/IMA가 광고를 렌더링하면 <code>AdController</code>가 크리에이티브의 <code>alt</code> 메타데이터를 파싱해 컬럼·VOD·채널 딥링크로 연결합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class AdController {
+        +getGoogleAdInfo(slotName) info
+        +getGoogleAdText(slotName, content)
+    }
+    class AdBannerController {
+        -adBannerFrame AdBannerFrame
+        +show(param)
+        +hide(param)
+    }
+    class NotificationController {
+        -notificationFrame NotificationFrame
+        +show(param, entrance)
+        +hide(param)
+    }
+    class NotificationFrameController {
+        -appFrame iframe
+        +initialize()
+    }
+    class CampaignCouponPopupController {
+        +show(param)
+    }
+
+    AdController ..&gt; AdBannerController : 배너 광고 표시
+    NotificationFrameController ..&gt; NotificationController : 알림 표시
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>AdController</code>가 GPT/IMA 광고 메타데이터를 해석하고, 배너·알림·캠페인은 각각 전용 컨트롤러가 화면을 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>index.html</code> — Google 광고 SDK 로드</div>
+<pre><code>&lt;script type="text/javascript" src="//securepubads.g.doubleclick.net/tag/js/gpt.js"&gt;&lt;/script&gt;
+&lt;script type="text/javascript" src="//imasdk.googleapis.com/js/sdkloader/ima3.js"&gt;&lt;/script&gt;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>controller/AdController.js</code> — 광고 크리에이티브 메타데이터 파싱</div>
+<pre><code>getGoogleAdInfo: function(slotName) {
+    var info = { type: 'none' };
+    var alt = document.getElementById(slotName)
+        .getElementsByTagName('iframe')[0]
+        .contentWindow.document
+        .getElementsByTagName('img')[0].alt;
+
+    var data = alt.split('|');
+    if (data.length &gt; 1) {
+        switch (data[0]) {
+            case "0": info.type = 'column';  info.columncode  = data[1]; break;
+            case "1": info.type = 'vod';     info.programcode = data[1]; break;
+            case "2": info.type = 'channel'; info.channelcode = data[1]; break;
+        }
+    }
+    return info;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/AdController.js" target="_blank" rel="noopener">controller/AdController.js</a><span class="src">GPT 광고 크리에이티브 메타데이터 파싱(컬럼/VOD/채널)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/AdBannerController.js" target="_blank" rel="noopener">controller/AdBannerController.js</a><span class="src">배너 광고 화면 프레임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/NotificationController.js" target="_blank" rel="noopener">controller/NotificationController.js</a><span class="src">앱 내 알림 UI 프레임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/NotificationFrameController.js" target="_blank" rel="noopener">controller/NotificationFrameController.js</a><span class="src">외부 알림 페이지(iframe) 관리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/index.html" target="_blank" rel="noopener">index.html</a><span class="src">Google GPT / IMA SDK 외부 로드</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f13.html">← PIP / 모자이크 / 5채널</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f15.html">CAS · 핑거프린트 · 보안 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">turk-webx-tivibu-sysapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

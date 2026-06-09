@@ -1,0 +1,461 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TBroad(SKB) Local App OCAP — 과제 설명</title>
+<style>
+:root{
+  --accent:#ff6a00;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">OCAP / MHP STB (Java TV Xlet)</span>
+      <span class="badge gray">Java</span>
+    </div>
+    <h1>TBroad(SKB) Local App OCAP — 케이블 STB 로컬 애플리케이션</h1>
+    <p class="one-liner">SK브로드밴드(TBroad) 케이블 셋톱박스에 탑재되어 채널 제어·홈 화면·클라우드 연동·방송 품질 계측을 담당하는 OCAP 기반 Local 애플리케이션(Xlet)입니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap" target="_blank" rel="noopener"><code>skb_cloud_local_ocap</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>OCAP_log_2025</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-02-24 · a34ecacd [Log]DCA 자동완성 리스트에 차단채널 표시되지 않도록 수정</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v">org_id 16777472 / app_id 12304 · <code>3.2.5.0040_2026_02_24_01</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>본 프로젝트는 SK브로드밴드 케이블(TBroad) 셋톱박스(STB)에 직접 탑재되는 <strong>OCAP(OpenCable Application Platform) 기반 Local 애플리케이션</strong>입니다. STB의 OCAP/MHP(Multimedia Home Platform) 런타임 위에서 Java TV Xlet(<code>javax.tv.xlet.Xlet</code>) 형태로 구동되며, 미들웨어가 애플리케이션 디스크립터(<code>ocap.host.application</code>)를 읽어 부팅 시 자동으로 로드·실행합니다. 채널 전환, 홈 화면, 각종 팝업, VOD 제어 등 가입자가 화면에서 직접 사용하는 방송 기능 전반을 담당하는 네이티브 미들웨어 앱입니다.</p>
+    <p>이 앱의 가장 큰 특징은 <strong>클라우드(Cloud) 연동 하이브리드 구조</strong>입니다. UI 화면과 세션을 서버 측 클라우드 앱(<code>com.tbroad.cloud.ep3</code>)과 연계해, STB 로컬에서 처리하는 방송 제어와 클라우드에서 렌더링되는 화면을 결합합니다. 로컬 앱은 <code>com.tb.cloud</code> 패키지를 통해 클라우드 서버와 세션·키 입력·PIP 화면을 주고받으며, 클라우드 서버는 Docker 컨테이너 기반으로 운영됩니다.</p>
+    <p>또한 이 앱은 SK브로드밴드의 부가 서비스 플랫폼인 <strong>Windmill</strong>(UPMS/ACMS/Search/RCMD/OneAd 등)과 연동되어 사용자 프로파일, 광고, 추천, 쿠폰 등 서비스 데이터를 받아옵니다. 방송 신호 품질을 주기적으로 수집해 서버로 전송하는 <strong>TiMS 품질 계측</strong>, STB 상태/CAS/대기모드를 관리하는 <strong>Monitor</strong>, 케이블 대역폭 효율화를 위한 <strong>SDV(Switched Digital Video)</strong> 등 운영 사업자 관점의 기능도 함께 내장하고 있습니다.</p>
+    <div class="callout">
+      <div class="ct">분석 기준 브랜치 OCAP_log_2025</div>
+      현재 분석 대상인 <code>OCAP_log_2025</code> 브랜치는 로그/방송 품질 계측 관련 작업이 집중된 작업 브랜치입니다. 최근 커밋 다수가 TiMS 품질 계측(튜너 ID 전달, standby 시 계측 제외, 특정 SMT 모델 제외, UDP 전송 전환 등) 개선에 집중되어 있습니다. 기본 브랜치는 <code>master</code>이며, UI/UX 작업용 <code>OCAP_uiux_2025</code>, 8VSB 작업용 <code>OCAP_8VSB</code> 등 별도 작업 브랜치가 존재합니다.
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">채널 탐색·전환 (Navigator)</div><div class="d"><code>ChannelController</code>·<code>ChannelDatabase</code>·<code>ChannelRing</code>·<code>ChannelZapper</code>로 채널 목록 순회와 전환을 처리합니다. OCAP 전용 채널 구현(<code>navigator/channel/ocap</code>)과 TBroad 채널 구현(<code>navigator/channel/tbroad</code>)을 포함합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">FCC 고속 채널 전환</div><div class="d"><code>navigator/channel/fcc</code>에서 FCC(Fast Channel Change)를 구현해 채널 전환 시 영상 표시 지연을 줄입니다. standby 상태에서는 FCC tune이 일어나지 않도록 제어합니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">홈 화면 · 팝업 UI</div><div class="d"><code>com.tb.home.ui</code>에 홈 화면과 35종 이상의 팝업(<code>home/ui/popup</code>), 리스트/컴포넌트 UI가 모여 있으며 소스 비중이 가장 큽니다. 자가진단(<code>SelfDiagnosticsHandler</code>), 음성검색(<code>VoiceSearchManager</code>)도 포함합니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">클라우드 연동 (하이브리드)</div><div class="d"><code>CloudHomeMain</code>·<code>CloudConnector</code>·<code>CloudKeyHandler</code>·<code>CloudSessionRuleChecker</code>가 서버 측 클라우드 앱과 세션·키·화면을 연계합니다. ICS·TLS 서버·워커(<code>cloud/ics</code>·<code>cloud/tls</code>·<code>cloud/worker</code>)로 세분화되어 있습니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">방송 품질 계측 (TiMS)</div><div class="d"><code>TiMSManager</code>가 SNR·power level 등 방송 신호 품질을 주기(<code>PeriodicCollectionHandler</code>)/일별(<code>DailyCollectionHandler</code>)로 수집해 UDP(<code>TiMSUDPSender</code>) 또는 Inform 형태로 서버에 전송합니다. COQP(<code>tims/coqp</code>)는 JSON으로 품질 데이터를 업로드합니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">STB 상태 모니터링 (Monitor)</div><div class="d"><code>Monitor</code>가 STB 상태·키 입력을 감시하고 대기모드(<code>StandbyModeControl</code> — svc), 배터리, 가상 마우스 등 시스템 레벨 제어를 담당합니다.</div></a>
+      <a class="card" href="f07.html"><div class="t">CAS 수신제한 연동</div><div class="d"><code>monitor/ca</code>에서 Alticast CAS와 Nagra CA(<code>AltiCaHandler</code>·<code>NagraCaHandler</code>·<code>CaManagerImpl</code>)를 처리하고, TBroad CA Adaptor를 통해 수신제한·미리보기(<code>PreviewInfo</code>)를 다룹니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">SDV 스위치드 디지털 비디오</div><div class="d"><code>SDVInit</code>이 SDV(Switched Digital Video)를 초기화하고, CCP·MC·매니저(<code>sdv/ccp</code>·<code>sdv/mc</code>·<code>sdv/manager</code>)로 대역폭 효율적인 채널 할당을 처리합니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">Mini EPG · 채널 예약</div><div class="d"><code>com.tb.miniepg</code>가 간이 편성표(Mini EPG)와 채널 예약(<code>miniepg/reserve</code>)을 제공합니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">VOD 재생 제어</div><div class="d"><code>com.tb.vod</code>의 재생/제어 UI와 매니저, Castis VOD 연동(<code>com.castis.vod.control</code>), 에러 코드(<code>VODErrorCode</code>)로 주문형 비디오 재생을 다룹니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">Windmill 데이터 연동 (cappl.dm)</div><div class="d"><code>cappl.dm</code>이 Windmill UPMS/ACMS 등 서비스 API(<code>cappl/dm/api</code>), HTTP, 인증(<code>TbroadAuthorization</code>)을 제공합니다. 사용자 프로파일·광고·추천 데이터를 라이브/위성/개발 환경별 URL로 가져옵니다.</div></a>
+      <a class="card" href="f12.html"><div class="t">쿠폰 · 부가 서비스</div><div class="d"><code>coupon</code> 패키지가 쿠폰 시스템(내부/외부 쿠폰 서버) DTO와 연동을 담당하고, OneAd 광고·홈초이스 앱스토어 등 부가 서비스 진입점을 제공합니다.</div></a>
+      <a class="card" href="f13.html"><div class="t">푸시 메시지 처리 (PMS)</div><div class="d"><code>pms</code> 패키지와 <code>PushMessageEventHandlerImpl</code>이 서버 푸시 메시지를 수신·처리하고 UDP 피드백(<code>PMS_FEEDBACK_IP</code>)을 전송합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">채널맵 · 플랫폼 정보 (OOB)</div><div class="d"><code>ChannelMapManager</code>·<code>OOBManager</code>·<code>PlatformInfoManager</code>가 OOB(Out-Of-Band) 경로로 채널맵·플랫폼 정보를 수신·갱신하고, <code>IframeManager</code>가 인밴드 데이터를 관리합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>애플리케이션 Java 소스는 약 512개 파일로, <code>com.tb.*</code> 도메인 패키지를 중심으로 구성됩니다. 진입 Xlet(<code>windmill.wind.tb.App</code>)이 단일 싱글톤 매니저(<code>com.tb.home.HomeMain</code>)에 라이프사이클을 위임하고, HomeMain이 채널·클라우드·모니터·품질계측·SDV 등 하위 매니저를 일괄 기동하는 중앙 집중형 구조입니다.</p>
+    <pre class="tree">skb_cloud_local_ocap/
+├── build.xml                      # Ant 빌드 스크립트 (devel/release 타깃)
+├── ocap.host.application          # OCAP 호스트 디스크립터 (initial_class=windmill.wind.tb.App)
+├── xlet.properties                # Xlet 메타정보 (참고용)
+├── java/                          # 애플리케이션 Java 소스 (약 512개 .java)
+│   ├── windmill/wind/tb/App.java  # OCAP 진입 Xlet (HomeMain에 위임)
+│   ├── com/tb/
+│   │   ├── home/                  # 홈 화면·팝업·매니저·SI/채널 데이터 (최다 모듈)
+│   │   │   ├── ui/                #   홈 UI, popup(35종+), comp, resource
+│   │   │   ├── manager/           #   CampaignDataManager, HomeIAdManager 등
+│   │   │   ├── si/                #   방송 SI / 채널 정보
+│   │   │   └── data/              #   inband(Iframe), oob(ChannelMap/OOB/PlatformInfo)
+│   │   ├── navigator/             # 채널 탐색·전환, OCAP/TBroad 채널, FCC, log
+│   │   ├── cloud/                 # 클라우드 연동 (ics/impl/listener/tls/worker)
+│   │   ├── monitor/               # STB 상태·키, CAS(ca), standby(svc), up, util
+│   │   ├── tims/                  # 품질 계측 (collect/control/coqp/data)
+│   │   ├── miniepg/               # Mini EPG, 채널 예약(reserve)
+│   │   ├── vod/                   # VOD 재생·제어 UI, manager
+│   │   ├── sdv/                   # SDV (ccp/intf/manager/mc/util)
+│   │   ├── bluetooth/             # 블루투스 리모컨 등
+│   │   ├── booting/               # 부팅 처리
+│   │   ├── companion/             # 컴패니언(2nd) 단말 연동
+│   │   ├── config/                # BuildConfig/Config/Constants/Def 등 설정
+│   │   ├── event/                 # 이벤트 큐
+│   │   └── util/                  # 공용 유틸리티 (Log 등)
+│   ├── cappl/dm/                  # Windmill 데이터 매니저 (api/http/auth)
+│   ├── cappl/userProfile/         # 사용자 프로파일
+│   ├── com/castis/vod/control/    # Castis VOD 제어 연동
+│   ├── pms/                       # 푸시 메시지 처리(event/resource)
+│   ├── coupon/                    # 쿠폰 시스템 DTO/연동
+│   └── windmill/monitor/          # Windmill 모니터 IXC 연동
+├── lib/                           # CAS / CA Adaptor / 부트·플랫폼 클래스(zip/jar)
+├── json/org/json/                # org.json 라이브러리 (컴파일된 .class)
+└── resources/
+    ├── image/                     # 1080/540 해상도별 이미지 리소스
+    ├── properties/                # build/windmill/cloud/app_name/def 등 프로퍼티
+    └── resource/                  # 폰트, 로컬라이제이션(ko_KR), webapp</pre>
+
+    <h3>주요 모듈 · 클래스</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>모듈 / 클래스</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td><code>windmill.wind.tb.App</code></td><td>OCAP 호스트 디스크립터에 등록된 실제 진입 Xlet. <code>initXlet</code>/<code>startXlet</code>/<code>pauseXlet</code>/<code>destroyXlet</code> 라이프사이클을 <code>HomeMain</code> 싱글톤에 위임합니다.</td></tr>
+          <tr><td><code>com.tb.home.HomeMain</code></td><td>앱 전체를 초기화하는 핵심 매니저. 언어, 블루투스, 클라우드, 채널맵/OOB/플랫폼 정보, 폰트, Monitor, OCAP 채널 DB, SDV, TiMS, 푸시 메시지를 일괄 기동하는 싱글톤입니다.</td></tr>
+          <tr><td><code>com.tb.navigator.channel.*</code></td><td>채널 모델·DB·링(<code>Channel</code>·<code>ChannelDatabase</code>·<code>ChannelRing</code>)과 OCAP/TBroad 전용 구현, FCC 고속 전환을 담당합니다.</td></tr>
+          <tr><td><code>com.tb.cloud.CloudHomeMain</code> 외</td><td>클라우드 세션·키(<code>CloudKeyHandler</code>)·세션 규칙(<code>CloudSessionRuleChecker</code>)·연결(<code>CloudConnector</code>)·복구(<code>RecoveryManager</code>)·PIP(<code>HomePIPManager</code>)를 처리하는 하이브리드 연동 계층입니다.</td></tr>
+          <tr><td><code>com.tb.tims.TiMSManager</code></td><td>방송 품질 계측의 진입점. 주기/일별 수집 핸들러를 띄우고 UDP/Inform 전송과 COQP JSON 업로드를 조율합니다.</td></tr>
+          <tr><td><code>com.tb.monitor.Monitor</code></td><td>STB 상태·키 모니터링, CAS(<code>monitor/ca</code>), standby, 배터리, 가상 마우스 등 시스템 레벨 제어를 담당합니다.</td></tr>
+          <tr><td><code>com.tb.sdv.SDVInit</code></td><td>SDV(Switched Digital Video) 서브시스템을 초기화합니다.</td></tr>
+          <tr><td><code>cappl.dm.*</code></td><td>Windmill 플랫폼 연동 데이터 매니저. UPMS/ACMS 등 서비스 API, HTTP, 인증(<code>TbroadAuthorization</code>)을 제공합니다.</td></tr>
+          <tr><td><code>com.tb.util.Log</code></td><td>로그 출력 게이트(<code>INCLUDE</code> 플래그). 릴리스 빌드 시 빌드 스크립트가 이 값을 치환해 log/nolog 산출물을 구분합니다.</td></tr>
+          <tr><td><code>com.tb.config.*</code></td><td><code>BuildConfig</code>·<code>Config</code>·<code>Constants</code>·<code>Def</code>·<code>CloudConfig</code>·<code>WindmillConfig</code> 등 빌드/런타임 설정 클래스 묶음입니다.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>계층 · 외부 연동 관계</h3>
+    <p>최상위에 OCAP/MHP 미들웨어(<code>org.ocap.*</code>·<code>javax.tv.*</code>·<code>org.dvb.*</code>·<code>org.davic.*</code>)가 있고, 그 위에서 본 Xlet이 실행됩니다. 앱은 (1) 케이블 방송망(인밴드 SI·OOB 채널맵)과 직접 통신하고, (2) Windmill 플랫폼 서버(UPMS/ACMS/Search/RCMD/OneAd)와 HTTP로 연동하며, (3) 클라우드 서버(<code>cloud.properties</code>의 <code>SERVER_ADDR</code>·포트)와 세션을 맺고, (4) CAS/CA Adaptor를 통해 수신제한을 처리합니다. 클라우드 서버는 Docker 컨테이너로 운영되며 Testbed/Live/Bare 환경으로 구분됩니다(Confluence 클라우드 시스템 분석 참조).</p>
+    <div class="callout warn">
+      <div class="ct">빌드 시 형제 저장소 의존</div>
+      <code>build.xml</code>의 <code>cloud_java_compile</code> 타깃은 본 저장소의 <code>java/</code>뿐 아니라 인접 저장소 <code>../skb_cloud_local_ocap_adaptor/java</code>(속성 <code>SRC_CLOUD</code>)도 함께 컴파일합니다. 즉 본 저장소만으로는 빌드가 완결되지 않으며, <code>skb_cloud_local_ocap_adaptor</code> 저장소가 형제 디렉토리로 함께 존재해야 합니다.
+    </div>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>언어</td><td>Java</td><td>source 1.3 / target 1.1</td><td><code>build.xml</code>의 <code>javac</code> 설정 기준 (구형 STB JVM 호환)</td></tr>
+          <tr><td>앱 모델</td><td>Java TV Xlet</td><td><code>javax.tv.xlet.Xlet</code></td><td>진입 클래스 <code>windmill.wind.tb.App</code></td></tr>
+          <tr><td>런타임 / 플랫폼</td><td>OCAP / MHP STB 미들웨어</td><td>-</td><td><code>org.ocap.*</code>·<code>org.dvb.*</code>·<code>org.davic.*</code> API 사용</td></tr>
+          <tr><td>빌드 시스템</td><td>Apache Ant</td><td><code>build.xml</code></td><td>기본 타깃 <code>devel</code>, 일괄 릴리스 타깃 <code>release</code></td></tr>
+          <tr><td>CAS / CA</td><td>Alticast CAS + TBroad CA Adaptor</td><td><code>alti_cas_3.0.2017-215</code></td><td><code>tbroad_ca_adaptor.zip</code>, Nagra CA 핸들러 포함</td></tr>
+          <tr><td>JSON</td><td>org.json</td><td><code>json/org/json</code></td><td>컴파일된 <code>.class</code> 형태로 포함</td></tr>
+          <tr><td>홈/라이브 스텁</td><td>Windmill SMLS</td><td><code>smls_home_live_stub_2.0.3.jar</code></td><td>컴파일 classpath용 스텁</td></tr>
+          <tr><td>외부 플랫폼</td><td>Windmill (UPMS/ACMS/Search/RCMD/OneAd)</td><td>-</td><td>라이브/위성(SAT)/개발(DEV) 환경별 URL — <code>windmill.properties</code></td></tr>
+          <tr><td>클라우드 서버</td><td>Cloud 앱 (Docker 컨테이너)</td><td><code>com.tbroad.cloud.ep3</code></td><td>세션 연동 — <code>cloud.properties</code></td></tr>
+          <tr><td>부가 서비스</td><td>Coupon System, 홈초이스 앱스토어</td><td>-</td><td>내부/외부 쿠폰 서버 URL 분리</td></tr>
+          <tr><td>앱 버전</td><td>CF_CAPPL_APP_VERSION</td><td><code>3.2.5.0040_2026_02_24_01</code></td><td><code>resources/properties/build.properties</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>참고로 <code>lib/</code>의 <code>btclasses.zip</code>·<code>classes.zip</code>·<code>jvmbtclasses.zip</code>은 컴파일 시 classpath로만 쓰이는 부트/플랫폼 클래스 묶음입니다. 최종 앱 결과물(<code>app.zip</code>)에는 CAS와 CA Adaptor만 풀어서 포함됩니다.</p>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+
+    <h3>1) 부팅 · 초기화 시퀀스</h3>
+    <ol class="steps">
+      <li><span class="st">미들웨어가 디스크립터 로드</span><span class="sd">STB 부팅 후 OCAP 미들웨어가 <code>ocap.host.application</code>을 읽어 <code>windmill.wind.tb.App</code>을 자동 기동합니다(<code>auto_start=true</code>, priority 255).</span></li>
+      <li><span class="st">initXlet → HomeMain.init</span><span class="sd"><code>App.initXlet</code>이 <code>HomeMain.getInstance().init(xletContext)</code>를 호출합니다. 언어 초기화, NavEventQueue 준비 후 핵심 매니저 초기화가 시작됩니다.</span></li>
+      <li><span class="st">하위 매니저 일괄 기동</span><span class="sd">TiMS 품질계측(<code>TiMSManager.init</code>), SDV(<code>SDVInit().init</code>), Monitor(<code>Monitor.init</code>), 채널 매니저(<code>TBChannelManager</code>), 채널맵(<code>ChannelMapManager.start</code>), OCAP 채널 DB 등을 차례로 띄웁니다.</span></li>
+      <li><span class="st">startXlet → 데이터 수신 시작</span><span class="sd"><code>App.startXlet</code>이 <code>HomeMain.start</code>를 호출해 플랫폼 정보(<code>PlatformInfoManager</code>), OOB 수신(<code>OOBManager.startRetrieving</code>), 광고/캠페인(<code>HomeIAdManager</code>·<code>CampaignDataManager</code>)을 가동합니다.</span></li>
+      <li><span class="st">클라우드 세션 연결 · 홈 표시</span><span class="sd">클라우드 연동(<code>CloudHomeMain</code>) 세션이 수립되고 홈 화면이 표시됩니다. 이후 가입자 키 입력을 받아 채널/메뉴/팝업을 처리합니다.</span></li>
+    </ol>
+
+    <h3>2) 채널 전환 흐름</h3>
+    <ol class="steps">
+      <li><span class="st">키 입력 수신</span><span class="sd">리모컨 채널 키(또는 클라우드 경유 키, <code>CloudKeyHandler</code>)가 Navigator로 전달됩니다.</span></li>
+      <li><span class="st">채널 선택 · 차단 확인</span><span class="sd"><code>ChannelRing</code>/<code>ChannelDatabase</code>에서 대상 채널을 결정하고, 차단 채널·수신제한(CAS)·연령 제한 여부를 확인합니다. DCA 자동완성 리스트에는 차단 채널을 표시하지 않습니다(최근 커밋).</span></li>
+      <li><span class="st">튜닝 · FCC</span><span class="sd"><code>ChannelController</code>가 ServiceContext를 통해 튜닝을 수행합니다. FCC(Fast Channel Change)로 전환 지연을 줄이며, standby 상태에서는 FCC tune을 막습니다.</span></li>
+      <li><span class="st">SDV / 영상 표시</span><span class="sd">SDV 대상 채널이면 SDV 매니저가 대역폭을 할당합니다. 영상이 표시되고 Mini EPG·채널 배너 등 UI가 갱신됩니다.</span></li>
+    </ol>
+
+    <h3>3) 방송 품질 계측 흐름 (TiMS)</h3>
+    <ol class="steps">
+      <li><span class="st">수집 핸들러 기동</span><span class="sd"><code>TiMSManager</code>가 주기 수집(<code>PeriodicCollectionHandler</code>)과 일별 수집(<code>DailyCollectionHandler</code>)을 별도 쓰레드로 운영합니다.</span></li>
+      <li><span class="st">신호 품질 측정</span><span class="sd">튜닝 중인 ServiceContext의 power level·SNR 등을 튜너 ID와 함께 측정합니다. standby 상태나 일부 SMT 모델(SMT-C3022/C5010/C5011/C5012)은 계측 대상에서 제외합니다.</span></li>
+      <li><span class="st">서버 전송</span><span class="sd">수집 데이터를 UDP(<code>TiMSUDPSender</code>) 또는 Inform(<code>TiMSInformSender</code>)으로 전송합니다. COQP(<code>CoqpManager</code>·<code>JsonUploader</code>)는 품질 데이터를 JSON으로 업로드합니다.</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>빌드는 <strong>Apache Ant</strong>로 수행합니다. <code>build.xml</code>의 기본 타깃은 <code>devel</code>이며, 빌드 후 산출물 <code>app.zip</code>을 USB 경로(<code>E:/app</code>)로 복사합니다.</p>
+    <pre><code># 개발용 빌드 (app.zip 생성 후 USB 경로로 복사)
+ant            # 또는 ant devel
+
+# 전체 릴리스 빌드 (USB/Test/Sat/Live x Log/NoLog 8종 일괄 생성)
+ant release</code></pre>
+    <p><code>build</code> 타깃의 흐름은 다음과 같습니다.</p>
+    <ol>
+      <li>빌드 디렉토리 정리/생성(<code>classes</code>·<code>_dist</code>·<code>_gen</code>)</li>
+      <li><code>java/</code>·<code>_gen/</code>·어댑터 저장소(<code>../skb_cloud_local_ocap_adaptor/java</code>) 소스를 함께 컴파일(<code>cloud_java_compile</code>, <code>javac source 1.3 / target 1.1</code>)</li>
+      <li><code>resources/</code>·<code>json/</code>·<code>ocap.host.application</code> 복사</li>
+      <li><code>lib/</code>의 CAS(<code>alti_cas_*.zip</code>)와 CA Adaptor(<code>tbroad_ca_adaptor.zip</code>) 압축 해제</li>
+      <li>결과물을 <code>app.zip</code>으로 패키징(<code>zip_app</code>)</li>
+    </ol>
+    <p><code>release</code> 타깃은 배포 대상/로그 포함 여부에 따라 <code>windmill.properties</code>의 <code>USB</code>/<code>LIVE</code>/<code>SAT</code> 플래그와 <code>com/tb/util/Log.java</code>의 <code>INCLUDE</code> 값을 치환하며 다음 8종 산출물을 만듭니다.</p>
+    <pre><code>local_&lt;버전&gt;_usb_log.zip   / local_&lt;버전&gt;_usb_nolog.zip
+local_&lt;버전&gt;_test_log.zip  / local_&lt;버전&gt;_test_nolog.zip
+local_&lt;버전&gt;_sat_log.zip   / local_&lt;버전&gt;_sat_nolog.zip
+local_&lt;버전&gt;_live_log.zip  / local_&lt;버전&gt;_live_nolog.zip</code></pre>
+    <p>주요 환경 설정 파일은 다음과 같습니다.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>파일</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td><code>resources/properties/build.properties</code></td><td>앱 버전 <code>CF_CAPPL_APP_VERSION</code> (현재 <code>3.2.5.0040_2026_02_24_01</code>)</td></tr>
+          <tr><td><code>resources/properties/windmill.properties</code></td><td>Windmill 서버 URL(LIVE/SAT/DEV), 쿠폰/이미지/고객센터 URL, USB/LIVE/SAT 플래그, PMS 피드백 IP</td></tr>
+          <tr><td><code>resources/properties/cloud.properties</code></td><td>클라우드 서버 주소/포트(1080·540 해상도별), 옵션, 복구 시간</td></tr>
+          <tr><td><code>resources/properties/app_name.properties</code></td><td>클라우드 앱 베이스 이름 <code>com.tbroad.cloud.ep3</code></td></tr>
+          <tr><td><code>resources/properties/def.ini</code></td><td>monitor/ticker/ump oid·aid, public sourceID, TV 잠금/대기모드 테스트 값</td></tr>
+          <tr><td><code>ocap.host.application</code></td><td>OCAP 호스트 디스크립터 (org_id 16777472, app_id 12304, initial_class <code>windmill.wind.tb.App</code>)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>산출물(<code>app.zip</code> 또는 릴리스 zip)은 STB에 다운로드되어, OCAP 미들웨어가 <code>ocap.host.application</code> 디스크립터를 읽어 Xlet을 로드·실행합니다. 별도의 로컬 실행 명령은 없으며 STB/에뮬레이터 환경에서 미들웨어가 구동하는 방식입니다.</p>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>분석 기준 브랜치 <code>OCAP_log_2025</code>의 최근 작업은 <strong>방송 품질 계측(TiMS)</strong> 개선에 집중되어 있습니다. 품질 계측 전송을 UDP로 전환하고, 측정 API에 튜너 ID를 전달하도록 수정했으며, standby 상태 및 일부 SMT 모델(SMT-C3022/C5010/C5011/C5012)을 계측 대상에서 제외했습니다. 그 외 reboot 요청 시 stabilizer와 동일한 팝업/LCW 시나리오 추가, 차단 채널을 DCA 자동완성 리스트에 표시하지 않도록 하는 등의 운영 안정화 작업이 이어졌습니다.</p>
+    <ul class="commits">
+      <li><span class="date">2026-02-24</span><span class="msg">[Log]DCA 자동완성 리스트에 차단채널 표시되지 않도록 수정.</span></li>
+      <li><span class="date">2025-12-11</span><span class="msg">[OCAP_log_2025] SMT 모델 standby 품질계측전송 동작하지 않도록 처리.</span></li>
+      <li><span class="date">2025-12-11</span><span class="msg">msgSleep 쓰레드 처리.</span></li>
+      <li><span class="date">2025-12-11</span><span class="msg">tune하는 servicecontext의 powerlevel, snr api에 tuner id 전달. standby에서 fcc tune 막음. SMT-C3022/C5010/C5011/C5012 모델 품질 계측 제외.</span></li>
+      <li><span class="date">2025-12-08</span><span class="msg">[OCAP_log_2025] 품질 계측 delay를 3초로 늘림, 품질계측 쓰레드 처리.</span></li>
+      <li><span class="date">2025-12-05</span><span class="msg">[OCAP_log_2025] msgSleep 시 current channel 세팅 및 ch8vsbSnr 오타수정.</span></li>
+      <li><span class="date">2025-12-05</span><span class="msg">[OCAP_log_2025] 버전 변경.</span></li>
+      <li><span class="date">2025-12-04</span><span class="msg">[OCAP_log_2025] 품질계측 UDP로 반영.</span></li>
+      <li><span class="date">2025-12-02</span><span class="msg">[OCAP_log_2025] 테스트코드 제거 및 8vsb 메소드 호출.</span></li>
+      <li><span class="date">2025-11-28</span><span class="msg">[OCAP_log_2025] 추가 요구사항 반영.</span></li>
+      <li><span class="date">2025-11-26</span><span class="msg">[OCAP_log_2025] reboot 요청시 stabilizer와 동일한 팝업 및 lcw 시나리오 추가.</span></li>
+      <li><span class="date">2025-11-26</span><span class="msg">[OCAP_log_2025] up 저장코드 수정.</span></li>
+      <li><span class="date">2025-11-24</span><span class="msg">[OCAP_log_2025] reboot 키워드 변경 및, reboot 요청시 stabilizer와 동일한 팝업과 lcw 유지하는 시나리오 추가.</span></li>
+    </ul>
+    <p>위 목록은 분석 기준 브랜치의 머지 커밋을 제외한 주요 작업 커밋입니다. README의 형상 정보에 따르면 본 브랜치 누적 커밋은 약 1878개입니다.</p>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li><code>/Users/lim/Altimedia/workspace_biz_3rd/skb_cloud_local_ocap/README.md</code><span class="src">저장소 README — 과제 개요·구조·빌드 1차 근거</span></li>
+      <li><code>build.xml</code> · <code>ocap.host.application</code> · <code>xlet.properties</code> · <code>resources/properties/*</code><span class="src">소스 — 빌드/디스크립터/환경 설정 (직접 검증)</span></li>
+      <li><code>java/windmill/wind/tb/App.java</code> · <code>java/com/tb/home/HomeMain.java</code><span class="src">소스 — 진입 Xlet 및 초기화 시퀀스 (직접 검증)</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/2870054741">Confluence — 클라우드 시스템 분석 (pageId 2870054741)</a><span class="src">Confluence ORGAPPDEV — 클라우드 서버(Docker)·로그/모니터링 운영 정보</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3264742138/OCAP">Confluence — OCAP (pageId 3264742138)</a><span class="src">Confluence ORGAPPDEV — 본문 비어 있음(참고용 링크)</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/2861945155/KOR_SKB">Confluence — KOR_SKB (pageId 2861945155)</a><span class="src">Confluence ORGAPPDEV — 본문 비어 있음(참고용 링크)</span></li>
+      <li>OpenCable Application Platform (OCAP) / MHP (Multimedia Home Platform) 규격, Java TV (JSR-927)<span class="src">관련 규격 — 런타임/앱 모델 표준</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>OCAP_log_2025</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!doctype html>
+<!-- turk-webx-tivibu-sysapp · 녹화(Recording) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>녹화(Recording) — turk-webx-tivibu-sysapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Türk Telekom Tivibu STB 시스템 앱 (EPG SYSAPP)</a><span class="sep">›</span>
+      <span class="here">녹화(Recording)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">WebX STB · JavaScript (ES6/AMD)</span>
+    </div>
+    <h1>녹화(Recording)</h1>
+    <p class="one-liner"><code>RecordingController</code>가 nPVR(네트워크 PVR) 기반으로 프로그램·시리즈 녹화 예약을 처리하고, 녹화 가능 여부·잔여 용량·상태를 <code>QueryManager</code>로 조회·관리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp" target="_blank" rel="noopener"><code>turk-webx-tivibu-sysapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>controller/RecordingController.js</code> · <code>util/RecordingUtil.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">nPVR 예약 · 시리즈 녹화 · 용량 점검</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>녹화는 네트워크 기반 PVR(nPVR)로, 실제 저장은 서버 측에서 이루어지고 STB은 예약·상태 조회·삭제 요청을 보냅니다. <code>RecordingController</code>는 프로그램 단위 녹화(<code>recordProgram</code>)와 시리즈 단위 녹화(<code>addNPvrSeries</code>)를 모두 처리하며, 녹화 상태는 예약(<code>REC_SCHEDULED=0</code>)·녹화됨(<code>REC_RECORDED=1</code>)·진행중(<code>REC_ONGOING=999</code>)·미등록(<code>REC_NOT_ADDED=-2</code>) 등의 코드로 구분합니다.</p>
+    <p>녹화 요청 전에는 여러 조건을 점검합니다. 프로그램·채널이 녹화 가능한지(<code>isRecordable()</code>), 녹화 가능 시간 용량이 남았는지(<code>getNPvrTime</code>의 총/사용 용량), 채널·시리즈별 동시 녹화 한도를 초과하지 않는지(<code>isExceedLimit</code>)를 확인합니다. 통과하면 <code>QueryManager.addNPvr()</code>/<code>addNPvrSeries()</code>로 서버에 예약을 등록하고, 실패 시 <code>RecordingUtil.showRecordingError()</code>로 안내합니다. 상태 조회는 <code>checkNPvrStatus()</code>로 prevuecode·시간 구간·시리즈ID 기준으로 수행합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      녹화 동작은 모두 비동기 콜백으로 결과 코드(<code>REC_SUCCESS</code>/<code>REC_FAIL_*</code>)를 돌려주며, 데이터 수집(<code>_logRecording</code>)으로 요청 시각·결과를 기록합니다. 최근 스프린트(Jira <code>VLTRANLAND-1310</code>)에서 녹화 목록의 "Recorded" 텍스트를 에피소드 표기로 개선했습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as TVDetail / Playbar
+    participant RC as RecordingController
+    participant QM as QueryManager (nPVR API)
+    participant RU as RecordingUtil
+
+    UI-&gt;&gt;RC: recordProgram(programDetail, cb)
+    RC-&gt;&gt;RC: isRecordable() · channel.isRecordable()
+    alt 녹화 불가
+        RC-&gt;&gt;RU: showRecordingError(REC_FAIL_NOTRECORDABLE)
+        RC--&gt;&gt;UI: cb(REC_FAIL_NOTRECORDABLE)
+    else 녹화 가능
+        RC-&gt;&gt;RC: isExceedLimit(channelcode, seriesHeadId, prevuecode)
+        RC-&gt;&gt;QM: addNPvr(prevuecode, channelcode, autoDelete)
+        QM--&gt;&gt;RC: returncode
+        alt returncode == '0'
+            RC--&gt;&gt;UI: cb(REC_SUCCESS)
+        else 실패
+            RC--&gt;&gt;UI: cb(REC_FAIL_UNKNOWN, response)
+        end
+        RC-&gt;&gt;RC: _logRecording(...) (데이터 수집)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 녹화 요청 시 녹화 가능 여부와 한도를 점검한 뒤 nPVR API(<code>addNPvr</code>)로 서버에 예약하고, 결과 코드를 콜백으로 돌려줍니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class RecordingController {
+        +recordProgram(detail, cb)
+        +getRecordingStatus(prevue, begin, end, seriesId, cb)
+        +getRecordableTime(cb)
+        +isExceedLimit(channel, seriesId, prevue, cb)
+        +REC_SUCCESS int
+        +REC_SCHEDULED int
+        +REC_RECORDED int
+        +REC_ONGOING int
+    }
+    class QueryManager {
+        +addNPvr(prevue, channel, autoDelete, cb)
+        +addNPvrSeries(prevue, channel, seriesId, cb)
+        +checkNPvrStatus(...)
+        +getNPvrTime(cb)
+    }
+    class RecordingUtil {
+        +showRecordingError(code)
+    }
+    class SeriesHeader {
+    }
+
+    RecordingController --&gt; QueryManager : nPVR 예약/조회
+    RecordingController --&gt; RecordingUtil : 에러 안내
+    RecordingController ..&gt; SeriesHeader : 시리즈 녹화
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>RecordingController</code>가 정책 점검과 결과 코드를 관리하고, 실제 예약·조회는 <code>QueryManager</code>의 nPVR API로, 에러 표시는 <code>RecordingUtil</code>로 위임합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>controller/RecordingController.js</code> — 프로그램 녹화 예약</div>
+<pre><code>recordProgram: function(programDetail, callback) {
+    var prevuecode = programDetail.prevuecode;
+    var channelcode = programDetail.channelcode;
+    var channel = SYSAPP.ChannelController.getChannelByChannelCode(channelcode);
+
+    if (!programDetail.isRecordable() || !channel.isRecordable()) {
+        RecordingUtil.showRecordingError(SYSAPP.RecordingController.REC_FAIL_NOTRECORDABLE);
+        callback(SYSAPP.RecordingController.REC_FAIL_NOTRECORDABLE);
+        return;
+    }
+    this.isExceedLimit(channelcode, programDetail.getSeriesHeadId(), prevuecode, function(limit) {
+        var addNPVRProgram = function() {
+            SYSAPP.QueryManager.addNPvr(prevuecode, channelcode, 1, function(res) {
+                if (res &amp;&amp; res.success &amp;&amp; res.response &amp;&amp; res.response.returncode == '0') {
+                    callback(_self.REC_SUCCESS);
+                } else {
+                    callback(_self.REC_FAIL_UNKNOWN, res &amp;&amp; res.response);
+                }
+            });
+        };
+        ...
+    });
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>controller/RecordingController.js</code> — 녹화 상태 코드</div>
+<pre><code>rc.REC_SCHEDULED = 0;   // Scheduled
+rc.REC_RECORDED  = 1;   // Recorded
+rc.REC_FAIL      = -1;
+rc.REC_NOT_ADDED = -2;
+rc.REC_ONGOING   = 999; // On-Going
+rc.REC_SUCCESS   = 0;
+rc.REC_FAIL_NOTRECORDABLE = 2;
+rc.REC_FAIL_UNKNOWN       = 3;</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/RecordingController.js" target="_blank" rel="noopener">controller/RecordingController.js</a><span class="src">nPVR 프로그램/시리즈 녹화 · 상태·용량·한도 점검</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/util/RecordingUtil.js" target="_blank" rel="noopener">util/RecordingUtil.js</a><span class="src">녹화 에러 메시지 표시</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/data/QueryManager.js" target="_blank" rel="noopener">data/QueryManager.js</a><span class="src">addNPvr · addNPvrSeries · checkNPvrStatus · getNPvrTime</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/data/SeriesHeader.js" target="_blank" rel="noopener">data/SeriesHeader.js</a><span class="src">시리즈 헤더 모델(시리즈 녹화)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f06.html">← VOD / 시리즈 상세 · 재생</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f08.html">예약 · 리마인더 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">turk-webx-tivibu-sysapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

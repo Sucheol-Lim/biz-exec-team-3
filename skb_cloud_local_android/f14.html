@@ -1,0 +1,186 @@
+<!doctype html>
+<!-- skb_cloud_local_android · 알림/TTS/예약 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>알림 / TTS / 예약 — skb_cloud_local_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local EPG (Android)</a><span class="sep">›</span>
+      <span class="here">알림 / TTS / 예약</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>알림 / TTS / 예약</h1>
+    <p class="one-liner"><code>TBNotificationListenerService</code>가 시스템 알림을 수신하고, <code>TTSHandler</code>가 음성 안내(<code>VolumeChangeReceiver</code> 연동)를, <code>ReserveManager</code>가 <code>Reminder</code>/<code>RemindActor</code> 기반의 시청·녹화 예약을 처리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_android" target="_blank" rel="noopener"><code>skb_cloud_local_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>UC500_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>TBNotificationListenerService</code> · <code>TTSHandler</code> · <code>ReserveManager</code> · <code>VolumeChangeReceiver</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">알림 수신 · 음성 안내 · 예약</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>알림 수신은 <code>TBNotificationListenerService</code>(<code>extends NotificationListenerService</code>)가 담당합니다. <code>onListenerConnected()</code>로 연결되고 <code>onNotificationPosted(StatusBarNotification)</code>에서 시스템 알림을 받아, 스탠바이가 아니면 알림 제목·본문·서브텍스트를 추출하고 이미 확인한 알림 ID(<code>SEEN_NOTIFICATION</code> UserPreference)와 대조해 신규 알림만 처리합니다. 무거운 작업은 <code>CompletableFuture.runAsync()</code>로 비동기 처리합니다.</p>
+    <p>음성 안내(TTS)는 <code>TTSHandler</code>(<code>implements TextToSpeech.OnInitListener</code>)가 안드로이드 <code>TextToSpeech</code> 엔진을 초기화해 제공합니다. <code>UserPreferenceManager</code>에서 TTS on/off·속도를 읽어 적용하고, <code>speakText()</code>/<code>speakFromEpg()</code>/<code>speakFromCsp()</code>로 EPG·CSP 등 문맥별 발화를 합니다. 볼륨 변경은 <code>VolumeChangeReceiver</code>(<code>android.media.VOLUME_CHANGED_ACTION</code>)가 받아 <code>TTSHandler.speakText("음량 N")</code>으로 안내합니다.</p>
+    <p>예약은 <code>ReserveManager</code>가 세 리스트로 관리합니다. (1) 예약된 프로그램(<code>reservedPrograms</code>), (2) 정해진 시각에 트리거될 <code>Reminder</code>(<code>extends Timer</code>) 리스트, (3) 트리거 후 사용자 정의 동작을 수행할 <code>RemindActor</code> 리스트입니다. 예약 시각 도래·동작 시점은 <code>AlarmEventListener</code>(<code>timeToAlarm</code>·<code>timeToAction</code>·<code>timerWentOff</code>) 콜백으로 통지되며, 예약 데이터는 UserPreference(<code>RESERVED_PROGRAMS</code>)에 직렬화 저장됩니다(최대 <code>MAX_RESERVE = 30</code>).</p>
+    <div class="callout">
+      <div class="ct">예약 팝업 문구</div>
+      분석 기준 브랜치에서 예약 및 중복 예약 팝업 문구·UI가 검수 반영되었습니다. 알림 시각 기본값은 프로그램 시작 60초 전(<code>DEFAULT_ALARM_BEFORE = 60 * 1000L</code>)입니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SYS as 시스템 알림 / 볼륨
+    participant NLS as TBNotificationListenerService
+    participant VCR as VolumeChangeReceiver
+    participant TTS as TTSHandler
+    participant RM as ReserveManager
+    participant LSN as AlarmEventListener
+
+    SYS-&gt;&gt;NLS: onNotificationPosted(StatusBarNotification)
+    NLS-&gt;&gt;NLS: 제목/본문 추출 · SEEN_NOTIFICATION 대조
+    SYS-&gt;&gt;VCR: VOLUME_CHANGED_ACTION
+    VCR-&gt;&gt;TTS: speakText("음량 N")
+    Note over RM: 예약 등록/로드
+    RM-&gt;&gt;RM: Reminder(Timer) 스케줄
+    RM-&gt;&gt;LSN: timeToAlarm / timeToAction (도래 시)
+    LSN-&gt;&gt;TTS: 예약 안내 발화 (옵션)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 알림은 리스너 서비스가 수신·중복 점검하고, 볼륨 변경은 TTS로 안내하며, 예약은 <code>Reminder</code> 타이머가 도래 시 <code>AlarmEventListener</code>로 통지합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class NotificationListenerService {
+        &lt;&lt;abstract&gt;&gt;
+    }
+    class TBNotificationListenerService {
+        +onListenerConnected()
+        +onNotificationPosted(StatusBarNotification)
+    }
+    class TTSHandler {
+        +getInstance() TTSHandler
+        +init(Context)
+        +speakText(text, flush)
+        +onInit(int status)
+    }
+    class VolumeChangeReceiver {
+        +VOLUME_CHANGED_ACTION String
+        +onReceive(Context, Intent)
+    }
+    class ReserveManager {
+        +MAX_RESERVE int
+        +getInstance() ReserveManager
+        +start()
+        +addAlarmEventListener(listener)
+    }
+    class Reminder {
+        +getProgram() Reserved
+        +getBeforeTime() long
+    }
+    class AlarmEventListener {
+        &lt;&lt;interface&gt;&gt;
+        +timeToAlarm(Reminder)
+        +timeToAction(RemindActor)
+        +timerWentOff(Reminder)
+    }
+
+    TBNotificationListenerService --|&gt; NotificationListenerService
+    VolumeChangeReceiver --&gt; TTSHandler : 음량 안내
+    ReserveManager o-- Reminder : 예약 타이머
+    ReserveManager --&gt; AlarmEventListener : 시각 도래 통지
+    Reminder --|&gt; Timer
+      </div>
+      <p class="cap"><strong>관계.</strong> 알림 서비스는 <code>NotificationListenerService</code>를 상속하고, <code>VolumeChangeReceiver</code>는 <code>TTSHandler</code>로 음량을 안내하며, <code>ReserveManager</code>는 <code>Reminder</code> 타이머와 <code>AlarmEventListener</code>로 예약을 운용합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>module/tts/VolumeChangeReceiver.java</code> — 볼륨 변경 음성 안내</div>
+<pre><code>public static final String VOLUME_CHANGED_ACTION = "android.media.VOLUME_CHANGED_ACTION";
+
+public void onReceive(Context context, Intent intent) {
+    if (!PowerModeManager.getInstance().isRunningMode()) return;
+    if (intent.getAction().equals(VOLUME_CHANGED_ACTION)) {
+        int value = (Integer) intent.getExtras().get(EXTRA_VOLUME_STREAM_VALUE);
+        TTSHandler.getInstance().speakText("음량 " + value, true);   // TTS 발화
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>module/reserve/AlarmEventListener.java</code> — 예약 도래/동작 콜백</div>
+<pre><code>public interface AlarmEventListener {
+    void timeToAlarm(Reminder reminder);     // 예약 시각 도래 알림
+    void timeToAction(RemindActor reminder); // 트리거 후 사용자 동작
+    void timerWentOff(Reminder reminder);    // 타이머 발화
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/ui/notification/TBNotificationListenerService.java" target="_blank" rel="noopener">ui/notification/TBNotificationListenerService.java</a><span class="src">시스템 알림 수신 · 신규 알림 중복 점검</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/tts/TTSHandler.java" target="_blank" rel="noopener">module/tts/TTSHandler.java</a><span class="src">TextToSpeech 초기화 · EPG/CSP/음량 음성 안내</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/tts/VolumeChangeReceiver.java" target="_blank" rel="noopener">module/tts/VolumeChangeReceiver.java</a><span class="src">볼륨 변경 수신 → TTS 음량 안내</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/reserve/ReserveManager.java" target="_blank" rel="noopener">module/reserve/ReserveManager.java</a><span class="src">시청·녹화 예약 · Reminder/RemindActor · AlarmEventListener</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f13.html">← 핫키 입력 처리</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f15.html">EPG 외부 노출(AIDL) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>UC500_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

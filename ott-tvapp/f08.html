@@ -1,0 +1,192 @@
+<!doctype html>
+<!-- ott-tvapp · 클라우드 연동 기능 상세 — Alticast cloud-sdk + mod/cloud Apex 어댑터/프록시 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>클라우드 연동 — ott-tvapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KCTV 제주 OTT Android TV 앱 (ott-tvapp)</a><span class="sep">›</span>
+      <span class="here">클라우드 연동</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KCTV 제주</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>클라우드 연동</h1>
+    <p class="one-liner"><code>mod/cloud</code> 어댑터/프록시 추상화 위에 Apex 구현(<code>ApexCloudAdaptor</code>·<code>ApexCloudProxy</code>)을 두어, Alticast 클라우드 SDK(<code>cloud-sdk</code>, <code>ApexCloudManager</code>)로 클라우드 UI/서비스를 연동합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/ott-tvapp" target="_blank" rel="noopener"><code>ott-tvapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>android14/marusys</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ctrl/Cloud</code> · <code>mod/cloud/apex/*</code></div></div>
+      <div class="item"><div class="k">SDK</div><div class="v"><code>com.alticast.cloud (cloud-sdk)</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>클라우드 연동은 추상 계층과 벤더 구현으로 분리되어 있습니다. <code>CloudAdaptor</code>(추상)는 클라우드 세션 상태(<code>STATE_*</code>)와 <code>startCloud()</code>·<code>stopCloud()</code>·<code>keyEvent()</code> 같은 공통 흐름을 정의하고, <code>CloudProxy</code>(추상)는 개별 클라우드 화면 세션을 표현합니다. <code>CloudAdaptorFactory.getInstance(APEX)</code>가 구현체로 <code>ApexCloudAdaptor</code>를 생성·캐시합니다.</p>
+    <p>실제 SDK 호출은 <code>ApexCloudProxy</code>가 담당합니다. <code>init()</code>에서 <code>ApexCloudManager</code>·<code>ApexCloudDoc</code>을 만들고 리스너를 등록한 뒤 <code>ApexCloudView</code>와 연결합니다. <code>ApexCloudAdaptor.activateCloudApp()</code>은 메인 스레드가 아닌 별도 Executor에서 <code>apexCloudManager.start()</code>를 호출해 클라우드 세션을 시작하고, 리모컨 입력은 <code>sendKeyEvent()</code>가 <code>HotKey.map()</code>으로 변환해 <code>onEvent()</code>로 전달합니다.</p>
+    <p>앱 단의 진입점은 <code>ctrl/Cloud</code>로, <code>CloudAdaptorFactory</code>로 어댑터를 얻어 <code>startCloud()</code>를 호출하고 홈키(<code>homeKey()</code>)·시작 여부(<code>isStarted()</code>) 등을 <code>PlaybackActivity</code>와 연계합니다.</p>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant ACT as PlaybackActivity
+    participant CL as ctrl/Cloud
+    participant FAC as CloudAdaptorFactory
+    participant AD as ApexCloudAdaptor
+    participant PX as ApexCloudProxy
+    participant SDK as ApexCloudManager (cloud-sdk)
+
+    ACT-&gt;&gt;CL: 클라우드 시작 요청
+    CL-&gt;&gt;FAC: getInstance(APEX)
+    FAC--&gt;&gt;CL: ApexCloudAdaptor
+    CL-&gt;&gt;AD: startCloud(surface, url, params, isFHD)
+    AD-&gt;&gt;PX: activateCloudApp() → new ApexCloudProxy + init()
+    PX-&gt;&gt;SDK: new ApexCloudManager + addApexCloudListener
+    AD-&gt;&gt;SDK: apexCloudManager.start() (Executor 스레드)
+    ACT-&gt;&gt;AD: keyEvent(keyCode, type)
+    AD-&gt;&gt;SDK: onEvent(ACTION, HotKey.map(keyCode))
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>Cloud</code>가 팩토리로 Apex 어댑터를 얻어 <code>startCloud()</code>를 호출하면 프록시가 <code>ApexCloudManager</code> 세션을 시작하고, 키 입력은 어댑터를 거쳐 SDK로 전달됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class CloudAdaptor {
+        &lt;&lt;abstract&gt;&gt;
+        +startCloud(surface, menu, params, isFHD) CloudProxy
+        +stopCloud()
+        +keyEvent(keyCode, type) boolean
+        #activateCloudApp(surface, menu, params, isFHD) CloudProxy
+        #sendKeyEvent(proxy, keyCode, type)
+    }
+    class CloudProxy {
+        &lt;&lt;abstract&gt;&gt;
+        +stop()
+        +keyPressed(keyCode) boolean
+        +sendMsg(data) boolean
+    }
+    class ApexCloudAdaptor {
+        #activateCloudApp(...) CloudProxy
+        #sendKeyEvent(proxy, keyCode, type)
+        #sendCloudMsg(proxy, data)
+    }
+    class ApexCloudProxy {
+        +init(url, view, prop, isFHD)
+    }
+    class ApexCloudManager {
+        +start()
+        +onEvent(action, code, bool)
+        +sendWeb(String)
+    }
+    class CloudAdaptorFactory {
+        +getInstance(String name) CloudAdaptor
+    }
+
+    ApexCloudAdaptor --|&gt; CloudAdaptor
+    ApexCloudProxy --|&gt; CloudProxy
+    ApexCloudProxy ..|&gt; ApexCloudEventListener
+    ApexCloudProxy --&gt; ApexCloudManager : SDK 호출
+    CloudAdaptorFactory --&gt; ApexCloudAdaptor : 생성
+      </div>
+      <p class="cap"><strong>관계.</strong> 추상 <code>CloudAdaptor</code>/<code>CloudProxy</code>를 Apex 구현이 상속하며, <code>ApexCloudProxy</code>가 <code>ApexCloudManager</code>(cloud-sdk)를 직접 호출합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>mod/cloud/CloudAdaptorFactory.java</code> — Apex 어댑터 생성/캐시</div>
+<pre><code>public static CloudAdaptor getInstance(String name) {
+    if (!instances.containsKey(name)) {
+        switch (name) {
+            case APEX:
+                instances.put(name, new ApexCloudAdaptor());
+                break;
+        }
+    }
+    return (CloudAdaptor) instances.get(name);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>mod/cloud/apex/ApexCloudAdaptor.java</code> — Apex SDK 세션 시작/키 전달</div>
+<pre><code>protected CloudProxy activateCloudApp(Object surface, Object menu, Object params, boolean isFHD) {
+    ApexCloudProxy proxy = new ApexCloudProxy();
+    proxy.init(menu.toString(), (ApexCloudView) surface, mProp, isFHD);
+    activateCloudApp(proxy);            // Executor 스레드에서 apexCloudManager.start()
+    return proxy;
+}
+
+protected void sendKeyEvent(CloudProxy cloudProxy, int keyCode, int type) {
+    short code = (short) HotKey.map(keyCode);
+    ApexCloudProxy proxy = (ApexCloudProxy) cloudProxy;
+    if (proxy.apexCloudManager.isConnecting()) {
+        if (type == 0 || type == 2) proxy.apexCloudManager.onEvent(KeyEvent.ACTION_DOWN, code, true);
+        if (type == 1 || type == 2) proxy.apexCloudManager.onEvent(KeyEvent.ACTION_UP, code, true);
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/mod/cloud/CloudAdaptor.java" target="_blank" rel="noopener">mod/cloud/CloudAdaptor.java</a><span class="src">클라우드 어댑터 추상 클래스 · 세션 상태/시작·종료 흐름</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/mod/cloud/CloudAdaptorFactory.java" target="_blank" rel="noopener">mod/cloud/CloudAdaptorFactory.java</a><span class="src">어댑터 팩토리(APEX 생성/캐시)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/mod/cloud/apex/ApexCloudAdaptor.java" target="_blank" rel="noopener">mod/cloud/apex/ApexCloudAdaptor.java</a><span class="src">Apex 어댑터 구현 · SDK 세션 시작/키·메시지 전달</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/mod/cloud/apex/ApexCloudProxy.java" target="_blank" rel="noopener">mod/cloud/apex/ApexCloudProxy.java</a><span class="src">ApexCloudManager(cloud-sdk) 직접 호출 프록시</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/Cloud.java" target="_blank" rel="noopener">ctrl/Cloud.java</a><span class="src">앱 측 클라우드 진입점 · startCloud/homeKey/isStarted</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f07.html">OOB / Inband SI 수신</a>
+      <a href="f09.html">통합·음성 검색 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>android14/marusys</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">ott-tvapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

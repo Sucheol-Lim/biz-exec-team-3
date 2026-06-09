@@ -1,0 +1,201 @@
+<!doctype html>
+<!-- skylife-ux3.0 · 홈 런처 기능 상세 — MainActivity HOME/LAUNCHER 진입 + EpgApplication 기동 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>홈 런처 — Skylife ATV EPG 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Skylife ATV EPG (UX3.0)</a><span class="sep">›</span>
+      <span class="here">홈 런처</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT SkyLife</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV(Leanback) STB · Java</span>
+    </div>
+    <h1>홈 런처</h1>
+    <p class="one-liner"><code>MainActivity</code>가 <code>HOME</code>·<code>LAUNCHER</code>·<code>af.intent.action.KEY_TV_HOME</code> 인텐트로 동작하는 STB 메인 화면입니다. 단말 부팅 후 첫 화면과 홈 키 진입점을 담당하며 <code>singleInstance</code> 모드로 기동되고, <code>EpgApplication</code>이 프로세스 초기화와 음성 어시스턴트·wake-word 서비스 기동을 수행합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skylife-ux3.0" target="_blank" rel="noopener"><code>skylife-ux3.0</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feat/lw-voice-api</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ui/MainActivity</code> · <code>EpgApplication</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">부팅 첫 화면 · 홈 키 진입점</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>이 앱은 일반 앱이 아니라 STB의 <strong>홈/런처로 동작</strong>합니다. 매니페스트의 메인 화면 <code>MainActivity</code>가 <code>android.intent.category.HOME</code>·<code>android.intent.category.LAUNCHER</code> 카테고리와 <code>af.intent.action.KEY_TV_HOME</code>·<code>android.intent.action.SCREEN_ON</code> 인텐트 필터를 <code>android:priority="2"</code>로 가지고 <code>android:launchMode="singleInstance"</code>로 기동됩니다. 따라서 단말 부팅 후 첫 화면과 홈 키 입력의 진입점이 됩니다.</p>
+    <p><code>MainActivity</code>는 flavor별(<code>second</code>·<code>fifth</code>)로 별도 구현되며 공통 베이스 <code>CommonMainActivity</code>를 상속합니다. 애플리케이션 엔트리 <code>EpgApplication</code>은 <code>BaseApplication</code>을 확장하고 <code>Window.Callback</code>·<code>TvSingletons</code>를 구현하며, <code>onCreate()</code>에서 라이프사이클 콜백 등록, 메인 프로세스 판정(<code>isMainProcess()</code>), wake-word 서비스 기동(<code>startWakeWordService()</code>), LW Voice 어시스턴트 API 기동(<code>startAssistantApi()</code>)을 순차 수행합니다. ux3.0는 멀티 프로세스 구조라 8787 릴레이 서버와 마이크는 메인 프로세스에서만 기동됩니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      <code>singleInstance</code> + <code>REORDER_TO_FRONT</code> 조합으로 외부 앱(유튜브 등)이 떠 있어도 홈 키나 음성 "홈" 명령이 EPG 태스크를 깔끔하게 끌어올립니다. 시스템 <code>ACTION_MAIN + CATEGORY_HOME</code> 인텐트는 라이프사이클을 흔들어 <code>EpgChannelController</code> race와 충돌하므로, 자기 태스크 복귀에는 <code>FLAG_ACTIVITY_REORDER_TO_FRONT</code>를 사용합니다(<code>ScreenControlHandler.dispatchHome</code> 근거).
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SYS as Android System
+    participant APP as EpgApplication
+    participant MA as MainActivity (singleInstance)
+    participant CMA as CommonMainActivity
+    participant WWS as WakeWordService (wake-lib)
+    participant ASRV as StbRelayServer
+
+    SYS-&gt;&gt;APP: onCreate() (프로세스 기동)
+    APP-&gt;&gt;APP: TvSingletons.setSingletons(this)
+    APP-&gt;&gt;APP: registerActivityLifecycleCallbacks(...)
+    APP-&gt;&gt;APP: isMainProcess()
+    alt main process
+        APP-&gt;&gt;WWS: startForegroundService(WakeWordService)
+        APP-&gt;&gt;ASRV: startAssistantApi() (8787 listen)
+    else sub-process
+        APP-&gt;&gt;APP: wake/assistant 기동 skip
+    end
+    SYS-&gt;&gt;MA: HOME / LAUNCHER / KEY_TV_HOME intent
+    MA-&gt;&gt;CMA: super.onCreate()
+    CMA-&gt;&gt;MA: 홈 화면(ui/tvhome) 구성
+    Note over MA,CMA: 부팅 첫 화면 · 홈 키 진입점
+      </div>
+      <p class="cap"><strong>흐름.</strong> 프로세스가 뜨면 <code>EpgApplication</code>이 메인 프로세스에서만 wake-word·어시스턴트 서버를 기동하고, 시스템이 HOME/LAUNCHER/KEY_TV_HOME 인텐트로 <code>MainActivity</code>를 <code>singleInstance</code>로 표시합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class BaseApplication
+    class EpgApplication {
+        -AppStatus mAppStatus
+        +TvHomeDataManager ttTvHomeViewModel
+        +TTUILinkManager mLinkHandler
+        +onCreate()
+        -isMainProcess() boolean
+        -startWakeWordService()
+        -startAssistantApi()
+        +getActivityLinkHandler() TTUILinkManager
+    }
+    class TvSingletons {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class WindowCallback {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class CommonMainActivity
+    class MainActivity {
+        +mainHandler
+        +onCreate()
+    }
+    class WakeWordService
+    class StbRelayServer
+
+    EpgApplication --|&gt; BaseApplication
+    EpgApplication ..|&gt; TvSingletons
+    EpgApplication ..|&gt; WindowCallback
+    MainActivity --|&gt; CommonMainActivity
+    EpgApplication --&gt; WakeWordService : startForegroundService
+    EpgApplication --&gt; StbRelayServer : startAssistantApi
+    EpgApplication --&gt; MainActivity : 홈 진입점 보유
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>EpgApplication</code>이 프로세스 전역 상태와 진입점을 보유하고, flavor별 <code>MainActivity</code>는 공통 <code>CommonMainActivity</code>를 상속해 홈 화면을 구성합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>app/src/fifth/AndroidManifest.xml</code> — MainActivity 런처 인텐트 필터</div>
+<pre><code>&lt;activity
+    android:exported="true"
+    android:launchMode="singleInstance"
+    android:name=".ui.MainActivity"
+    android:theme="@style/MainTheme"
+    android:banner="@drawable/app_banner"&gt;
+    &lt;intent-filter android:priority="2"&gt;
+        &lt;action android:name="android.intent.action.MAIN"/&gt;
+        &lt;action android:name="af.intent.action.KEY_TV_HOME"/&gt;
+        &lt;action android:name="android.intent.action.SCREEN_ON"/&gt;
+        &lt;category android:name="android.intent.category.LAUNCHER"/&gt;
+        &lt;category android:name="android.intent.category.DEFAULT"/&gt;
+        &lt;category android:name="android.intent.category.HOME"/&gt;
+    &lt;/intent-filter&gt;
+&lt;/activity&gt;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>EpgApplication.java</code> — 프로세스 기동 시 메인 프로세스에서만 음성·wake 기동</div>
+<pre><code>@Override
+public void onCreate() {
+    super.onCreate();
+    mAppicationContext = getApplicationContext();
+    TvSingletons.setSingletons(this);
+    registerActivityLifecycleCallbacks(new LifecycleCallbacks());
+
+    // ux3.0 는 multi-process — 8787 / 마이크는 메인 process 에서만 기동.
+    if (isMainProcess()) {
+        startWakeWordService();   // wake-lib (sky-claw) foreground service
+        startAssistantApi();      // 8787 listen + NSD/UDP discovery + STT pump
+        dumpMicrophoneInfo();
+    } else {
+        Logger.i(TAG, " ## sub-process — wake/assistant 기동 skip");
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/fifth/AndroidManifest.xml" target="_blank" rel="noopener">app/src/fifth/AndroidManifest.xml</a><span class="src">MainActivity HOME/LAUNCHER/KEY_TV_HOME 인텐트 필터, singleInstance, SettingMainActivity 선언</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/EpgApplication.java" target="_blank" rel="noopener">EpgApplication.java</a><span class="src">Application 엔트리 — 프로세스 판정, wake/assistant 기동, 전역 ViewModel·LinkHandler 보유</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/fifth/java/com/alticast/androidtv/epg/ui/MainActivity.java" target="_blank" rel="noopener">app/src/fifth/.../ui/MainActivity.java</a><span class="src">fifth 세대 STB 홈 화면 — CommonMainActivity 상속, 채널 전환·watchdog·안정화 reboot 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/receiver/SkyIntentReceiver.java" target="_blank" rel="noopener">receiver/SkyIntentReceiver.java</a><span class="src">스카이라이프 전용 인텐트(af.intent.action.*) 수신</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="index.html#features">목록</a>
+      <a href="f02.html">실시간 방송(Live TV) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feat/lw-voice-api</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">Skylife ATV EPG 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!doctype html>
+<!-- kt_aaos_inside · SP 미수신 재연동 로직 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SP 미수신 재연동 로직 — kt_aaos_inside 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT AAOS Demokit P1 음성인식 앱</a><span class="sep">›</span>
+      <span class="here">SP 미수신 재연동 로직</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive OS · Java</span>
+    </div>
+    <h1>SP 미수신 재연동 로직</h1>
+    <p class="one-liner">SP(서비스 플랫폼)에서 앱/명령 데이터를 받지 못한 상태로 발화 요청이 들어오면, 즉시 처리하는 대신 안내 TTS를 제공한 뒤 SP 연동을 재시도해 데이터를 갱신합니다(커밋 <code>3904ef6b</code>).</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_aaos_inside" target="_blank" rel="noopener"><code>kt_aaos_inside</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feature/support_stt</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>InsideDialogKitManager</code> · <code>GVoiceDataManager</code> · <code>ErrorCodes</code></div></div>
+      <div class="item"><div class="k">도입 커밋</div><div class="v"><code>3904ef6b</code> (2023-06-23)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>앱/의도 매핑 데이터는 AVIS 서비스 플랫폼(SP)에서 받아 <code>GVoiceDataManager</code>의 인메모리 맵에 로드됩니다. 그러나 부팅 직후나 SP 일시 장애로 데이터가 비어 있는 상태에서 사용자가 발화하면 명령을 라우팅할 매핑이 없습니다. 커밋 <code>3904ef6b</code>는 이 fail-over 시나리오를 추가했습니다.</p>
+    <p><code>InsideDialogKitManager.getCommandInfoFromPayload()</code>에서 inside intent에 대한 service intent나 <code>dssMsg</code>가 없으면 <code>CommandInfo</code>를 만들지 못합니다. 이때 <code>InsideVoiceManager.startErrorNoticeTTS(ERROR_CODE_SP_DATA_NOT_READY)</code>로 "데이터 준비 중" 성격의 안내 TTS를 재생하고, 상위 <code>processDialogKit()</code>에서 카테고리가 <code>null</code>인 경우 <code>GVoiceDataManager.getServiceData()</code>를 호출해 SP 데이터를 다시 조회합니다. 지원하지 않는 DialogKit 타입은 <code>ERROR_CODE_SP_DATA_NOT_SUPPORT</code> TTS로 구분 안내합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      <code>getServiceData()</code>는 상태가 <code>AGENT_READY</code> 이상이고 <code>LOADING_DATA</code>가 아닐 때만 재조회 메시지를 보내, 중복 로딩을 방지합니다. 즉시 실패 대신 "안내 → 재연동"으로 회복 가능한 사용자 경험을 제공하는 것이 이 로직의 목적입니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant IVM as InsideVoiceManager
+    participant DK as InsideDialogKitManager
+    participant DM as GVoiceDataManager
+    participant SP as AVIS SP 서버
+
+    IVM-&gt;&gt;DK: processDialogKit(payload)
+    DK-&gt;&gt;DM: getServiceIntentFormInsideIntent(intent)
+    DM--&gt;&gt;DK: null (데이터 미수신)
+    DK-&gt;&gt;IVM: startErrorNoticeTTS(SP_DATA_NOT_READY)
+    Note over IVM: 안내 TTS 재생
+    DK-&gt;&gt;DM: getServiceData()
+    DM-&gt;&gt;SP: getAppInfoList / getIntentInfoList
+    SP--&gt;&gt;DM: AppInfo / IntentInfo
+    DM-&gt;&gt;DM: 인메모리 맵 갱신 → COMPLETE
+      </div>
+      <p class="cap"><strong>흐름.</strong> 매핑 부재 감지 → 안내 TTS → SP 재조회 → 맵 갱신. 다음 발화부터 정상 라우팅이 가능해집니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class InsideDialogKitManager {
+        +processDialogKit(payload, isFinal)
+        -getCommandInfoFromPayload(payload) CommandInfo
+    }
+    class InsideVoiceManager {
+        +startErrorNoticeTTS(errorCode)
+    }
+    class GVoiceDataManager {
+        -GVoiceDataState gVoiceDataState
+        +getServiceData()
+        +getServiceIntentFormInsideIntent(intent) String
+    }
+    class GVoiceDataState {
+        &lt;&lt;enumeration&gt;&gt;
+        AGENT_READY
+        LOADING_DATA
+        ERROR_DATA
+        COMPLETE
+    }
+    class ErrorCodes {
+        +ERROR_CODE_SP_DATA_NOT_READY
+        +ERROR_CODE_SP_DATA_NOT_SUPPORT
+    }
+
+    InsideDialogKitManager --&gt; InsideVoiceManager : 안내 TTS 요청
+    InsideDialogKitManager --&gt; GVoiceDataManager : 재연동 트리거
+    InsideDialogKitManager ..&gt; ErrorCodes : 오류 코드
+    GVoiceDataManager ..&gt; GVoiceDataState : 중복 로딩 방지
+      </div>
+      <p class="cap"><strong>관계.</strong> DialogKit이 데이터 부재를 감지하면 <code>InsideVoiceManager</code>로 안내하고 <code>GVoiceDataManager</code>로 재연동하며, 재조회 여부는 <code>GVoiceDataState</code>로 제어합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>dialogkit/InsideDialogKitManager.java</code> — 데이터 부재 시 안내·재연동</div>
+<pre><code>if (dssMsg != null &amp;&amp; serviceIntent != null) {
+    // ... 정상 CommandInfo 생성
+} else {
+    // 데이터가 준비되지 않은 상태로 판단 → TTS 제공
+    InsideVoiceManager.getInstance().startErrorNoticeTTS(ErrorCodes.ERROR_CODE_SP_DATA_NOT_READY);
+}
+// processDialogKit(): category == null 인 경우
+InsideVoiceManager.getInstance().startErrorNoticeTTS(ErrorCodes.ERROR_CODE_SP_DATA_NOT_READY);
+GVoiceDataManager.getInstance().getServiceData();        // SP 재연동</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>manager/GVoiceDataManager.java</code> — 상태 가드로 중복 로딩 방지</div>
+<pre><code>public void getServiceData() {
+    if (gVoiceDataState.ordinal() &gt;= GVoiceDataState.AGENT_READY.ordinal()) {
+        if (gVoiceDataState.ordinal() != GVoiceDataState.LOADING_DATA.ordinal()) {
+            sendEmptyMessage();              // GET_APP_INFO → GET_INTENT_INFO 재조회
+        }
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/dialogkit/InsideDialogKitManager.java" target="_blank" rel="noopener">dialogkit/InsideDialogKitManager.java</a><span class="src">데이터 부재 판정·SP_DATA_NOT_READY/NOT_SUPPORT 안내·getServiceData 재연동</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/manager/GVoiceDataManager.java" target="_blank" rel="noopener">manager/GVoiceDataManager.java</a><span class="src">getServiceData·GVoiceDataState 상태 가드·SP 데이터 재조회 핸들러</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/inside/InsideVoiceManager.java" target="_blank" rel="noopener">inside/InsideVoiceManager.java</a><span class="src">startErrorNoticeTTS·오류 코드별 안내 문구 선택·REQ_TTS 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/ErrorCodes.java" target="_blank" rel="noopener">ErrorCodes.java</a><span class="src">ERROR_CODE_SP_DATA_NOT_READY(9999) / NOT_SUPPORT(9001) 정의 (커밋 3904ef6b)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f10.html">RecognitionService 등록</a>
+      <a href="f12.html">네트워크 상태 모니터링 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feature/support_stt</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_aaos_inside 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!doctype html>
+<!-- tivibu_4k · Conviva 재생 품질 모니터링 기능 상세 — ConvivaAnalyticsService 시퀀스·클래스 다이어그램 + 코드 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>재생 품질 모니터링(Conviva) — tivibu_4k 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Tivibu 4K Android — IPTV/OTT 런처</a><span class="sep">›</span>
+      <span class="here">재생 품질 모니터링(Conviva)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV / Leanback · Kotlin</span>
+    </div>
+    <h1>재생 품질 모니터링(Conviva)</h1>
+    <p class="one-liner"><code>ConvivaAnalyticsService</code>가 Conviva SDK로 재생 세션 품질(VSI)과 앱 사용성(DPI)을 측정하고, <code>UserFrameConfig.convivaStatus</code>가 켜진 경우에만 콘텐츠 메타데이터·비트레이트·오류를 Conviva 게이트웨이로 전송합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tivibu_4k" target="_blank" rel="noopener"><code>tivibu_4k</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>sprint/LS0626_release</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>app/core/service/ConvivaAnalyticsService.kt</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">재생 세션 품질·이벤트 텔레메트리</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>Conviva 연동은 <code>ConvivaAnalyticsRepository</code> 인터페이스를 <code>ConvivaAnalyticsService</code>(@Singleton)가 구현하는 형태입니다. 부팅 초기화 단계에서 <code>initialize()</code>가 호출되며, 이때 두 가지 트래커를 세웁니다. DPI(앱 분석, <code>ConvivaAppAnalytics.createTracker</code>)와 VSI(영상 품질, <code>ConvivaAnalytics.init</code>)이며, 디바이스 정보(<code>setDeviceInfo</code>)에는 모델·OS·브랜드와 함께 단말 타입(Smart TV OTT면 <code>SMARTTV</code>, 그 외 <code>SETTOP</code>)을 담습니다.</p>
+    <p>모든 진입점은 <code>isConvivaEnable</code> 가드를 먼저 통과합니다. 이 값은 <code>UserRepository</code>의 <code>UserFrameConfig.convivaStatus</code>가 <code>VALUE_YES</code>일 때만 참이며, 서버 설정이 바뀌면 <code>notifyUserFrameConfigUpdated()</code> 스트림을 통해 <code>BehaviorSubject</code>로 반영됩니다. 따라서 Conviva 비활성 단말에서는 모든 보고 메서드가 즉시 반환하여 오버헤드와 불필요한 로그 전송을 막습니다.</p>
+    <p>영상 세션은 재생 키(<code>key</code>)별로 <code>ConvivaVideoAnalytics</code>를 캐시(<code>videoAnalyticsMap</code>)합니다. <code>videoPlay()</code>에서 플레이어를 연결하고 콘텐츠 메타맵(<code>toContentInfoMap</code>)으로 재생 요청을 보고하며, 재생 중 <code>updateVideoBitRate</code>/<code>updateVideoFrameRate</code>로 비트레이트·프레임레이트를, 오류 시 <code>videoError</code>로 <code>ErrorSeverity.FATAL</code>을 보고합니다. <code>videoStop</code>은 세션 종료를, <code>videoRelease</code>는 분석 객체 해제를 담당하고, 앱 포그라운드/백그라운드 전환은 <code>reportAppForegrounded/Backgrounded</code>로 전달합니다.</p>
+    <div class="callout">
+      <div class="ct">게이트웨이·커스터머 키 운영 정비</div>
+      최근 스프린트에서 Conviva 게이트웨이 URL이 <code>testonly</code> 분기를 제거하고 운영 게이트웨이(<code>$convivaCustomerKey.csw.conviva.com</code>)로 단일화되었으며, 커스터머 키는 서버 설정값(<code>UserFrameConfig.vqmKey</code>)을 우선 사용하고 없으면 운영 기본키로 폴백하도록 변경되었습니다. 코드 주석에 일자별(2026-05-20·05-26) 변경 사유가 명시되어 있습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant INIT as FailSafeInitializer
+    participant CV as ConvivaAnalyticsService
+    participant CFG as UserFrameConfig
+    participant SDK as Conviva SDK
+    participant PLY as Player
+
+    INIT-&gt;&gt;CV: initialize()
+    CV-&gt;&gt;CFG: convivaStatus 확인
+    alt convivaStatus == YES
+        CV-&gt;&gt;SDK: createTracker(DPI) + init(VSI) + setDeviceInfo
+    else 비활성
+        CV-&gt;&gt;CV: 즉시 반환(보고 안 함)
+    end
+    PLY-&gt;&gt;CV: videoPlay(key, player, params)
+    CV-&gt;&gt;SDK: setPlayer + reportPlaybackRequested(contentInfo)
+    loop 재생 중
+        PLY-&gt;&gt;CV: updateVideoBitRate / FrameRate
+        CV-&gt;&gt;SDK: reportPlaybackMetric
+    end
+    PLY-&gt;&gt;CV: videoStop(key) / videoError(key, msg)
+    CV-&gt;&gt;SDK: reportPlaybackEnded / reportPlaybackError(FATAL)
+    PLY-&gt;&gt;CV: videoRelease(key)
+    CV-&gt;&gt;SDK: videoAnalytics.release()
+      </div>
+      <p class="cap"><strong>흐름.</strong> 초기화에서 설정 게이트를 통과하면 DPI/VSI 트래커를 세우고, 이후 플레이어 콜백마다 <code>isConvivaEnable</code> 가드를 거쳐 재생 요청·메트릭·오류·종료·해제를 Conviva SDK로 보고합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ConvivaAnalyticsRepository {
+        &lt;&lt;interface&gt;&gt;
+        +initialize()
+        +videoPlay(key, player, params)
+        +videoStop(key)
+        +videoRelease(key)
+        +videoError(key, msg)
+        +updateVideoBitRate(key, rate)
+        +appForegrounded()
+        +appBackgrounded()
+    }
+    class ConvivaAnalyticsService {
+        -isConvivaEnable boolean
+        -convivaCustomerKey String
+        -convivaGatewayUrl String
+        -videoAnalyticsMap Map
+        -getVideoAnalytics(key) ConvivaVideoAnalytics
+        -initializeDPI(appName, id)
+        -initializeVSI(viewerId)
+    }
+    class UserRepository {
+        &lt;&lt;interface&gt;&gt;
+        +readUserFrameConfig() UserFrameConfig
+        +notifyUserFrameConfigUpdated() Observable
+    }
+    class ConvivaAnalytics {
+        +init(ctx, key, settings)
+        +buildVideoAnalytics(ctx) ConvivaVideoAnalytics
+        +setDeviceInfo(map)
+    }
+    class ConvivaVideoAnalytics {
+        +setPlayer(player)
+        +reportPlaybackRequested(map)
+        +reportPlaybackMetric(k, v)
+        +reportPlaybackError(msg, severity)
+    }
+
+    ConvivaAnalyticsService ..|&gt; ConvivaAnalyticsRepository
+    ConvivaAnalyticsService --&gt; UserRepository : convivaStatus 게이트
+    ConvivaAnalyticsService --&gt; ConvivaAnalytics : VSI 초기화
+    ConvivaAnalyticsService --&gt; ConvivaVideoAnalytics : 세션별 보고
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>ConvivaAnalyticsService</code>는 도메인 인터페이스 구현체로 <code>UserRepository</code> 설정으로 활성 여부를 가드하고, Conviva SDK의 <code>ConvivaAnalytics</code>·<code>ConvivaVideoAnalytics</code>를 통해 품질을 보고합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>app/core/service/ConvivaAnalyticsService.kt</code> — 설정 게이트 + DPI/VSI 초기화</div>
+<pre><code>private val isConvivaEnable: Boolean
+    get() = userFrameConfig.value?.value?.convivaStatus == DomainConfig.VALUE_YES
+
+override fun initialize() {
+    if (!isConvivaEnable) { Timber.d("initialize() conviva disabled."); return }
+    initializeDPI(appName, id)      // ConvivaAppAnalytics.createTracker
+    initializeVSI(id)               // ConvivaAnalytics.init + setDeviceInfo
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>app/core/service/ConvivaAnalyticsService.kt</code> — 운영 게이트웨이·커스터머 키 단일화</div>
+<pre><code>private val convivaCustomerKey: String
+    get() = userFrameConfig.value?.value?.vqmKey ?: DomainConfig.CONVIVA_CUSTOMER_KEY_PROD
+
+private val convivaGatewayUrl: String
+    get() {
+        // testonly 미사용으로 변경 (Berkay 요청, 2026-05-26)
+        return "https://$convivaCustomerKey.csw.conviva.com"
+    }</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>app/core/service/ConvivaAnalyticsService.kt</code> — 세션별 재생 보고</div>
+<pre><code>override fun videoPlay(key: String, player: Any, vodPlayParams: VodPlayParams) {
+    if (!isConvivaEnable) return
+    val videoAnalytics = getVideoAnalytics(key)          // key별 캐시
+    videoAnalytics.setPlayer(player)
+    videoAnalytics.reportPlaybackRequested(vodPlayParams.toContentInfoMap())
+    vodPlayParams.logParam?.playUrl?.getOrigin()?.also {
+        videoAnalytics.reportPlaybackMetric(ConvivaSdkConstants.PLAYBACK.CDN_IP, it)
+    }
+}
+
+override fun videoError(key: String, errorMessage: String) {
+    if (!isConvivaEnable) return
+    getVideoAnalytics(key).reportPlaybackError(errorMessage, ConvivaSdkConstants.ErrorSeverity.FATAL)
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/app/core/service/ConvivaAnalyticsService.kt" target="_blank" rel="noopener">app/core/service/ConvivaAnalyticsService.kt</a><span class="src">Conviva DPI/VSI 초기화 · 세션별 재생/메트릭/오류 보고 · 콘텐츠 메타맵</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/domain/src/main/java/com/altimedia/domain/repository/ConvivaAnalyticsRepository.kt" target="_blank" rel="noopener">domain/repository/ConvivaAnalyticsRepository.kt</a><span class="src">Conviva 보고 도메인 인터페이스</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/proguard-conviva.pro" target="_blank" rel="noopener">app/proguard-conviva.pro</a><span class="src">릴리스 R8/ProGuard용 Conviva keep 규칙</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/app/core/initializer/FailSafeInitializer.kt" target="_blank" rel="noopener">app/core/initializer/FailSafeInitializer.kt</a><span class="src">부팅 초기화에서 convivaAnalyticsRepository.initialize() 호출</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f11.html">← EAS · MES 알림</a>
+      <a href="f13.html">설정 · 프로필 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>sprint/LS0626_release</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tivibu_4k 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

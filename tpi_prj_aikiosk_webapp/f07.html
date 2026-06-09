@@ -1,0 +1,192 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp · 장바구니/매장-포장 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>장바구니 · 매장/포장 — AI Kiosk WebApp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp</a><span class="sep">›</span>
+      <span class="here">장바구니 · 매장/포장</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">zustand cart-store</span>
+    </div>
+    <h1>장바구니 · 매장/포장</h1>
+    <p class="one-liner"><code>cart-store</code>가 담은 메뉴 항목과 매장 식사/포장(Here/To-go) 여부를 관리하고, 동일 메뉴·옵션은 수량을 합치며 총 수량·총 금액을 계산합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 모듈</div><div class="v"><code>store/cart-store.js</code> · <code>util/CartList.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">결제 직전 주문 집계</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>장바구니는 <code>cart-store</code>(zustand) 하나로 관리됩니다. 상태는 담긴 항목 배열 <code>cartList</code>와 매장/포장 여부 <code>hereTogo</code>로 단순하게 구성됩니다. 각 항목은 <code>CartListItem</code> 인스턴스로, 고유 <code>id</code>(<code>crypto.randomUUID()</code>)·메뉴(<code>item</code>)·수량(<code>quantity</code>)·옵션(<code>ClientOption</code>)을 가집니다.</p>
+    <p>담기(<code>addCart</code>/<code>addCartItems</code>)는 같은 메뉴이면서 옵션까지 동일한지(<code>cartItem.options.isEqual(item.options)</code>)를 확인해, 동일하면 기존 항목의 수량을 더하고 다르면 새 항목으로 추가합니다. 수량은 <code>setQuantity</code>에서 최대 99로 제한됩니다. 매장/포장은 <code>setHereTogo</code>로 지정하며, 이 값은 음성으로 "매장에서/포장이요"라고 말하거나 <code>HereTogoPopup</code> 터치로 정해집니다.</p>
+    <p>총합 계산은 <code>getTotalPrice</code>(매장 가격 <code>price</code>)·<code>getTotalPriceIBC</code>(IBC 데모 가격 <code>price_ibc</code>)·<code>getTotalQuantity</code>가 각각 <code>cartList.reduce</code>로 합산합니다. <code>Cart</code> 화면이 이 값들을 구독해 합계와 항목 목록을 표시하고, 결제 단계로 넘어갑니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      옵션 비교 <code>isEqual</code>은 디카페인(no) 미선택과 시럽(yes) 미선택을 "같은 것"으로 묶는 느슨한 동등 비교를 적용합니다. 즉 옵션을 명시하지 않은 두 주문이 불필요하게 별도 항목으로 쪼개지지 않게 합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant VO as voice-order-store
+    participant CART as cart-store
+    participant CI as CartListItem
+    participant HTG as HereTogoPopup / 음성
+    participant CARTUI as Cart 화면
+
+    VO-&gt;&gt;CI: getItem() → new CartListItem(menu, qty, option)
+    VO-&gt;&gt;CART: addCart(item)
+    CART-&gt;&gt;CART: 동일 메뉴+옵션 isEqual 비교
+    alt 동일 항목 존재
+        CART-&gt;&gt;CI: setQuantity(기존+신규)
+    else 신규 항목
+        CART-&gt;&gt;CART: cartList에 추가
+    end
+    HTG-&gt;&gt;CART: setHereTogo("here" / "to go")
+    CARTUI-&gt;&gt;CART: getTotalPrice / getTotalQuantity 구독
+      </div>
+      <p class="cap"><strong>흐름.</strong> 음성 주문 항목이 <code>CartListItem</code>으로 변환되어 스토어에 담기고, 동일 항목은 수량 합산됩니다. 매장/포장 여부와 합계는 <code>Cart</code> 화면에서 표시됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class cartStore {
+        +cartList
+        +hereTogo
+        +addCart(item)
+        +addCartItems(items)
+        +deleteItem(item)
+        +setHereTogo(value)
+        +getTotalPrice() int
+        +getTotalPriceIBC() number
+        +getTotalQuantity() int
+        +resetStore()
+    }
+    class CartListItem {
+        +id
+        +item
+        +quantity
+        +options
+        +increaseQuantity()
+        +decreaseQuantity()
+        +setQuantity(q)
+        +getTotalPrice() int
+    }
+    class ClientOption {
+        +isEqual(other) bool
+    }
+
+    cartStore o-- CartListItem : cartList
+    CartListItem o-- ClientOption : options
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>cart-store</code>가 <code>CartListItem</code> 목록을 소유하고, 각 항목은 <code>ClientOption</code>을 가집니다. 합계는 항목들의 <code>getTotalPrice</code>를 reduce해 구합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/store/cart-store.js</code> — 담기(동일 항목 수량 합산)와 합계</div>
+<pre><code>addCart: (item) =&gt; {
+    return set((state) =&gt; {
+        let existingItem = state.cartList.find((cartItem) =&gt; {
+            const isSameItem   = cartItem.item.name == item.item.name;
+            const isSameOption = cartItem.options.isEqual(item.options);
+            return isSameItem &amp;&amp; isSameOption;
+        });
+        let newCartList;
+        if (existingItem) {
+            existingItem.setQuantity(+existingItem.quantity + +item.quantity);
+            newCartList = [...state.cartList];
+        } else {
+            newCartList = [...state.cartList, item];
+        }
+        return { cartList: newCartList };
+    });
+},
+getTotalPrice: () =&gt; get().cartList.reduce((acc, item) =&gt; acc + item.getTotalPrice(), 0),
+setHereTogo: (value) =&gt; set({ hereTogo: value }),</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/util/CartList.js</code> — 장바구니 항목 모델</div>
+<pre><code>export default class CartListItem {
+    constructor(item, quantity = 1, options = new ClientOption()) {
+        this.id = window.crypto.randomUUID();
+        this.item = item;
+        this.quantity = quantity;
+        this.options = options;
+    }
+    setQuantity = (quantity) =&gt; { this.quantity = quantity &gt; 99 ? 99 : quantity; return this; };
+    getTotalPrice = () =&gt; this.item?.price * this.quantity;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/store/cart-store.js" target="_blank" rel="noopener">src/store/cart-store.js</a><span class="src">장바구니 상태 · 담기/삭제 · 매장/포장 · 합계 계산</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/util/CartList.js" target="_blank" rel="noopener">src/util/CartList.js</a><span class="src">CartListItem 모델 · 수량 증감(최대 99) · 항목 합계</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/util/Option.js" target="_blank" rel="noopener">src/util/Option.js</a><span class="src">ClientOption.isEqual — 동일 항목 판정 기준</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/page/Purchase/Cart/Cart.jsx" target="_blank" rel="noopener">src/page/Purchase/Cart/Cart.jsx</a><span class="src">장바구니 화면 · 합계 표시</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/component/popup/HereTogoPopup/HereTogoPopup.jsx" target="_blank" rel="noopener">src/component/popup/HereTogoPopup/HereTogoPopup.jsx</a><span class="src">매장/포장 선택 팝업</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f06.html">← 주문 옵션 처리</a>
+      <a href="f08.html">결제 · 카드 삽입 시뮬레이션 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">AI Kiosk WebApp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

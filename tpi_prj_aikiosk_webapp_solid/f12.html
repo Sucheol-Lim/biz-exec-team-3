@@ -1,0 +1,190 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp_solid · 전역 팝업 시스템 기능 상세 — Portal + PopupStore + PopupLayout 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>전역 팝업 시스템 — tpi_prj_aikiosk_webapp_solid 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp (SolidJS)</a><span class="sep">›</span>
+      <span class="here">전역 팝업 시스템</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹앱 · Android WebView 키오스크 (Galaxy Tab S8)</span>
+    </div>
+    <h1>전역 팝업 시스템</h1>
+    <p class="one-liner"><code>popup.jsx</code>가 Portal로 전역 팝업 영역에 마운트하고, <code>PopupStore</code>로 Cart/Help/Language/Option 팝업을 띄웁니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp_solid</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>popup.jsx</code> · <code>PopupStore.jsx</code> · <code>PopupLayout.jsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">Portal 기반 전역 팝업</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>팝업은 화면 트리와 분리된 전역 영역(<code>#popup-area</code>)에 띄웁니다. <code>popup.jsx</code>의 <code>Popup</code> 컴포넌트가 SolidJS의 <code>Portal</code>로 <code>document.getElementById("popup-area")</code>에 <code>PopupLayout</code>을 마운트하며, <code>Show</code>로 팝업 열림 상태(<code>isPopupOpen</code>)일 때만 렌더합니다. Portal을 쓰므로 어느 화면에서 열어도 항상 같은 전역 레이어 위에 표시됩니다.</p>
+    <p>팝업 상태는 <code>PopupStore</code>가 관리합니다. 열림 여부(<code>isPopupOpen</code>), 현재 팝업 종류(<code>popupState</code>), 선택 항목(<code>selectedItem</code>), LLM 결과(<code>llmResult</code>)를 시그널로 두고, <code>openPopup(state, selectedItem, llmResult)</code>·<code>closePopup()</code>으로 제어합니다. 어떤 팝업을 그릴지는 <code>PopupLayout</code>이 <code>popupState()</code> 값에 따라 <code>Switch</code>/<code>Match</code>로 결정합니다. <code>PopupType.Language</code>면 <code>LanguagePopup</code>, <code>Option</code>/<code>Edit</code>면 <code>OptionPopup</code>, <code>Cart</code>면 <code>CartPopup</code>, <code>Help</code>면 <code>HelpPopup</code>을 띄웁니다. 옵션 선택을 마치면 <code>openPopup(PopupType.Cart)</code>로 장바구니 팝업으로 자연스럽게 이어집니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      팝업 종류를 <code>PopupType</code> 열거 한 곳에서 정의하고 <code>PopupStore</code>의 단일 상태로 관리하므로, 어디서든 <code>openPopup(PopupType.X)</code> 한 줄로 팝업을 전환할 수 있습니다. Portal 마운트 지점이 고정이라 z-index·레이아웃 충돌도 줄어듭니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant CALLER as 호출부 (메뉴/헤더 등)
+    participant PS as PopupStore
+    participant POP as Popup (popup.jsx)
+    participant PL as PopupLayout
+    participant TARGET as 개별 팝업
+
+    CALLER->>PS: openPopup(PopupType.Option, selectedItem)
+    PS->>PS: setPopupState / setIsPopupOpen(true)
+    POP->>POP: Show when isPopupOpen()
+    POP->>PL: Portal mount(#popup-area)
+    PL->>PL: Switch(popupState())
+    PL->>TARGET: 해당 팝업 렌더 (Option/Cart/Help/Language)
+    TARGET->>PS: closePopup()
+    PS->>PS: setIsPopupOpen(false)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 호출부가 <code>openPopup</code>으로 종류를 지정하면 Portal이 전역 영역에 <code>PopupLayout</code>을 마운트하고, 레이아웃이 종류에 맞는 개별 팝업을 그립니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class Popup {
+        +render() Portal + Show
+    }
+    class PopupStore {
+        +isPopupOpen()
+        +popupState()
+        +selectedItem()
+        +llmResult()
+        +openPopup(state, selectedItem, llmResult)
+        +closePopup()
+    }
+    class PopupLayout {
+        +render() Switch
+    }
+    class PopupType {
+        &lt;&lt;enumeration&gt;&gt;
+        Language
+        Option
+        Edit
+        Cart
+        Help
+    }
+    class LanguagePopup
+    class OptionPopup
+    class CartPopup
+    class HelpPopup
+
+    Popup --> PopupStore : isPopupOpen 구독
+    Popup --> PopupLayout : Portal 마운트
+    PopupLayout --> PopupStore : popupState 구독
+    PopupLayout ..> PopupType
+    PopupLayout --> LanguagePopup
+    PopupLayout --> OptionPopup
+    PopupLayout --> CartPopup
+    PopupLayout --> HelpPopup
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>Popup</code>이 Portal로 <code>PopupLayout</code>을 전역 영역에 띄우고, <code>PopupLayout</code>은 <code>PopupStore.popupState</code>에 따라 개별 팝업을 선택해 렌더합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/popup.jsx</code> — Portal 기반 전역 마운트</div>
+<pre><code>const Popup = () =&gt; {
+  const { isPopupOpen } = PopupStore;
+  return (
+    &lt;Show when={isPopupOpen()}&gt;
+      &lt;Portal mount={document.getElementById("popup-area")}&gt;
+        &lt;PopupLayout /&gt;
+      &lt;/Portal&gt;
+    &lt;/Show&gt;
+  );
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/popups/PopupLayout/PopupLayout.jsx</code> — 종류별 팝업 스위치</div>
+<pre><code>&lt;Switch&gt;
+  &lt;Match when={popupState() == PopupType.Language}&gt;
+    &lt;LanguagePopup /&gt;
+  &lt;/Match&gt;
+  &lt;Match when={[PopupType.Option, PopupType.Edit].includes(popupState())}&gt;
+    &lt;OptionPopup /&gt;
+  &lt;/Match&gt;
+  &lt;Match when={popupState() == PopupType.Cart}&gt;
+    &lt;CartPopup /&gt;
+  &lt;/Match&gt;
+  &lt;Match when={popupState() == PopupType.Help}&gt;
+    &lt;HelpPopup /&gt;
+  &lt;/Match&gt;
+&lt;/Switch&gt;</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/popup.jsx" target="_blank" rel="noopener">popup.jsx</a><span class="src">Portal로 #popup-area에 PopupLayout 마운트 · isPopupOpen 게이트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/stores/PopupStore.jsx" target="_blank" rel="noopener">stores/PopupStore.jsx</a><span class="src">팝업 상태(open/state/selectedItem/llmResult) · openPopup / closePopup</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/popups/PopupLayout/PopupLayout.jsx" target="_blank" rel="noopener">popups/PopupLayout/PopupLayout.jsx</a><span class="src">popupState별 Language/Option/Cart/Help 분기 렌더</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/constants/popup.js" target="_blank" rel="noopener">constants/popup.js</a><span class="src">PopupType / HelpPopupType 열거</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f11.html">← 다국어(i18n)</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f13.html">file:// 단독 실행 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tpi_prj_aikiosk_webapp_solid 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

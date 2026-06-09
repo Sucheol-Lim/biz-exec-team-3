@@ -1,0 +1,182 @@
+<!doctype html>
+<!-- skb.cloud.home · 홍보채널/홈쇼핑 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>홍보채널 / 홈쇼핑 — skb.cloud.home 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Cloud Home</a><span class="sep">›</span>
+      <span class="here">홍보채널 / 홈쇼핑</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">STB 클라우드 UI · JavaScript</span>
+    </div>
+    <h1>홍보채널 / 홈쇼핑</h1>
+    <p class="one-liner">홍보채널(VOD Asset·성인채널·PIP·데이터방송·예고편)과 홈쇼핑 모아보기를 별도 부트 액션(<code>doAction</code>)으로 진입 처리합니다(<code>scene/contentPromoCh</code>).</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb.cloud.home" target="_blank" rel="noopener"><code>skb.cloud.home</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>scene/contentPromoCh</code></div></div>
+      <div class="item"><div class="k">진입 경로</div><div class="v"><code>doAction</code> (promotion_ch_7 / homeshopping_ch)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>홍보채널/홈쇼핑은 일반 메뉴 진입과 다른 부트 경로를 갖습니다. 부팅 옵션 <code>id</code>가 <code>doAction</code>이고 <code>action</code>이 <code>promotion_ch_7</code>(홍보채널) 또는 <code>homeshopping_ch</code>(홈쇼핑)이면, <code>Boot.js</code>는 메뉴 동기화를 일반 흐름과 다르게 처리하면서 <code>AppHandler.onMessage(id, bootOption, undefined, true)</code>로 곧장 홍보채널 Scene 진입을 시도합니다.</p>
+    <p><code>AppHandler.doAction</code>이 액션을 라우팅하고, 홍보채널/홈쇼핑 액션은 <code>contentPromoCh</code> Scene 으로 연결됩니다. 핵심 제어는 <code>ContentPromoChCtrl</code>이며 라이프사이클(<code>OnCreate</code>·<code>OnStart</code>·<code>OnResume</code>·<code>OnStop</code>·<code>OnDestroy</code>)과 입력(<code>operate</code>·<code>executeAction</code>), 등급 변경(<code>changeRating</code>), 예고편 제어(<code>forceStopTrailer`/`forceStopTrailerAndAVSizeFull</code>)를 담당합니다. 콘텐츠 뷰·홈쇼핑·포스터·암호입력은 <code>controller/</code>(<code>ContentsViewCtrl`/`HomeshoppingController`/`PosterController`/`PasswordInputController</code>)가, 예고편 재생은 <code>service/</code>(<code>TrailerPlayer`/`TrailerPlayService`/`TrailerAjaxService</code>)가 처리합니다.</p>
+    <div class="callout">
+      <div class="ct">중복 진입 방지</div>
+      홍보채널은 키를 빠르게 누르거나 로컬 앱에서 <code>hideApp</code> 없이 <code>doAction</code>을 연거푸 보낼 때 이전 홍보채널 타이머를 정리하는 처리가 들어 있습니다. 또한 이미 홍보채널 Scene 진입 상태(<code>ADD_CONTENT_PROMOCH_SCENE</code>)면 점프 인텐트를 저장해 두고 중복 push 를 막습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant BOOT as Boot.js (onStart)
+    participant APP as AppHandler
+    participant SC as ContentPromoChScene
+    participant CT as ContentPromoChCtrl
+    participant TP as TrailerPlayer
+
+    BOOT-&gt;&gt;BOOT: bootOption.id == doAction
+    alt action == promotion_ch_7 / homeshopping_ch
+        BOOT-&gt;&gt;APP: onMessage(id, bootOption, undefined, true)
+        APP-&gt;&gt;APP: doAction(message, currentScene)
+        APP-&gt;&gt;SC: 홍보채널/홈쇼핑 Scene push
+        SC-&gt;&gt;CT: OnCreate() / OnStart(view)
+        opt 예고편
+            CT-&gt;&gt;TP: 예고편 재생
+        end
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 부트 액션이 홍보채널/홈쇼핑이면 메뉴 일반 진입을 건너뛰고 <code>AppHandler.doAction</code>이 <code>contentPromoCh</code> Scene 을 띄웁니다. 예고편은 <code>TrailerPlayer</code>가 재생합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class AppHandler {
+        +onMessage(id, message, params, isBoot)
+        +doAction(message, currentScene)
+        -ACTION_PROMOTION_CH_7
+        -ACTION_HOMESHOPPING_CH
+    }
+    class ContentPromoChScene {
+        +onCreate(ctx)
+    }
+    class ContentPromoChCtrl {
+        +OnCreate(callback, chGenre)
+        +OnStart(view, options)
+        +operate(keyCode)
+        +changeRating()
+        +forceStopTrailer(callback)
+    }
+    class HomeshoppingController {
+        +load()
+    }
+    class TrailerPlayer {
+        +play()
+        +stop()
+    }
+
+    AppHandler --&gt; ContentPromoChScene : doAction 라우팅
+    ContentPromoChScene o-- ContentPromoChCtrl
+    ContentPromoChCtrl o-- HomeshoppingController
+    ContentPromoChCtrl --&gt; TrailerPlayer : 예고편 재생
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>AppHandler.doAction</code>이 홍보채널/홈쇼핑 액션을 <code>ContentPromoChScene</code>으로 라우팅하고, <code>ContentPromoChCtrl</code>이 콘텐츠/홈쇼핑/예고편 컴포넌트를 조율합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/Boot.js</code> — 홍보채널/홈쇼핑 부트 분기</div>
+<pre><code>} else if (bootOption.id == 'doAction' &amp;&amp;
+        (bootOption.action == "promotion_ch_7" || bootOption.action == "homeshopping_ch")) {
+    if (!W.AppHandler.onMessage(bootOption.id, bootOption, undefined, true)) {
+        W.AdaptorHandler.disconnect();
+    } else {
+        W.SharedDataManager.set(W.SharedDataManager.BOOT_COMPLETED, true);
+    }
+} else {
+    // 일반 진입: MenuDataManager.syncData() 후 onMessage
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>common/adapter/AppHandler.js</code> — 액션 상수와 doAction 라우팅</div>
+<pre><code>this.ACTION_DO_ACTION       = "doAction";
+this.ACTION_PROMOTION_CH_7  = "promotion_ch_7";
+this.ACTION_HOMESHOPPING_CH = "homeshopping_ch";
+// ...
+doAction: function (message, currentScene) {
+    // 이전 홍보채널 타이머 정리 후 홍보채널/홈쇼핑 Scene 진입 분기
+    if (message.action == this.ACTION_PROMOTION_CH_7 ||
+        message.action == this.ACTION_HOMESHOPPING_CH) { /* 홍보채널 ASSET 진입 */ }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/contentPromoCh/ContentPromoChScene.js" target="_blank" rel="noopener">scene/contentPromoCh/ContentPromoChScene.js</a><span class="src">홍보채널/홈쇼핑 Scene</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/contentPromoCh/ContentPromoChCtrl.js" target="_blank" rel="noopener">scene/contentPromoCh/ContentPromoChCtrl.js</a><span class="src">홍보채널 제어 · 등급 변경 · 예고편 제어</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/contentPromoCh/controller/HomeshoppingController.js" target="_blank" rel="noopener">scene/contentPromoCh/controller/HomeshoppingController.js</a><span class="src">홈쇼핑 모아보기 컨트롤러</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/contentPromoCh/service/TrailerPlayer.js" target="_blank" rel="noopener">scene/contentPromoCh/service/TrailerPlayer.js</a><span class="src">예고편 재생 서비스</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/common/adapter/AppHandler.js" target="_blank" rel="noopener">common/adapter/AppHandler.js</a><span class="src">doAction 라우팅 · 홍보채널/홈쇼핑 액션 진입</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/Boot.js" target="_blank" rel="noopener">src/Boot.js</a><span class="src">홍보채널/홈쇼핑 부트 액션 분기</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f09.html">이전: 마이홈</a>
+      <a href="f11.html">스마트 리모콘 페어링 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb.cloud.home 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

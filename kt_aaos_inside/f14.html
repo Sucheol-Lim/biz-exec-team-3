@@ -1,0 +1,180 @@
+<!doctype html>
+<!-- kt_aaos_inside · 코드 난독화(Allatori) 기능 상세 — 빌드 파이프라인 시퀀스/구성 다이어그램 + 설정 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>코드 난독화(Allatori) — kt_aaos_inside 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT AAOS Demokit P1 음성인식 앱</a><span class="sep">›</span>
+      <span class="here">코드 난독화(Allatori)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive OS · Java · Gradle</span>
+    </div>
+    <h1>코드 난독화(Allatori)</h1>
+    <p class="one-liner">빌드 시 <code>build.gradle</code>의 <code>runAllatori</code> 함수가 컴파일된 클래스를 <code>allatori.xml</code> 설정에 따라 Allatori로 난독화하고, 결과물로 원본 클래스 디렉터리를 교체합니다(커밋 <code>6c315d77</code>).</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_aaos_inside" target="_blank" rel="noopener"><code>kt_aaos_inside</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feature/support_stt</code></div></div>
+      <div class="item"><div class="k">핵심 구성</div><div class="v"><code>car-custom-voice-app/build.gradle</code> · <code>allatori.xml</code></div></div>
+      <div class="item"><div class="k">도입 커밋</div><div class="v"><code>6c315d77</code> (2024-04-16)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">구성 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>이 기능은 런타임 클래스가 아니라 빌드 파이프라인에 삽입된 후처리 단계입니다. 각 product flavor(<code>dev</code>·<code>tb</code>·<code>production</code>)의 빌드 변형(variant) 구성에서 <code>variant.javaCompileProvider.get().doLast { runAllatori(variant) }</code>를 등록해, Java 컴파일이 끝난 직후 난독화를 수행하도록 합니다.</p>
+    <p><code>runAllatori(variant)</code> 함수는 <code>allatori.xml</code>을 빌드 중간 디렉터리로 복사하면서 입력 클래스 경로(<code>classesRoot</code>)·classpath·<code>android.jar</code>·로그 파일 경로를 <code>expand()</code>로 치환합니다. 이어 <code>javaexec</code>로 <code>com.allatori.Obfuscate</code>를 <code>allatori/allatori.jar</code> 클래스패스에서 실행하고, 산출된 <code>-obfuscated</code> 디렉터리를 원본 클래스 디렉터리 자리에 교체해 후속 패키징이 난독화 결과를 사용하게 합니다. <code>allatori.xml</code>의 <code>keep-names</code>는 Activity·Service·BroadcastReceiver·Parcelable·R 클래스·Enum 등을 난독화 예외로 보호합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      Android 기본 R8/ProGuard 대신 Allatori를 컴파일 직후(doLast) 단계에 끼워 넣습니다. <code>keep-names</code>로 프레임워크가 이름으로 접근하는 컴포넌트(어시스턴트 서비스·리시버·Parcelable Creator)를 보호해, 난독화 후에도 AAOS 음성비서 등록·인텐트 처리가 깨지지 않도록 합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant G as Gradle (assemble&lt;Flavor&gt;Release)
+    participant JC as javaCompile (variant)
+    participant RA as runAllatori(variant)
+    participant CFG as allatori.xml (expand)
+    participant AL as Allatori (allatori.jar)
+
+    G-&gt;&gt;JC: Java 컴파일 수행
+    JC-&gt;&gt;RA: doLast { runAllatori(variant) }
+    RA-&gt;&gt;CFG: copy + expand(classesRoot, classpathJars, androidJar)
+    RA-&gt;&gt;AL: javaexec com.allatori.Obfuscate (allatoril&lt;variant&gt;.xml)
+    AL--&gt;&gt;RA: classes-obfuscated 생성
+    RA-&gt;&gt;RA: 원본 classes 삭제 → obfuscated 를 원본 자리로 rename
+    RA--&gt;&gt;G: 난독화된 클래스로 패키징 계속
+      </div>
+      <p class="cap"><strong>흐름.</strong> 컴파일 직후 <code>runAllatori</code>가 설정을 치환·실행하고, 난독화 산출물로 원본 클래스 디렉터리를 교체해 이후 단계가 난독화 결과를 패키징합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>구성 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class build_gradle {
+        +productFlavors dev / tb / production
+        +variant.javaCompileProvider.doLast
+        +runAllatori(variant)
+        +getBuildDate()
+    }
+    class runAllatori {
+        +copy allatori.xml + expand(...)
+        +javaexec com.allatori.Obfuscate
+        +deleteDir / renameTo
+    }
+    class allatori_xml {
+        +input dir(classesRoot)
+        +classpath androidJar / classpathJars
+        +keep-names Activity / Service / Receiver
+    }
+    class allatori_jar {
+        +com.allatori.Obfuscate
+    }
+
+    build_gradle --&gt; runAllatori : doLast 등록
+    runAllatori --&gt; allatori_xml : 설정 expand
+    runAllatori --&gt; allatori_jar : javaexec 실행
+      </div>
+      <p class="cap"><strong>구성.</strong> <code>build.gradle</code>이 variant별로 <code>runAllatori</code>를 등록하고, 이 함수가 <code>allatori.xml</code> 설정과 <code>allatori.jar</code> 실행기를 결합해 난독화를 수행합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>car-custom-voice-app/build.gradle</code> — 컴파일 직후 난독화 후처리 등록</div>
+<pre><code>// for allatori
+variant.javaCompileProvider.get().doLast {
+    runAllatori(variant)
+}
+// ...
+variant.outputs.all {
+    outputFileName = "avis_voice_" + variant.getFlavorName() + "_" + versionNameValue
+            + versionNameSuffix + "_" + getBuildDate() + ".apk"
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>car-custom-voice-app/build.gradle</code> — runAllatori 함수 본체</div>
+<pre><code>def runAllatori(variant) {
+    copy {
+        from "$rootDir/allatori.xml"
+        into "$buildDir/intermediates/classes/"
+        expand(classesRoot: variant.javaCompileProvider.get().destinationDir,
+               androidJar: "${android.sdkDirectory}/platforms/${android.compileSdkVersion}/android.jar ",
+               classpathJars: variant.javaCompileProvider.get().classpath.getAsPath(),
+               logFile: "allatorillogl${variant.name}.xml")
+        rename('allatori.xml', "allatoril${variant.name}.xml")
+    }
+    javaexec {
+        main = 'com.allatori.Obfuscate'
+        classpath = files("$rootDir/allatori/allatori.jar")
+        args "$buildDir/intermediates/classes/allatoril${variant.name}.xml"
+    }
+    // 원본 classes 삭제 후 obfuscated 디렉터리를 원본 자리로 교체
+    new File("${variant.javaCompileProvider.get().destinationDir}").deleteDir()
+    new File("${...}-obfuscated").renameTo(new File("${...}"))
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/build.gradle" target="_blank" rel="noopener">car-custom-voice-app/build.gradle</a><span class="src">flavor별 doLast runAllatori 등록·runAllatori 함수(copy/expand/javaexec/rename)·APK 파일명</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/allatori.xml" target="_blank" rel="noopener">aaos-apps-gradle-project/allatori.xml</a><span class="src">난독화 입력/클래스패스 설정·keep-names 예외(Activity·Service·Receiver·Parcelable·R·Enum)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/allatori/allatori.jar" target="_blank" rel="noopener">aaos-apps-gradle-project/allatori/allatori.jar</a><span class="src">com.allatori.Obfuscate 실행기(커밋 6c315d77로 추가)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f13.html">사용 로그 수집</a>
+      <a href="index.html#features">목록</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feature/support_stt</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_aaos_inside 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

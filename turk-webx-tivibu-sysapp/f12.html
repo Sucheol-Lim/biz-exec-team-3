@@ -1,0 +1,198 @@
+<!doctype html>
+<!-- turk-webx-tivibu-sysapp · 설정 / 시스템 관리 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>설정 · 시스템 관리 — turk-webx-tivibu-sysapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Türk Telekom Tivibu STB 시스템 앱 (EPG SYSAPP)</a><span class="sep">›</span>
+      <span class="here">설정 · 시스템 관리</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">WebX STB · JavaScript (ES6/AMD)</span>
+    </div>
+    <h1>설정 · 시스템 관리</h1>
+    <p class="one-liner"><code>SettingController</code>가 설정 화면을 제공하고, <code>OTAController</code>가 펌웨어 업그레이드를, <code>PowerController</code>가 전원 상태(ON/STANDBY) 전환을, <code>ClockController</code>가 시계 표시를 담당합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp" target="_blank" rel="noopener"><code>turk-webx-tivibu-sysapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>controller/SettingController.js</code> · <code>OTAController.js</code> · <code>PowerController.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">설정 · OTA 업그레이드 · 전원 · 시계</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>설정·시스템 관리는 사용자 설정 화면과 그 뒤에서 동작하는 시스템 관리 기능을 묶습니다. <code>SettingController</code>는 <code>SettingFrame</code>을 띄워 언어·화면 등 환경설정 UI를 제공합니다. 시스템 측에서는 펌웨어 업그레이드(OTA), 전원 상태 관리, 시계 표시가 백그라운드 컨트롤러로 동작합니다.</p>
+    <p><code>OTAController</code>는 부팅 시 단말 모델·MAC·현재 펌웨어 버전으로 업그레이드 확인 URL을 만들고(<code>checkOperaFW_UI_GET.do</code>), 서버 응답의 <code>requestInterval</code>에 맞춰 주기적으로 폴링합니다. 펌웨어 버전이 테스트값(<code>9.9.9</code>)이면 OTA를 끄고, 재시도 횟수가 3회 이상이면 다음 점검을 3시간 뒤로 미룹니다. <code>PowerController</code>는 <code>SystemInterface.addPowerStateListener()</code>로 전원 상태 변화를 받아 ACTIVE_STANDBY(3)이면 대기 모드, ON(1)이면 활성 모드로 전환합니다. <code>ClockController</code>는 <code>ClockFrame</code>으로 시계를 표시하고 숨김 애니메이션을 처리합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      OTA는 서버가 내려준 <code>requestInterval</code>과 재시도 횟수(<code>UserPreference.getFWCheckRetries()</code>)를 조합해 폴링 주기를 적응적으로 조절합니다. 전원·시계·OTA는 화면이 아니라 시스템 추상화(<code>SystemInterface</code>·<code>ExtensionInterface</code>)와 통신하는 백그라운드 관리자에 가깝습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant BOOT as NavSIMain (부팅)
+    participant OTA as OTAController
+    participant EXT as ExtensionInterface
+    participant SRV as OTA 서버
+    participant PWR as PowerController
+    participant SI as SystemInterface
+
+    BOOT-&gt;&gt;OTA: initialize()
+    OTA-&gt;&gt;EXT: getSWVersion() · getHwModel()
+    OTA-&gt;&gt;OTA: makeURL() (mac/model/fwVersion)
+    alt fwVersion == 9.9.9
+        OTA-&gt;&gt;OTA: USE_OTA = false
+    else
+        OTA-&gt;&gt;SRV: checkOperaFW_UI_GET.do
+        SRV--&gt;&gt;OTA: { fwVersion, requestInterval, updateType }
+        OTA-&gt;&gt;OTA: startTimer(requestInterval)
+    end
+    BOOT-&gt;&gt;PWR: initialize()
+    PWR-&gt;&gt;SI: addPowerStateListener(onPowerStateChange)
+    SI--&gt;&gt;PWR: powerState (ON / ACTIVE_STANDBY)
+    PWR-&gt;&gt;PWR: runActiveMode() / runStandbyMode()
+      </div>
+      <p class="cap"><strong>흐름.</strong> 부팅 시 OTA가 펌웨어 점검 URL로 폴링하고, 전원 컨트롤러는 시스템 전원 상태 변화에 따라 활성/대기 모드를 전환합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class SettingController {
+        -settingFrame SettingFrame
+        +show(param, entrance)
+        +hide(param)
+    }
+    class OTAController {
+        -otaData
+        +initialize()
+        +makeURL() string
+        +startTimer(ms)
+    }
+    class PowerController {
+        +initialize()
+        +onPowerStateChange(state)
+        +isActiveMode() bool
+        +reboot()
+    }
+    class ClockController {
+        -clockFrame ClockFrame
+        +show(param)
+        +hide(param)
+    }
+    class SystemInterface {
+        +addPowerStateListener(cb)
+        +getPowerState() int
+        +reboot()
+    }
+
+    PowerController --&gt; SystemInterface : 전원 상태 리스너
+    OTAController ..&gt; SystemInterface : MAC/모델/버전
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>SettingController</code>는 설정 UI를, <code>OTAController</code>·<code>PowerController</code>·<code>ClockController</code>는 시스템 관리를 담당하며, 전원·하드웨어 정보는 <code>SystemInterface</code>로 추상화됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>controller/OTAController.js</code> — 펌웨어 점검 초기화·폴링</div>
+<pre><code>initialize: function() {
+    this.fwVersion = SYSAPP.ExtensionInterface.getSWVersion();
+    this.macId     = SYSAPP.SystemInterface.getMacAddressNumber();
+    this.stbModel  = SYSAPP.ExtensionInterface.getHwModel() + '_ZTE';
+    this.requestURL = this.makeURL();
+
+    if (this.fwVersion == "9.9.9") {
+        AppConfig.USE_OTA = false;                 // 테스트 빌드는 OTA 비활성
+    } else {
+        this.retryCount = parseInt(SYSAPP.UserPreference.getFWCheckRetries());
+        if (this.retryCount &gt;= 3) {
+            this.startTimer(3 * 60 * 60 * 1000);   // 3시간 뒤 재점검
+            SYSAPP.UserPreference.setFWCheckRetries(0);
+        } else {
+            this.startTimer(1);
+        }
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>controller/PowerController.js</code> — 전원 상태 전환</div>
+<pre><code>initialize: function() {
+    SYSAPP.SystemInterface.addPowerStateListener(this.onPowerStateChange);
+},
+
+onPowerStateChange: function (powerState) {
+    if (powerState.state == SysConfig.POWER_STATE_ACTIVE_STANDBY) {   // 3
+        _self.runStandbyMode();
+    } else if (powerState.state == SysConfig.POWER_STATE_ON) {        // 1
+        _self.runActiveMode(false);
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/SettingController.js" target="_blank" rel="noopener">controller/SettingController.js</a><span class="src">설정 화면 프레임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/OTAController.js" target="_blank" rel="noopener">controller/OTAController.js</a><span class="src">펌웨어 OTA 점검 URL·폴링·재시도</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/PowerController.js" target="_blank" rel="noopener">controller/PowerController.js</a><span class="src">전원 상태 리스너 · 활성/대기 모드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/ClockController.js" target="_blank" rel="noopener">controller/ClockController.js</a><span class="src">시계 표시 프레임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/core/sys/SystemInterface.js" target="_blank" rel="noopener">core/sys/SystemInterface.js</a><span class="src">전원 상태·MAC·재부팅 등 시스템 추상화</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f11.html">← 프로필 / 사용자 설정</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f13.html">PIP / 모자이크 / 5채널 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">turk-webx-tivibu-sysapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

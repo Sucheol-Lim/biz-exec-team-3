@@ -1,0 +1,186 @@
+<!doctype html>
+<!-- ott-tvapp · 다국어·호텔 모드 기능 상세 — values-en/ja/zh + updateLang/afterBooting welcome/kids -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>다국어 · 호텔 모드 — ott-tvapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KCTV 제주 OTT Android TV 앱 (ott-tvapp)</a><span class="sep">›</span>
+      <span class="here">다국어 · 호텔 모드</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KCTV 제주</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>다국어 · 호텔 모드</h1>
+    <p class="one-liner"><code>values-en/ja/zh</code> 다국어 문자열 리소스와 <code>PlaybackActivity.updateLang()</code>의 언어 동기화, <code>afterBooting()</code>의 호텔 welcome iframe·키즈 모드 분기로 다양한 운영 시나리오를 지원합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/ott-tvapp" target="_blank" rel="noopener"><code>ott-tvapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>android14/marusys</code></div></div>
+      <div class="item"><div class="k">핵심 클래스/리소스</div><div class="v"><code>PlaybackActivity.updateLang</code> · <code>res/values-en|ja|zh</code></div></div>
+      <div class="item"><div class="k">운영 시나리오</div><div class="v">다국어 · 호텔 welcome · 키즈</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>다국어 지원은 Android 리소스 한정자로 구성됩니다. 기본 <code>res/values/strings.xml</code> 외에 영어(<code>values-en</code>)·일본어(<code>values-ja</code>)·중국어(<code>values-zh</code>) <code>strings.xml</code>을 두어 외국인 시청자가 많은 호텔 등 환경에 대응합니다.</p>
+    <p>언어 적용은 <code>PlaybackActivity.updateLang()</code>이 담당합니다. <code>Config.locale()</code>로 선택 언어를 읽어 현재 로케일과 비교하고, 달라졌으면 <code>Configuration.setLocale()</code>과 함께 Android 13+ <code>LocaleManager.setApplicationLocales()</code>로 앱 로케일을 바꾸고, <code>DeviceAPI.setDeviceLocale()</code>로 단말(시스템) 언어까지 동기화합니다. 최근 커밋(2026-04-17)에서 "언어 변경 시 Android 설정까지 변경"되도록 보강된 부분입니다.</p>
+    <p>호텔 모드는 부팅 직후 <code>afterBooting()</code>에서 분기됩니다. 키즈 모드 제한이면 <code>TYPE_KIDS_LOCK</code> 다이얼로그를, 호텔 welcome iframe 표시 설정(<code>HOTEL_SHOW_WELCOME_IFRAME_YN</code>)이 켜져 있으면 <code>TYPE_WELCOME</code> 다이얼로그(환영 화면)를 띄운 뒤 플래그를 끕니다. 호텔/키즈 여부(<code>SDP.isHotel</code>·<code>Config.isKids</code>)는 채널 노출·OSD·홍보 iframe 등 앱 전반의 동작에 영향을 줍니다.</p>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant ACT as PlaybackActivity
+    participant CFG as ctrl/Config
+    participant LM as LocaleManager (Android 13+)
+    participant DAPI as ott/DeviceAPI
+    participant DLG as comp/MiniEpgDialog
+
+    ACT-&gt;&gt;CFG: updateLang() → Config.locale()
+    CFG--&gt;&gt;ACT: 선택 Locale (en/ja/zh/ko)
+    alt 현재 로케일과 다름
+        ACT-&gt;&gt;ACT: Configuration.setLocale(locale)
+        ACT-&gt;&gt;LM: setApplicationLocales(toLanguageTag)
+        ACT-&gt;&gt;DAPI: setDeviceLocale(language)  (시스템 언어 동기화)
+    end
+    ACT-&gt;&gt;ACT: afterBooting()
+    alt 키즈 제한
+        ACT-&gt;&gt;DLG: new MiniEpgDialog(TYPE_KIDS_LOCK).show()
+    else 호텔 welcome iframe
+        ACT-&gt;&gt;DLG: new MiniEpgDialog(TYPE_WELCOME).show()
+        ACT-&gt;&gt;CFG: HOTEL_SHOW_WELCOME_IFRAME_YN = NO
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>updateLang()</code>이 앱·시스템 로케일을 동기화하고, <code>afterBooting()</code>이 키즈/호텔 welcome 등 운영 시나리오별 다이얼로그로 분기합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class PlaybackActivity {
+        -updateLang()
+        -afterBooting(boolean afterHotelWelcome)
+    }
+    class Config {
+        +locale() Locale
+        +String HOTEL_SHOW_WELCOME_IFRAME_YN
+        +boolean isKids
+    }
+    class LocaleManager {
+        +setApplicationLocales(LocaleList)
+    }
+    class DeviceAPI {
+        +setDeviceLocale(String language)
+    }
+    class MiniEpgDialog {
+        +int TYPE_WELCOME
+        +int TYPE_KIDS_LOCK
+    }
+    class SDP {
+        +boolean isHotel
+    }
+
+    PlaybackActivity --&gt; Config : locale / 호텔·키즈 플래그
+    PlaybackActivity --&gt; LocaleManager : 앱 로케일 적용
+    PlaybackActivity --&gt; DeviceAPI : 시스템 언어 동기화
+    PlaybackActivity ..&gt; MiniEpgDialog : welcome / kids 표시
+    PlaybackActivity ..&gt; SDP : isHotel
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>PlaybackActivity</code>가 <code>Config</code> 설정을 읽어 <code>LocaleManager</code>/<code>DeviceAPI</code>로 언어를 동기화하고, 호텔·키즈 시나리오는 <code>MiniEpgDialog</code>로 안내합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>PlaybackActivity.java</code> — updateLang: 앱·시스템 언어 동기화</div>
+<pre><code>private void updateLang() {
+    Locale locale = Config.locale();
+    Resources res = getResources();
+    Locale cur = res.getConfiguration().getLocales().get(0);
+    if (cur.equals(locale)) return;          // 변경 불필요
+
+    Configuration config = new Configuration(res.getConfiguration());
+    config.setLocale(locale);
+
+    LocaleManager localeManager = getSystemService(LocaleManager.class);
+    if (localeManager != null) {
+        localeManager.setApplicationLocales(LocaleList.forLanguageTags(locale.toLanguageTag()));
+    }
+    DeviceAPI.setDeviceLocale(locale.getLanguage());   // 시스템(단말) 언어까지 변경
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>PlaybackActivity.java</code> — afterBooting: 키즈/호텔 welcome 분기</div>
+<pre><code>Channels.checkKidsMode();
+if (Config.isKids &amp;&amp; Config.is(Config.KIDS_MODE_RESTRICTION_ON, Config.ON)) {
+    Config.isKidsLock = true;
+    new MiniEpgDialog(this, MiniEpgDialog.TYPE_KIDS_LOCK).show();
+} else if (Config.is(Config.HOTEL_SHOW_WELCOME_IFRAME_YN, Config.YES)) {
+    welcome = new MiniEpgDialog(this, MiniEpgDialog.TYPE_WELCOME);
+    welcome.show();
+    Config.set(Config.HOTEL_SHOW_WELCOME_IFRAME_YN, Config.NO);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/res/values-en/strings.xml" target="_blank" rel="noopener">res/values-en/strings.xml</a><span class="src">영어 문자열 리소스 (ja/zh도 동일 구조)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/PlaybackActivity.java" target="_blank" rel="noopener">PlaybackActivity.java</a><span class="src">updateLang(앱/시스템 언어 동기화) · afterBooting(호텔 welcome/키즈 분기)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/Config.java" target="_blank" rel="noopener">ctrl/Config.java</a><span class="src">locale() · HOTEL_SHOW_WELCOME_IFRAME_YN · isKids 설정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/comp/MiniEpgDialog.java" target="_blank" rel="noopener">comp/MiniEpgDialog.java</a><span class="src">TYPE_WELCOME / TYPE_KIDS_LOCK 다이얼로그</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f14.html">RCU·블루투스 연동</a>
+      <a href="index.html#features">주요 기능 목록 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>android14/marusys</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">ott-tvapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!doctype html>
+<!-- skb.cloud.home · 추천·날씨·쿠폰 캐싱 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>추천 · 날씨 · 쿠폰 캐싱 — skb.cloud.home 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Cloud Home</a><span class="sep">›</span>
+      <span class="here">추천 · 날씨 · 쿠폰 캐싱</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">STB 클라우드 UI · JavaScript</span>
+    </div>
+    <h1>추천 · 날씨 · 쿠폰 캐싱</h1>
+    <p class="one-liner">추천 시스템 연동(<code>RCMDManager</code>), 날씨 정보(<code>WeatherManager</code>), 쿠폰·포인트 캐싱(<code>CouponCacheManager</code>) 등 화면 공통으로 쓰이는 부가 데이터 서비스를 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb.cloud.home" target="_blank" rel="noopener"><code>skb.cloud.home</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>RCMDManager</code> · <code>WeatherManager</code> · <code>CouponCacheManager</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">홈/상세 공통 부가 데이터</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>세 부가 서비스가 여러 화면에서 공통으로 쓰입니다. <strong>추천</strong>은 <code>RCMDManager</code>가 VOD 상세 연관 추천(<code>getVodDetailRelatedContents</code>)을 SDP <code>/rcmd/so/recommend</code>에서 받고, 노출/클릭 통계는 <code>sendLog(loggingUrl, clickType, itemValue)</code>로 보냅니다. <strong>날씨</strong>는 <code>WeatherManager.getWeather</code>가 사용자 우편번호(<code>W.User.ZIP_CODE</code>, 없으면 기본 지역)로 날씨 API 를 호출해 지역·기온·미세먼지·생활지수를 받아 <code>W.WEATHER</code>에 보관하고, 같은 시(hour)에 다시 요청하면 캐시를 반환합니다.</p>
+    <p><strong>쿠폰·포인트 캐싱</strong>은 <code>CouponCacheManager</code>가 담당합니다. 캐시(<code>CASH</code>), 할인권(<code>DISCOUNT</code>), T포인트(<code>T_POINT</code>), TV포인트(<code>TV_POINT</code>), 타깃 쿠폰 등을 모델로 들고 12시간(<code>EXPIRE</code>) 동안 유지합니다. KDMC·SDP 두 서버 응답을 합쳐(<code>responseObj.KDMC`/`SDP</code>) 캐시를 만들며, 화면은 <code>requestCouponCache(listener)</code>로 캐시를 요청합니다. 통신 중이면 리스너만 추가하고, 강제 갱신은 <code>forceUpdate(listener)</code>로 캐시를 비우고 재연동합니다. 이 캐시는 VOD 구매 등에서 쿠폰·포인트 적용에 재사용됩니다.</p>
+    <div class="callout">
+      <div class="ct">캐시 만료·중복 요청 가드</div>
+      쿠폰 캐시는 12시간 만료와 "현재 서버 통신 중이면 새 요청을 만들지 않고 리스너만 등록" 가드를 둬 동일 데이터에 대한 중복 연동을 막습니다. 날씨도 시(hour) 단위 캐시로 호출 빈도를 줄입니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as 화면(홈/상세)
+    participant CCM as CouponCacheManager
+    participant SVR as KDMC / SDP 서버
+    participant WM as WeatherManager
+    participant WAPI as 날씨 API
+
+    UI-&gt;&gt;CCM: requestCouponCache(listener)
+    alt 통신 중 아님
+        CCM-&gt;&gt;SVR: 쿠폰/포인트 연동(KDMC + SDP)
+        SVR--&gt;&gt;CCM: 캐시/할인권/T·TV포인트
+        CCM--&gt;&gt;UI: listener(true, copyModel(cache))
+    else 통신 중
+        CCM-&gt;&gt;CCM: 리스너만 추가
+    end
+    UI-&gt;&gt;WM: getWeather(callback)
+    alt 같은 시(hour) 캐시 있음
+        WM--&gt;&gt;UI: W.WEATHER (캐시)
+    else
+        WM-&gt;&gt;WAPI: GET 날씨(zipCode)
+        WAPI--&gt;&gt;WM: 지역/기온/미세먼지
+        WM--&gt;&gt;UI: W.WEATHER
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 쿠폰 캐시는 통신 중복을 막으며 KDMC+SDP 응답을 합쳐 캐시를 제공하고, 날씨는 시 단위 캐시로 API 호출을 줄입니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class RCMDManager {
+        +getVodDetailRelatedContents(dp, titleid, ...)
+        +sendLog(loggingUrl, clickType, itemValue)
+    }
+    class WeatherManager {
+        +getWeather(callback)
+        +getWeatherDetail(callback)
+        +getWeaterIconName(icon, isBig)
+    }
+    class CouponCacheManager {
+        -couponModel
+        -responseObj
+        +requestCouponCache(listener)
+        +forceUpdate(listener)
+        +copyModel(cache)
+        +initCouponCache(cache)
+    }
+    class CouponManager {
+        +getTotalCpnMoney3(callback)
+    }
+    class UPMSManager {
+        +getBalance(paymentType, callback)
+    }
+
+    CouponCacheManager ..&gt; CouponManager : 쿠폰/포인트 연동
+    CouponCacheManager ..&gt; UPMSManager : 잔액 연동
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>CouponCacheManager</code>가 <code>CouponManager</code>·<code>UPMSManager</code> 응답을 합쳐 캐시를 제공하고, <code>RCMDManager</code>·<code>WeatherManager</code>는 각각 추천·날씨를 독립적으로 공급합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>common/CouponCacheManager.js</code> — 캐시 요청(중복 통신 가드)</div>
+<pre><code>requestCouponCache: function (listener) {
+    this.requestCouponCacheListener = (listener || null);
+    // 현재 서버 통신 중이면 처리 하지 않는다.
+    if (this.responseObj.KDMC.isRequest === false &amp;&amp;
+        this.responseObj.SDP.isRequest === false) {
+        this.doCheckUpdateAndFlush(this.couponCache);
+    } else {
+        this.W.Log.debug('[CouponCacheManager] Now connecting. So, added only listener');
+    }
+},
+// EXPIRE = 1000 * 60 * 60 * 12  // 캐시 12시간 유지</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>common/interface/WeatherManager.js</code> — 날씨 시(hour) 단위 캐시</div>
+<pre><code>function getWeather(callback) {
+    let zipCode = W.User.ZIP_CODE ? W.User.ZIP_CODE : W.Config.DEFAULT_REGION_CD;
+    if (W.WEATHER &amp;&amp; W.WEATHER.hour &amp;&amp; W.WEATHER.jisu) {
+        let hour = W._Util.getFormatDate(new Date(), "yyyyMMddHH");
+        if (W.WEATHER.hour != hour) {
+            request = d.ajax.call2(W, "get", true, W.HE.WEATHER_URL + zipCode + "/type/json", ...);
+        } else {
+            callback(W.WEATHER);   // 같은 시(hour) → 캐시 반환
+        }
+    } else {
+        request = d.ajax.call2(W, "get", true, W.HE.WEATHER_URL + zipCode + "/type/json", ...);
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/common/interface/RCMDManager.js" target="_blank" rel="noopener">common/interface/RCMDManager.js</a><span class="src">추천 연동(getVodDetailRelatedContents) · 통계 로깅(sendLog)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/common/interface/WeatherManager.js" target="_blank" rel="noopener">common/interface/WeatherManager.js</a><span class="src">날씨 조회·시 단위 캐시·아이콘 매핑</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/common/CouponCacheManager.js" target="_blank" rel="noopener">common/CouponCacheManager.js</a><span class="src">쿠폰/포인트 캐싱(requestCouponCache / forceUpdate · 12시간 만료)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/common/interface/CouponManager.js" target="_blank" rel="noopener">common/interface/CouponManager.js</a><span class="src">쿠폰/포인트 서버 연동(캐시 소스)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f13.html">이전: PIN · 시청제한</a>
+      <a href="index.html#features">다음 기능</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb.cloud.home 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,465 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tivibu 4K Android — 과제 설명</title>
+<style>
+:root{
+  --accent:#1f6feb;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">Android TV / Leanback (STB · Smart TV)</span>
+      <span class="badge gray">Kotlin</span>
+    </div>
+    <h1>Tivibu 4K Android — IPTV/OTT 런처 애플리케이션</h1>
+    <p class="one-liner">터키 통신사 Türk Telekom의 Tivibu 서비스를 위한 Android 기반 TV 클라이언트로, 4K STB와 Smart TV에서 라이브 TV·VOD·편성표·녹화(nPVR)·구매·설정을 제공하는 단일 코드베이스 런처 앱입니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tivibu_4k" target="_blank" rel="noopener"><code>tivibu_4k</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>sprint/LS0626_release</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-06-05 · c5e11edae fix to sending 604 (livetv)</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>tivibu.android.stb</code> 외 3종 / 4.26.0.x · 3.26.4.x</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>이 프로젝트는 터키 통신사 Türk Telekom의 IPTV/OTT 브랜드인 <strong>Tivibu</strong>를 위한 Android 기반 TV 클라이언트 애플리케이션입니다. 4K STB(셋톱박스)를 비롯한 TV 단말에서 실행되는 런처(launcher) 형태의 앱으로, 라이브 TV 시청, VOD 재생, 채널 편성표(TV Guide), 녹화(nPVR), 구매·결제, 설정 등 IPTV/OTT 서비스의 핵심 기능을 한 곳에서 제공합니다. Confluence 기준 사업 프로젝트 코드는 <code>C2001732 [BIZ] Turktelekom Android 4K Project</code>이며, 기존 Linux+Web 기반 Tivibu 서비스를 Android STB+Launcher 형태로 전환하는 과제입니다.</p>
+
+    <p>역할 분담은 UI/GUI는 TTG, STB 하드웨어와 백엔드는 ZTE, Android 미들웨어와 런처(앱)는 Altimedia가 담당합니다. 본 저장소는 그중 Altimedia가 개발하는 런처/애플리케이션 영역입니다.</p>
+
+    <p>하나의 코드베이스에서 Gradle product flavor로 4개의 단말/배포 형태를 분기하여 빌드합니다. <code>tivibuEv</code>(IPTV STB 런처, applicationId <code>tivibu.android.stb</code>, 기본 flavor), <code>tivibuGo</code>(OTT 런처, <code>tivibu.android.stb.ott</code>), <code>stvOtt</code>(Smart TV용 OTT 앱, <code>com.ttnet.tivibutv</code>, 이 flavor에만 staging 빌드 타입 활성), <code>zteAosp</code>(ZTE AOSP 단말용, <code>com.zte.aosp</code>)입니다.</p>
+
+    <div class="callout">
+      <div class="ct">대상 플랫폼과 입력 모델</div>
+      대상 플랫폼은 Android TV / Leanback 환경이며, 리모컨 키 입력 기반 포커스/클릭 처리를 전제로 설계되어 있습니다. 코딩 컨벤션상 클릭 리스너 대신 <code>onKeyDown</code>의 DCA key 및 <code>KEY_OK</code>를 사용해 동작을 추적하기 쉽게 만듭니다. <code>minSdk 23</code>, <code>targetSdk 35</code>, <code>compileSdk 35</code>이며, 매니페스트의 단일 진입 액티비티는 <code>singleInstance</code> 런치 모드로 동작합니다.
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">라이브 TV 시청</div><div class="d">채널 튜닝과 실시간 방송 재생을 담당합니다. OSD, 미니 가이드, 채널 리스트, 5채널 보기 등 라이브 시청 화면 요소를 호스팅합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">TV 가이드(편성표)</div><div class="d">홈 영역의 TV Guide에서 채널별 편성 정보를 탐색하고, 예약/리마인더와 연동된 시청 진입을 제공합니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">VOD 재생</div><div class="d">Media3/ExoPlayer 기반으로 VOD를 재생합니다. 플레이바, 해상도/자막/배속 선택, 썸네일 미리보기, 스타트오버 등을 지원합니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">녹화(nPVR)</div><div class="d">네트워크 녹화(nPVR) 도메인과 API를 통해 녹화 예약·재생 흐름을 제공합니다(<code>NPvrApi</code>, npvr repository).</div></a>
+      <a class="card" href="f05.html"><div class="t">구매·결제</div><div class="d">상품 구매, 쿠폰, OTT 상품, 프로모션 처리를 지원합니다. PIN 팝업과 구매 완료 로딩 팝업, 중복 요청 방지 로직이 포함됩니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">채널 필터·즐겨찾기·잠금</div><div class="d">채널 필터(필터 아이콘 red dot 표시), 즐겨찾기 채널, 채널 잠금(Channel Lock)을 설정 화면에서 관리합니다.</div></a>
+      <a class="card" href="f07.html"><div class="t">PIP · 모자이크</div><div class="d">라이브 화면 위에 PIP(Picture-in-Picture) 뷰와 모자이크(MosaicView) 채널 보기를 오버레이로 제공합니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">핑거프린트 오버레이</div><div class="d">콘텐츠 보호를 위한 핑거프린트(<code>FingerPrintView</code>, VMX CAS 연동 <code>VmxFingerPrintView</code>)를 라이브 재생 위에 표시합니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">검색</div><div class="d">콘텐츠 검색 도메인/API(<code>SearchApi</code>)를 제공하며, 검색 언어 처리 작업이 별도 스프린트 브랜치로 진행되었습니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">로그인·프로비저닝</div><div class="d">로그인 입력 화면과 프로비저닝(<code>ProvisionPopup</code>/<code>ProvisionErrorPopup</code>)을 통해 단말 등록·인증 흐름을 처리합니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">EAS · MES 알림</div><div class="d">긴급경보(EAS, <code>EasApi</code>)와 메시지 서비스(MES) 알림(<code>MesNotificationPopup</code>/<code>MesWebViewPopup</code>)을 처리합니다.</div></a>
+      <a class="card" href="f12.html"><div class="t">재생 품질 모니터링(Conviva)</div><div class="d">Conviva SDK로 재생 품질을 모니터링합니다. 최근 스프린트에서 Conviva 상태 기반 로그 전송 로직이 다수 반영되었습니다.</div></a>
+      <a class="card" href="f13.html"><div class="t">설정 · 프로필</div><div class="d">설정 화면과 프로필 도메인을 제공하며, OTA 업데이트 팝업·전역 에러 팝업·FailSafe 복구 팝업 등 시스템 운영 UI를 포함합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">멀티 단말 분기 빌드</div><div class="d">tivibuEv/tivibuGo/stvOtt/zteAosp 4개 flavor를 단일 코드베이스에서 분기 빌드하며, 플랫폼 종속 구현은 flavor별로 주입합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>멀티 모듈 구조이며, 의존성은 대체로 <code>app → domain → core</code> 방향으로 흐릅니다. 플랫폼 종속 구현(<code>player</code>, <code>si</code>, <code>dependency/platform</code>)은 인터페이스/추상화와 구현을 분리하여 flavor별로 주입합니다. Confluence 구조 문서 기준으로 data는 캐시·네트워크 통신, domain은 비즈니스 로직, si/player는 각 프로젝트가 구현해야 할 인터페이스 집합체(공통 모듈)와 그 구현체로 나뉩니다.</p>
+
+    <pre class="tree">tivibu_4k/
+├── app/                         # 애플리케이션 모듈 (엔트리포인트, UI 화면 전체)
+│   └── src/
+│       ├── main/                # 공통 소스 (Application, MainActivity, 모든 화면)
+│       ├── tivibuEv/            # Tivibu Ev (IPTV) flavor 전용 소스
+│       ├── tivibuGo/            # Tivibu Go (OTT) flavor 전용 소스
+│       ├── stvOtt/              # Smart TV OTT flavor 전용 소스
+│       └── zteAosp/             # ZTE AOSP flavor 전용 소스
+├── core/                        # 공통 유틸/Provider/DeviceInfo 등 최하위 공통 모듈
+│   ├── navigation/              # 화면 네비게이션
+│   ├── coodinator/              # 화면 간 코디네이터 (예: PlayCoordinator)  *원문 철자 그대로
+│   └── buildconfig/             # BuildConfig 래핑
+├── resource/                    # 문자열/레이아웃/drawable 등 리소스 모듈
+├── domain/                      # 도메인 모델, repository 인터페이스, usecase(약 25개)
+├── data/                        # repository 구현, Retrofit API, 로컬 데이터, Conviva 연동
+├── player/
+│   ├── core/exoplayer-default/  # ExoPlayer 기반 공통 플레이어 코어
+│   ├── impl-tt4k/               # TurkTelekom 4K 단말용 플레이어 구현 (app에 runtimeOnly 주입)
+│   └── impl-mock/               # 목(mock) 플레이어 구현 (개발/테스트용, 현재 app에서 주석)
+├── si/                          # SI(Service Information, 채널/편성 정보) 추상화
+│   ├── impl-tt4k/               # TurkTelekom 4K 단말용 SI 구현
+│   └── impl-mock/               # 목 SI 구현
+├── dependency/
+│   ├── feature/                 # 기능 단위 의존성 묶음
+│   └── platform/
+│       ├── tt4k/                # tivibuEv/tivibuGo flavor용 플랫폼 의존성 (AIDL, framework.jar 등)
+│       └── smarttv/             # stvOtt flavor용 플랫폼 의존성
+├── test/api-test/               # API 테스트 모듈 (debugImplementation으로 포함)
+├── build-logic/                 # convention plugin / flavor 정의 (composite build)
+├── libs/                        # 로컬 jar (androidsdk.jar, tt4k/framework.jar 등) + local-maven
+├── keystore/                    # 서명 키스토어
+├── auto-version-*.gradle        # flavor별(EV/GO/STV/AOSP) 버전명·버전코드 산출 스크립트
+├── version.properties           # 버전 산출 입력값 (스프린트 연/월, hotfix 옵션 등)
+├── gradle/libs.versions.toml    # 버전 카탈로그
+├── bitbucket-pipelines.yml      # CI 파이프라인
+└── pipeline-ftp-deploy.sh       # FTP 배포 스크립트</pre>
+
+    <p><code>app</code>의 UI 코드는 <code>com.altimedia.ui</code> 패키지 아래에 화면별로 분리되어 있습니다(<code>boot</code>, <code>home</code>, <code>livetv</code>, <code>play</code>, <code>popup</code>, <code>setting</code> 등). 앱 코어/초기화/플랫폼 추상화는 <code>com.altimedia.app</code> 패키지에, Application 클래스는 <code>com.tivibu.play</code> 패키지에 위치합니다.</p>
+
+    <h3>주요 모듈 · 컴포넌트</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>모듈/컴포넌트</th><th>패키지/경로</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td><code>TivibuApplication</code></td><td><code>com.tivibu.play</code></td><td><code>@HiltAndroidApp</code> 진입점. <code>LifecycleObserveApplication</code> 상속으로 액티비티 라이프사이클을 추적하고, RxJava 기반 <code>InitializerList</code>로 단계별 초기화를 수행하며 <code>AppStateManager</code>가 초기화 상태를 관리합니다. 1분 주기 메모리 로깅과 <code>onTrimMemory</code> 시 Coil 캐시 정리, 실패 시 <code>FailSafeInitializer</code> 폴백을 수행합니다.</td></tr>
+          <tr><td><code>MainActivity</code></td><td><code>com.altimedia.ui</code></td><td><code>singleInstance</code> 런치 모드의 단일 액티비티(SAA, Single-Activity Architecture). 스플래시, 레이어 관리(<code>LayerManager</code>/<code>LayerConfig</code>), 키 입력(<code>KeyManager</code>/<code>ATVKeyCode</code>), 라이브 TV 오버레이(핑거프린트·모자이크·PIP), 토스트 등을 호스팅하고 Fragment를 show/hide 방식으로 관리합니다.</td></tr>
+          <tr><td>초기화 시스템</td><td><code>com.altimedia.app.core.initializer</code></td><td><code>ApplicationInitializer</code> / <code>ActivityInitializer</code> 인터페이스 기반의 단계별 초기화 파이프라인입니다.</td></tr>
+          <tr><td>플레이어 추상화</td><td><code>player/</code></td><td><code>exoplayer-default</code> 코어 위에 <code>impl-tt4k</code>(실단말) / <code>impl-mock</code>(개발용) 구현을 두고, app은 <code>runtimeOnly(projects.player.implTt4k)</code>로 실구현을 주입합니다.</td></tr>
+          <tr><td>SI 추상화</td><td><code>si/</code></td><td>채널/편성 정보(Service Information)를 <code>impl-tt4k</code> / <code>impl-mock</code>으로 분리하고, app은 <code>runtimeOnly(projects.si.implTt4k)</code>로 주입합니다.</td></tr>
+          <tr><td>플랫폼 의존성</td><td><code>dependency/platform/</code></td><td><code>tt4k</code>(AIDL 사용, framework.jar/taurus stub은 compileOnly)는 EV/GO flavor에, <code>smarttv</code>는 stvOtt flavor에 flavor-specific으로 연결됩니다.</td></tr>
+          <tr><td>data 레이어</td><td><code>com.altimedia.data</code></td><td>repository 구현과 Retrofit API(<code>DataApi</code>, <code>UserApi</code>, <code>VodApi</code>, <code>NPvrApi</code>, <code>SearchApi</code>, <code>EasApi</code>, <code>FixedApi</code>), 로컬 메모리/preference 저장소, Conviva 연동을 담당합니다.</td></tr>
+          <tr><td>UI 화면 흐름</td><td><code>com.altimedia.ui</code></td><td><code>boot</code>(부팅) · <code>home</code>(홈/메뉴/서브) · <code>livetv</code>(미니가이드/OSD/모자이크/PIP/핑거프린트/5채널) · <code>play</code>(채널/VOD/플레이바/스타트오버) · <code>popup</code>(구매/쿠폰/OTT/MES/프로비전/에러) · <code>setting</code>(설정).</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>플랫폼 분리는 빌드 시 flavor에 따라 다른 구현 모듈을 주입하는 방식으로 처리합니다. EV/GO(IPTV·OTT 런처)는 <code>dependency/platform/tt4k</code>를, Smart TV OTT는 <code>dependency/platform/smarttv</code>를 연결하며, 외부 연동으로는 Türk Telekom 백엔드 API(Retrofit/OkHttp), Conviva(품질 모니터링), Firebase Analytics, Google IMA(광고), VMX CAS(핑거프린트)가 있습니다.</p>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>언어</td><td>Kotlin</td><td>1.9.24</td><td>Java 8 호환(<code>jvmTarget 1.8</code>)</td></tr>
+          <tr><td>빌드</td><td>Gradle Wrapper / AGP</td><td>8.10.2 / 8.4.0</td><td>Kotlin DSL + 일부 Groovy(<code>auto-version-*.gradle</code>)</td></tr>
+          <tr><td>빌드 로직</td><td>build-logic composite build</td><td>-</td><td><code>altimedia.applicationPlugin</code> 등 convention plugin, <code>PlatformFlavor</code> 정의</td></tr>
+          <tr><td>SDK</td><td>compile/target/min SDK</td><td>35 / 35 / 23</td><td>Android TV / Leanback</td></tr>
+          <tr><td>DI</td><td>Dagger Hilt</td><td>2.48</td><td><code>@HiltAndroidApp</code></td></tr>
+          <tr><td>애노테이션 처리</td><td>KSP</td><td>1.9.24-1.0.20</td><td>Hilt·Moshi codegen. databinding 미사용, ViewBinding 사용</td></tr>
+          <tr><td>비동기</td><td>Coroutines / RxJava3</td><td>1.7.1 / 3.0.6</td><td>RxAndroid·RxKotlin, coroutines-rx3 연동</td></tr>
+          <tr><td>미디어 재생</td><td>AndroidX Media3 / ExoPlayer</td><td>1.3.1</td><td>DASH/HLS/SmoothStreaming/RTSP, Google IMA 광고</td></tr>
+          <tr><td>네트워크/직렬화</td><td>Retrofit2 / OkHttp / Moshi / Jsoup</td><td>2.9.0 / 4.12.0 / 1.13.0 / 1.17.2</td><td>REST API 통신</td></tr>
+          <tr><td>이미지</td><td>Coil</td><td>2.0.0</td><td><code>ATVImageManager</code></td></tr>
+          <tr><td>분석/모니터링</td><td>Firebase Analytics / Conviva SDK</td><td>21.2.0 / core 4.x</td><td>재생 품질·이벤트 분석</td></tr>
+          <tr><td>사내 라이브러리</td><td>com.altimedia.tvlib</td><td>player 1.0.1 · si 1.0.3 · screenlayer 1.1.0-beta02 · widgets 1.0.5</td><td>maven(mvn.altimedia.com)/jitpack</td></tr>
+          <tr><td>기타</td><td>Joda-Time, Flexbox, ZXing(QR), dotLottie, GPUImage, BouncyCastle</td><td>-</td><td>로딩 애니메이션·QR·뷰 도구 등</td></tr>
+          <tr><td>CI/CD</td><td>Bitbucket Pipelines</td><td>-</td><td><code>alvrme/alpine-android:android-34-jdk17</code>, flavor별 assemble 후 FTP 배포</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout warn">
+      <div class="ct">보안 관련 비고</div>
+      <code>app/build.gradle.kts</code>에 서명 키스토어(<code>tivibu.keystore.jks</code>) 비밀번호가 평문으로 포함되어 있고, 매니페스트에 <code>usesCleartextTraffic="true"</code>가 설정되어 있습니다. 실제 자격 증명·보안 정책은 사내 기준을 따르세요.
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+
+    <h3>부팅 · 초기화 시퀀스</h3>
+    <ol class="steps">
+      <li><span class="st">Application 진입</span><span class="sd"><code>TivibuApplication</code>(@HiltAndroidApp)이 시작되어 Hilt DI 그래프를 구성하고 라이프사이클 관찰을 시작합니다.</span></li>
+      <li><span class="st">단계별 초기화 파이프라인 실행</span><span class="sd">RxJava 기반 <code>InitializerList</code>가 <code>ApplicationInitializer</code> → <code>ActivityInitializer</code> 순으로 초기화를 수행하고, <code>AppStateManager</code>가 <code>InitializeState</code>를 관리합니다.</span></li>
+      <li><span class="st">부팅 화면 표시</span><span class="sd"><code>BootScreen</code>/<code>BootViewModel</code>이 진행 카운트·다운로드 진행률·에러 코드를 관찰하며 스플래시·프로비저닝 진행을 표시합니다.</span></li>
+      <li><span class="st">프로비저닝 / 로그인</span><span class="sd">단말 등록·인증을 처리하고, 실패 시 <code>ProvisionErrorPopup</code> 또는 <code>FailSafeInitializer</code>/<code>FailSafeRecoveryPopup</code>으로 폴백 복구를 시도합니다.</span></li>
+      <li><span class="st">홈 진입</span><span class="sd">초기화가 완료되면 <code>MainActivity</code>가 홈(<code>HomeScreen</code>)을 띄워 메뉴·TV 가이드·라이브 TV 진입점을 제공합니다.</span></li>
+    </ol>
+
+    <h3>라이브 TV · 재생 흐름</h3>
+    <ol class="steps">
+      <li><span class="st">채널 선택 / 튜닝</span><span class="sd">리모컨 키 입력으로 채널을 선택하면 SI(<code>impl-tt4k</code>)가 채널/편성 정보를 제공하고 채널 튜닝을 시작합니다.</span></li>
+      <li><span class="st">플레이어 구동</span><span class="sd"><code>PlayOrchestrator</code>가 재생을 조율하고, <code>player/impl-tt4k</code>(ExoPlayer 코어 기반)가 스트림을 재생합니다.</span></li>
+      <li><span class="st">오버레이 표시</span><span class="sd">OSD·미니 가이드와 함께 콘텐츠 보호용 핑거프린트(VMX CAS 연동), 필요 시 PIP·모자이크 뷰를 라이브 화면 위에 오버레이합니다.</span></li>
+      <li><span class="st">품질 모니터링</span><span class="sd">Conviva SDK가 재생 세션 품질을 측정하고, Conviva 상태에 따라 로그를 전송합니다.</span></li>
+    </ol>
+
+    <h3>구매 · 결제 흐름</h3>
+    <ol class="steps">
+      <li><span class="st">상품 선택</span><span class="sd">VOD/OTT 상품 또는 쿠폰을 선택하면 구매 팝업(<code>popup/purchase</code>, <code>popup/ott</code>)이 열립니다.</span></li>
+      <li><span class="st">PIN 인증</span><span class="sd"><code>PasswordPopup</code>에서 PIN을 입력합니다. 직접 키코드 입력을 지원하고, 중복 API 요청을 방지합니다.</span></li>
+      <li><span class="st">구매 처리 · 완료</span><span class="sd">구매 API 호출 후 로딩 팝업을 거쳐 완료 처리하며, 프로모션 데이터 잔존 등 예외 상황을 보정합니다.</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p><code>namespace</code>는 <code>com.tivibu.play</code>이며, 빌드 시 반드시 product flavor(<code>TivibuEv</code>/<code>TivibuGo</code>/<code>StvOtt</code>/<code>ZteAosp</code>)와 빌드 타입(<code>Debug</code>/<code>Release</code>, stvOtt 한정 <code>StagingDebug</code>/<code>StagingRelease</code>)을 조합합니다.</p>
+
+    <pre><code># 클린
+./gradlew clean
+
+# flavor별 전체 빌드 (디버그 + 릴리스)
+./gradlew assembleTivibuEv      # Tivibu Ev (IPTV)
+./gradlew assembleTivibuGo      # Tivibu Go (OTT)
+./gradlew assembleStvOtt        # Smart TV OTT
+./gradlew assembleZteAosp       # ZTE AOSP
+
+# 특정 변형만 빌드
+./gradlew assembleTivibuEvDebug
+./gradlew assembleTivibuEvRelease
+
+# stvOtt 전용 staging 변형
+./gradlew assembleStvOttStagingRelease</code></pre>
+
+    <p>빌드 산출물(APK)은 <code>app/build/outputs/</code> 아래에 생성되며, 파일명은 <code>tt-play_&lt;versionName&gt;_&lt;yyyyMMdd&gt;_&lt;buildType&gt;.apk</code> 형식입니다(<code>app/build.gradle.kts</code>의 <code>outputFileName</code> 규칙).</p>
+
+    <p>버전명/버전코드는 <code>version.properties</code>와 <code>auto-version-*.gradle</code>에서 자동 산출됩니다. 버전명 규칙은 <code>a.b.c.d[.e]</code> 형태로, <code>a</code>=클라이언트 타입(IPTV=4, STV=3), <code>b</code>=연도 끝 2자리, <code>c</code>=서브타입(EV=0, GO=1), <code>d</code>=스프린트 월, <code>e</code>=hotfix 옵션입니다(예. IPTV 26년 빌드 <code>4.26.0.x</code>, Smart TV <code>3.26.x.x</code>).</p>
+
+    <p>릴리스 빌드는 ProGuard/R8 minify + resource shrink가 적용되며(<code>proguard-rules.pro</code>, <code>proguard-retrofit.pro</code>, <code>proguard-okhttp3.pro</code>, <code>proguard-conviva.pro</code>), <code>keystore/tivibu.keystore.jks</code>로 서명됩니다. 로컬 빌드에는 Android SDK와 <code>local.properties</code>(SDK 경로) 설정이 필요합니다.</p>
+
+    <div class="callout">
+      <div class="ct">CI 파이프라인</div>
+      Bitbucket Pipelines는 <code>alvrme/alpine-android:android-34-jdk17</code> 이미지에서 <code>./gradlew clean</code> 후 flavor별 <code>assembleTivibuEv</code>·<code>assembleTivibuGo</code>·<code>assembleStvOtt</code>·<code>assembleZteAosp</code>를 순차 실행(OOM 방지)하고, 산출 APK를 <code>Tivibu_EV</code>/<code>Tivibu_GO</code>/<code>SmartTV_OTT</code> 등 flavor별 폴더로 분류해 FTP(<code>atlassian/ftp-deploy</code> 파이프)로 배포합니다.
+    </div>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>최근 작업은 <code>sprint/LS0626_release</code> 릴리스 라인을 중심으로, 라이브 TV(에러 코드 604 처리, 채널 디밍, 채널 필터 red dot), 구매/OTT(프로모션 데이터·중복 요청·PIN 입력), 로그인 입력, 그리고 Conviva 재생 품질 로그 전송 정비에 집중되어 있습니다. 함께 flavor별 버전 갱신(IPTV <code>4.26.0.x</code>, Smart TV <code>3.26.4.x</code>)이 반복되었습니다.</p>
+    <ul class="commits">
+      <li><span class="date">2026-06-05</span><span class="msg">[livetv][VLTRANLAND-1876][TA4P-828] fix to sending 604 was not working</span></li>
+      <li><span class="date">2026-06-01</span><span class="msg">[purchase][VLTRANLAND-1846][TA4P-820] fix problem of promotion data remaining</span></li>
+      <li><span class="date">2026-05-29</span><span class="msg">[app] update version to 4.26.0.4.4 (3.26.4.4)</span></li>
+      <li><span class="date">2026-05-26</span><span class="msg">Merge branch 'sprint/LS0426/conviva' into sprint/LS0426_release</span></li>
+      <li><span class="date">2026-05-26</span><span class="msg">[conviva] remove testonly gateway url</span></li>
+      <li><span class="date">2026-05-26</span><span class="msg">[play][VLTRANLAND-1851][TA4P-817] fix problem where channel dims when tuning to channel 555 on MyTV</span></li>
+      <li><span class="date">2026-05-26</span><span class="msg">[login][MGZS-731][TA4P-816] fix left arrow key not deleting text in input field</span></li>
+      <li><span class="date">2026-05-20</span><span class="msg">[app] update version to 4.26.0.4.3</span></li>
+      <li><span class="date">2026-05-20</span><span class="msg">[conviva] update to get conviva customer key</span></li>
+      <li><span class="date">2026-05-15</span><span class="msg">[conviva] check conviva state to send logs</span></li>
+      <li><span class="date">2026-05-15</span><span class="msg">[app] update version to 4.26.0.4.2</span></li>
+      <li><span class="date">2026-05-15</span><span class="msg">[setting][VLTRANLAND-1836][TA4P-812] fix focus is lost on setting screen(Favorite Channels and Channel Lock)</span></li>
+      <li><span class="date">2026-05-15</span><span class="msg">[livetv] show red dot on filter icon independent of filter list open/closed state</span></li>
+      <li><span class="date">2026-05-14</span><span class="msg">[play/pltv] fix seek issue</span></li>
+      <li><span class="date">2026-05-14</span><span class="msg">[smarttv] update version to 3.26.4.2</span></li>
+      <li><span class="date">2026-05-14</span><span class="msg">[ott/purchase] prevent issues where duplicate API requests are possible</span></li>
+      <li><span class="date">2026-05-14</span><span class="msg">[ott/purchase] update loading pop-up on complete SmartTV purchasing</span></li>
+      <li><span class="date">2026-05-14</span><span class="msg">[ott/purchase] add direct key code input to PIN pop-up</span></li>
+      <li><span class="date">2026-05-13</span><span class="msg">[login] enhancements for TA4P-809</span></li>
+    </ul>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li><code>/Users/lim/Altimedia/workspace_biz_3rd/tivibu_4k/README_CLAUDE.md</code><span class="src">저장소 README (과제 개요 1차 근거)</span></li>
+      <li><code>/Users/lim/Altimedia/workspace_biz_3rd/tivibu_4k/README.md</code><span class="src">저장소 README (커밋·코딩 컨벤션)</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3798664088">Android 4K STB</a><span class="src">Confluence · ORGAPPDEV (프로젝트 루트)</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3798664118">01. 개요</a><span class="src">Confluence · ORGAPPDEV (사업 개요·역할 분담·구성원)</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3815607044">04-02. 프로젝트 구조에 대해</a><span class="src">Confluence · ORGAPPDEV (모듈·아키텍처 레이어링)</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3814001416">04. 개발 방법 &amp; 환경</a><span class="src">Confluence · ORGAPPDEV (개발 환경·TTG 스펙 참조)</span></li>
+      <li><code>app/build.gradle.kts</code>, <code>settings.gradle.kts</code>, <code>gradle/libs.versions.toml</code>, <code>version.properties</code>, <code>bitbucket-pipelines.yml</code><span class="src">소스 · 빌드/버전/CI 검증 근거</span></li>
+      <li><code>build-logic/.../com/altimedia/buildlogic/Flavor.kt</code><span class="src">소스 · product flavor 및 applicationId 정의</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>sprint/LS0626_release</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

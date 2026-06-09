@@ -1,0 +1,187 @@
+<!doctype html>
+<!-- kt_aaos_inside · 표준 STT 서비스 경로 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>표준 STT 서비스 경로 — kt_aaos_inside 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT AAOS Demokit P1 음성인식 앱</a><span class="sep">›</span>
+      <span class="here">표준 STT 서비스 경로</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive OS · Java</span>
+    </div>
+    <h1>표준 STT 서비스 경로</h1>
+    <p class="one-liner"><code>feature/support_stt</code>에서 추가된 받아쓰기 경로입니다. 외부 앱이 <code>START_STT</code>/<code>STOP_STT</code> 액션과 <code>targetAppId</code>로 받아쓰기를 요청하면, 인식 결과(<code>RECOGNITION_RESULT</code>)나 오류(<code>RECOGNITION_ERROR</code>/<code>UNAVAILABLE</code>)를 브로드캐스트로 돌려줍니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_aaos_inside" target="_blank" rel="noopener"><code>kt_aaos_inside</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feature/support_stt</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>GVoiceAppManager</code> · <code>InsideVoiceManager</code></div></div>
+      <div class="item"><div class="k">요청 액션</div><div class="v"><code>com.kt.avis.action.START_STT</code> / <code>STOP_STT</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>이 경로는 음성비서 자체 명령 처리와 별개로, 외부 앱이 단순 받아쓰기(STT) 결과만 받고 싶을 때 사용합니다. <code>GVoiceAppManager</code>가 <code>ACTION_PLAY_STT</code>(<code>com.kt.avis.action.START_STT</code>)·<code>ACTION_STOP_STT</code> 브로드캐스트를 수신해 <code>handleSttRequest()</code>에서 <code>targetAppId</code>를 꺼냅니다. 요청자 ID는 <code>currentCallerAppId</code>로 저장됩니다.</p>
+    <p>START 요청은 <code>InsideVoiceManager.startSTT(target)</code>를 호출해 상태를 <code>REQ_STT</code>로 전환하고 오디오 포커스를 확보한 뒤 <code>STT_GAIN_AUDIO_FOCUS</code> 상태에서 <code>voiceToTextStart()</code>(<code>agent_startVoiceToText</code>)로 받아쓰기 전용 인식을 시작합니다. SDK가 <code>ACTION_TYPE_START_VOICE</code>를 통보하면 <code>startSpeechToText()</code>가 요청자에게 <code>START_RECOGNITION</code> 신호를 보내고, <code>ACTION_TYPE_STOP_VOICE</code>로 인식 결과(<code>uword</code>)가 오면 <code>stopSpeechToText(uword)</code>가 <code>RECOGNITION_RESULT</code>를 JSON으로 담아 대상 앱에만 브로드캐스트합니다. 오류·서비스 불가 시 각각 <code>RECOGNITION_ERROR</code>·<code>RECOGNITION_UNAVAILABLE</code>로 응답합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      모든 응답 브로드캐스트는 <code>intent.setPackage(targetAppId)</code>로 요청한 앱에만 전송됩니다. 일반 음성 명령 흐름과 STT 흐름은 <code>voiceState</code>(<code>REQ_STT</code> / <code>STT_GAIN_AUDIO_FOCUS</code>) 분기로 구분되어, 같은 인식 파이프라인을 공유하면서도 결과 라우팅만 달라집니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant EXT as 외부 앱
+    participant AM as GVoiceAppManager
+    participant IVM as InsideVoiceManager
+    participant SDK as Inside SDK
+
+    EXT-&gt;&gt;AM: broadcast START_STT (targetAppId)
+    AM-&gt;&gt;AM: setCurrentCallerAppId(target)
+    AM-&gt;&gt;IVM: startSTT(target)
+    IVM-&gt;&gt;IVM: voiceState = REQ_STT → 오디오 포커스
+    IVM-&gt;&gt;SDK: agent_startVoiceToText()
+    SDK--&gt;&gt;IVM: agent_onCommand(START_VOICE)
+    IVM-&gt;&gt;AM: startSpeechToText()
+    AM-&gt;&gt;EXT: broadcast START_RECOGNITION
+    SDK--&gt;&gt;IVM: agent_onCommand(STOP_VOICE, uword)
+    IVM-&gt;&gt;AM: stopSpeechToText(uword)
+    AM-&gt;&gt;EXT: broadcast RECOGNITION_RESULT (stt json)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 외부 앱 요청 → STT 인식 시작 → 인식 시작 신호 → 결과(<code>uword</code>) 수신 → 대상 앱에만 <code>RECOGNITION_RESULT</code> 응답. STOP_STT 또는 오류 시 정리·오류 응답으로 분기합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class GVoiceAppManager {
+        -String currentCallerAppId
+        -handleSttRequest(intent)
+        +startSpeechToText()
+        +stopSpeechToText(msg)
+        +sendError()
+        +sendUnavailable()
+        -sendRecognitionResultResponse(target, text)
+    }
+    class InsideVoiceManager {
+        -InsideVoiceState voiceState
+        +startSTT(target)
+        +stopSTT()
+        -voiceToTextStart()
+        +agent_onCommand(actionType, json)
+    }
+    class InsideVoiceState {
+        &lt;&lt;enumeration&gt;&gt;
+        READY
+        REQ_STT
+        STT_GAIN_AUDIO_FOCUS
+    }
+    class AppConstants {
+        +ACTION_PLAY_STT
+        +ACTION_STOP_STT
+        +QUERY_KEY_APP_ID
+        +TYPE_KEY_RECOGNITION_RESULT
+        +TYPE_KEY_RECOGNITION_ERROR
+        +TYPE_KEY_RECOGNITION_UNAVAILABLE
+    }
+
+    GVoiceAppManager --&gt; InsideVoiceManager : startSTT / stopSTT
+    InsideVoiceManager ..&gt; InsideVoiceState : 상태 분기
+    GVoiceAppManager ..&gt; AppConstants : 액션·응답 타입
+    InsideVoiceManager --&gt; GVoiceAppManager : 결과 콜백(start/stop SpeechToText)
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>GVoiceAppManager</code>가 외부 요청 수신·응답 라우팅을, <code>InsideVoiceManager</code>가 STT 상태 전환·인식을 담당하며 양방향 호출로 협력합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>dialogkit/app/GVoiceAppManager.java</code> — STT 요청 수신·분기</div>
+<pre><code>String target = data.getQueryParameter(AppConstants.QUERY_KEY_APP_ID);  // targetAppId
+switch (intent.getAction()) {
+    case AppConstants.ACTION_PLAY_STT:                  // START_STT
+        setCurrentCallerAppId(target);
+        InsideVoiceManager.getInstance().startSTT(target);
+        break;
+    case AppConstants.ACTION_STOP_STT:                  // STOP_STT
+        setCurrentCallerAppId(null);
+        InsideVoiceManager.getInstance().stopSTT();
+        break;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>dialogkit/app/GVoiceAppManager.java</code> — 인식 결과를 대상 앱에만 응답</div>
+<pre><code>JSONObject root = new JSONObject(), sttObject = new JSONObject();
+sttObject.put("target", targetAppId);
+sttObject.put("message", recognizedText);
+root.put("stt", sttObject);
+Intent intent = new Intent(VoiceConstants.ACTION_FROM_VOICE);
+intent.putExtra("type", AppConstants.TYPE_KEY_RECOGNITION_RESULT);   // RECOGNITION_RESULT
+intent.putExtra("data", root.toString());
+intent.setPackage(targetAppId);                                       // 요청 앱에만
+mContext.sendBroadcast(intent);</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/dialogkit/app/GVoiceAppManager.java" target="_blank" rel="noopener">dialogkit/app/GVoiceAppManager.java</a><span class="src">START_STT/STOP_STT 수신·startSpeechToText/stopSpeechToText·결과/오류/불가 응답</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/inside/InsideVoiceManager.java" target="_blank" rel="noopener">inside/InsideVoiceManager.java</a><span class="src">startSTT/stopSTT·REQ_STT 상태·voiceToTextStart(agent_startVoiceToText)·STOP_VOICE 결과 라우팅</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/dialogkit/app/AppConstants.java" target="_blank" rel="noopener">dialogkit/app/AppConstants.java</a><span class="src">STT 액션·targetAppId 키·RECOGNITION_RESULT/ERROR/UNAVAILABLE 타입 상수</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f08.html">TTS·사운드 안내</a>
+      <a href="f10.html">RecognitionService 등록 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feature/support_stt</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_aaos_inside 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

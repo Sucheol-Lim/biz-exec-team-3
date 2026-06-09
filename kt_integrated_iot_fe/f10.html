@@ -1,0 +1,185 @@
+<!doctype html>
+<!-- kt_integrated_iot_fe · 게시판·자료실·문의 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>게시판·자료실·문의 — kt_integrated_iot_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT 통합 IoT 관제 FE</a><span class="sep">›</span>
+      <span class="here">게시판·자료실·문의</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관제 콘솔 (React SPA)</span>
+    </div>
+    <h1>게시판·자료실·문의</h1>
+    <p class="one-liner">공지사항(notice), 자료실(resource), 문의(contact-us)를 목록·상세·편집 단위로 제공합니다. 자료실 첨부는 허용 확장자·용량 검증이 반영되어 있습니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/notice · resource · contactUs</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">boardApi · CustomFile 확장자 검증</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>세 게시판 도메인은 동일한 목록/상세/편집 패턴으로 구성됩니다. 공지(<code>/notice</code> → <code>NoticeList/Detail/Edit</code>), 자료실(<code>/resource</code> → <code>ResourceList/Detail/Edit</code>), 문의(<code>/contact-us</code> → <code>ContactUsList/Detail/Edit</code> + <code>Reply</code>)입니다. 데이터는 <code>boardApi</code>의 공통 게시판 엔드포인트(<code>/bff/monitor/boards/*</code>)와 도메인별 엔드포인트(<code>boards/notice</code>, <code>boards/resources</code>)를 사용합니다.</p>
+    <p>첨부 파일은 <code>boardApi.uploadFile()</code>/<code>fileList()</code>/<code>downloadFile()</code>/<code>deleteFile()</code>로 관리합니다. 업로드 UI는 공통 컴포넌트 <code>CustomFile</code>이 담당하는데, <code>accept</code>에 지정된 확장자 목록과 실제 파일 확장자를 대조해 허용되지 않으면 입력을 비우고 선택을 취소합니다. 용량은 <code>limitSize</code>를 초과하면 경고 모달(<code>Alarm</code>)을 띄웁니다.</p>
+    <p>최근 KT 보안성 검증 반영으로 자료실에서 허용하지 않는 확장자 업로드 시 노출되던 alert 문구가 제거되는 등 첨부 처리 정책이 강화되었습니다. 문의(Q&amp;A)는 운영자가 답변(<code>Reply</code>)을 등록하는 흐름을 포함합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      확장자 검증을 업로드 공통 컴포넌트(<code>CustomFile</code>)에 두어 자료실·문의·기타 첨부가 동일한 보안 정책을 공유합니다. 검증 실패 시 입력 <code>value</code>를 비워 잘못된 파일이 폼에 남지 않게 합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant List as ResourceList / NoticeList
+    participant Edit as ResourceEdit
+    participant CF as CustomFile
+    participant API as boardApi
+    participant BFF as BFF /bff/monitor/boards
+
+    List-&gt;&gt;API: list(params)
+    API-&gt;&gt;BFF: GET boards / boards/resources
+    BFF--&gt;&gt;List: 게시글 목록
+    List-&gt;&gt;Edit: 편집 진입
+    Edit-&gt;&gt;CF: 파일 선택
+    CF-&gt;&gt;CF: accept 확장자 검사 + limitSize 검사
+    alt 허용 안 됨
+        CF--&gt;&gt;Edit: 선택 취소(value 비움)
+    else 허용
+        Edit-&gt;&gt;API: uploadFile(file) + 본문 저장
+        API-&gt;&gt;BFF: POST boards/resources
+        BFF--&gt;&gt;Edit: 저장 결과
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 목록·편집 화면이 게시판 API로 글을 관리하고, 첨부는 <code>CustomFile</code>이 확장자·용량을 먼저 검증한 뒤 업로드합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class BoardPage {
+        +List
+        +Detail
+        +Edit
+    }
+    class boardApi {
+        +list(params)
+        +detail(seq)
+        +noticeDetail(seq)
+        +resourceDetail(seq)
+        +delete(seq)
+        +uploadFile(params)
+        +downloadFile(seq)
+        +deleteFile(fileId)
+    }
+    class CustomFile {
+        -accept
+        -limitSize
+        +handleFileChange(e)
+    }
+    class Alarm {
+        +용량 초과 경고
+    }
+
+    BoardPage ..&gt; boardApi : 게시글/첨부 CRUD
+    BoardPage o-- CustomFile : 첨부 입력
+    CustomFile ..&gt; Alarm : 용량 초과 시
+      </div>
+      <p class="cap"><strong>관계.</strong> 게시판 화면이 <code>boardApi</code>로 글·첨부를 관리하고, 첨부 입력은 <code>CustomFile</code>이 확장자/용량을 검증합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/components/search/CustomFile.tsx</code> — 허용 확장자 검증</div>
+<pre><code>const handleFileChange = (e: React.ChangeEvent&lt;HTMLInputElement&gt;) =&gt; {
+  const file = e.target.files?.[0] ?? null;
+  if (!file) { setValue(null); return; }
+
+  if (accept) {
+    const allowedExt = accept.split(',').map((v) =&gt; v.trim().replace('.', '').toLowerCase());
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!ext || !allowedExt.includes(ext)) {
+      e.target.value = '';      // 허용되지 않은 확장자 → 선택 취소
+      setValue(null);
+      return;
+    }
+  }
+  if (limitSize &amp;&amp; file.size &gt; limitSize) { setOpen(true); /* 용량 초과 경고 */ return; }
+  // ...
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/api/board.ts</code> — 게시판/첨부 엔드포인트</div>
+<pre><code>noticeDetail: (boardSequence) =&gt; apiClient.get(`/bff/monitor/boards/notice/${boardSequence}`).then((r) =&gt; r.data),
+resourceDetail: (boardSequence) =&gt; apiClient.get(`/bff/monitor/boards/resources/${boardSequence}`).then((r) =&gt; r.data),
+delete: (boardSequence) =&gt; apiClient.delete(`/bff/monitor/boards/${boardSequence}`).then((r) =&gt; r.data),
+downloadFile: (fileItemSequence, config) =&gt; apiClient.get(`/bff/monitor/files/download/${fileItemSequence}`, { /* ... */ }),</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/board.ts" target="_blank" rel="noopener">src/api/board.ts</a><span class="src">공지/자료실/문의 게시판 · 첨부 업로드·다운로드 API</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/search/CustomFile.tsx" target="_blank" rel="noopener">src/components/search/CustomFile.tsx</a><span class="src">첨부 확장자·용량 검증 공통 컴포넌트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/ResourceEdit.tsx" target="_blank" rel="noopener">src/pages/resource/ResourceEdit.tsx</a><span class="src">자료실 편집 · CustomFile 적용</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/contactUs/Reply.tsx" target="_blank" rel="noopener">src/pages/contactUs/Reply.tsx</a><span class="src">문의 답변 등록</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">notice / resource / contact-us 라우트</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f09.html">AI 에이전트 대화</a>
+      <a href="f11.html">권한 기반 사이트 전환 제어 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_integrated_iot_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

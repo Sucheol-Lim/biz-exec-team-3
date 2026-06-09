@@ -1,0 +1,425 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SKB(TBroad) Local App OCAP Cloud Adaptor — 과제 설명</title>
+<style>
+:root{
+  --accent:#ff6a00;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">OCAP STB · Local App(MA) ↔ Cloud App 어댑터</span>
+      <span class="badge gray">Java(레거시) / JavaScript</span>
+    </div>
+    <h1>SKB(TBroad) Local App OCAP Cloud Adaptor</h1>
+    <p class="one-liner">TBroad/SKB OCAP 셋톱박스의 Local App(Monitor App)과 Cloud App 사이를 ROP(Remote Object Protocol)로 잇는 IDL 기반 어댑터 인터페이스·산출물·구현 모음입니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor" target="_blank" rel="noopener"><code>skb_cloud_local_ocap_adaptor</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2021-06-01 · 71283a6 [tbroad_adaptor]nolog로 수정</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v">- / Cloud Adaptor "1.0"</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>이 저장소는 TBroad(SKB) <strong>OCAP(OpenCable Application Platform)</strong> 셋톱박스의 <strong>Local App(Monitor App, MA)</strong> 환경에서 동작하는 <strong>Cloud Adaptor(Clad)</strong> 의 인터페이스 정의(IDL)와 그 산출물(Java 스켈레톤/스텁, JS 코덱), 그리고 일부 구현체(impl)를 담고 있습니다. 클라우드 측 애플리케이션(예: 클라우드 기반 UI/EPG)과 셋톱박스의 Local Native(OCAP/Java) 환경이 서로 원격 객체를 주고받을 수 있도록 양쪽의 직렬화 규약과 서비스 인터페이스를 맞춰 주는 어댑터 계층입니다.</p>
+    <p>통신은 Alticast의 <strong>ROP(Remote Object Protocol)</strong> 위에서 이뤄집니다. 각 인터페이스는 64bit 태그(예: <code>0xd855fbc474dc6a53</code>)로, 메서드는 32bit 해시(예: <code>0xb2815b12</code>)로 식별되며, Skeleton(서버측 디스패처)과 Stub(클라이언트측 프록시)이 이 식별자로 호출을 주고받습니다. 모든 인터페이스·구조체의 단일 원본(single source of truth)은 <code>alticast_cloud_adaptor.idl</code> 한 파일이며, Java <code>*Skel</code>·<code>stub/S*</code> 와 JS <code>cloud_adaptor.js</code> 코덱이 이 IDL로부터 생성됩니다.</p>
+    <p>대상 기능은 채널 선택/예약/즐겨찾기 등 TV 제어, SI(채널 리스트) 조회, 미디어/VOD(UMP) 재생, 핀·시청등급·BT RCU·브라우저 실행 등 환경 설정, 메인/위젯 윈도우 표시 제어와 앱 간 메인 윈도우 소유권 전환, 그리고 앱 단위 세션 데이터 관리입니다. 런타임은 구형 STB에 맞춘 <strong>Java(레거시, 제네릭 미사용)</strong> 와, 브라우저/클라우드 측의 <strong>JavaScript</strong> 두 갈래로 구성됩니다.</p>
+    <div class="callout">
+      <div class="ct">저장소의 위치 설정</div>
+      이 저장소는 독립 실행/빌드되는 애플리케이션이 아니라 상위 플랫폼 빌드에 포함되는 <strong>소스 컴포넌트</strong>입니다. 저장소 내부에 <code>build.gradle</code>·<code>pom.xml</code>·<code>Makefile</code>·<code>package.json</code> 등 빌드 스크립트가 없으며, 외부 ROP 런타임(<code>com.alticast.rop.*</code>)과 IO 패키지(<code>com.alticast.io.*</code>)에 의존합니다(해당 라이브러리는 본 저장소에 미포함).
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">서비스 매니저 진입점</div><div class="d"><code>CladServiceManager</code> 가 어댑터 버전(<code>getCloudAdaptorVersion()</code> = "1.0") 제공, 앱별 컨텍스트 생성·캐싱(<code>createCladContext(applicationId)</code>), 메인 윈도우 소유자 조회를 담당합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">앱 단위 컨텍스트</div><div class="d"><code>CladContext</code> 가 TV/SI/Media/Config 하위 서비스를 lazy 생성해 반환하고, 윈도우·세션 데이터·콜백 핸들러 등록을 앱 단위로 관리합니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">윈도우 표시·소유권 제어</div><div class="d"><code>showWindow()/hideWindow()</code> 로 메인/위젯 윈도우를 제어하며, 메인 윈도우 소유권이 다른 앱으로 넘어가면 <code>AppManager</code> 가 기존 소유 앱에 <code>onHidden</code>, 나머지 앱에 <code>onMainWindowShown/Hidden</code> 을 통지합니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">세션 데이터 관리</div><div class="d">앱ID→Map 구조의 세션 저장소를 통해 <code>setSessionData/addSessionData/getSessionData/getSessionDataAll</code> 로 키-값을 보관·조회합니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">TV 채널 제어</div><div class="d"><code>selectChannel*</code>(sourceId/chId), 현재/이전/LCW 채널 조회, 채널 리스트 조회(타입별·캠페인 제외 등), <code>getDefaultChannel/setDefaultChannel</code>, <code>exitToService</code>, <code>reboot</code> 등 TV 동작을 정의합니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">예약·녹화 및 즐겨찾기</div><div class="d"><code>reserve/forceReserve/cancelReserve/isReserved</code>, <code>findDuplicatedReserve</code>, <code>getReservedPrograms</code> 와 즐겨찾기 추가/삭제(<code>addFavorite/removeFavorite</code>, 결과 상수 FAVORIT_*)를 제공합니다.</div></a>
+      <a class="card" href="f07.html"><div class="t">비디오 리사이즈(DFC) · PIP</div><div class="d"><code>resizeVideo</code>/<code>resizeVideoByRatio</code> 로 픽셀·비율 기반 비디오 크기 조정, <code>getCurrentVideoSize</code>, <code>selectPIPChannel</code>, <code>selectLCWFullSize</code> 를 지원합니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">권한·서비스 컨텍스트 콜백</div><div class="d"><code>ChannelEventListener</code> 로 채널 권한(PERM_OK/USER_SKIPPED/PARENTAL_RATING_BLOCKED/CA_BLOCKED/ADULT_BLOCKED/WRONG_PIN)을, <code>ServiceContextListener</code> 로 서비스 컨텍스트 이벤트(Presentation/Alternative/Normal/Terminated 등)를 콜백합니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">SI 채널 리스트 조회</div><div class="d"><code>CladSIService.getChannelList(ringName)</code> 로 SURFABLE/SURFABLE_AV/SURFABLE_AUDIO/FAVORITE/BLOCKED/SKIPPED 등 채널 링을 조회합니다. <code>CladChannelList</code> 구조체로 ccidList·name·부가정보를 반환합니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">미디어 재생 제어</div><div class="d"><code>playStart/pause/resume</code>, 트레일러 재생, 다양한 정지(<code>playStop/playStopWithoutTune/playStopWithChChange/playStopWithReservedCh</code>), <code>stopAndPlay</code>, <code>setMediaConfig</code> 를 정의합니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">UMP 기반 VOD 재생</div><div class="d"><code>UmpMediaPlayerService</code> 가 <code>setDataSourceUmp0~3</code>, <code>demandVODRequestID</code>, VOD 이벤트/상태/결과 상수(VODEVENT_*/UMP_STATUS_*/VODRESULT_*), <code>getUMPStatus/getUMPVersion</code>, ECM 그룹·미디어 비율 등 VOD 세션 전반을 다룹니다.</div></a>
+      <a class="card" href="f12.html"><div class="t">환경 설정 · 핀 관리</div><div class="d"><code>CladConfigService</code> 가 안전/TV/서비스 설정·시스템 정보 조회, 클라우드 핀 모드·시청 등급, 재인증(<code>requestReAuth</code>), <code>managePin</code>, 사용자 설정 get/set과 변경 리스너를 제공합니다.</div></a>
+      <a class="card" href="f13.html"><div class="t">BT RCU · 외부 앱 실행</div><div class="d">BT RCU 페어링/연결 기기 관리(<code>setBTRCUMode</code>/<code>setBTDeviceRegistMode</code> 등), 브라우저·스마트앱·ICS 실행(<code>startBrowser/startSmartApp/startICS</code>), 자가진단 팝업, 등록 해제를 지원합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">사업자 전용 확장(TBroad)</div><div class="d"><code>OcapCladTVService</code>(OCAP 확장)와 <code>TbroadCladTVService</code>(<code>getChannelHistory()</code> 추가)·<code>TbroadChannelEventListener</code>(ADULT_BLOCKED/WRONG_PIN 추가), <code>OcapCladSIService.getVodTsId(forceScan)</code> 로 사업자 환경을 확장합니다.</div></a>
+      <a class="card" href="f15.html"><div class="t">JS ↔ Java 코덱 일치</div><div class="d"><code>js/cloud_adaptor.js</code> 가 동일 인터페이스/구조체를 Java 측과 같은 64bit 태그·32bit 메서드 해시로 등록해, 브라우저/클라우드 런타임과 STB Java 런타임이 ROP로 정확히 매칭되도록 합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>전체 흐름은 <strong>"Cloud App ↔ ROP ↔ Local Adaptor(이 저장소) ↔ STB 플랫폼"</strong> 입니다. IDL 한 파일에서 Java Skeleton/Stub과 JS 코덱이 생성되며, 양쪽이 동일한 태그·해시를 공유해 원격 객체를 주고받습니다.</p>
+    <pre class="tree">skb_cloud_local_ocap_adaptor/
+├── alticast_cloud_adaptor.idl          # 모든 인터페이스/구조체의 원본 IDL 정의
+├── js/
+│   └── cloud_adaptor.js                # JS측 ROP 코덱/타입 등록 (acba 모듈, js:rop 의존)
+└── java/com/alticast/
+    ├── clad/                           # IDL 생성 인터페이스 + Skeleton(서버측 디스패처)
+    │   ├── CladServiceManager(.java/Skel)   # 진입점: 버전, Context 생성, 앱/윈도우 관리
+    │   ├── CladContext(.java/Skel)          # 앱 컨텍스트: 서비스 획득, 윈도우, 세션 데이터
+    │   ├── CloudApp.java / CloudAppCodec.java # CloudApp 구조체 + 직렬화 코덱
+    │   ├── AppHandler / WindowMonitor       # Cloud→Local 콜백 인터페이스
+    │   ├── tv/                              # CladTVService, ChannelEventListener, ServiceContextListener
+    │   │   └── ocap/ (+ tbroad/)            # OcapCladTVService, TbroadCladTVService 등 확장
+    │   ├── si/                              # CladSIService, CladChannelList(+ Codec)
+    │   │   └── ocap/                        # OcapCladSIService (getVodTsId 등)
+    │   ├── media/                           # CladMediaPlayerService, MediaEventListener
+    │   │   └── ump/                         # UmpMediaPlayerService (VOD/UMP 재생, 이벤트 상수)
+    │   └── config/                          # CladConfigService, UserConfigListener
+    ├── cladimpl/                       # 인터페이스의 실제 구현체(Local 측)
+    │   ├── CladServiceManagerImpl.java      # AppManager 초기화, Context 생성/캐싱
+    │   ├── CladContextImpl.java             # 서비스 lazy 생성, 윈도우/세션/콜백 위임
+    │   ├── tv/ si/ media/ config/           # 각 서비스 구현(대부분 골격/스텁 상태)
+    │   └── manager/                         # AppManager(싱글톤), CladWindow
+    │       └── util/                        # CladLog, CladConfig, CladUtils
+    └── stub/                            # IDL 생성 Stub(클라이언트측 원격 프록시)
+        └── S&lt;태그&gt;.java                     # 인터페이스 64bit 태그명으로 명명된 스텁 (19개)</pre>
+
+    <h3>주요 모듈 · 클래스</h3>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>구분</th><th>모듈 / 클래스</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td>진입점</td><td><code>CladServiceManager(Impl)</code></td><td>어댑터 버전 제공, <code>createCladContext</code> 로 앱별 컨텍스트 생성·캐싱, <code>AppManager</code> 싱글톤 초기화, 메인 윈도우 소유자 조회.</td></tr>
+        <tr><td>앱 컨텍스트</td><td><code>CladContext(Impl)</code></td><td>TV/SI/Media/Config 서비스 lazy 생성, 메인/위젯 윈도우 show/hide, 세션 데이터, AppHandler/WindowMonitor 콜백 위임.</td></tr>
+        <tr><td>매니저</td><td><code>AppManager</code> (manager)</td><td>싱글톤. 컨텍스트 맵, 메인 윈도우 소유권 전환과 통지, 세션 데이터 저장소(앱ID→Map), 채널 이벤트 브로드캐스트(<code>notifyChannelEvent</code>).</td></tr>
+        <tr><td>TV</td><td><code>CladTVService</code> + <code>OcapCladTVService</code> / <code>TbroadCladTVService</code></td><td>채널 선택/조회/리스트, 예약·즐겨찾기, 비디오 리사이즈, PIP/LCW, CA 구매, reboot. TBroad 확장은 <code>getChannelHistory()</code> 추가.</td></tr>
+        <tr><td>SI</td><td><code>CladSIService</code> + <code>OcapCladSIService</code></td><td>채널 링(SURFABLE/FAVORITE/BLOCKED 등) 조회(<code>getChannelList</code>), OCAP 확장은 <code>getVodTsId(forceScan)</code>.</td></tr>
+        <tr><td>Media</td><td><code>CladMediaPlayerService</code> + <code>UmpMediaPlayerService</code></td><td>재생 제어·정지·stopAndPlay, UMP 기반 VOD 데이터소스 설정·요청 ID·이벤트/결과 상수.</td></tr>
+        <tr><td>Config</td><td><code>CladConfigService</code></td><td>안전/TV/서비스 설정·시스템 정보, 핀 모드·시청 등급·재인증, BT RCU, 브라우저/스마트앱/ICS 실행, <code>managePin</code>, 사용자 설정.</td></tr>
+        <tr><td>콜백(Cloud→Local)</td><td><code>AppHandler</code> / <code>WindowMonitor</code> / <code>*Listener</code></td><td><code>onMessage/onHidden/onStopped</code>, <code>onMainWindowShown/Hidden</code>, 채널·서비스 컨텍스트·사용자 설정·UMP 이벤트 콜백.</td></tr>
+        <tr><td>구조체 / 코덱</td><td><code>CloudApp(Codec)</code> / <code>CladChannelList(Codec)</code></td><td>Cloud 앱 메타·채널 리스트 직렬화 구조체와 ROP 직렬화 코덱.</td></tr>
+        <tr><td>JS 코덱</td><td><code>js/cloud_adaptor.js</code></td><td><code>acba.define("js:cloud_adaptor", ["js:rop"], ...)</code> 로 모든 타입을 Java와 동일 태그·해시로 <code>r.addTypes(...)</code> 등록.</td></tr>
+        <tr><td>유틸</td><td><code>CladLog</code> / <code>CladConfig</code> / <code>CladUtils</code></td><td>로깅(<code>CladLog.INCLUDE = false</code> 로 비활성), 로그 방향 상수, 문자열 유틸.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>계층 · 외부 연동 관계</h3>
+    <p><strong>인터페이스 계약(clad/*)</strong> 은 IDL이 정의한 서비스 계약이며, 같은 위치의 <code>*Skel</code> 은 들어온 ROP 호출을 메서드 해시로 분기해 <code>cladimpl/*</code> 구현체로 위임하는 서버측 디스패처입니다. 반대편(Cloud)에서 이 객체를 원격 호출할 때 쓰는 클라이언트측 프록시는 <code>stub/S&lt;64bit 태그&gt;.java</code> 형태로 인터페이스 태그와 1:1 대응합니다(예: <code>Sd855fbc474dc6a53</code> = <code>CladServiceManager</code>).</p>
+    <p><strong>구현체(cladimpl/*)</strong> 중 윈도우 소유권·세션 데이터·채널 이벤트 전파 같은 매니징은 <code>AppManager</code> 에 모여 있고, 컨텍스트는 서비스 인스턴스를 lazy 생성합니다. 단, 개별 TV/SI/Media/Config 구현(<code>*ServiceImpl</code>)은 대부분 기본값을 반환하는 골격 상태이며, 실제 플랫폼 연동 코드는 이 저장소 범위 밖으로 추정됩니다. 외부 의존성으로는 <code>com.alticast.rop.*</code>(Skeleton/Stub/Codec/Exportable/RemoteCall) 와 <code>com.alticast.io.Buffer</code> 가 필요하며 본 저장소에는 포함되지 않습니다(import 기준). JS 측 코덱 등록 흐름의 상대편은 사내 클라우드 서비스 서버이며, 그 운영(Docker/Grafana/app.log)은 Confluence "클라우드 시스템 분석" 문서에 정리되어 있습니다.</p>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>인터페이스 정의</td><td>Alticast Clad IDL (<code>alticast_cloud_adaptor.idl</code>)</td><td>-</td><td><code>struct</code>/<code>interface</code>/<code>async</code>/<code>Nullable</code>/<code>List</code>/<code>Map</code>/<code>extends</code> 지원. Java·JS 산출물의 단일 원본.</td></tr>
+        <tr><td>Local 런타임</td><td>Java (레거시, 제네릭 미사용)</td><td>-</td><td>raw <code>List</code>/<code>Map</code> 사용. 구형 STB JVM 대상(추정). Java 소스 72개.</td></tr>
+        <tr><td>Cloud/브라우저 런타임</td><td>JavaScript</td><td>-</td><td><code>acba</code> 모듈 로더 + <code>js:rop</code> 모듈 의존. 코덱 등록 스크립트 1개(<code>cloud_adaptor.js</code>, 44줄).</td></tr>
+        <tr><td>통신 규약</td><td>ROP (Remote Object Protocol)</td><td>-</td><td>인터페이스 64bit 태그 + 메서드 32bit 해시 기반 디스패치. Skeleton/Stub 쌍으로 동작.</td></tr>
+        <tr><td>외부 라이브러리</td><td><code>com.alticast.rop.*</code>, <code>com.alticast.io.*</code></td><td>-</td><td>Skeleton/Stub/Codec/Exportable/RemoteCall/New, Buffer 등. 본 저장소 미포함(클래스패스 제공 필요).</td></tr>
+        <tr><td>대상 플랫폼</td><td>OCAP (OpenCable Application Platform)</td><td>-</td><td>TBroad/SKB 사업자 STB. <code>clad.*.ocap</code>·<code>clad.*.ocap.tbroad</code> 패키지가 OCAP/TBroad 전용 확장.</td></tr>
+        <tr><td>VOD</td><td>UMP (Unicast Media Player)</td><td>-</td><td><code>UmpMediaPlayerService</code> 로 VOD 세션/데이터소스/이벤트 처리.</td></tr>
+        <tr><td>빌드 시스템</td><td>없음 (소스 컴포넌트)</td><td>-</td><td>저장소에 build.gradle/pom.xml/Makefile/package.json 부재. 상위 플랫폼 빌드에 포함.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+
+    <h3>1. 어댑터 초기화 · 앱 컨텍스트 획득</h3>
+    <ol class="steps">
+      <li><span class="st">CladServiceManager 생성</span><span class="sd"><code>CladServiceManagerImpl</code> 생성자가 <code>createAppManager()</code> 를 호출해 <code>AppManager</code> 싱글톤을 <code>init("com.alticast.cladimpl.manager.AppManager")</code> 로 초기화합니다.</span></li>
+      <li><span class="st">버전 확인</span><span class="sd">Cloud App 이 <code>getCloudAdaptorVersion()</code> 을 호출하면 어댑터가 <code>"1.0"</code> 을 반환해 호환성을 확인합니다.</span></li>
+      <li><span class="st">컨텍스트 생성·캐싱</span><span class="sd"><code>createCladContext(applicationId)</code> 가 <code>AppManager</code> 의 컨텍스트 맵을 조회해 없으면 <code>CladContextImpl</code> 을 새로 만들어 <code>addCladContext</code> 로 캐싱하고 반환합니다.</span></li>
+      <li><span class="st">서비스 lazy 획득</span><span class="sd">앱이 <code>getTVService()/getSIService()/getMediaPlayerService()/getConfigService()</code> 를 호출하면 컨텍스트가 해당 <code>*ServiceImpl</code> 을 최초 호출 시점에 생성해 재사용합니다.</span></li>
+      <li><span class="st">콜백 등록</span><span class="sd"><code>setAppHandler()/setWindowMonitor()</code> 로 Cloud→Local 콜백을 등록해 메시지·윈도우 통지를 수신할 준비를 합니다.</span></li>
+    </ol>
+
+    <h3>2. 메인 윈도우 소유권 전환</h3>
+    <ol class="steps">
+      <li><span class="st">메인 윈도우 표시 요청</span><span class="sd">앱이 <code>CladContextImpl.showWindow(windowId, MAIN_WINDOW)</code> 를 호출하면 컨텍스트가 <code>CladWindow</code> 를 만들고 <code>AppManager.showWindow(windowId, mode, appId)</code> 로 위임합니다.</span></li>
+      <li><span class="st">기존 소유자 통지</span><span class="sd"><code>AppManager</code> 가 현재 메인 윈도우 소유자가 다른 앱이면 그 컨텍스트에 <code>onHidden()</code> 을 보내 화면 양보를 알립니다.</span></li>
+      <li><span class="st">소유권 갱신</span><span class="sd"><code>mainWindowOwner</code> 와 <code>mainWindowId</code> 를 새 앱으로 갱신합니다.</span></li>
+      <li><span class="st">나머지 앱 브로드캐스트</span><span class="sd"><code>notifyMainWindowOwnerChanged()</code> 가 소유자를 제외한 모든 컨텍스트에 <code>onMainWindowShown(appId)</code> 를 통지합니다. <code>hideWindow</code> 시 소유권이 비면 <code>onMainWindowHidden()</code> 을 통지합니다.</span></li>
+    </ol>
+
+    <h3>3. UMP 기반 VOD 재생</h3>
+    <ol class="steps">
+      <li><span class="st">VOD 요청 ID 확보</span><span class="sd"><code>UmpMediaPlayerService.demandVODRequestID(assetId, categoryId)</code> 로 요청 ID를 받고 필요 시 <code>setVodRequestID</code>/<code>setApplicationName</code>/<code>setECMGroup</code> 등을 설정합니다.</span></li>
+      <li><span class="st">데이터소스 설정</span><span class="sd"><code>setDataSourceUmp0~3</code> 으로 파일명·TS 리스트(또는 nodeGroupId)·offset·requestId(·우선순위 기준)를 지정하면 결과 코드(VODRESULT_*)를 반환합니다.</span></li>
+      <li><span class="st">재생 시작</span><span class="sd"><code>playStart()</code>(또는 트레일러용 <code>playStartVodTrailer/playStartTrailer</code>) 로 재생을 시작합니다.</span></li>
+      <li><span class="st">이벤트 수신</span><span class="sd"><code>UmpEventListener.onEvent(vodEvent)</code> 로 광고 시작/종료, 파일 시작/끝, NEED_TUNE, 세션 에러/정상 등 VODEVENT_* 이벤트를 수신합니다. 상태는 <code>getUMPStatus()</code>(INIT/PLAYING/READY)로 확인합니다.</span></li>
+      <li><span class="st">정지</span><span class="sd"><code>playStop</code> 계열 또는 <code>stopAndPlay</code> 로 재생을 종료하거나 다음 콘텐츠로 전환합니다.</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>이 저장소는 독립 빌드되는 애플리케이션이 아니라 상위 플랫폼 빌드에 포함되는 <strong>소스 컴포넌트</strong>입니다. 저장소 내에 빌드 스크립트가 없으므로 사실에 근거한 구성 정보만 안내합니다.</p>
+    <pre><code># Java 소스 루트
+java/
+  com.alticast.clad.*       # IDL 생성 인터페이스 + Skeleton
+  com.alticast.cladimpl.*   # Local 구현체 + AppManager
+  com.alticast.stub.*       # IDL 생성 Stub (S&lt;태그&gt;.java)
+
+# 컴파일 시 클래스패스에 필요한 외부 의존성(본 저장소 미포함)
+com.alticast.rop.*   # Skeleton, Stub, Codec, Exportable, RemoteCall, New
+com.alticast.io.*    # Buffer
+
+# JS 측 (acba 모듈 로더 + js:rop 런타임에서 로드)
+js/cloud_adaptor.js  # acba.define("js:cloud_adaptor", ["js:rop"], ...)</code></pre>
+    <div class="callout warn">
+      <div class="ct">IDL 변경 시 재생성 필요(추정)</div>
+      <code>alticast_cloud_adaptor.idl</code> 을 수정하면 Java <code>*Skel</code>·<code>stub/S*</code> 와 <code>js/cloud_adaptor.js</code> 를 IDL 컴파일러로 다시 생성해야 양쪽의 인터페이스 태그·메서드 해시가 일치합니다. IDL 컴파일러 자체는 본 저장소에 포함되어 있지 않습니다.
+    </div>
+    <p><strong>산출물 형태</strong> 는 컴파일된 별도 바이너리가 아니라, 상위 플랫폼/애플리케이션 빌드에 함께 컴파일되는 Java 소스 패키지와 JS 코덱 스크립트입니다. 로깅은 <code>CladLog.INCLUDE = false</code> 로 비활성화되어 있으며, 이는 최근 커밋 "nolog로 수정" 과 일치합니다.</p>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>전체 이력은 9개 커밋으로 짧습니다. 초기 커밋은 SVN(<code>svn://10.255.0.109/tbroad_local/cloud_adaptor_tbroad/trunk</code>)에서 마이그레이션되었으며(<code>git-svn-id</code> 흔적), 이후 <code>[tbroad_adaptor]</code>·<code>[tbroad_local]</code> 태그로 인터페이스 추가, 핀코드 관리(<code>managePin</code>), TV/미디어 API 확장(<code>stopAVForVOD</code>, <code>selectPIPChannel</code>, <code>selectLCWFullSize</code>, <code>stopAndPlay</code>) 작업이 이어졌고, 마지막으로 로깅을 끄는 정리(nolog)로 마무리되었습니다.</p>
+    <ul class="commits">
+      <li><span class="date">2021-06-01</span><span class="msg">71283a6 [tbroad_adaptor]nolog로 수정.</span></li>
+      <li><span class="date">2019-02-27</span><span class="msg">d319626 [tbroad_adaptor] api 추가 — stopAVForVOD(), selectPIPChannel(x,y,w,h), selectLCWFullSize(), stopAndPlay(value).</span></li>
+      <li><span class="date">2018-12-11</span><span class="msg">7128512 [tbroad_local]인터페이스 추가.</span></li>
+      <li><span class="date">2018-11-29</span><span class="msg">0787dd0 [tbroad_adaptor]managePin 추가.</span></li>
+      <li><span class="date">2018-11-29</span><span class="msg">202b902 [tbroad_adaptor]managePin 추가.</span></li>
+      <li><span class="date">2018-11-29</span><span class="msg">91b7721 to manage pincode</span></li>
+      <li><span class="date">2018-11-05</span><span class="msg">d3818d3 [tbroad_local]인터페이스 추가.</span></li>
+      <li><span class="date">2018-10-29</span><span class="msg">f82a9c1 [tbroad_adaptor]initial on svn.</span></li>
+      <li><span class="date">2018-10-29</span><span class="msg">53b3086 git-svn-id: svn://10.255.0.109/tbroad_local/cloud_adaptor_tbroad/trunk@19894 (SVN 마이그레이션 시작점)</span></li>
+    </ul>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li><code>skb_cloud_local_ocap_adaptor/README.md</code><span class="src">저장소 README (과제 개요 1차 근거)</span></li>
+      <li><code>skb_cloud_local_ocap_adaptor/alticast_cloud_adaptor.idl</code><span class="src">소스 — 모든 인터페이스/구조체의 원본 IDL 정의</span></li>
+      <li><code>java/com/alticast/cladimpl/manager/AppManager.java</code> · <code>cladimpl/CladContextImpl.java</code> · <code>cladimpl/CladServiceManagerImpl.java</code><span class="src">소스 — Local 측 핵심 구현체</span></li>
+      <li><code>js/cloud_adaptor.js</code><span class="src">소스 — JS측 ROP 코덱/타입 등록(태그·해시 검증 근거)</span></li>
+      <li><code>git@bitbucket.org:altimedia/skb_cloud_local_ocap_adaptor.git</code> (branch <code>master</code>)<span class="src">형상 — 원격 저장소</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/2870054741">Confluence — 클라우드 시스템 분석</a><span class="src">Confluence (ORGAPPDEV, pageId 2870054741) — 상대편 클라우드 서비스 서버 운영(Docker/Grafana/app.log) 참고</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/2861945155">Confluence — KOR_SKB</a><span class="src">Confluence (ORGAPPDEV, pageId 2861945155) — 본문 비어 있음(내용 없음)</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

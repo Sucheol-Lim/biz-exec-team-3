@@ -1,0 +1,190 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_poster · 이미지 확장(Outpainting) 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>이미지 확장 (Outpainting) — kt_magic_platform_ai_poster 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 포스터 (지니 포스터 편집툴)</a><span class="sep">›</span>
+      <span class="here">이미지 확장 (Outpainting)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">PC 웹 (Vue 3 SPA) · 비동기 Job</span>
+    </div>
+    <h1>이미지 확장 (Outpainting)</h1>
+    <p class="one-liner">원본 또는 텍스트 제거 이미지를 선택한 배너 규격으로 AI 확장합니다. 각 배너의 가로·세로 해상도와 원본 배치 위치(상/하/좌/우/중앙)를 지정해 한 번에 여러 규격을 일괄 생성하고, <code>jobId</code>를 받아 결과 화면으로 넘어갑니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster" target="_blank" rel="noopener"><code>kt_magic_platform_ai_poster</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 함수</div><div class="v"><code>requestImageExtension()</code> · <code>postImageExpansion</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">편집 2단계 · 토큰 차감 작업(EXPAND 80)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>이미지 확장은 편집의 두 번째 단계로, 한 장의 포스터를 여러 배너 규격으로 늘려 만드는 아웃페인팅 작업입니다. 사용자가 <code>RightPanel.vue</code>에서 템플릿(Set-F/S/H 또는 직접 설정)을 고르고, <code>ImageExtensionPopup.vue</code>에서 각 배너의 원본 배치 위치(Left/Right/Middle/Top/Bottom)를 지정해 확정하면 <code>EditArea.handleImageExtensionConfirm()</code>이 호출됩니다.</p>
+    <p>실제 요청 본문 구성은 <code>apiUtils.js</code>의 <code>requestImageExtension()</code>이 담당합니다. 현재 이미지 URL(<code>currentImageUrlForApi</code>, 텍스트 제거가 있으면 그 결과)과 함께, 선택한 템플릿의 <code>contents</code>를 순회하며 <code>{ name, width, height, alignment }</code> 항목 배열과 템플릿 식별용 <code>type</code>을 만들어 <code>POST /projects/{projectId}/image-expansions</code>(<code>postImageExpansion</code>)로 전송합니다. 서버는 <code>jobId</code>를 반환하고, <code>EditArea</code>는 <code>image-extension-result</code> 이벤트로 이를 부모에 넘겨 결과 화면(<code>ResultArea</code>)으로 전환합니다.</p>
+    <div class="callout">
+      <div class="ct">입력 이미지 선택</div>
+      확장의 입력은 <code>currentImageUrlForApi</code>입니다. 텍스트 제거 결과(<code>textRemovedImageUrl</code>)가 있으면 그것을, 없으면 원본(<code>imageUrl</code> 또는 <code>originalImageUrl</code>)을 사용합니다. 즉 텍스트를 먼저 지우고 확장하는 워크플로를 그대로 따릅니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor U as 사용자
+    participant RP as RightPanel.vue
+    participant POP as ImageExtensionPopup.vue
+    participant EA as EditArea.vue
+    participant AU as apiUtils.requestImageExtension
+    participant API as api.poster
+    participant PE as PosterEdit.vue
+
+    U-&gt;&gt;RP: 템플릿 선택 후 "이미지 확장"
+    RP-&gt;&gt;EA: open-image-extension-popup(templateId)
+    EA-&gt;&gt;POP: 팝업 표시 (template, imageUrl)
+    U-&gt;&gt;POP: 배너별 원본 위치 지정 → 확인
+    POP-&gt;&gt;EA: confirm({ template, originPositions })
+    EA-&gt;&gt;AU: requestImageExtension(api, projectId, imageUrl, data)
+    AU-&gt;&gt;API: postImageExpansion(projectId, imageUrl + items배열 + type)
+    API--&gt;&gt;AU: { jobId }
+    AU--&gt;&gt;EA: { jobId }
+    EA-&gt;&gt;PE: emit image-extension-result({ jobId })
+    PE-&gt;&gt;PE: showResultArea = true (ResultArea로 전환)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 팝업에서 받은 템플릿·위치를 <code>requestImageExtension</code>이 <code>items</code> 배열로 변환해 한 번에 보내고, <code>jobId</code>를 받아 결과 화면으로 넘어갑니다. 결과 폴링은 ResultArea가 이어받습니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class EditArea {
+        -selectedTemplateId
+        -currentImageUrlForApi
+        +handleOpenImageExtensionPopup(id)
+        +handleImageExtensionConfirm(data)
+    }
+    class ImageExtensionPopup {
+        -selectedOriginPositions
+        +handleConfirm()
+    }
+    class apiUtils {
+        +requestImageExtension(api, projectId, imageUrl, data)
+    }
+    class PosterApi {
+        +postImageExpansion(projectId, data)
+    }
+    class ExtensionRequest {
+        +imageUrl
+        +items
+        +type
+    }
+
+    EditArea o-- ImageExtensionPopup : 팝업 표시
+    EditArea ..&gt; apiUtils : requestImageExtension
+    apiUtils ..&gt; ExtensionRequest : payload 구성
+    apiUtils ..&gt; PosterApi : postImageExpansion
+      </div>
+      <p class="cap"><strong>관계.</strong> 팝업이 사용자 선택을 모으고, <code>requestImageExtension</code>이 이를 <code>{ imageUrl, items, type }</code> 페이로드로 변환해 <code>postImageExpansion</code>을 호출합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/assets/js/utils/apiUtils.js</code> — requestImageExtension(): payload 구성</div>
+<pre><code>export async function requestImageExtension(api, projectId, currentImageUrl, extensionData) {
+    const { template, originPositions } = extensionData
+
+    const requestData = {
+        imageUrl: currentImageUrl,
+        items: template.contents.map(content =&gt; ({
+            name: content.typeTitle,
+            width: content.resolution.width,
+            height: content.resolution.height,
+            alignment: originPositions[content.id]    // 배너별 원본 배치 위치
+        })),
+        type: template.name
+    }
+
+    const response = await api.poster.postImageExpansion(projectId, requestData)
+    if (response.data) return response.data            // { jobId, ... }
+    throw new Error('Image extension request failed')
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/components/EditArea.vue</code> — 확정 후 결과 화면으로 전환</div>
+<pre><code>async function handleImageExtensionConfirm(extensionData) {
+    showImageExtensionPopup.value = false
+
+    const result = await requestImageExtension(
+        api, props.projectId, currentImageUrlForApi.value, extensionData
+    )
+    props.projectDetail.type = extensionData.template.name;
+
+    emit('image-extension-result', { jobId: result.jobId })   // ResultArea로 이동
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/assets/js/utils/apiUtils.js" target="_blank" rel="noopener">posteredit/assets/js/utils/apiUtils.js</a><span class="src">requestImageExtension — imageUrl + items[name,width,height,alignment] + type 구성</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/EditArea.vue" target="_blank" rel="noopener">posteredit/components/EditArea.vue</a><span class="src">handleImageExtensionConfirm · currentImageUrlForApi(텍스트 제거 결과 우선)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/popups/ImageExtensionPopup.vue" target="_blank" rel="noopener">posteredit/components/popups/ImageExtensionPopup.vue</a><span class="src">배너별 원본 위치 선택 UI · handleConfirm({template, originPositions})</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/api/poster.js" target="_blank" rel="noopener">user/src/api/poster.js</a><span class="src">postImageExpansion(projectId, data) — image-expansions 엔드포인트</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f03.html">← 마스크 기반 부분 제거</a>
+      <a href="f05.html">배너 템플릿 세트 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_poster 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

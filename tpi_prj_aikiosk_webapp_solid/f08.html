@@ -1,0 +1,192 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp_solid · 키오스크 주문 플로우 기능 상세 — HashRouter 라우트 + 화면 흐름 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>키오스크 주문 플로우 — tpi_prj_aikiosk_webapp_solid 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp (SolidJS)</a><span class="sep">›</span>
+      <span class="here">키오스크 주문 플로우</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹앱 · Android WebView 키오스크 (Galaxy Tab S8)</span>
+    </div>
+    <h1>키오스크 주문 플로우</h1>
+    <p class="one-liner">Home → Menu → Cart → Pay → InsertCard → Receipt → Complete로 이어지는 결제·영수증·완료 화면 흐름을 <code>HashRouter</code> 라우트로 구성합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp_solid</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>App.jsx</code> · <code>PurchaseLayout.jsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">HashRouter 화면 라우팅</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>키오스크 화면 전환은 <code>@solidjs/router</code>의 <code>HashRouter</code>로 구성됩니다. <code>App.jsx</code>가 최상위에서 라우트를 정의하며, 루트(<code>/</code>)는 Home, <code>/menu</code>는 메뉴 화면입니다. 결제 단계는 <code>/purchase</code> 아래 중첩 라우트로 묶여, <code>PurchaseLayout</code>이 공통 헤더와 팝업 영역을 감싸고 그 안에 <code>/cart</code>·<code>/pay</code>·<code>/insert-card</code>·<code>/receipt</code>·<code>/complete</code> 자식 라우트가 차례로 배치됩니다.</p>
+    <p>전체 주문 흐름은 Home(대기/시작) → Menu(메뉴·옵션 선택) → Cart(장바구니) → Pay(결제) → InsertCard(카드 삽입) → Receipt(영수증) → Complete(완료) 순서입니다. <code>PurchaseLayout</code>은 결제 단계들의 공통 레이아웃으로, 상단에 <code>Header</code>(진행 단계 표시 <code>currProcess</code>)를 두고 자식 화면을 <code>purchaseMain</code> 영역에 렌더하며, 전역 팝업 컴포넌트(<code>Popup</code>)를 함께 마운트합니다. 화면 전환은 각 페이지가 라우터 내비게이션을 호출해 일어나며, 음성 주문 영역(<code>VoiceArea</code>)은 현재 경로(<code>location.pathname</code>)에 따라 위치·버튼 구성을 다르게 합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      <code>HashRouter</code>를 쓰는 이유는 <code>file://</code> 단독 실행 호환성과 맞닿아 있습니다. 해시 기반 라우팅은 서버 측 경로 처리 없이 정적 파일만으로 동작하므로, 별도 웹 서버 없이 단말에 패키징해 띄우는 키오스크 운용에 적합합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant R as HashRouter
+    participant PL as PurchaseLayout
+    participant P as 결제 페이지들
+
+    U->>R: 시작 (/ Home)
+    U->>R: 메뉴 진입 (/menu)
+    U->>R: 장바구니 (/purchase/cart)
+    R->>PL: PurchaseLayout 마운트 (Header + Popup)
+    PL->>P: CartPage 렌더
+    U->>R: 결제 (/purchase/pay)
+    PL->>P: PayPage
+    U->>R: 카드 삽입 (/purchase/insert-card)
+    PL->>P: InsertCardPage
+    U->>R: 영수증 (/purchase/receipt)
+    PL->>P: ReceiptPage
+    U->>R: 완료 (/purchase/complete)
+    PL->>P: CompletePage
+      </div>
+      <p class="cap"><strong>흐름.</strong> 루트/메뉴를 거쳐 <code>/purchase</code> 중첩 라우트로 진입하면 <code>PurchaseLayout</code>이 공통 헤더·팝업을 감싸고 각 결제 단계 페이지를 순서대로 렌더합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class App {
+        +onMount() 매니저/스토어 초기화
+    }
+    class HashRouter
+    class PurchaseLayout {
+        +children
+    }
+    class HomePage
+    class MenuPage
+    class CartPage
+    class PayPage
+    class InsertCardPage
+    class ReceiptPage
+    class CompletePage
+
+    App --> HashRouter : 라우트 정의
+    HashRouter --> HomePage : /
+    HashRouter --> MenuPage : /menu
+    HashRouter --> PurchaseLayout : /purchase
+    PurchaseLayout --> CartPage : /cart
+    PurchaseLayout --> PayPage : /pay
+    PurchaseLayout --> InsertCardPage : /insert-card
+    PurchaseLayout --> ReceiptPage : /receipt
+    PurchaseLayout --> CompletePage : /complete
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>App</code>이 <code>HashRouter</code>로 최상위 라우트를 정의하고, <code>/purchase</code> 중첩 라우트의 자식 페이지들은 모두 <code>PurchaseLayout</code> 안에서 렌더됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/App.jsx</code> — HashRouter 라우트 정의</div>
+<pre><code>function App() {
+  onMount(() =&gt; {
+    VolumeStore.initialize();
+    STTStore.initialize();
+    AzureTTSManager.initialize();
+    LLMManager.initialize();
+  });
+
+  return (
+    &lt;HashRouter&gt;
+      &lt;Route path="/" component={HomePage} /&gt;
+      &lt;Route path="/menu" component={MenuPage} /&gt;
+      &lt;Route path="/purchase" component={PurchaseLayout}&gt;
+        &lt;Route path="/cart" component={CartPage} /&gt;
+        &lt;Route path="/pay" component={PayPage} /&gt;
+        &lt;Route path="/insert-card" component={InsertCardPage} /&gt;
+        &lt;Route path="/receipt" component={ReceiptPage} /&gt;
+        &lt;Route path="/complete" component={CompletePage} /&gt;
+      &lt;/Route&gt;
+    &lt;/HashRouter&gt;
+  );
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/Purchase/PurchaseLayout.jsx</code> — 결제 단계 공통 레이아웃</div>
+<pre><code>const PurchaseLayout = (props) =&gt; {
+  const { children } = props;
+  return (
+    &lt;div className={classes.purchase}&gt;
+      &lt;div className={classes.headerWrapper}&gt;
+        &lt;Header currProcess={2} /&gt;
+      &lt;/div&gt;
+      &lt;div className={classes.purchaseMain}&gt;{children}&lt;/div&gt;
+      &lt;Popup /&gt;
+    &lt;/div&gt;
+  );
+};</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/App.jsx" target="_blank" rel="noopener">App.jsx</a><span class="src">HashRouter 라우트(/ · /menu · /purchase/*) 정의 · onMount 초기화</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/pages/Purchase/PurchaseLayout.jsx" target="_blank" rel="noopener">pages/Purchase/PurchaseLayout.jsx</a><span class="src">결제 단계 공통 레이아웃 · Header + 전역 Popup</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/components/Common/Voice/VoiceArea/VoiceArea.jsx" target="_blank" rel="noopener">components/Common/Voice/VoiceArea/VoiceArea.jsx</a><span class="src">경로(location.pathname)별 음성 영역 위치·버튼 분기</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f07.html">← 장바구니 관리</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f09.html">음성 파형 애니메이션 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tpi_prj_aikiosk_webapp_solid 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!doctype html>
+<!-- rms_fe · 국제화(i18n) 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>국제화(i18n) — rms_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">RMS FrontEnd 과제</a><span class="sep">›</span>
+      <span class="here">국제화(i18n)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Altimedia RMS</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
+    </div>
+    <h1>국제화(i18n)</h1>
+    <p class="one-liner"><code>locales/i18n.ts</code>가 i18next + react-i18next를 초기화해 <code>en</code>·<code>fr</code>·<code>tr</code>·<code>du</code> 로케일을 14개 네임스페이스로 묶고, 저장된 언어(<code>localStorage</code>)를 기본값으로 적용해 글로벌 사이트 다국어를 지원합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>src/locales/i18n.ts</code> · <code>locales/{en,fr,tr,du}/*.json</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">다국어 리소스·로케일 분기</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>국제화는 <code>src/locales/i18n.ts</code> 한 파일이 중심입니다. 이 파일은 네 로케일(<code>en</code>·<code>tr</code>·<code>fr</code>·<code>du</code>)의 JSON 번역 묶음을 도메인별 네임스페이스로 import 합니다. 네임스페이스는 <code>cm</code>(common)·<code>mcDs</code>(monitoring dashboard)·<code>mcEtc</code>·<code>st</code>(statistics)·<code>dc</code>(devices)·<code>go</code>(groupOperation)·<code>ms</code>(masterSetting)·<code>au</code>(auth)·<code>hp</code>(help)·<code>md</code>(modal)·<code>am</code>(appManagement)·<code>ota</code>·<code>cd</code>(connectingDevice)·<code>as</code>(advanceSearch) 등 14개입니다.</p>
+    <p><code>resources</code> 객체를 구성한 뒤 <code>ns</code>는 <code>resources.en</code>의 키에서 <code>languageTitle</code>을 제외해 자동 산출하고, 기본 언어 <code>savedLang</code>은 <code>localStorage.getItem('language')</code>이 있으면 그 값, 없으면 <code>en</code>입니다. <code>i18n.use(initReactI18next).init()</code>으로 <code>fallbackLng: 'en'</code>, <code>defaultNS: 'cm'</code>, <code>interpolation.escapeValue: true</code>를 설정합니다. 컴포넌트는 <code>useTranslation()</code>의 <code>t('ns:key')</code> 형태로 번역을 가져오며(예: <code>t('nav.menu9')</code>, <code>t('mcEtc:tab.log')</code>), 언어를 바꾸면 <code>localStorage</code>에 저장된 값이 다음 진입 시 기본값으로 반영됩니다.</p>
+    <div class="callout">
+      <div class="ct">네임스페이스 자동 산출</div>
+      네임스페이스 목록을 따로 하드코딩하지 않고 <code>Object.keys(resources.en).filter(k =&gt; k !== 'languageTitle')</code>로 산출합니다. 따라서 새 도메인 JSON을 <code>resources</code>에 추가하면 네임스페이스가 자동으로 등록되어 누락이 줄어듭니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant APP as App 부트스트랩
+    participant I18N as locales/i18n.ts
+    participant LS as localStorage
+    participant CMP as 화면 컴포넌트
+
+    APP-&gt;&gt;I18N: import (모듈 로드)
+    I18N-&gt;&gt;I18N: resources 구성 (en/tr/fr/du × 14 ns)
+    I18N-&gt;&gt;LS: getItem('language')
+    LS--&gt;&gt;I18N: savedLang (없으면 'en')
+    I18N-&gt;&gt;I18N: i18n.init({ lng: savedLang, fallbackLng: 'en', defaultNS: 'cm' })
+    CMP-&gt;&gt;I18N: useTranslation() → t('ns:key')
+    I18N--&gt;&gt;CMP: 로케일 문자열
+    CMP-&gt;&gt;LS: 언어 변경 시 setItem('language', lng)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 모듈 로드 시 네 로케일·14개 네임스페이스로 <code>resources</code>를 구성하고, 저장된 언어를 기본값으로 <code>init</code>합니다. 컴포넌트는 <code>t('ns:key')</code>로 번역을 받고, 언어 변경은 <code>localStorage</code>에 저장됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class i18nModule {
+        +resources
+        +ns
+        +savedLang
+        +init(options)
+    }
+    class LocaleBundle {
+        +cm
+        +mcDs
+        +ms
+        +ota
+        +cd
+        +as
+    }
+    class useTranslation {
+        +t(key)
+        +i18n
+    }
+    class localStorage {
+        +getItem(language)
+        +setItem(language)
+    }
+
+    i18nModule o-- LocaleBundle : en/tr/fr/du
+    i18nModule --&gt; localStorage : savedLang
+    useTranslation ..&gt; i18nModule : 번역 조회
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>i18nModule</code>이 로케일별 번들(<code>LocaleBundle</code>)을 묶고 <code>localStorage</code>로 기본 언어를 결정하며, 화면은 <code>useTranslation</code>의 <code>t()</code>로 번역을 소비합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/locales/i18n.ts</code> — 네임스페이스 자동 산출과 초기화</div>
+<pre><code>const ns = Object.keys(resources.en).filter((key) =&gt; key !== 'languageTitle');
+const savedLang = localStorage.getItem('language') || 'en';
+
+i18n.use(initReactI18next).init({
+  resources,
+  lng: savedLang,
+  fallbackLng: 'en',
+  ns,
+  defaultNS: 'cm',
+  interpolation: { escapeValue: true }
+});</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/locales/i18n.ts</code> — 로케일별 도메인 번들 등록 (en 예시)</div>
+<pre><code>const resources = {
+  en: {
+    languageTitle: 'English',
+    cm: cm_en, mcDs: mcDs_en, mcEtc: mcEtc_en, st: st_en, dc: dc_en,
+    go: go_en, ms: ms_en, au: au_en, hp: hp_en, md: md_en,
+    am: am_en, ota: ota_en, cd: cd_en, as: as_en
+  },
+  tr: { languageTitle: 'Türkçe', /* ...동일 14 ns... */ },
+  fr: { languageTitle: 'Français', /* ... */ },
+  du: { languageTitle: 'Nederlands', /* ... */ }
+};</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/locales/i18n.ts" target="_blank" rel="noopener">src/locales/i18n.ts</a><span class="src">i18next 초기화 — resources/네임스페이스 자동 산출·savedLang·fallback</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/locales/en" target="_blank" rel="noopener">src/locales/en/</a><span class="src">영어 번역 JSON 묶음(common/devices/ota/connectingDevice 등)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/locales/fr" target="_blank" rel="noopener">src/locales/fr/</a><span class="src">프랑스어 로케일</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/locales/tr" target="_blank" rel="noopener">src/locales/tr/</a><span class="src">터키어 로케일</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/locales/du" target="_blank" rel="noopener">src/locales/du/</a><span class="src">네덜란드어 로케일</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f12.html">← AI 챗봇</a>
+      <a href="f14.html">사이트별 기능 분기 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">rms_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

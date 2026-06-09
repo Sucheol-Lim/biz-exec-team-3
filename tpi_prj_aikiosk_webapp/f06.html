@@ -1,0 +1,206 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp · 주문 옵션 처리 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>주문 옵션 처리 — AI Kiosk WebApp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp</a><span class="sep">›</span>
+      <span class="here">주문 옵션 처리</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">zustand 상태 · 음성/터치 병행</span>
+    </div>
+    <h1>주문 옵션 처리</h1>
+    <p class="one-liner">온도(HOT/ICE)·블렌드·디카페인·시럽 등 옵션을 음성과 터치로 선택합니다. <code>voice-order-store</code>가 음성 주문 항목의 옵션 충족 여부를 추적하고, 옵션이 하나뿐이면 기본값을 자동 적용해 주문을 보정합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 모듈</div><div class="v"><code>store/voice-order-store.js</code> · <code>util/Option.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">발화 의도 → 장바구니 사이 옵션 결정</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>LLM 응답은 주문 메뉴와 함께 온도·디카페인·시럽·농도(블렌드) 등의 옵션을 담습니다. 서버 응답의 옵션 문자열은 <code>ServerOption</code>이 받아 <code>"unknown"</code>을 <code>undefined</code>로 정규화한 뒤 <code>ClientOption</code>으로 변환합니다. <code>voice-order-store</code>는 이렇게 만들어진 주문 항목 배열을 받아 메뉴·온도·수량이 모두 채워졌는지(<code>isMenuOk</code>·<code>isTempOk</code>·<code>isQuantityOk</code>)를 계산하고, 주문 상태를 <code>DEFAULT</code>·<code>PARTIAL</code>·<code>OPTION</code>·<code>FINISH</code>로 전이시킵니다.</p>
+    <p>옵션 선택은 음성과 터치 두 경로를 가집니다. 음성으로 "디카페인", "시럽 추가", "진하게" 등을 말하면 스토어의 <code>setDecaffeineOption</code>·<code>setSyrupOption</code>·<code>setDepthOption</code>이 해당 옵션이 정의된 메뉴 항목에만 값을 채웁니다(메뉴가 그 옵션을 갖는지 <code>hasDecaffeineOption</code> 등으로 확인). 터치 경로에서는 <code>OptionChipList</code>가 화면에 옵션 칩을 띄워 같은 스토어 액션을 호출합니다.</p>
+    <p>옵션이 사실상 하나뿐인 메뉴(예: 벌크업 아메리카노의 온도 ICE)는 사용자가 따로 고르지 않아도 되도록 <code>default</code> 값을 자동 적용합니다. 이 보정은 <code>modify voice order logic, apply default temp if there is only one option</code> 커밋으로 도입되었고, 메뉴 정의(<code>Data.js</code>)의 <code>default</code> 필드를 근거로 합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      옵션 충족 여부에 따라 <code>VoiceArea</code> UI가 달라집니다. 모든 필수 옵션이 차면 <code>FINISH</code>로 전이해 장바구니 담기 흐름으로 이어지고, 부족하면 <code>OptionChipList</code>로 추가 선택을 유도합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant LLM as useLLMQuerySequence
+    participant SO as ServerOption / ClientOption
+    participant VO as voice-order-store
+    participant UI as OptionChipList / VoiceArea
+    participant CART as cart-store
+
+    LLM-&gt;&gt;SO: 응답 옵션 정규화 (unknown→undefined)
+    LLM-&gt;&gt;VO: setStateWithItemArray(주문 항목)
+    VO-&gt;&gt;VO: isMenuOk / isTempOk / isQuantityOk 계산
+    alt 단일 옵션 메뉴
+        VO-&gt;&gt;VO: default 온도 자동 적용
+    end
+    alt 필수 옵션 부족 (OPTION)
+        UI-&gt;&gt;VO: setDecaffeineOption / setSyrupOption / setDepthOption
+    end
+    Note over VO: 모두 충족 시 FINISH 전이
+    VO-&gt;&gt;CART: getItem() → 장바구니 담기
+      </div>
+      <p class="cap"><strong>흐름.</strong> 응답 옵션이 정규화되어 스토어에 들어가면 충족 여부가 계산됩니다. 단일 옵션은 기본값을 자동 적용하고, 부족하면 칩으로 추가 선택을 받은 뒤 FINISH에서 장바구니로 넘어갑니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class voiceOrderStore {
+        +orderState
+        +isMenuOk
+        +isTempOk
+        +isQuantityOk
+        +setStateWithItemArray(items)
+        +setStateWithItem(item)
+        +hasDecaffeineOption()
+        +setDecaffeineOption(on)
+        +setSyrupOption(on)
+        +setDepthOption(depth)
+        +getItem() CartListItem
+    }
+    class ServerOption {
+        +setCaffeine(v)
+        +setTemp(v)
+        +setSyrups(v)
+        +getClientOption() ClientOption
+    }
+    class ClientOption {
+        +temp
+        +caffeine
+        +syrup
+        +depth
+        +isEqual(other) bool
+    }
+    class CartListItem {
+        +item
+        +quantity
+        +options
+    }
+    class VOICE_ORDER_STATE_TYPE {
+        &lt;&lt;enumeration&gt;&gt;
+        DEFAULT
+        PARTIAL
+        OPTION
+        FINISH
+    }
+
+    ServerOption ..&gt; ClientOption : getClientOption
+    voiceOrderStore --&gt; ClientOption : 옵션 조립
+    voiceOrderStore ..&gt; CartListItem : getItem
+    voiceOrderStore ..&gt; VOICE_ORDER_STATE_TYPE
+      </div>
+      <p class="cap"><strong>관계.</strong> 서버 옵션은 <code>ServerOption</code>→<code>ClientOption</code>으로 정규화되고, <code>voice-order-store</code>가 충족 상태를 관리하다 <code>getItem()</code>으로 <code>CartListItem</code>을 생성합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/store/voice-order-store.js</code> — 옵션 충족 계산과 상태 전이</div>
+<pre><code>setStateWithItemArray: (newItemArray) =&gt; {
+    let menuAllExist = true, tempAllExist = true, quantityAllExist = true;
+    newItemArray.forEach((newItem) =&gt; {
+        if (!newItem.item)          menuAllExist = false;
+        if (!newItem.options.temp)  tempAllExist = false;
+        if (!newItem.quantity)      quantityAllExist = false;
+    });
+    let newOrderState;
+    if (menuAllExist &amp;&amp; tempAllExist &amp;&amp; quantityAllExist) {
+        newOrderState = VOICE_ORDER_STATE_TYPE.FINISH;
+    } else if (!menuAllExist &amp;&amp; !tempAllExist &amp;&amp; !quantityAllExist) {
+        newOrderState = VOICE_ORDER_STATE_TYPE.DEFAULT;
+    } else {
+        newOrderState = VOICE_ORDER_STATE_TYPE.PARTIAL;
+    }
+    return set({ orderState: newOrderState, orderedItemArray: newItemArray,
+        isTempOk: tempAllExist, isMenuOk: menuAllExist, isQuantityOk: quantityAllExist });
+},</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/store/voice-order-store.js</code> — 옵션 보유 메뉴에만 값 적용</div>
+<pre><code>setSyrupOption: (isSyrup) =&gt; {
+    const newArray = [...get().orderedItemArray];
+    newArray.forEach((item) =&gt; {
+        const otherOption = item.item.options.find(
+            (option) =&gt; option.name === OptionType.OTHER);
+        if (!otherOption || !otherOption.detail.includes(otherType.SYRUP)) return;
+        item.options.syrup = isSyrup ? "yes" : undefined;
+    });
+    return set({ orderedItemArray: [...newArray] });
+},</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/store/voice-order-store.js" target="_blank" rel="noopener">src/store/voice-order-store.js</a><span class="src">주문 상태 전이 · 옵션 충족 계산 · 옵션 적용 액션 · getItem</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/util/Option.js" target="_blank" rel="noopener">src/util/Option.js</a><span class="src">ServerOption/ClientOption 정규화 · isEqual 비교</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/component/Common/OptionChipList/OptionChipList.jsx" target="_blank" rel="noopener">src/component/Common/OptionChipList/OptionChipList.jsx</a><span class="src">터치 옵션 선택 칩 UI</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/Data.js" target="_blank" rel="noopener">src/Data.js</a><span class="src">옵션 default 값 — 단일 옵션 자동 적용 근거</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f05.html">← 메뉴 카탈로그</a>
+      <a href="f07.html">장바구니 · 매장/포장 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">AI Kiosk WebApp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

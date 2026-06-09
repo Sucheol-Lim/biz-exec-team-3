@@ -1,0 +1,187 @@
+<!doctype html>
+<!-- kt-bom-qrator-web · 서비스 미지원 단말 안내 기능 상세 — 원격 이미지 우선, https/네트워크 실패 시 로컬 대체 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>서비스 미지원 단말 안내 — kt-bom-qrator-web 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT BOM Qrator Web (언바운드 위젯 앱)</a><span class="sep">›</span>
+      <span class="here">서비스 미지원 단말 안내</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">olleh tv 웹 미들웨어 STB · JavaScript</span>
+    </div>
+    <h1>서비스 미지원 단말 안내</h1>
+    <p class="one-liner">서비스 미지원(ACAP 등) 또는 미지원 상품 가입 단말에서 전체 화면 안내 이미지를 표시합니다. 원격 이미지 서버(<code>img.bom.kt.com</code>)를 우선 시도하고, 네트워크 오류나 https 미지원 등 로드 실패 시 로컬 리소스로 대체합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web" target="_blank" rel="noopener"><code>kt-bom-qrator-web</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 화면</div><div class="v"><code>brk/view/popup/notSupportedService.js</code></div></div>
+      <div class="item"><div class="k">이미지 로더</div><div class="v"><code>oipfUtil.imageLoader</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>미지원 안내는 위젯 메인 진입 과정에서 트리거됩니다. <code>brk_api.getWidgetMainApp(BW003)</code> 응답에 가입 불가 상품 목록(<code>prd_cd_black_list</code>)이 있고 사용자가 그에 해당하면, <code>REASON_NOT_SUPPORTED_SERVICE</code> 에러가 콜백으로 전달되고 <code>brk</code>의 <code>goMain</code> 에러 처리에서 <code>appMgr.modelTrigger('popNotSupportedService')</code>로 안내 팝업을 띄웁니다.</p>
+    <p>안내 화면(<code>notSupportedService</code> 팝업)은 1280×720 전체 화면 배경 이미지로 구성됩니다. 핵심은 이미지 로딩 전략입니다. <code>oipfUtil.imageLoader</code>로 원격 서버 이미지(<code>BRK_image_serverIp + '/tv/NOTICE/web-widget-close.png'</code>, 캐시 회피용 타임스탬프 쿼리 포함)를 먼저 시도하고, <code>load</code> 성공 시 그 URL을 배경으로 적용합니다. 그러나 <code>error</code>(네트워크 오류·https 미지원 등) 또는 5초 타임아웃이 발생하면 콜백으로 로컬 리소스(<code>common/image/web-widget-close.png</code>)로 대체합니다.</p>
+    <p>이 "원격 우선, 로컬 대체" 패턴은 안내 문구를 운영 중 서버에서 교체할 수 있게 하면서도, 구형 STB의 https 미지원이나 네트워크 단절 상황에서도 최소한 로컬 이미지로 안내가 보장되도록 합니다. 키 처리는 ESC/ENTER/BACK으로 이전 화면 복귀(<code>backHistory</code>)·dim 해제(<code>clearDim</code>)를 수행하고, 위젯·앱스토어 핫키는 <code>hotKeyAction</code>으로 그대로 전달합니다.</p>
+    <div class="callout">
+      <div class="ct">근거 범위 참고</div>
+      소스에서 직접 확인되는 것은 <code>notSupportedService</code> 팝업의 원격-우선/로컬-대체 이미지 로딩과 <code>prd_cd_black_list</code> 기반 미지원 상품 분기입니다. "ACAP 단말"이라는 표현은 사내 Confluence/과제 개요 기준이며, 코드상 단말 구분은 <code>stbType_ACAP(1)</code>/<code>stbType_WEBAPP(2)</code> 상수와 서버 응답으로 이루어집니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant BRK as brk (goMain)
+    participant API as brk_api
+    participant POP as notSupportedService 팝업
+    participant IMG as oipfUtil.imageLoader
+    participant REMOTE as 원격 이미지 서버
+    participant LOCAL as 로컬 리소스
+
+    BRK-&gt;&gt;API: getWidgetMainApp(BW003)
+    API--&gt;&gt;BRK: REASON_NOT_SUPPORTED_SERVICE (prd_cd_black_list)
+    BRK-&gt;&gt;POP: modelTrigger(popNotSupportedService)
+    POP-&gt;&gt;IMG: imageLoader(remote web-widget-close.png?ts)
+    IMG-&gt;&gt;REMOTE: img.src = 원격 URL
+    alt 로드 성공
+        REMOTE--&gt;&gt;IMG: load
+        IMG-&gt;&gt;POP: background = 원격 URL (전체화면)
+    else 오류 / 5초 타임아웃
+        IMG-&gt;&gt;LOCAL: errorCallback
+        LOCAL-&gt;&gt;POP: background = common/image/web-widget-close.png
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> BW003에서 미지원 상품으로 판정되면 안내 팝업을 띄우고, 원격 이미지를 우선 로드합니다. 성공하면 원격 이미지를, 오류/타임아웃이면 로컬 이미지를 전체화면 배경으로 적용합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class brk {
+        +show(param)
+        -goMain()
+    }
+    class brk_api {
+        +getWidgetMainApp(weather, suc, err, ep)
+    }
+    class storageDataManager {
+        +hasSameProductCode(prd_cd_black_list)
+    }
+    class notSupportedService {
+        -info_main_text
+        +init()
+        +getView()
+    }
+    class oipfUtil {
+        +imageLoader(imgPath, loadCb, errCb, timeout)
+    }
+
+    brk --&gt; brk_api : BW003 호출
+    brk_api --&gt; storageDataManager : 미지원 상품 판정
+    brk --&gt; notSupportedService : 팝업 트리거
+    notSupportedService --&gt; oipfUtil : 원격/로컬 이미지 로드
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>brk_api</code>가 <code>storageDataManager</code>로 미지원 상품을 판정하고, <code>brk</code>가 <code>notSupportedService</code> 팝업을 띄웁니다. 팝업은 <code>oipfUtil.imageLoader</code>로 원격-우선/로컬-대체 이미지를 적용합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>apps/brk/js/view/popup/notSupportedService.js</code> — 원격 우선, 실패 시 로컬 대체</div>
+<pre><code>oipfUtil.imageLoader(commonProperty.BRK_image_serverIp + '/tv/NOTICE/web-widget-close.png?' + new Date().getTime(),
+    function (url) {                          // 원격 로드 성공
+        view.$abs().$css({
+            zIndex: 2,
+            background: "url(" + url + ")"
+        }).$setWidth(1280).$setHeight(720);
+    },
+    function () {                             // 오류/타임아웃 → 로컬 대체
+        view.$abs().$css({
+            zIndex: 2,
+            background: "url('common/image/web-widget-close.png')"
+        }).$setWidth(1280).$setHeight(720);
+    });</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>common/js/oipfUtil.js</code> — imageLoader: load/error/timeout 분기</div>
+<pre><code>self.imageLoader = function (imgPath, loadCallback, errorCallback, timeout) {
+    if (!imgPath || imgPath === "") { if (typeof errorCallback == "function") errorCallback(); return; }
+    var timer = null, _timeout = timeout ? timeout : 5000;   // 기본 5초
+
+    var image = $("&lt;img&gt;")
+        .on('load',  function () { clearTimer(); loadCallback &amp;&amp; loadCallback(imgPath); })
+        .on('error', function () { clearTimer(); errorCallback &amp;&amp; errorCallback(imgPath); })
+        .attr('src', imgPath);
+
+    timer = setTimeout(function () {          // 타임아웃도 errorCallback
+        clearTimer();
+        if (typeof errorCallback == "function") errorCallback();
+    }, _timeout);
+};</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/brk/js/view/popup/notSupportedService.js" target="_blank" rel="noopener">apps/brk/js/view/popup/notSupportedService.js</a><span class="src">미지원 안내 전체화면 팝업. 원격-우선/로컬-대체 배경 이미지 로딩</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/common/js/oipfUtil.js" target="_blank" rel="noopener">common/js/oipfUtil.js</a><span class="src"><code>imageLoader</code> — load/error/타임아웃(5초) 분기 로더</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/brk/js/component/brk_api.js" target="_blank" rel="noopener">apps/brk/js/component/brk_api.js</a><span class="src"><code>prd_cd_black_list</code> 기반 미지원 상품 판정(REASON_NOT_SUPPORTED_SERVICE)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/common/js/core-constants.js" target="_blank" rel="noopener">common/js/core-constants.js</a><span class="src">단말 구분 상수(<code>stbType_ACAP(1)</code>/<code>stbType_WEBAPP(2)</code>)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f12.html">← 링크 타입별 실행 분기</a>
+      <a href="f14.html">3-프로파일 빌드/배포 파이프라인 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt-bom-qrator-web 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

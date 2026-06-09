@@ -1,0 +1,194 @@
+<!doctype html>
+<!-- rms_fe · 실시간 원격 제어 / 화면 공유 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>실시간 원격 제어 · 화면 공유 — rms_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">RMS FrontEnd 과제</a><span class="sep">›</span>
+      <span class="here">실시간 원격 제어 · 화면 공유</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Altimedia RMS</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
+    </div>
+    <h1>실시간 원격 제어 · 화면 공유</h1>
+    <p class="one-liner"><code>screenShareModal</code>이 WebSocket 시그널 서버와 <code>RTCPeerConnection</code>(TURN)으로 단말 화면을 WebRTC 스트리밍하고, <code>useSSEController</code>가 단말 상태 이벤트를 SSE로 구독해 디바이스 모달을 실시간 갱신합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>deviceDetailModal/screenShare/screenShareModal.tsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">WebRTC 화면 공유 · SSE 상태 구독</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>실시간 원격 제어는 두 채널을 함께 씁니다. 첫째는 화면 공유(Screen Share)로, 디바이스 상세 모달에서 운영자가 화면 공유를 누르면 <code>DevicesApiManager.specialCommands(..., 'SCREEN_SHARE')</code>가 호출되어 서버로부터 <code>channelId</code>를 받습니다. 이 채널 ID로 <code>screenShareModal</code>이 <code>REACT_APP_SIGNAL_BE_WS</code> WebSocket에 접속하고, <code>RTCPeerConnection</code>(TURN 서버 <code>turn:&lt;domain&gt;:3478</code>)을 만들어 시그널링(<code>join</code>/<code>offer</code>/<code>answer</code>/<code>ice-candidate</code>)을 거쳐 단말의 화면 스트림을 WebRTC로 수신합니다. 수신한 <code>MediaStream</code>은 비디오 엘리먼트에 바인딩되며 캡처/리코딩도 지원합니다.</p>
+    <p>둘째는 상태 구독(SSE)으로, <code>useSSEController</code>가 <code>/api/v1/notifications/subscribe</code>에 <code>EventSourcePolyfill</code>로 연결해 <code>NOTIFICATION</code> 이벤트를 받습니다. 디바이스 상세 모달은 이 SSE 메시지로 단말 연결/상태 변화를 실시간 반영하고, 보조적으로 폴링도 사용합니다(개발 이력에서 디바이스 모달 폴링 주기를 5초에서 10초로 조정). 연결되지 않은 단말은 모달이 dim 처리되어 원격 명령이 막히고, 필요 시 <code>createDeviceConnection</code>으로 connection을 먼저 맺습니다.</p>
+    <div class="callout">
+      <div class="ct">connection 선행 + dim 처리</div>
+      Screen Share·Terminal 등 실시간 기능은 단말이 connection 된 상태(<code>currSectionStatus</code> CONNECTED)에서만 동작합니다. 디바이스 모달은 <code>isConnected</code>와 편집 권한(<code>isPermission.isEdit</code>)을 보고 dim 여부를 결정하며, dim 상태에서 화면 공유를 누르면 토스트로 막습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant OP as 운영자 (Browser)
+    participant DD as deviceDetail.tsx
+    participant DM as DevicesApiManager
+    participant SS as screenShareModal.tsx
+    participant WS as Signal 서버 (WebSocket)
+    participant STB as 단말 (RMS Client)
+
+    OP-&gt;&gt;DD: 화면 공유 클릭
+    DD-&gt;&gt;DM: specialCommands(id, 'SCREEN_SHARE')
+    DM--&gt;&gt;DD: channelId
+    DD-&gt;&gt;SS: 모달 열기 (channelId)
+    SS-&gt;&gt;WS: new WebSocket(SIGNAL_BE_WS)
+    SS-&gt;&gt;WS: send {type: join, channelId}
+    WS-&gt;&gt;STB: device-joined 통지
+    WS--&gt;&gt;SS: device-joined
+    SS-&gt;&gt;WS: send {type: connect-request}
+    STB--&gt;&gt;SS: offer (via WS)
+    SS-&gt;&gt;WS: answer
+    SS-&gt;&gt;WS: ice-candidate 교환
+    Note over SS,STB: RTCPeerConnection 연결 (TURN)
+    STB--&gt;&gt;SS: ontrack → MediaStream
+    SS-&gt;&gt;SS: 비디오 렌더 / 녹화
+      </div>
+      <p class="cap"><strong>흐름.</strong> 화면 공유 명령으로 채널을 받고, WebSocket 시그널링(join → offer/answer → ICE)을 거쳐 WebRTC <code>ontrack</code>으로 단말 화면 스트림을 수신·표시합니다. 단말 상태 변화는 별도 SSE(<code>useSSEController</code>)로 갱신됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class DeviceDetail {
+        -isDimmed
+        -channelValue
+        +handleScreenShareOpen()
+        +connect()
+        +disconnect()
+    }
+    class ScreenShareModal {
+        -socketRef WebSocket
+        -webRTC RTCPeerConnection
+        +sendToServer(msg)
+        +handleOfferMessage()
+        +handleAnswerMessage()
+        +handleNewICECandidateMessage()
+    }
+    class useSSEController {
+        +connect(keepAlive)
+        +disconnect(force)
+        +message
+    }
+    class DevicesApiManager {
+        +specialCommands(cb, id, type, params)
+        +createDeviceConnection(cb, id)
+    }
+
+    DeviceDetail o-- ScreenShareModal : 화면 공유 모달
+    DeviceDetail --&gt; useSSEController : 상태 이벤트 구독
+    DeviceDetail --&gt; DevicesApiManager : SCREEN_SHARE / connection
+    ScreenShareModal --&gt; DevicesApiManager : 채널 기반 시그널
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>DeviceDetail</code>이 화면 공유 모달과 SSE 구독을 소유하고, <code>ScreenShareModal</code>은 WebSocket+<code>RTCPeerConnection</code>으로 WebRTC 스트림을 처리합니다. 명령/연결은 <code>DevicesApiManager</code>를 거칩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>deviceDetailModal/screenShare/screenShareModal.tsx</code> — WebSocket + WebRTC(TURN) 초기화·시그널 분기</div>
+<pre><code>socketRef.current = new WebSocket(wss_url);  // REACT_APP_SIGNAL_BE_WS
+webRTC.current = new RTCPeerConnection({
+  iceServers: [{ username: 'rms', credential: '****', urls: [`turn:${domain}:3478`] }]
+});
+socketRef.current.onmessage = async function (msg) {
+  let message = JSON.parse(msg.data);
+  switch (message.type) {
+    case 'device-joined': await sendToServer({ type: 'connect-request', channelId }); break;
+    case 'offer':         await handleOfferMessage(message.payload); break;
+    case 'ice-candidate': handleNewICECandidateMessage(message.payload); break;
+    case 'answer':        handleAnswerMessage(message); break;
+  }
+};
+webRTC.current.ontrack = (ev) =&gt; { remoteVideoRef.current.srcObject = ev.streams[0]; };</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>components/deviceDetailModal/deviceDetail.tsx</code> — SSE 구독 + 화면 공유 채널 획득</div>
+<pre><code>const { connect, disconnect, message } = useSSEController({
+  url: `${process.env.REACT_APP_RMS_BE_SERVER_URL}/api/v1/notifications/subscribe`,
+  eventType: 'NOTIFICATION',
+  headers: { authorization: sessionStorage.getItem('accessToken') ?? '' }
+});
+
+const handleScreenShareOpen = () =&gt; {
+  if (isDimmed) { toast(`check currSectionStatus = ${currSectionStatus}`, { variant: 'error' }); return; }
+  DevicesApiManager.specialCommands((result, data, code, message) =&gt; {
+    if (message === 'OK' &amp;&amp; data?.channelId) { setChannelValue(data.channelId); setScreenShareOpen(true); }
+  }, id, 'SCREEN_SHARE');
+};</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/deviceDetailModal/screenShare/screenShareModal.tsx" target="_blank" rel="noopener">components/deviceDetailModal/screenShare/screenShareModal.tsx</a><span class="src">화면 공유 — WebSocket 시그널·RTCPeerConnection(TURN)·ontrack</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/deviceDetailModal/deviceDetail.tsx" target="_blank" rel="noopener">components/deviceDetailModal/deviceDetail.tsx</a><span class="src">디바이스 모달 — SSE 구독·화면 공유 채널 획득·dim 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/hooks/useSSEController.ts" target="_blank" rel="noopener">hooks/useSSEController.ts</a><span class="src">SSE 컨트롤러 — EventSourcePolyfill·NOTIFICATION 구독·connect/disconnect</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Devices.tsx" target="_blank" rel="noopener">_api/Devices.tsx</a><span class="src">specialCommands(SCREEN_SHARE) / createDeviceConnection</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f09.html">← Master 정책 설정</a>
+      <a href="f11.html">웹 터미널 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">rms_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

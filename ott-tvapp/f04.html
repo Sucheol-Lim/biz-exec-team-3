@@ -1,0 +1,185 @@
+<!doctype html>
+<!-- ott-tvapp · 미니 EPG 기능 상세 — MiniEpgBar / MiniEpgDialog 오버레이 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>미니 EPG — ott-tvapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KCTV 제주 OTT Android TV 앱 (ott-tvapp)</a><span class="sep">›</span>
+      <span class="here">미니 EPG</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KCTV 제주</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>미니 EPG</h1>
+    <p class="one-liner"><code>comp/MiniEpgBar</code>가 현재 채널과 주변 편성 정보를 화면 하단 오버레이로 표시하고, <code>comp/MiniEpgDialog</code>가 예약·리마인더·키즈 잠금·부팅 등 다양한 타입의 미니 EPG 다이얼로그를 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/ott-tvapp" target="_blank" rel="noopener"><code>ott-tvapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>android14/marusys</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>comp/MiniEpgBar</code> · <code>comp/MiniEpgDialog</code></div></div>
+      <div class="item"><div class="k">데이터 소스</div><div class="v"><code>ctrl/Programs</code> · <code>ott/EPGProgram</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>MiniEpgBar</code>는 <code>RelativeLayout</code>을 상속한 네이티브 오버레이 뷰입니다. 시청 중 OK/방향키 입력에 반응해 <code>show()</code>·<code>showByOk()</code>가 호출되며, <code>Player.currentCh</code>를 기준으로 <code>Programs.getPrograms(channel)</code>로 현재·이전·다음 편성(<code>EPGProgram[]</code>)을 가져와 좌우 화살표로 둘러볼 수 있게 표시합니다. 노출 시간은 <code>Config.miniEpgDur()</code>로 제어합니다.</p>
+    <p><code>MiniEpgDialog</code>는 <code>Dialog</code> 기반으로, 생성 시 전달하는 타입 상수에 따라 화면이 달라집니다. <code>TYPE_BOOTING</code>(부팅 진행), <code>TYPE_RESERVE_OK</code>/<code>TYPE_REMINDER</code>(시청 예약·알림), <code>TYPE_KIDS_LOCK</code>/<code>TYPE_KIDS_ALERT</code>(키즈 모드 제한), <code>TYPE_WELCOME</code>/<code>TYPE_HOTEL_PROMO</code>(호텔 환영·홍보) 등 다수의 시나리오를 한 클래스가 담당합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      미니 EPG는 WebView UI와 별개로 동작하는 네이티브 오버레이입니다. 빠른 채널 둘러보기에 필요한 편성 정보를 웹 라운드트립 없이 즉시 그리기 위해, 편성 데이터(<code>Programs</code>)와 직접 결합한 경량 뷰로 구현되어 있습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as PlaybackActivity (키 입력)
+    participant BAR as comp/MiniEpgBar
+    participant PL as ctrl/Player
+    participant PR as ctrl/Programs
+    participant DLG as comp/MiniEpgDialog
+
+    UI-&gt;&gt;BAR: showByOk() / show()
+    BAR-&gt;&gt;PL: Player.currentCh
+    BAR-&gt;&gt;PR: getPrograms(channel)
+    PR--&gt;&gt;BAR: EPGProgram 배열 (이전/현재/다음)
+    BAR-&gt;&gt;BAR: 편성 정보 렌더 + 자동 숨김 타이머
+    UI-&gt;&gt;DLG: new MiniEpgDialog(ctx, TYPE_*)
+    DLG-&gt;&gt;DLG: show() (예약/리마인더/키즈/부팅 등)
+      </div>
+      <p class="cap"><strong>흐름.</strong> OK/방향키 입력으로 <code>MiniEpgBar</code>가 현재 채널 편성을 그리고, 예약·키즈·부팅 등 상황별 안내는 타입을 받은 <code>MiniEpgDialog</code>가 표시합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class RelativeLayout
+    class Dialog
+    class MiniEpgBar {
+        -EPGProgram progs
+        -EPGProgram miniEpgProg
+        -int progIdx
+        +show() EPGProgram
+        +show(EPGChannel ch) EPGProgram
+        +showByOk() EPGProgram
+        +program() EPGProgram
+        +isLive(EPGProgram prog, Date cur) boolean
+    }
+    class MiniEpgDialog {
+        +int TYPE_BOOTING
+        +int TYPE_REMINDER
+        +int TYPE_KIDS_LOCK
+        +int TYPE_WELCOME
+        +int TYPE_HOTEL_PROMO
+        +show()
+    }
+    class Programs {
+        +getPrograms(EPGChannel) EPGProgram
+        +isLive(EPGProgram) boolean
+    }
+    class EPGProgram {
+        +getTitle() String
+        +getStartTime() long
+        +getEndTime() long
+    }
+
+    MiniEpgBar --|&gt; RelativeLayout
+    MiniEpgDialog --|&gt; Dialog
+    MiniEpgBar --&gt; Programs : getPrograms
+    MiniEpgBar --&gt; EPGProgram : 편성 표시
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>MiniEpgBar</code>는 뷰(<code>RelativeLayout</code>), <code>MiniEpgDialog</code>는 다이얼로그를 상속하며, 둘 다 <code>Programs</code>/<code>EPGProgram</code> 편성 데이터를 사용합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>comp/MiniEpgBar.java</code> — 현재 채널 편성으로 미니 EPG 표시</div>
+<pre><code>public EPGProgram showByOk() {
+    duration = Config.miniEpgDur();
+    return show(Player.currentCh, true);
+}
+
+private EPGProgram show(EPGChannel channel, boolean byOk) {
+    miniEpgByOk = byOk;
+    if (channel == null) return null;
+    miniEpgCh = channel;
+    progs = Programs.getPrograms(channel);     // 이전/현재/다음 편성
+    progIdx = 0;
+    findViewById(R.id.arrow_miniepg_popular_r)
+        .setVisibility((Config.isKids || SDP.isHotel) ? INVISIBLE : VISIBLE);
+    // ... 편성 정보 렌더 + 자동 숨김 타이머
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>comp/MiniEpgDialog.java</code> — 타입 상수로 시나리오별 다이얼로그 구분</div>
+<pre><code>public static final int TYPE_REMINDER     = 4;
+public static final int TYPE_WELCOME      = 14;
+public static final int TYPE_HOTEL_PROMO  = 15;
+public static final int TYPE_BOOTING      = 17;
+public static final int TYPE_KIDS_LOCK    = 18;
+// new MiniEpgDialog(context, TYPE_BOOTING).show();  등으로 호출</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/comp/MiniEpgBar.java" target="_blank" rel="noopener">comp/MiniEpgBar.java</a><span class="src">미니 EPG 오버레이 바 · 현재 채널 편성 렌더링</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/comp/MiniEpgDialog.java" target="_blank" rel="noopener">comp/MiniEpgDialog.java</a><span class="src">예약/리마인더/키즈/부팅/호텔 등 타입별 미니 EPG 다이얼로그</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/Programs.java" target="_blank" rel="noopener">ctrl/Programs.java</a><span class="src">편성 데이터 공급(getPrograms) · isLive 판별</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/EPGProgram.java" target="_blank" rel="noopener">ott/EPGProgram.java</a><span class="src">프로그램 엔티티 (제목/시작·종료 시각)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f03.html">VOD / CH-VOD 재생</a>
+      <a href="f05.html">WebView 하이브리드 UI →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>android14/marusys</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">ott-tvapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

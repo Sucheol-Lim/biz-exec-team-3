@@ -1,0 +1,189 @@
+<!doctype html>
+<!-- skylife-ux3.0 · 날씨·뉴스·일반 응답 기능 상세 — AnswerHandler / WeatherType / WeatherSceneView -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>날씨 · 뉴스 · 일반 응답 — Skylife ATV EPG 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Skylife ATV EPG (UX3.0)</a><span class="sep">›</span>
+      <span class="here">날씨 · 뉴스 · 일반 응답</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT SkyLife</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV(Leanback) STB · Java</span>
+    </div>
+    <h1>날씨 · 뉴스 · 일반 응답</h1>
+    <p class="one-liner"><code>AnswerHandler</code>가 weather/news/general 답변을 응답 카드(<code>AnswerCardOverlay</code>)로 표시하고 TTS로 발화합니다. weather는 <code>WeatherType</code> enum으로 분류해 <code>WeatherSceneView</code>가 날씨 유형별 애니메이션을 그립니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skylife-ux3.0" target="_blank" rel="noopener"><code>skylife-ux3.0</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feat/lw-voice-api</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>handler/AnswerHandler</code> · <code>WeatherType</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">weather/news/general payload</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>대화형 답변(날씨·뉴스·일반 지식)은 <code>AnswerHandler.handle(ctx, type, body)</code>가 처리합니다. <code>body.answer</code> 텍스트를 응답 카드로 띄우고 <code>SpeechManager.speak()</code>로 발화한 뒤 발화 종료 시점에 카드를 잠깐 더 보여주고 숨깁니다(<code>hideAfter(800L)</code>). 답변이 비어 있으면 ERROR fallback으로 처리합니다.</p>
+    <p>weather payload는 추가로 <code>body.weather_type</code>을 <code>WeatherType</code> enum(CLEAR/CLOUDY/RAIN/SNOW/UNKNOWN)으로 파싱합니다. <code>AnswerCardOverlay.finishStreamingAnswer()</code>가 최종 텍스트와 함께 <code>WeatherSceneView</code>에 weather_type을 넘겨 맑음/흐림/비/눈 별 장면 애니메이션을 그립니다. weather/news/general은 <code>assistant_progress</code>로 스트리밍 중 이미 같은 카드를 띄워두므로, 최종 응답에서는 카드를 다시 새로 띄우지 않고 같은 카드의 텍스트·날씨 장면만 확정해 "갈아엎히는" 느낌을 줄입니다. assistantReply가 JSON이 아닌 자연어로 오면 <code>freeFormAnswer()</code>로 그대로 카드에 표시합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      <code>WeatherType.fromString()</code>은 알 수 없는 값을 모두 <code>UNKNOWN</code>으로 정규화해 LLM이 비표준 문자열을 보내도 화면이 깨지지 않게 합니다. 응답 카드 표시 시 음성 패널(<code>VoiceListeningOverlay</code>)도 ANSWER 상태로 함께 유지해 "말씀드리는 중" 표시 표면을 보존합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant DSP as AssistantResponseDispatcher
+    participant AH as AnswerHandler
+    participant WT as WeatherType
+    participant AC as AnswerCardOverlay
+    participant WSV as WeatherSceneView
+    participant SM as SpeechManager (TTS)
+
+    DSP-&gt;&gt;AH: handle(type, body) (weather/news/general)
+    AH-&gt;&gt;AH: body.answer 추출
+    opt weather
+        AH-&gt;&gt;WT: fromJson(body) → CLEAR/RAIN/...
+    end
+    AH-&gt;&gt;AC: finishStreamingAnswer(question, answer, weatherType)
+    AC-&gt;&gt;WSV: setWeatherType(...) (날씨 장면)
+    AH-&gt;&gt;SM: speak(answer)
+    SM--&gt;&gt;AC: onDone → hideAfter(800ms)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 답변 텍스트를 응답 카드로 확정하고(날씨면 장면 애니메이션 포함) TTS 발화 후 짧은 잔존을 두고 카드를 닫습니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class AnswerHandler {
+        +handle(ctx, type, body)
+        +freeFormAnswer(ctx, text)
+        +fallback(ctx, text)
+        -finishStreamingAnswer(ctx, answer, weatherType)
+    }
+    class WeatherType {
+        &lt;&lt;enumeration&gt;&gt;
+        CLEAR
+        CLOUDY
+        RAIN
+        SNOW
+        UNKNOWN
+        +fromJson(body) WeatherType
+    }
+    class AnswerCardOverlay {
+        +finishStreamingAnswer(q, a, accent, keep, weatherType)
+        +show(question, answer)
+        +hideAfter(ms)
+    }
+    class WeatherSceneView {
+        +setWeatherType(type)
+    }
+    class SpeechManager {
+        +speak(text, onDone)
+    }
+
+    AnswerHandler ..&gt; WeatherType : weather 분류
+    AnswerHandler --&gt; AnswerCardOverlay : 카드 표시
+    AnswerCardOverlay --&gt; WeatherSceneView : 날씨 장면
+    AnswerHandler --&gt; SpeechManager : TTS 발화
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>AnswerHandler</code>가 <code>WeatherType</code>으로 날씨를 분류해 <code>AnswerCardOverlay</code>+<code>WeatherSceneView</code>로 표시하고 <code>SpeechManager</code>로 발화합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>assistant/handler/AnswerHandler.java</code> — 답변 카드 + 날씨 장면 + TTS</div>
+<pre><code>private static void finishStreamingAnswer(Context ctx, String answer, WeatherType weatherType) {
+    String question = WakeStatusProvider.getLastSttText();
+    AssistantOverlayCoordinator.beforeAnswer(ctx);
+    VoiceListeningOverlay.setState(VoiceListeningOverlay.State.ANSWER);
+    VoiceListeningOverlay.setTranscript(null, question);
+    AnswerCardOverlay overlay = AnswerCardOverlay.get(ctx);
+    // assistant_progress 로 이미 떠 있는 같은 카드를 최종 텍스트 + weather scene 으로 확정.
+    overlay.finishStreamingAnswer(question, answer, AssistantUiTokens.ACCENT_ANSWER, true, weatherType);
+    SpeechManager.get().speak(answer, () -&gt; overlay.hideAfter(800L));
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>assistant/handler/WeatherType.java</code> — weather_type 정규화</div>
+<pre><code>public enum WeatherType {
+    CLEAR, CLOUDY, RAIN, SNOW, UNKNOWN;
+    public static final String FIELD = "weather_type";
+
+    public static WeatherType fromString(String s) {
+        if (s == null) return UNKNOWN;
+        switch (s.trim().toLowerCase(Locale.ROOT)) {
+            case "clear":  return CLEAR;
+            case "cloudy": return CLOUDY;
+            case "rain":   return RAIN;
+            case "snow":   return SNOW;
+            default:       return UNKNOWN;   // 비표준 값 방어
+        }
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/handler/AnswerHandler.java" target="_blank" rel="noopener">assistant/handler/AnswerHandler.java</a><span class="src">weather/news/general 답변 카드 + TTS, freeForm/fallback</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/handler/WeatherType.java" target="_blank" rel="noopener">assistant/handler/WeatherType.java</a><span class="src">weather_type enum 분류·정규화</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/ui/WeatherSceneView.java" target="_blank" rel="noopener">assistant/ui/WeatherSceneView.java</a><span class="src">날씨 유형별 장면 애니메이션 (onDraw)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/ui/AnswerCardOverlay.java" target="_blank" rel="noopener">assistant/ui/AnswerCardOverlay.java</a><span class="src">응답 카드 — finishStreamingAnswer/showWeather/hideAfter</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f10.html">← 시청예약 · 타이머</a>
+      <a href="index.html#features">목록</a>
+      <a href="f12.html">Hey Sky wake-word + STT →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feat/lw-voice-api</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">Skylife ATV EPG 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

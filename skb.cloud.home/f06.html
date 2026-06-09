@@ -1,0 +1,196 @@
+<!doctype html>
+<!-- skb.cloud.home · VOD 재생(UMP) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VOD 재생(UMP) — skb.cloud.home 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Cloud Home</a><span class="sep">›</span>
+      <span class="here">VOD 재생(UMP)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">STB 클라우드 UI · JavaScript</span>
+    </div>
+    <h1>VOD 재생(UMP)</h1>
+    <p class="one-liner"><code>UMPMediaPlayer</code>가 UMP 미디어 서비스(<code>clad.media.ump.UmpMediaPlayerService</code>)로 재생 설정·시작·중지·완료·이어보기를 제어하고, <code>UmpEventListener</code>로 광고·BOF/EOF 이벤트를 수신합니다(<code>scene/watchingVod</code>).</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb.cloud.home" target="_blank" rel="noopener"><code>skb.cloud.home</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>common/adapter/UMPMediaPlayer.js</code></div></div>
+      <div class="item"><div class="k">단말 RPC</div><div class="v"><code>clad.media.ump.UmpMediaPlayerService</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>VOD 재생은 <code>WatchingVodScene</code>이 화면·라이프사이클을, <code>UMPMediaPlayer</code>가 단말 미디어 제어를 담당하는 구조입니다. <code>UMPMediaPlayer</code>는 <code>cloud_adaptor.js</code>의 <code>clad.media.ump.UmpMediaPlayerService</code>(전역 <code>W.MediaPlayerService</code>)를 래핑합니다. 재생 전 <code>buildPlayInfo(meta)</code>로 파일명·암호화·requestId·assetId·이어보기 offset 등을 Map 으로 구성하고, <code>setPlayInfo(list)</code>가 <code>setMediaConfig('vod.play.info', list)</code>로 단말에 재생 정보를 전달합니다.</p>
+    <p>재생 시작은 <code>start()</code> → <code>playStart()</code>, 채널 전환을 동반한 시작은 <code>stopAndPlay(list)</code> 로 처리됩니다. 중지는 <code>stop()</code>(<code>playStop</code>), 튜닝 유지 중지는 <code>stopWithoutTune()</code>(<code>playStopWithoutTune</code>), 채널 복귀가 필요하면 <code>stopChChange()</code>(<code>playStopWithChChange</code>), 예약 채널 복귀는 <code>playStopWithReservedCh(sid)</code> 입니다. 이벤트는 <code>setUmpEventListener</code>로 등록한 콜백이 <code>VODEVENT_ADVERT_START/STOP</code>, <code>VODEVENT_BEGIN_OF_FILE</code>, <code>VODEVENT_END_OF_FILE</code>, <code>VODEVENT_SESSION_ERROR</code> 등을 통보하면 <code>WatchingVodScene</code>의 <code>onStarted</code>·<code>onVodCompleted</code>·<code>onStoped</code> 콜백으로 라우팅됩니다.</p>
+    <div class="callout">
+      <div class="ct">재생 상태 머신</div>
+      <code>mediaPlayerStatus</code>(<code>UMP_PLAYER_STATUS_TYPE</code>)로 재생 상태를 추적하고, 단말 어댑터 연결 전 호출은 <code>EventQueue(runService)</code>에 적재했다가 <code>W.MediaPlayerService</code> 연결 후 실행합니다. 모든 RPC 콜에는 <code>AdaptorHandler.sendTestLog</code>로 호출/수신 로그가 남습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant WV as WatchingVodScene
+    participant UMP as UMPMediaPlayer
+    participant SVC as UmpMediaPlayerService (단말 RPC)
+    participant EL as UmpEventListener
+
+    WV-&gt;&gt;UMP: buildPlayInfo(meta)
+    UMP-&gt;&gt;UMP: setPlayInfo(list)
+    UMP-&gt;&gt;SVC: setMediaConfig("vod.play.info", list)
+    WV-&gt;&gt;UMP: start(callback)
+    UMP-&gt;&gt;SVC: playStart()
+    SVC--&gt;&gt;EL: onEvent(VODEVENT_ADVERT_START/STOP)
+    SVC--&gt;&gt;EL: onEvent(VODEVENT_BEGIN_OF_FILE)
+    EL-&gt;&gt;WV: callbackStartedListener()
+    Note over WV,SVC: 재생 중 …
+    SVC--&gt;&gt;EL: onEvent(VODEVENT_END_OF_FILE)
+    EL-&gt;&gt;WV: callbackVodCompletedListener(msg)
+    WV-&gt;&gt;UMP: stop() / stopChChange()
+    UMP-&gt;&gt;SVC: playStop() / playStopWithChChange()
+      </div>
+      <p class="cap"><strong>흐름.</strong> 재생 정보를 단말에 전달(<code>setMediaConfig</code>)하고 <code>playStart</code>로 시작합니다. 단말은 광고·BOF/EOF 이벤트를 <code>UmpEventListener</code>로 통보하고, 완료/중지 시 <code>playStop</code> 계열을 호출합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class WatchingVodScene {
+        +startVod()
+        +stopAndPlay()
+        +callbackStartedListener()
+        +callbackVodCompletedListener(msg)
+        +callbackStopedListener(msg)
+    }
+    class UMPMediaPlayer {
+        -mediaPlayerStatus
+        +buildPlayInfo(meta) Map
+        +setPlayInfo(list, callback)
+        +start(callback)
+        +stopAndPlay(list, callback)
+        +stop()
+        +stopChChange()
+        +stopWithoutTune()
+        +playStopWithReservedCh(sid)
+    }
+    class UmpMediaPlayerService {
+        &lt;&lt;interface&gt;&gt;
+        +setMediaConfig(key, list) BOOLEAN
+        +playStart() I32
+        +playStop() BOOLEAN
+        +playStopWithChChange() BOOLEAN
+        +stopAndPlay(list) I32
+        +setUmpEventListener(listener)
+    }
+    class UmpEventListener {
+        &lt;&lt;interface&gt;&gt;
+        +onEvent(I32)
+    }
+
+    WatchingVodScene --&gt; UMPMediaPlayer : 재생 제어
+    UMPMediaPlayer ..&gt; UmpMediaPlayerService : RPC 호출
+    UmpMediaPlayerService ..&gt; UmpEventListener : 이벤트 통보
+    UmpEventListener --&gt; WatchingVodScene : 콜백 라우팅
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>UMPMediaPlayer</code>가 단말 <code>UmpMediaPlayerService</code>를 래핑하고, <code>UmpEventListener</code> 이벤트를 <code>WatchingVodScene</code> 콜백으로 전달합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>common/adapter/UMPMediaPlayer.js</code> — 재생 정보 전달과 재생 시작</div>
+<pre><code>setPlayInfo: function (list, callback) {
+    if (this.W.MediaPlayerService) {
+        this.W.MediaPlayerService.setMediaConfig('vod.play.info', list, function (ri, rv) {
+            callback && callback(rv);
+        });
+    }
+},
+start: function (callback) {
+    this.W.MediaPlayerService.playStart(function (ri, rv) {
+        this.W.Log.debug('[UMPMediaPlayer] playStart ri=', ri, ', rv=', rv);
+        callback && callback(rv);
+    });
+},</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>common/adapter/UMPMediaPlayer.js</code> — 재생 메타 → playInfo 구성</div>
+<pre><code>buildPlayInfo : function (meta) {
+    if (!meta) return null;
+    let playInfo = new Map();
+    if (!meta.hasOwnProperty('offset'))   meta.offset   = '0';   // 이어보기 시점
+    playInfo.set('vodFileName', meta.vodFileName);
+    playInfo.set('encryp',      meta.encryp);
+    playInfo.set('requestId',   meta.requestId);
+    playInfo.set('assetId',     meta.assetId);
+    playInfo.set('categoryId',  meta.categoryId);
+    // ...
+    return playInfo;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/common/adapter/UMPMediaPlayer.js" target="_blank" rel="noopener">common/adapter/UMPMediaPlayer.js</a><span class="src">UMP 재생 설정/시작/중지/이벤트 래퍼</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/watchingVod/WatchingVodScene.js" target="_blank" rel="noopener">scene/watchingVod/WatchingVodScene.js</a><span class="src">VOD 시청 화면 · 재생 콜백 라우팅(onStarted/onVodCompleted/onStoped)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/cloud_adaptor.js" target="_blank" rel="noopener">cloud_adaptor.js</a><span class="src">clad.media.ump.UmpMediaPlayerService / UmpEventListener 정의 · VODEVENT enum</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/vod/VodMediaPlayerManager.js" target="_blank" rel="noopener">scene/vod/VodMediaPlayerManager.js</a><span class="src">VOD 재생 매니저(재생 흐름 조율)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f05.html">이전: VOD 구매 · 결제</a>
+      <a href="f07.html">검색(텍스트 · 음성) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb.cloud.home 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

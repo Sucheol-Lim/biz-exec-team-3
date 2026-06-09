@@ -1,0 +1,178 @@
+<!doctype html>
+<!-- skb_cloud_local_android · 핫키 입력 처리 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>핫키 입력 처리 — skb_cloud_local_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local EPG (Android)</a><span class="sep">›</span>
+      <span class="here">핫키 입력 처리</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>핫키 입력 처리</h1>
+    <p class="one-liner"><code>GlobalKeyReceiver</code>가 <code>android.intent.action.GLOBAL_BUTTON</code>·<code>cab.intent.action.BYPASS_KEYEVENT</code> 인텐트로 셋톱 전용 핫키를 수신해, 메뉴/검색/즐겨찾기 등은 <code>GlobalKeyHandler</code>로, 채널 UP/DOWN은 <code>MainHandler</code> 메시지로 라우팅합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_android" target="_blank" rel="noopener"><code>skb_cloud_local_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>UC500_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>GlobalKeyReceiver</code> · <code>GlobalKeyHandler</code> · <code>MainHandler</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">셋톱 전용 핫키 라우팅</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>셋톱박스 리모컨에는 즐겨찾기·VOD·검색·키즈·날씨 등 전용 핫키가 있습니다. 이 키들은 일반 액티비티 키 이벤트가 아니라 시스템 브로드캐스트로 전달되므로, <code>GlobalKeyReceiver</code>(<code>BroadcastReceiver</code>)가 매니페스트에 <code>android.intent.action.GLOBAL_BUTTON</code>·<code>cab.intent.action.BYPASS_KEYEVENT</code> 액션으로 등록되어 이를 수신합니다.</p>
+    <p><code>onReceive()</code>는 먼저 스탠바이 상태(<code>!isRunningMode()</code>)면 즉시 무시합니다. <code>GLOBAL_BUTTON</code>의 경우 <code>EXTRA_KEY_EVENT</code>에서 <code>KeyEvent</code>를 꺼내 <code>ACTION_DOWN</code>만 처리하고, 즐겨찾기(<code>KEY_FAV_CH</code>)·TV 메뉴·채널 정보·키즈·VOD·날씨·검색 등 정의된 키코드는 <code>GlobalKeyHandler.processGlobalKey()</code>로 비동기 처리하며, 그 외 키는 <code>WHAT_ANDROID_HOT_KEY</code> 메시지로 <code>MainHandler</code>에 넘깁니다.</p>
+    <p><code>BYPASS_KEYEVENT</code>의 경우 <code>keyevent</code> 엑스트라에서 <code>KeyEvent</code>를 꺼내 채널 UP/DOWN(<code>KEY_CH_UP</code>/<code>KEY_CH_DOWN</code>)을 <code>WHAT_LIVE_CHANNEL_UP</code>/<code>DOWN</code> 메시지로 보내 라이브 채널 전환을 트리거합니다. 무거운 처리는 <code>ExecutorServiceHolder</code>의 스레드 풀에서 <code>CompletableFuture.runAsync()</code>로 비동기 실행해 브로드캐스트 스레드를 막지 않습니다.</p>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SYS as 셋톱 시스템 (핫키)
+    participant GKR as GlobalKeyReceiver
+    participant PMM as PowerModeManager
+    participant GKH as GlobalKeyHandler
+    participant MH as MainHandler
+
+    SYS-&gt;&gt;GKR: GLOBAL_BUTTON / BYPASS_KEYEVENT 브로드캐스트
+    GKR-&gt;&gt;PMM: isRunningMode()?
+    alt standby
+        PMM--&gt;&gt;GKR: false → 무시
+    else GLOBAL_BUTTON (ACTION_DOWN)
+        alt 메뉴/검색/즐겨찾기 등 정의된 키
+            GKR-&gt;&gt;GKH: processGlobalKey(keyCode) (비동기)
+        else 기타
+            GKR-&gt;&gt;MH: WHAT_ANDROID_HOT_KEY
+        end
+    else BYPASS_KEYEVENT (CH UP/DOWN)
+        GKR-&gt;&gt;MH: WHAT_LIVE_CHANNEL_UP / DOWN
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 스탠바이면 무시하고, <code>GLOBAL_BUTTON</code>은 키코드에 따라 <code>GlobalKeyHandler</code> 또는 <code>MainHandler</code>로, <code>BYPASS_KEYEVENT</code>의 채널 키는 라이브 채널 전환 메시지로 라우팅합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class BroadcastReceiver {
+        &lt;&lt;abstract&gt;&gt;
+    }
+    class GlobalKeyReceiver {
+        +ACTION_GLOBAL_BUTTON String
+        +ACTION_BYPASS_KEYEVENT String
+        +onReceive(Context, Intent)
+    }
+    class GlobalKeyHandler {
+        +getInstance() GlobalKeyHandler
+        +processGlobalKey(int keyCode)
+    }
+    class MainHandler {
+        +getInstance() MainHandler
+        +sendEmptyMessage(int)
+    }
+    class PowerModeManager {
+        +isRunningMode() boolean
+    }
+
+    GlobalKeyReceiver --|&gt; BroadcastReceiver
+    GlobalKeyReceiver --&gt; GlobalKeyHandler : 정의된 핫키 위임
+    GlobalKeyReceiver --&gt; MainHandler : 채널/기타 키 메시지
+    GlobalKeyReceiver ..&gt; PowerModeManager : standby 확인
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>GlobalKeyReceiver</code>가 <code>BroadcastReceiver</code>를 상속해 핫키를 받아 <code>GlobalKeyHandler</code>와 <code>MainHandler</code>로 분기하며, 스탠바이 여부를 <code>PowerModeManager</code>로 확인합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>module/globalkey/GlobalKeyReceiver.java</code> — 핫키 수신 및 라우팅</div>
+<pre><code>public void onReceive(Context context, Intent intent) {
+    String action = intent.getAction();
+    if (!PowerModeManager.getInstance().isRunningMode()) {
+        return;                                          // 스탠바이 → 무시
+    }
+    if (ACTION_GLOBAL_BUTTON.equals(action)) {
+        KeyEvent event = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+        if (event.getAction() != KeyEvent.ACTION_DOWN) return;
+        int keyCode = event.getKeyCode();
+        switch (keyCode) {
+            case KeyCodes.KEY_FAV_CH:
+            case KeyCodes.KEY_CATEGORY_VOD:
+            case KeyCodes.KEY_TEXT_SEARCH:
+                CompletableFuture.runAsync(() -&gt;
+                    GlobalKeyHandler.getInstance().processGlobalKey(keyCode),
+                    ExecutorServiceHolder.getExecutorService());
+                return;
+        }
+        MainHandler.getInstance().sendMessage(MainHandler.getInstance()
+            .obtainMessage(MainHandlerMessage.WHAT_ANDROID_HOT_KEY, keyCode));
+    } else if (ACTION_BYPASS_KEYEVENT.equals(action)) {
+        // KEY_CH_UP → WHAT_LIVE_CHANNEL_UP / KEY_CH_DOWN → WHAT_LIVE_CHANNEL_DOWN
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/globalkey/GlobalKeyReceiver.java" target="_blank" rel="noopener">module/globalkey/GlobalKeyReceiver.java</a><span class="src">GLOBAL_BUTTON / BYPASS_KEYEVENT 핫키 수신·라우팅</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/globalkey/GlobalKeyHandler.java" target="_blank" rel="noopener">module/globalkey/GlobalKeyHandler.java</a><span class="src">메뉴/검색/즐겨찾기 등 핫키 동작 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/AndroidManifest.xml" target="_blank" rel="noopener">app/src/main/AndroidManifest.xml</a><span class="src">GlobalKeyReceiver의 GLOBAL_BUTTON / BYPASS_KEYEVENT intent-filter 선언</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/MainHandler.java" target="_blank" rel="noopener">android/tv/local/MainHandler.java</a><span class="src">핫키/채널 전환 메시지 라우팅 대상</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f12.html">← 블루투스 RCU / HDMI</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f14.html">알림 / TTS / 예약 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>UC500_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

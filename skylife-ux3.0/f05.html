@@ -1,0 +1,176 @@
+<!doctype html>
+<!-- skylife-ux3.0 · 통합 검색 기능 상세 — ui/vod/search TTSearchFragment + 음성 content_search 통합 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>통합 검색 — Skylife ATV EPG 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Skylife ATV EPG (UX3.0)</a><span class="sep">›</span>
+      <span class="here">통합 검색</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT SkyLife</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV(Leanback) STB · Java</span>
+    </div>
+    <h1>통합 검색</h1>
+    <p class="one-liner"><code>ui/vod/search</code>의 <code>TTSearchFragment</code>가 보유 콘텐츠 검색을 제공하며, 음성 어시스턴트의 <code>content_search</code> 결과가 <code>applyLwVoiceQuery()</code>를 통해 검색 화면에 자동 입력·실행되도록 통합되어 있습니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skylife-ux3.0" target="_blank" rel="noopener"><code>skylife-ux3.0</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feat/lw-voice-api</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>vod/search/TTSearchFragment</code> · <code>ContentSearchHandler</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">검색 화면 · 음성 자동 입력</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>검색 화면은 <code>ui/vod/search/TTSearchFragment</code>(<code>TTDataLoadFragment</code> 상속)가 담당합니다. 사용자가 입력한 검색어로 <code>TTSearchViewModel.loadSearchVodListV3()</code>를 호출해 VOD/콘텐츠 라이브러리를 조회하고, 결과는 <code>TTSearchResultListFragment</code>로 표시됩니다. 최근 검색어, 키워드 리스트, 결과 리스트 사이의 포커스 전환을 자체적으로 관리합니다.</p>
+    <p>음성 어시스턴트의 <code>content_search</code> payload는 <code>ContentSearchHandler</code>가 처리합니다. 검색 화면이 이미 top이면 새 인스턴스를 push하지 않고 <code>applyLwVoiceQuery()</code>로 query만 갱신하고(결과창 중첩 방지), 아니면 <code>TTUIManager.goToScreen(UI_UTIL_SEARCH_M, args)</code>로 진입하며 <code>lwvoice_query</code> 인자를 전달합니다. fragment는 진입 시 이 인자를 읽어 자동 입력 + 검색을 1회 실행하고 회전·재진입 중복을 막기 위해 즉시 인자를 제거합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      <code>applyLwVoiceQuery()</code>는 입력 필드에 검색어를 채우되 IME(소프트 키보드)가 자동으로 뜨지 않도록 <code>focusHide</code>로 포커스를 옮기고 IME를 강제 hide합니다. 음성 진입이므로 화면 키보드가 불필요하기 때문이며, 포커스를 <code>FOCUS_KEYWORD_LIST</code> 단계로 두어 결과 도착 시 자동으로 결과 리스트로 전환되게 합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant ARD as AssistantResponseDispatcher
+    participant CSH as ContentSearchHandler
+    participant UIM as TTUIManager
+    participant SF as TTSearchFragment
+    participant VM as TTSearchViewModel
+
+    ARD-&gt;&gt;CSH: handle(body) (payload content_search)
+    CSH-&gt;&gt;UIM: getVisibleTopFragment()
+    alt 검색 fragment 가 이미 top
+        CSH-&gt;&gt;SF: applyLwVoiceQuery(query)
+    else 다른 화면
+        CSH-&gt;&gt;UIM: goToScreen(UI_UTIL_SEARCH_M, {lwvoice_query})
+        UIM-&gt;&gt;SF: 진입 + args 읽어 applyLwVoiceQuery
+    end
+    SF-&gt;&gt;SF: searchInput.setText + IME hide
+    SF-&gt;&gt;VM: loadSearchVodListV3(query, true)
+    VM--&gt;&gt;SF: 검색 결과 (자동 결과 리스트 전환)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 음성 검색어가 검색 화면으로 라우팅되어 자동 입력·실행되며, 화면이 이미 떠 있으면 query만 갱신해 결과창 중첩을 막습니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class TTDataLoadFragment
+    class TTSearchFragment {
+        -String strSearchKeyWord
+        -int nCurrentFocusItem
+        +applyLwVoiceQuery(query)
+    }
+    class TTSearchViewModel {
+        +loadSearchVodListV3(query, force)
+        +getRecentSearchKeyWords() LiveData
+    }
+    class TTSearchResultListFragment
+    class ContentSearchHandler {
+        +handle(ctx, body)
+    }
+    class TTUIManager {
+        +getVisibleTopFragment() Fragment
+        +goToScreen(uiType, args)
+    }
+
+    TTSearchFragment --|&gt; TTDataLoadFragment
+    TTSearchFragment --&gt; TTSearchViewModel : 검색 요청
+    TTSearchFragment --&gt; TTSearchResultListFragment : 결과 표시
+    ContentSearchHandler ..&gt; TTUIManager : 화면 진입/조회
+    ContentSearchHandler ..&gt; TTSearchFragment : applyLwVoiceQuery 호출
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>ContentSearchHandler</code>가 <code>TTUIManager</code>로 검색 화면을 띄우거나 떠 있는 <code>TTSearchFragment</code>에 직접 query를 주입하고, fragment는 <code>TTSearchViewModel</code>로 검색을 수행합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/vod/search/TTSearchFragment.java</code> — 음성 검색어 자동 입력 + 실행</div>
+<pre><code>public void applyLwVoiceQuery(String query) {
+    if (query == null || query.isEmpty()) return;
+    if (searchInputTextView != null) searchInputTextView.setText(query);
+    strSearchKeyWord = query;
+    updateSearchInputTextUi();                 // placeHolder 숨겨 입력어 노출
+    // 음성 진입 — IME 불필요. focusHide 로 옮기고 키보드 강제 hide.
+    if (binding != null &amp;&amp; binding.focusHide != null) binding.focusHide.requestFocus();
+    nCurrentFocusItem = FOCUS_KEYWORD_LIST;     // 결과 도착 시 결과 리스트로 자동 전환
+    if (viewModel != null) viewModel.loadSearchVodListV3(query, true);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>assistant/handler/ContentSearchHandler.java</code> — 떠 있으면 재사용, 아니면 진입</div>
+<pre><code>Fragment top = TTUIManager.getInstance().getVisibleTopFragment();
+if (top instanceof TTSearchFragment) {
+    ((TTSearchFragment) top).applyLwVoiceQuery(finalQuery);   // refresh — 결과창 중첩 방지
+} else {
+    Bundle args = new Bundle();
+    args.putString("lwvoice_query", finalQuery);
+    TTUIManager.getInstance().goToScreen(TTUIManager.UI_UTIL_SEARCH_M, args);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/vod/search/TTSearchFragment.java" target="_blank" rel="noopener">ui/vod/search/TTSearchFragment.java</a><span class="src">검색 화면 — 입력/포커스 관리, applyLwVoiceQuery 음성 자동 검색</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/vod/search/TTSearchViewModel.java" target="_blank" rel="noopener">ui/vod/search/TTSearchViewModel.java</a><span class="src">검색 ViewModel — loadSearchVodListV3, 최근 검색어 LiveData</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/vod/search/TTSearchResultListFragment.java" target="_blank" rel="noopener">ui/vod/search/TTSearchResultListFragment.java</a><span class="src">검색 결과 리스트 표시</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/handler/ContentSearchHandler.java" target="_blank" rel="noopener">assistant/handler/ContentSearchHandler.java</a><span class="src">음성 content_search → 검색 화면 라우팅(자동 입력/검색)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f04.html">← 채널·편성표(EPG)</a>
+      <a href="index.html#features">목록</a>
+      <a href="f06.html">설정 · 마이페이지 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feat/lw-voice-api</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">Skylife ATV EPG 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

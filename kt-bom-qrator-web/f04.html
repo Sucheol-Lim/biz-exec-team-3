@@ -1,0 +1,218 @@
+<!doctype html>
+<!-- kt-bom-qrator-web · BOM 채널 트리거 기능 상세 — 채널 시청 시 노출되는 캠페인 트리거 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BOM 채널 트리거 — kt-bom-qrator-web 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT BOM Qrator Web (언바운드 위젯 앱)</a><span class="sep">›</span>
+      <span class="here">BOM 채널 트리거</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">olleh tv 웹 미들웨어 STB · JavaScript</span>
+    </div>
+    <h1>BOM 채널 트리거</h1>
+    <p class="one-liner">특정 채널 시청 시 화면 위에 노출되는 채널 연동형 BOM 캠페인 트리거입니다. 채널 이동 성공(<code>onChannelChangeSucceeded</code>)을 감지해 시청 시간·노출 시간대·하루 보지 않기 등의 조건을 확인하고, 바운드/언바운드 앱 미실행 시 트리거를 표시합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web" target="_blank" rel="noopener"><code>kt-bom-qrator-web</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>apps/bomChannelTrigger/js/main.js</code></div></div>
+      <div class="item"><div class="k">스케줄 관리</div><div class="v"><code>qDaemon/chTriggerManager.js</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>BOM 채널 트리거는 <code>chTriggerManager</code>(qDaemon)가 관리하는 채널 캠페인 스케줄과 짝을 이룹니다. 매니저는 부팅 시 캐시 서버에서 <code>CMP_CAMP_CH_WEB.json</code> 편성 파일을 받아 <code>localStorage</code>에 저장하고, 단말의 채널 이벤트(<code>onChannelChangeSucceeded</code>)를 구독합니다. 채널이 바뀌면 진행 중인 vod/bom/cmp 트리거를 정리한 뒤 <code>runCampaign(ch)</code>으로 현재 채널의 유효 캠페인을 평가합니다.</p>
+    <p><code>getValidCampaign</code>은 노출 시간대(<code>DISP_TIME</code> FR~TO)와 현재 시각을 비교해 유효 캠페인을 고르고, <code>getCurrentChannelCampaignList</code>는 채널 sid 매칭과 "하루 보지 않기"(<code>inactiveChannelList</code>) 설정을 거릅니다. 선택된 캠페인이 반응형(<code>REACT_TYPE</code>)이면 CMP 트리거로, 아니면 <code>chTriggerModel.setCampaign()</code>을 통해 BOM 채널 트리거로 넘어갑니다.</p>
+    <p><code>bomChannelTrigger.show()</code>는 표시 전 두 가지를 확인합니다. (1) 바운드 앱이 실행 중인지(<code>oipfUtil.checkRunningBoundApp()</code>), (2) 다른 언바운드 앱이 떠 있는지(<code>obs_isLoadingUnboundApplication</code>). 둘 다 아니고 미디어 재생 시간(<code>getMediaTime()</code>)이 양수면 옵저버에 표시 요청 후 트리거를 그립니다. 사용자가 빨강(RED) 키를 누르면 <code>getChannelCampaignInfo(BW008)</code>로 링크 정보를 받아 BOM 앱 실행 등으로 분기합니다.</p>
+    <div class="callout">
+      <div class="ct">트리거 상태(triggerState)</div>
+      <code>chTriggerModel.triggerState</code>는 <code>init / ready / checkOtherApp / show / runBomApp / hide / clear</code>를 거칩니다. 다른 언바운드 앱이 발견되면 <code>checkOtherApp</code>으로 대기했다가, 앱 종료 후 다시 표시를 시도합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant STB as 방송 객체(onChannelChange)
+    participant MGR as chTriggerManager
+    participant BCT as bomChannelTrigger
+    participant OBS as Observer
+    participant API as chTriggerApi
+    participant BRK as brk
+
+    STB-&gt;&gt;MGR: onChannelChangeSucceeded(ch)
+    MGR-&gt;&gt;MGR: clearState(vod/bom/cmp)
+    MGR-&gt;&gt;MGR: runCampaign(ch)
+    MGR-&gt;&gt;MGR: getCurrentChannelCampaignList / getValidCampaign
+    alt REACT_TYPE 없음 (BOM 트리거)
+        MGR-&gt;&gt;BCT: chTriggerModel.setCampaign(camp)
+        BCT-&gt;&gt;OBS: isLoadingUnboundApplication()
+        OBS--&gt;&gt;BCT: res = no
+        BCT-&gt;&gt;OBS: requestShow() (mediaTime &gt; 0)
+        OBS--&gt;&gt;BCT: yes
+        BCT--&gt;&gt;STB: chTriggerView.show(camp)
+    end
+
+    Note over BCT: 사용자 RED 키
+    BCT-&gt;&gt;API: getChannelCampaignInfo(BW008)
+    API--&gt;&gt;BCT: link_type / link_param
+    BCT-&gt;&gt;BRK: qrt_runBrokeringApp / handleLinkType
+      </div>
+      <p class="cap"><strong>흐름.</strong> 채널 이동 → <code>runCampaign</code>으로 유효 캠페인 평가 → BOM 트리거면 언바운드 앱/미디어 시간 확인 후 표시. RED 키 입력 시 <code>getChannelCampaignInfo(BW008)</code> 링크 정보로 BOM 앱 실행 등을 brk에 위임합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class chTriggerManager {
+        -campaignList
+        -inactiveChannelList
+        +init()
+        +startScheduling()
+        +runCampaign(ch)
+        +checkCampaignCondition(camp)
+        +setInacitveTrigger(channelType, sid)
+        +channelEventListener
+    }
+    class bomChannelTrigger {
+        +init()
+        +show(currentChannelCamp)
+        +hide()
+        +clearState(isCloseApp)
+        +keyEventListener(event)
+        +qMessage(event)
+        +sendMessage
+    }
+    class chTriggerModel {
+        -triggerState
+        +setTriggerState(state)
+        +setCampaign(camp, time)
+        +getSvcContId()
+    }
+    class chTriggerApi {
+        +getChannelCampaignInfo(sid, svcContId, suc, err)
+    }
+    class chTriggerView {
+        +show(campaign)
+        +hide()
+        +clear()
+        +showErrorPopup()
+    }
+
+    chTriggerManager --&gt; bomChannelTrigger : setCampaign/clear
+    bomChannelTrigger o-- chTriggerModel : 상태
+    bomChannelTrigger o-- chTriggerView : 렌더
+    bomChannelTrigger --&gt; chTriggerApi : BW008 호출
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>chTriggerManager</code>가 스케줄·조건을 평가해 <code>bomChannelTrigger</code>에 캠페인을 전달하고, 트리거는 <code>chTriggerModel</code>(상태)·<code>chTriggerView</code>(렌더)·<code>chTriggerApi</code>(BW008)로 구성됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>apps/qDaemon/chTriggerManager.js</code> — runCampaign: 유효 캠페인 평가와 분기</div>
+<pre><code>var currentCampaignList = getCurrentChannelCampaignList(campaignList, ch);
+currentChannelCamp = getValidCampaign(currentCampaignList, currentTime);
+if (!currentChannelCamp) {
+    console.log("chTriggerManager : runCampaign(invalid)");
+    return;
+}
+
+if (currentChannelCamp.REACT_TYPE) {        // CMP 트리거
+    if (self.checkCampaignCondition(currentChannelCamp)) {
+        cmpChannelTrigger.setCampaign(currentChannelCamp, currentTime);
+    }
+} else {                                     // BOM 채널 트리거
+    chTriggerModel.setCampaign(currentChannelCamp, currentTime);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>apps/bomChannelTrigger/js/main.js</code> — show: 언바운드 앱/미디어 시간 확인 후 표시</div>
+<pre><code>self.show = function (currentChannelCamp) {
+    if (window.oipfObjectFactory &amp;&amp; !oipfUtil.checkRunningBoundApp()) {
+        self.sendMessage.isLoadingUnboundApplication(function (msg) {
+            if (msg.res === "no") {
+                if (chTriggerModel.triggerState === 'checkOtherApp') {
+                    qrator.setCurrentApp(false);
+                    chTriggerModel.setTriggerState('ready');
+                } else if (oipfUtil.getMediaTime() &gt; 0) {
+                    self.sendMessage.requestShow(function () {
+                        _showTrigger(currentChannelCamp);
+                    });
+                } else {
+                    self.hide();
+                }
+            } else {                          // 다른 언바운드 앱 실행 중
+                qrator.setCurrentApp(false);
+                chTriggerModel.setTriggerState('checkOtherApp');
+            }
+        });
+    } else {
+        _showTrigger(currentChannelCamp);
+    }
+};</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/bomChannelTrigger/js/main.js" target="_blank" rel="noopener">apps/bomChannelTrigger/js/main.js</a><span class="src">채널 트리거 본체. show/hide·clearState·키 처리·BW008 링크 실행</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/qDaemon/chTriggerManager.js" target="_blank" rel="noopener">apps/qDaemon/chTriggerManager.js</a><span class="src">채널 캠페인 스케줄 관리·채널 이벤트 리스너·유효 캠페인 평가</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/bomChannelTrigger/js/component/chTriggerApi.js" target="_blank" rel="noopener">apps/bomChannelTrigger/js/component/chTriggerApi.js</a><span class="src">채널 캠페인 정보(BW008) API</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/bomChannelTrigger/js/model/chTriggerModel.js" target="_blank" rel="noopener">apps/bomChannelTrigger/js/model/chTriggerModel.js</a><span class="src">트리거 상태/캠페인 데이터 모델</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f03.html">← 샤프(#)키 처리 (sharp)</a>
+      <a href="f05.html">BOM VOD 트리거 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt-bom-qrator-web 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

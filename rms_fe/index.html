@@ -1,0 +1,466 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RMS FrontEnd (Alti RMS 웹 관리자 콘솔) — 과제 설명</title>
+<style>
+:root{
+  --accent:#2563eb;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">Altimedia RMS</span>
+      <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
+      <span class="badge gray">TypeScript / React</span>
+    </div>
+    <h1>RMS FrontEnd — Alti RMS 단말 원격 관리 웹 콘솔</h1>
+    <p class="one-liner">Android STB/OTT 단말을 브라우저에서 원격으로 모니터링·제어하는 RMS(Remote Management System)의 관리자용 프론트엔드입니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-06-05 · ad4e61a2 로그인 화면에 스크롤 안 나오게 수정</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>mantis-react-ts</code> / package.json 1.2.0, 운영 빌드 2.2.26</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>RMS FrontEnd(<code>rms_fe</code>)는 Altimedia RMS(Remote Management System)의 관리자용 웹 UI입니다. 운영자가 브라우저로 접속해 현장에 배포된 다수의 Android 기반 셋톱박스(STB)/OTT 단말을 원격으로 모니터링하고 제어하는 단일 페이지 애플리케이션(SPA)입니다. 빌드 산출물은 정적 자원으로 패키징되어 <code>/rms-ui</code> 경로 하위에 배포되며, 사내 접속 URL은 <code>https://rms.altimedia.com/rms-ui/index.html</code>입니다.</p>
+    <p>대상 사용자는 운영자 PC의 데스크톱 브라우저이며, 관리 대상은 Android STB/OTT 디바이스입니다. 화면은 모니터링 대시보드, VoC(고객 응대), 단말(Device) 관리, 앱(App) 관리, OTA(펌웨어) 관리, 관리자(Administrator) 설정, Master 정책, Workflow, 웹 터미널, AI 챗봇 등 운영자가 단말 생애주기 전반을 다룰 수 있도록 구성되어 있습니다.</p>
+    <p>이 프론트엔드는 단일 코드베이스를 여러 사이트에 공통 배포하는 멀티 타깃 구조입니다. <code>.env.*</code> 파일과 <code>src/utils/env.ts</code>의 <code>REACT_APP_TARGET</code> 값으로 사이트를 구분하며, 확인된 타깃은 <code>KT</code>, <code>OBE</code>, <code>TTG</code>, <code>GLOBAL</code>(기본값)입니다. 타깃별로 웹 터미널, 고급 메시지, 런처 리셋, WiFi 메뉴 노출, 위치 지도/네트워크 위젯, 챗봇 노출, 단말 식별자 필드(KT는 <code>deviceSiteId</code>, 그 외 <code>deviceId</code>) 등이 분기됩니다.</p>
+    <div class="callout">
+      <div class="ct">단말 연동 기본 흐름</div>
+      운영자가 Management 메뉴의 Excel import로 단말 정보를 서버에 등록한 뒤 단말을 부팅하면, 단말의 RMS Client가 등록 정보를 바탕으로 인증하고 상태/정보를 서버에 올립니다. Screen Share·Terminal 같은 실시간 기능은 단말이 accessToken을 받아 connection 된 상태에서만 동작합니다(Confluence "RMS FE 단말 연동 방법").
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">모니터링 대시보드</div><div class="d">단말 상태를 실시간 집계해 보여주는 RMS 대시보드입니다. react-grid-layout 기반 드래그 가능한 위젯 그리드로 구성되며, ApexCharts/Nivo 차트로 지표를 시각화합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">시스템 모니터링 · Quick Operation</div><div class="d">시스템 상태 화면(<code>dashboardSystem</code>)과 다수 단말에 명령을 일괄 적용하는 Quick Operation 화면을 제공합니다. Grafana(node-exporter) 모니터링과도 연계됩니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">배치 리포트</div><div class="d">배치로 집계된 리포트 목록과 상세(<code>batchReport</code>/<code>batchReportDetail</code>)를 조회하고, react-csv로 결과를 내보낼 수 있습니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">VoC 고객 응대</div><div class="d">VoC 대시보드와 에이전트별 단말 조회 화면(<code>agentDevicelist</code>)을 제공해 상담원이 특정 가입자 단말의 상태를 빠르게 확인하도록 지원합니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">단말(Device) 관리</div><div class="d">단말 목록/상세, 단말 편집, 그룹 관리, 단말 정책(STB Policy)을 다룹니다. Excel import로 단말을 등록하고 그룹 단위 일괄 운영이 가능합니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">앱(App) 관리</div><div class="d">패키지 목록·설치, 기본 패키지(DefaultPackage), 앱 정책(AppPolicy) 등록/수정을 지원합니다. OBE 사이트에서는 패키지명 대신 앱 이름(appName)으로 표시합니다.</div></a>
+      <a class="card" href="f07.html"><div class="t">OTA(펌웨어) 관리</div><div class="d">펌웨어 목록(<code>fwList</code>)과 펌웨어 설치(<code>fwInstall</code>) 화면으로 단말 펌웨어 OTA 업데이트를 운영합니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">관리자 · 역할(Role) 관리</div><div class="d">관리자 계정 등록/상세, 역할(Role) 기반 권한, 메일 리포트/OTT 알림 설정, 운영 이력(OperationHistory)을 관리합니다. KT 타깃에서는 메일 리포트 경로가 알림 설정(AlertSetting)으로 분기됩니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">Master 정책 설정</div><div class="d">단말(STB)·앱 디바이스 정책을 등록·수정하는 Master 화면(<code>devicePolicyStb*</code>/<code>devicePolicyApp*</code>)으로 사이트 공통 정책을 정의합니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">실시간 원격 제어 · 화면 공유</div><div class="d">WebSocket 시그널 서버와 SSE로 단말 상태/이벤트를 수신하며 Screen Share, 원격 명령, 디바이스 모달 폴링(10초) 등 실시간 제어를 수행합니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">웹 터미널</div><div class="d">@xterm/xterm 기반 웹 터미널(<code>pages/terminal</code>)로 단말에 원격 셸을 연결합니다(wetty 연동). OBE·TTG 타깃에서만 활성화됩니다.</div></a>
+      <a class="card" href="f12.html"><div class="t">AI 챗봇</div><div class="d">사내 패키지 <code>@altimedia/rms-chatbot-ui</code>를 연동한 챗봇 팝업입니다. 디바이스/사용자 정보 요청과 화면 공유·앱 설치·펌웨어 OTA 등으로의 네비게이션을 처리하며 <code>REACT_APP_CHATBOT=Y</code> 사이트에서만 노출됩니다.</div></a>
+      <a class="card" href="f13.html"><div class="t">국제화(i18n)</div><div class="d">i18next/react-i18next로 다국어를 지원합니다. 로케일은 <code>en</code>·<code>fr</code>·<code>tr</code>·<code>du</code>가 포함되어 글로벌 사이트 대응이 가능합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">사이트별 기능 분기</div><div class="d"><code>REACT_APP_TARGET</code>에 따라 모듈 권한·위젯 권한·정책 주기·식별자 필드를 분기해 KT/OBE/TTG/GLOBAL을 한 코드베이스로 운영합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>Create React App(react-scripts)을 <code>react-app-rewired</code> + <code>config-overrides.js</code>로 확장한 React SPA입니다. 전역 상태는 Redux Toolkit, 서버 상태는 react-query가 담당하며 라우팅은 react-router-dom으로 코드 스플리팅(<code>lazy</code> + <code>Loadable</code>)됩니다. 인증/권한은 React Context(<code>JWTContext</code>, <code>PermissionContext</code>)로 처리하고, 백엔드 통신은 <code>src/_api</code>의 axios 인스턴스(<code>beAxios</code>)와 WebSocket/SSE로 이뤄집니다.</p>
+
+    <h3>디렉토리 구조</h3>
+    <pre class="tree">rms_fe/
+├── package.json              # 의존성·스크립트 (name: mantis-react-ts)
+├── config-overrides.js       # CRA webpack/devServer 커스터마이즈 (react-app-rewired)
+├── tsconfig.json             # baseUrl: src (절대 경로 import)
+├── build.js / buildProd.js   # 사이트별 빌드 스크립트 (target/version/compress 인자)
+├── compress.js               # 빌드 결과 압축 (postbuild)
+├── set-version.js / release.js / delete-unused-assets.js
+├── .env.local / .env.kt / .env.obe / .env.ttg / .env.ttg.aws
+│   / .env.ttg_staging / .env.demo / .env.eu / .env.alti / .env.ai
+├── Dockerfile / eks/         # 컨테이너·Helm·nginx 배포 리소스
+├── public/ , vendor/ , diagrams/
+└── src/
+    ├── index.tsx             # 엔트리포인트 (ReactDOM 렌더링)
+    ├── App.tsx               # 최상위 Provider 트리·라우터·전역 단축키
+    ├── config.ts             # 테마/기본 경로 상수
+    ├── routes/               # MainRoutes / LoginRoutes / ExceptionalRoutes
+    ├── pages/                # monitoring, voc, management, appmanagement,
+    │                         #   ota, administrator, master, workflow,
+    │                         #   device, agents, terminal, auth, maintenance
+    ├── _api/                 # axios 래퍼 (AxiosRequest, Devices, Dashboard, ...)
+    ├── store/reducers/       # auth, menu, deviceInfo, enrolledDevice,
+    │                         #   notification, snackbar
+    ├── contexts/             # JWTContext, PermissionContext, ChatContext,
+    │                         #   TaskContext, ConfigContext
+    ├── hooks/                # useAuth, useSSEController, useTable, useTarget ...
+    ├── layout/ components/ sections/ chatbot/
+    ├── themes/ styles/ assets/
+    ├── locales/              # i18n (en, fr, tr, du, i18n.ts)
+    ├── types/ utils/         # env.ts(타깃 분기), route-guard 등</pre>
+
+    <h3>주요 모듈 · 컴포넌트</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>경로</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td>엔트리/Provider 트리</td><td><code>src/App.tsx</code></td><td>QueryClientProvider → ThemeCustomization → TaskProvider → JWTProvider → PermissionProvider → ChatProvider → Routes 순으로 전역 컨텍스트 구성. <code>Alt+V</code> 버전 모달, <code>Alt+Ctrl+E</code> env 설정 모달 등 디버그 단축키 제공.</td></tr>
+          <tr><td>라우팅</td><td><code>src/routes/MainRoutes.tsx</code></td><td>전 페이지를 <code>lazy</code>+<code>Loadable</code> 코드 스플리팅. 메인 영역을 AuthGuard + PermissionGuard + MainLayout으로 감싸고, <code>/monitoring/dashboard/:id</code> 상세는 가드 밖 별도 경로로 노출. <code>mailreport</code>는 IS_KT 여부로 분기.</td></tr>
+          <tr><td>API 계층</td><td><code>src/_api/AxiosRequest.tsx</code></td><td><code>beAxios</code>가 <code>REACT_APP_RMS_BE_SERVER_URL</code>을 baseURL로 사용. 요청 인터셉터에서 sessionStorage의 accessToken을 authorization 헤더에 주입하고 <code>Time-Zone</code> 헤더 추가, 인증 엔드포인트(<code>/api/v1/auth</code>)는 토큰을 비움. 콜백 스타일 <code>request</code> 헬퍼로 multipart 폼·더미 데이터 지원.</td></tr>
+          <tr><td>도메인 API 모듈</td><td><code>src/_api/*.tsx</code></td><td>Devices, Dashboard, Firmware, User, Voc, Parameter, Mail, App, deviceGroupApi, CommonCode 등으로 기능별 분리.</td></tr>
+          <tr><td>상태 관리</td><td><code>src/store/reducers</code></td><td>Redux Toolkit 슬라이스(auth, menu, deviceInfo, enrolledDevice, notification, snackbar). 서버 데이터 캐싱은 react-query 담당.</td></tr>
+          <tr><td>인증·권한</td><td><code>src/contexts</code>, <code>utils/route-guard</code></td><td>JWTContext가 JWT 로그인/세션, PermissionContext+PermissionGuard가 역할(Role) 기반 화면 접근을 통제. 세션 타임아웃은 <code>REACT_APP_RMS_SESSION_TIMEOUT</code>(기본 30).</td></tr>
+          <tr><td>사이트 분기</td><td><code>src/utils/env.ts</code></td><td><code>modulePermissions</code>(terminal, advancedMesage, launcherReset, chatbot, enbaleWifi), <code>widgetPermissions</code>(deviceLocationMap, deviceBrandModel, networkInterface, disableEditMode), <code>stpPolicyPeriodMin</code>, <code>ID_FIELD</code> 등을 타깃별로 분기.</td></tr>
+          <tr><td>실시간 통신</td><td>WS / SSE</td><td>WebSocket 시그널 서버(<code>REACT_APP_SIGNAL_BE_WS</code>)와 SSE(<code>useSSEController</code>, <code>REACT_APP_RMS_SSE_TIMEOUT</code>)로 단말 상태·원격 제어 이벤트 수신.</td></tr>
+          <tr><td>AI 챗봇</td><td><code>src/chatbot</code>, <code>contexts/ChatContext.tsx</code></td><td>사내 패키지 <code>@altimedia/rms-chatbot-ui</code>를 연동. <code>useChat</code>의 <code>registOnChatbot</code>/<code>sendToFrontend</code>로 챗봇과 요청/응답 전문을 주고받음(Confluence "RMS FE AI Agent").</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>계층 · 외부 연동</h3>
+    <p>UI 계층은 MUI(Material UI)/antd 기반 Mantis 테마를 사용하며, 좌측 Navigation 메뉴와 공용 테이블·차트·Leaflet 지도·드래그 그리드를 components/sections로 제공합니다. 백엔드(RMS ADM 서버)와는 REST(axios), 실시간 이벤트는 WebSocket 시그널 서버와 SSE로 연결됩니다. 단말과의 원격 셸은 wetty(<code>REACT_APP_WEB_TERMINAL</code>), 시스템 메트릭은 Grafana(<code>REACT_APP_RMS_GRAFANA_URL</code>)와 연계됩니다. 배포는 Docker(node:20.11.1 빌드 후 <code>serve</code>) 또는 Kubernetes/Helm(eks)에서 nginx로 <code>/rms-ui</code>를 서빙합니다.</p>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>언어</td><td>TypeScript</td><td>^4.8.4</td><td>컴파일 타깃 ES5, <code>baseUrl: src</code> 절대 경로 import</td></tr>
+          <tr><td>프레임워크</td><td>React / React DOM</td><td>^18.2.0</td><td>SPA</td></tr>
+          <tr><td>빌드 시스템</td><td>CRA(react-scripts) + react-app-rewired</td><td>^5.0.1 / ^2.2.1</td><td><code>config-overrides.js</code>로 webpack 폴리필 주입</td></tr>
+          <tr><td>패키지 매니저</td><td>Yarn / npm</td><td>—</td><td><code>.npmrc</code>에 <code>legacy-peer-deps=true</code></td></tr>
+          <tr><td>라우팅</td><td>react-router-dom</td><td>^7.16.0</td><td>lazy 코드 스플리팅</td></tr>
+          <tr><td>상태 관리</td><td>Redux Toolkit / react-redux</td><td>^1.8.6 / ^7.2.6</td><td>전역 클라이언트 상태</td></tr>
+          <tr><td>서버 상태</td><td>react-query</td><td>^3.39.3</td><td>API 캐싱/패칭</td></tr>
+          <tr><td>UI 라이브러리</td><td>MUI(Material UI) 계열 / antd / Emotion</td><td>^5.10.9 / 5.8.1 / ^11</td><td>Mantis React 테마(<code>mantis-react-ts</code>)</td></tr>
+          <tr><td>차트/시각화</td><td>ApexCharts / Nivo</td><td>3.35.5 / ^0.88.0</td><td>react-apexcharts, bar/line/pie</td></tr>
+          <tr><td>지도</td><td>Leaflet / react-leaflet(-cluster)</td><td>^1.9.4 / ^4.2.1</td><td>단말 위치 지도 위젯</td></tr>
+          <tr><td>폼/검증</td><td>Formik / Yup</td><td>^2.2.9 / ^0.32.11</td><td>입력 폼 검증</td></tr>
+          <tr><td>국제화</td><td>i18next / react-i18next</td><td>^23.6.0 / ^15.1.1</td><td>로케일 en, fr, tr, du</td></tr>
+          <tr><td>HTTP</td><td>axios</td><td>^1.16.1</td><td><code>beAxios</code> 인스턴스·인터셉터</td></tr>
+          <tr><td>실시간</td><td>WebSocket / SSE(event-source-polyfill)</td><td>^1.0.31</td><td>시그널 서버·useSSEController</td></tr>
+          <tr><td>인증</td><td>jsonwebtoken (JWT)</td><td>^9.0.0</td><td>토큰 sessionStorage 보관</td></tr>
+          <tr><td>터미널</td><td>@xterm/xterm + addon-fit</td><td>^5.5.0</td><td>웹 터미널(wetty 연동)</td></tr>
+          <tr><td>표/그리드/DnD</td><td>react-table / react-grid-layout / react-window / react-dnd</td><td>^7.8.0 / ^1.5.0 / —</td><td>드래그 가능한 대시보드 그리드</td></tr>
+          <tr><td>AI 챗봇</td><td>@altimedia/rms-chatbot-ui</td><td>0.1.10 (사내 tgz)</td><td><code>vendor/</code> 로컬 패키지</td></tr>
+          <tr><td>기타</td><td>dayjs, lodash, notistack, framer-motion, loglevel, react-csv</td><td>—</td><td>유틸·스낵바·애니메이션</td></tr>
+          <tr><td>코드 품질</td><td>ESLint / Prettier</td><td>^7 / ^2.7.1</td><td>eslint-config-react-app</td></tr>
+          <tr><td>배포</td><td>Docker / Kubernetes(Helm) / nginx</td><td>node:20.11.1</td><td><code>eks/helm</code>, <code>eks/nginx</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+
+    <h3>운영자 로그인 · 권한 진입</h3>
+    <ol class="steps">
+      <li><span class="st">로그인 화면 진입</span><span class="sd">LoginRoutes로 진입해 운영자 계정/비밀번호를 입력합니다. JWTContext가 <code>/api/v1/auth</code>로 인증 요청을 보냅니다(이때 authorization 헤더는 비움).</span></li>
+      <li><span class="st">토큰 발급·보관</span><span class="sd">발급된 accessToken을 sessionStorage에 저장합니다. 이후 모든 요청은 axios 인터셉터가 토큰과 <code>Time-Zone</code> 헤더를 자동 주입합니다.</span></li>
+      <li><span class="st">AuthGuard · PermissionGuard</span><span class="sd">메인 라우트는 AuthGuard로 로그인 여부를, PermissionGuard로 역할(Role) 기반 메뉴 접근 권한을 검사합니다. 통과하면 MainLayout과 좌측 Navigation이 렌더링됩니다.</span></li>
+      <li><span class="st">사이트 분기 적용</span><span class="sd"><code>REACT_APP_TARGET</code>에 따라 modulePermissions/widgetPermissions가 평가되어 터미널·챗봇·WiFi 메뉴·위젯 노출과 단말 식별자 필드가 결정됩니다.</span></li>
+    </ol>
+
+    <h3>단말 등록 · 연동</h3>
+    <ol class="steps">
+      <li><span class="st">Excel 템플릿 작성</span><span class="sd">Management 메뉴에서 단말 등록용 Excel 템플릿을 내려받아 4개 항목을 기입합니다(Confluence "RMS FE 단말 연동 방법").</span></li>
+      <li><span class="st">Excel import</span><span class="sd">작성한 파일을 import 하면 단말 정보가 서버에 등록됩니다. 프론트엔드는 multipart/form-data 폼으로 파일을 전송합니다.</span></li>
+      <li><span class="st">단말 부팅·인증</span><span class="sd">단말을 부팅하면 RMS Client가 등록 정보로 인증하고 상태/기타 정보를 서버에 올립니다. 목록·상세 화면에서 연동 단말을 확인할 수 있습니다.</span></li>
+      <li><span class="st">실시간 connection</span><span class="sd">단말에서 RMS Client가 accessToken을 받거나 Management의 Connection Device 명령을 내리면 connection 되어, Screen Share·Terminal 등 실시간 기능을 사용할 수 있습니다.</span></li>
+    </ol>
+
+    <h3>AI 챗봇을 통한 원격 작업</h3>
+    <ol class="steps">
+      <li><span class="st">챗봇 채널 등록</span><span class="sd">ChatPopup이 <code>useChat</code>의 <code>registOnChatbot(receiveMsg)</code>로 챗봇 통신 채널을 등록합니다(챗봇은 <code>REACT_APP_CHATBOT=Y</code> 사이트에서만 노출).</span></li>
+      <li><span class="st">정보/네비게이션 요청</span><span class="sd"><code>sendToFrontend</code>로 ChatRequestType(type=REQ_INFO/REQ_NAV, nav, target)을 전달합니다. nav 값으로 화면 공유·앱 설치·캐시 삭제·네트워크 점검·패킷 캡쳐·펌웨어 OTA·터미널·메시지 등으로 분기합니다.</span></li>
+      <li><span class="st">응답 처리</span><span class="sd">FE는 ChatResponseType(result, message, ChatResponseData)로 디바이스 연결 여부·소유 여부·accessToken·사용자/권한 정보를 회신하고, 해당 기능 화면으로 네비게이션합니다.</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>Node 20.x(Dockerfile 기준 node:20.11.1)와 Yarn을 권장합니다. <code>tsconfig.json</code>의 <code>baseUrl: src</code>로 절대 경로 import를 사용합니다.</p>
+
+    <h3>의존성 설치 · 로컬 개발 서버</h3>
+    <pre><code>yarn            # 또는 npm install
+
+# 로컬 개발 서버 (HTTPS + PORT 8080, OS별 인증서 경로)
+yarn mac-start    # macOS  (/Users/rms/cert)
+yarn linux-start  # Linux  (/home/rms/cert)
+yarn start        # Windows (set 명령으로 동일 환경변수)</code></pre>
+    <div class="callout warn">
+      <div class="ct">로컬 접속 주의</div>
+      브라우저 접속 후 URL을 <code>https://rms2.altimedia.com:8080/rms-ui</code>로 변경해야 정상 동작하며, <code>hosts</code> 파일에 <code>127.0.0.1 rms2.altimedia.com</code> 매핑이 필요합니다. 인증서는 <code>SSL_CRT_FILE</code>/<code>SSL_KEY_FILE</code> 경로에 배치합니다.
+    </div>
+
+    <h3>사이트별 빌드 (build.js)</h3>
+    <pre><code># 인자 형식 (--target은 dev|prod, prod일 때 --domain 필수)
+yarn build --version={버전} --target={dev|prod} --compressType={tar|zip} \
+           --protocol={http|https} --domain={FE 도메인} --be={BE 도메인} --name={압축파일명}
+
+# 사이트 빌드 예시
+yarn build --target=prod --compressType=tar --domain=rms-cloud-obe.altimedia.com --name=OBE          # OBE
+yarn build --target=prod --compressType=tar --domain=rms-cloud-xl.altimedia.com  --name=XL           # XL
+yarn build --target=prod --compressType=tar --name=TTG --domain=172.28.12.11:8081 \
+           --protocol=http --be=172.28.12.11:8080                                                    # TTG</code></pre>
+    <div class="callout warn">
+      <div class="ct">--version 사용 시 git 커밋·푸시</div>
+      <code>--version</code>을 주면 <code>.env.&lt;target&gt;*</code>의 <code>REACT_APP_VERSION</code>/<code>REACT_APP_BUILD_TIME</code>을 갱신하고 <strong>git add/commit/push까지 자동 수행</strong>하므로 주의가 필요합니다. <code>--compressType</code> 지정 시 <code>dist/</code> 하위에 <code>{name}_RMS_FE_{version}.{tar|zip}</code> 압축본을 생성합니다.
+    </div>
+
+    <h3>그 외 빌드 · 테스트</h3>
+    <pre><code>yarn buildProd --target=ttg   # buildProd.js, target에 맞는 .env 파일 필요
+yarn build:dev                # dotenv -e .env.dev react-app-rewired build
+yarn build:ttg / build:aws    # .env.ttg/.env.aws + postbuild compress.js
+yarn test                     # react-scripts test (CRA Jest)</code></pre>
+    <p>산출물은 정적 자원(<code>build/</code>)으로 빌드되어 <code>/rms-ui</code> 경로에 배포됩니다. 컨테이너 배포는 <code>docker build -t rms-ui .</code>(빌드 후 <code>serve</code>로 8080 서빙)이며, Kubernetes는 <code>eks/helm</code> 차트와 <code>eks/nginx/nginx.conf</code>로 서빙합니다. 환경 설정은 <code>.env.local / .env.kt / .env.obe / .env.ttg / .env.ttg.aws / .env.demo / .env.eu / .env.alti / .env.ai</code> 등 사이트별 파일로 분리됩니다.</p>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>최근 작업은 사이트별 운영 대응에 집중되어 있습니다. AI 챗봇 UI 패키지(<code>@altimedia/rms-chatbot-ui</code>)를 연동하고 OBE·TTG.AWS 2.2.26 버전을 배포했으며, TTG의 WiFi 메뉴 숨김 처리(<code>isWifiMenuHidden</code>)와 부팅 사유 필드명(<code>lastBootReason</code>) 정리, OBE의 패키지명 → 앱 이름(appName) 표시 변경, 디바이스 모달 폴링 주기(5→10초) 조정, 로그인 화면 스크롤 제거 등 운영 피드백을 반영했습니다.</p>
+    <ul class="commits">
+      <li><span class="date">2026-06-05</span><span class="msg">로그인 화면에 스크롤 안 나오게 수정 (ad4e61a2)</span></li>
+      <li><span class="date">2026-06-05</span><span class="msg">AI 챗봇 UI 패키지(@altimedia/rms-chatbot-ui) 연동 (47c51390)</span></li>
+      <li><span class="date">2026-06-05</span><span class="msg">OBE, TTG.AWS 배포(2.2.26) (a4af3b14)</span></li>
+      <li><span class="date">2026-06-05</span><span class="msg">[TTG] lastRebootReason &gt; lastBootReason 이름 변경 (edd6859c)</span></li>
+      <li><span class="date">2026-06-05</span><span class="msg">[TTG] wifihidden &gt; isWifiMenuHidden 이름 변경 (edb81929)</span></li>
+      <li><span class="date">2026-06-05</span><span class="msg">[OBE] app upload modal 에 app name 적용 (feb04896)</span></li>
+      <li><span class="date">2026-06-05</span><span class="msg">[OBE] package name =&gt; app name 표시변경 (74f7d919)</span></li>
+      <li><span class="date">2026-06-05</span><span class="msg">[OBE] package name =&gt; app name 표시 변경 (0fec3619)</span></li>
+      <li><span class="date">2026-06-04</span><span class="msg">[TTG] wifi_hidden 처리 수정 (1a7b1467)</span></li>
+      <li><span class="date">2026-06-04</span><span class="msg">Device 모달 띄울때 폴링 시간을 5에서 10초로 변경 (ea3a3992)</span></li>
+      <li><span class="date">2026-06-04</span><span class="msg">[OBE] whiteList app description appName 으로 변경 (0fcac335)</span></li>
+      <li><span class="date">2026-06-04</span><span class="msg">[TTG] hide wifi menu disable 동작 수정 (3cc4faa1)</span></li>
+      <li><span class="date">2026-06-04</span><span class="msg">[OBE] OT-228 수정 사항 (eca68563)</span></li>
+      <li><span class="date">2026-06-04</span><span class="msg">eslint warnings 수정 (f90a8f54)</span></li>
+      <li><span class="date">2026-06-02</span><span class="msg">TTG.AWS 배포(2.2.26) (3cc189c6)</span></li>
+      <li><span class="date">2026-06-02</span><span class="msg">[TTG] hide wifi menu radio button 추가 (1f744737)</span></li>
+      <li><span class="date">2026-06-02</span><span class="msg">RMS 버전 팝업에 도메인 항목 삭제 (3b148ebd)</span></li>
+      <li><span class="date">2026-06-02</span><span class="msg">[TTG] radio comp의 value 에 따라 color 수정 (caf0c7af)</span></li>
+      <li><span class="date">2026-06-02</span><span class="msg">Revert "yarn.lock 업데이트" (e2624a2f)</span></li>
+      <li><span class="date">2026-06-02</span><span class="msg">yarn.lock 업데이트 (7055fbd0)</span></li>
+    </ul>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li><code>rms_fe/README_CLAUDE.md</code><span class="src">저장소 — 과제 개요·구조·빌드 정리(1차 근거)</span></li>
+      <li><code>rms_fe/README.md</code><span class="src">저장소 — 개발 환경 구성·사이트 빌드 스크립트·Grafana 링크</span></li>
+      <li><code>rms_fe/package.json</code>, <code>config-overrides.js</code>, <code>build.js</code>, <code>Dockerfile</code>, <code>src/utils/env.ts</code>, <code>src/routes/MainRoutes.tsx</code>, <code>src/_api/AxiosRequest.tsx</code><span class="src">저장소 — 기술 스택·라우팅·API·사이트 분기 직접 검증</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3771728412">Confluence — RMS FE (3771728412)</a><span class="src">사내 위키 — BE/Client 정리, 사내 접속 URL</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3771662755">Confluence — RMS FE 설계 문서 (3771662755)</a><span class="src">사내 위키 — Figma, 플립북, Git Repository, API 정의서 링크</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3847062026">Confluence — RMS FE 단말 연동 방법 (3847062026)</a><span class="src">사내 위키 — Excel import 단말 등록·connection 절차</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/4194533464">Confluence — RMS FE AI Agent (4194533464)</a><span class="src">사내 위키 — 챗봇 통신 인터페이스(ChatType/ChatNav/Chat*Type)</span></li>
+      <li>저장소 URL <code>git@bitbucket.org:altimedia/rms_fe.git</code><span class="src">형상 — Bitbucket 원격 저장소</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

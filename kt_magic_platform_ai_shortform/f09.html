@@ -1,0 +1,204 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_shortform · 실행 취소·자동 저장·세션 복구 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>실행 취소·자동 저장·세션 복구 — kt_magic_platform_ai_shortform 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 지니숏츠 (AI 숏폼 플랫폼)</a><span class="sep">›</span>
+      <span class="here">실행 취소·자동 저장·세션 복구</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">데스크톱 웹 (Vue 3 SPA) · JavaScript</span>
+    </div>
+    <h1>실행 취소·자동 저장·세션 복구</h1>
+    <p class="one-liner"><code>historyManager</code>(undo/redo), <code>autoSaveManager</code>(자동 저장), <code>sessionRecoveryManager</code>(세션 복구), <code>elementClipboardManager</code>(복사/붙여넣기) 컴포저블이 편집 안정성을 함께 확보합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform" target="_blank" rel="noopener"><code>kt_magic_platform_ai_shortform</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 파일</div><div class="v"><code>composables/historyManager.js</code> 외 3종</div></div>
+      <div class="item"><div class="k">저장 매체</div><div class="v">localStorage / sessionStorage</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>편집 안정성은 네 개의 싱글턴 컴포저블로 구성됩니다. <code>historyManager</code>는 변경분만 <code>{ path: { before, after } }</code> 형태로 스택에 쌓아 undo/redo를 지원하며, <code>jobId → resultId → HistoryStack</code> 구조로 영상별 독립 관리합니다. <code>undo()</code>/<code>redo()</code>는 적용 함수(<code>applyFn</code>)로 before/after 값을 되돌리거나 재적용하고, Vue 반응성은 <code>historyVersion</code> ref로 트리거합니다.</p>
+    <p><code>autoSaveManager</code>는 기본 10분 주기로 <code>saveImmediatelyIfChanged()</code>를 호출해 <code>historyVersion</code>이 증가한 경우에만 <code>localStorage</code>(키 <code>shortform_autosave_{jobId}_{resultId}</code>)에 저장합니다. 영상 전환 시 직전 영상을 즉시 저장하고, <code>beforeunload</code>에서 미저장 데이터가 있으면 이탈 경고를 띄웁니다.</p>
+    <p><code>sessionRecoveryManager</code>는 새로고침 대비로 <code>sessionStorage</code>(키 <code>shortform_session_{jobId}</code>)에 편집 데이터와 히스토리를 저장하고, 페이지 로드 시 <code>loadAndRestoreSession()</code>으로 복원 후 데이터를 정리합니다. <code>editDataManager</code>는 원본/편집 데이터 캐시와 수정 여부 판정(히스토리 기반)을 제공하고, <code>elementClipboardManager</code>는 요소 복사/붙여넣기와 공용 텍스트 스타일 모델을 담당합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      자동 저장은 <code>historyVersion</code> 증가분을 비교(<code>currentVersion &gt; lastVersion</code>)해 변경이 있을 때만 기록하므로 불필요한 저장을 줄입니다. 복구는 <code>jobId</code> 단위로 격리되어 여러 편집 창이 서로의 세션을 덮어쓰지 않습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant EDM as editDataManager
+    participant HM as historyManager
+    participant ASM as autoSaveManager
+    participant SRM as sessionRecoveryManager
+    participant LS as Web Storage
+
+    U-&gt;&gt;EDM: 요소 편집 (변경 발생)
+    EDM-&gt;&gt;HM: addHistory(jobId, resultId, {path:{before,after}})
+    HM-&gt;&gt;HM: historyVersion++ (반응성 트리거)
+    U-&gt;&gt;HM: Ctrl+Z (undo)
+    HM-&gt;&gt;EDM: applyFn(path, before)
+    loop 10분 주기
+        ASM-&gt;&gt;HM: currentVersion vs lastSavedVersion
+        alt 변경 있음
+            ASM-&gt;&gt;LS: localStorage 저장 (autosave 키)
+        end
+    end
+    Note over SRM,LS: 새로고침 시 sessionStorage에 세션 저장
+    U-&gt;&gt;SRM: 페이지 로드
+    SRM-&gt;&gt;LS: loadSessionData(jobId)
+    SRM-&gt;&gt;EDM: 편집 데이터 복원
+    SRM-&gt;&gt;HM: 히스토리 복원
+      </div>
+      <p class="cap"><strong>흐름.</strong> 편집은 히스토리 스택에 변경분으로 쌓이고(undo/redo), 주기적으로 변경 시에만 자동 저장되며, 새로고침 시 세션 복구가 편집 데이터와 히스토리를 되살립니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class HistoryManager {
+        +histories
+        +historyVersion
+        +addHistory(jobId, resultId, changes)
+        +undo(jobId, resultId, applyFn)
+        +redo(jobId, resultId, applyFn)
+        +canUndo()
+        +canRedo()
+        +exportSessionData()
+    }
+    class AutoSaveManager {
+        +intervalMinutes
+        +setCurrentVideo()
+        +saveImmediatelyIfChanged()
+        +loadAutoSavedData()
+        +hasUnsavedData()
+    }
+    class SessionRecoveryManager {
+        +saveEditSession()
+        +loadAndRestoreSession()
+        +clearRecoveryData()
+    }
+    class EditDataManager {
+        +cache
+        +getCurrentData()
+        +updateEditingData()
+        +isModified()
+        +resetToOriginal()
+    }
+    class ElementClipboardManager {
+        +copy()
+        +paste()
+    }
+
+    AutoSaveManager --&gt; HistoryManager : 버전 비교/추출
+    AutoSaveManager --&gt; EditDataManager : 현재 데이터 직렬화
+    SessionRecoveryManager --&gt; HistoryManager : export/restore
+    SessionRecoveryManager --&gt; EditDataManager : export/restore
+    EditDataManager --&gt; HistoryManager : 수정 여부 판정
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>autoSaveManager</code>·<code>sessionRecoveryManager</code>가 <code>historyManager</code>·<code>editDataManager</code>의 직렬화·복원 메서드를 사용해 저장·복구하고, 수정 여부는 히스토리 카운트로 판정합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>user/src/views/common/api/edit/composables/historyManager.js</code> — undo로 before 값 복원</div>
+<pre><code>undo(jobId, resultId, applyFn) {
+  const history = this.getHistoryStack(jobId, resultId)
+  if (history.currentIndex &lt; 0) return false
+  this.isExecuting.value = true
+  const historyItem = history.stack[history.currentIndex]
+  Object.entries(historyItem.changes).forEach(([path, { before }]) =&gt; {
+    applyFn(path, before)   // before 값으로 되돌리기
+  })
+  history.currentIndex--
+  this.historyVersion.value++
+  return true
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>user/src/views/common/api/edit/composables/autoSaveManager.js</code> — 변경 시에만 저장</div>
+<pre><code>saveImmediatelyIfChanged(jobId, resultId, editDataManager, historyManager) {
+  const currentVersion = historyManager.historyVersion.value
+  const lastVersion = this.getLastSavedVersion(jobId, resultId)
+  if (currentVersion &gt; lastVersion) {                  // 변경분이 있을 때만
+    const currentData = editDataManager.getCurrentData(resultId)
+    if (currentData) {
+      this.performAutoSave(jobId, resultId, currentData, editDataManager, historyManager)
+      this.setLastSavedVersion(jobId, resultId, currentVersion)
+    }
+  }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/composables/historyManager.js" target="_blank" rel="noopener">edit/composables/historyManager.js</a><span class="src">변경분 스택 · undo/redo · 세션 export/restore</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/composables/autoSaveManager.js" target="_blank" rel="noopener">edit/composables/autoSaveManager.js</a><span class="src">10분 주기 자동 저장 · beforeunload 경고 · localStorage</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/composables/sessionRecoveryManager.js" target="_blank" rel="noopener">edit/composables/sessionRecoveryManager.js</a><span class="src">새로고침 대비 세션 저장·복구 · sessionStorage</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/composables/editDataManager.js" target="_blank" rel="noopener">edit/composables/editDataManager.js</a><span class="src">원본/편집 데이터 캐시 · 수정 여부 판정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/composables/elementClipboardManager.js" target="_blank" rel="noopener">edit/composables/elementClipboardManager.js</a><span class="src">요소 복사/붙여넣기 · 공용 텍스트 스타일</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f08.html">← 스타일 템플릿</a>
+      <a href="f10.html">단일/멀티 편집기 분기 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_shortform 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

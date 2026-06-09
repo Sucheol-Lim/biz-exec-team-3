@@ -1,0 +1,192 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp_solid · 음성 파형 애니메이션 기능 상세 — VoiceSequenceStore 프레임 순환 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>음성 파형 애니메이션 — tpi_prj_aikiosk_webapp_solid 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp (SolidJS)</a><span class="sep">›</span>
+      <span class="here">음성 파형 애니메이션</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹앱 · Android WebView 키오스크 (Galaxy Tab S8)</span>
+    </div>
+    <h1>음성 파형 애니메이션</h1>
+    <p class="one-liner"><code>VoiceSequenceStore</code>가 프레임 이미지를 순환 재생해 "원→물결→직선→원" 상태로 음성 입력 중 시각 피드백을 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp_solid</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>VoiceSequenceStore.jsx</code> · <code>VoiceSequence.jsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">음성 입력 중 시각 피드백</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>음성을 듣는 동안 화면에는 원이 물결로, 물결이 직선으로, 다시 원으로 변하는 파형 애니메이션이 재생됩니다. 프레임 이미지는 <code>src/assets/Animation/UserSpeak</code> 아래 4개 시퀀스 폴더(원에서물결 · 물결반복 · 물결에서직선 · 직선에서원)에 PNG로 들어 있고, <code>import.meta.glob</code>으로 빌드 타임에 일괄 로드해 각 시퀀스 배열로 채웁니다.</p>
+    <p><code>VoiceSequenceStore</code>가 현재 시퀀스 상태(<code>sequenceState</code>)와 프레임 인덱스(<code>currentSourceIndex</code>)를 시그널로 들고, <code>currentVoiceSequenceImg</code> 메모가 현재 표시할 프레임을 산출합니다. <code>VoiceSequence</code> 컴포넌트는 이 이미지를 <code>img</code> 태그에 바인딩만 합니다. 한 시퀀스는 <code>runCurrentSequence</code>가 <code>updateIndex</code>(50ms 간격)로 인덱스를 증가시키며 끝까지 돌리고, <code>updateSequenceState</code>로 다음 상태(원에서물결→물결반복→물결에서직선→직선에서원→원에서물결)로 전환합니다. STT와 함께 쓰일 때는 <code>repeatSequenceWhileSTT</code>가 인식이 끝날 때까지 물결 구간(<code>repeatSequence</code>)을 반복해 "듣는 중" 상태를 유지합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      애니메이션과 STT가 별개 비동기 흐름이라, 파형(<code>runCurrentSequence</code>)과 STT(<code>startSTTAsync</code>)가 동시에 끝나는 시점을 <code>isSequenceFinished</code>·<code>isSTTFinished</code> 플래그로 맞춥니다. 한쪽이 먼저 끝나면 다른 쪽이 끝날 때까지 물결을 반복해 끊김 없이 이어집니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant VB as VoiceButton
+    participant VS as VoiceSequenceStore
+    participant ST as STTStore
+    participant VC as VoiceSequence (img)
+
+    VB->>VS: startVoiceSequence() / runCurrentSequence()
+    loop 프레임 순환 (50ms)
+        VS->>VS: updateIndex() → currentSourceIndex++
+        VS->>VC: currentVoiceSequenceImg() 갱신
+    end
+    VB->>VS: repeatSequenceWhileSTT()
+    par STT 인식
+        VS->>ST: startSTTAsync()
+        ST-->>VS: isSTTFinished
+    and 파형 물결 반복
+        VS->>VS: repeatSequence() (recursive)
+    end
+    Note over VS: STT 종료 시 resolve(sttText)
+    VB->>VS: updateSequenceState() (다음 상태)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 50ms 간격으로 프레임 인덱스를 올려 파형을 재생하고, STT와 병렬로 돌면서 인식이 끝날 때까지 물결을 반복합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class VoiceSequenceStore {
+        -CircleToWave
+        -RepeatWave
+        -WaveToLine
+        -LineToCircle
+        +isSequencePlaying()
+        +sequenceState()
+        +currentVoiceSequenceImg()
+        +startVoiceSequence()
+        +runCurrentSequence()
+        +repeatSequence()
+        +updateSequenceState()
+        +repeatSequenceWhileSTT()
+    }
+    class VoiceSequence {
+        +render() img
+    }
+    class STTStore {
+        +startSTTAsync()
+        +sttText()
+    }
+    class VoiceSequenceType {
+        &lt;&lt;enumeration&gt;&gt;
+        CircleToWave
+        RepeatWave
+        WaveToLine
+        LineToCircle
+    }
+
+    VoiceSequence --> VoiceSequenceStore : currentVoiceSequenceImg
+    VoiceSequenceStore ..> VoiceSequenceType
+    VoiceSequenceStore --> STTStore : repeatSequenceWhileSTT
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>VoiceSequenceStore</code>가 4개 프레임 배열과 상태 전이를 관리하고, <code>VoiceSequence</code>는 현재 프레임만 표시하며, STT와의 동기화는 <code>repeatSequenceWhileSTT</code>가 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/stores/VoiceSequenceStore.jsx</code> — 프레임 로드 + 인덱스 순환</div>
+<pre><code>const CircleToWaveObj = import.meta.glob(
+  "../assets/Animation/UserSpeak/01_원에서물결/*", { eager: true });
+for (const img in CircleToWaveObj) CircleToWave.push(CircleToWaveObj[img].default);
+
+const currentVoiceSequenceImg = createMemo(
+  () =&gt; currentSequence()[currentSourceIndex()]
+);
+
+const updateIndex = async () =&gt; new Promise((resolve, reject) =&gt; {
+  if (!isSequencePlaying()) reject("Sequence is not playing.");
+  timeout = setTimeout(() =&gt; {
+    let index = currentSourceIndex() + 1;
+    if (index &gt;= currentSequence().length || !isSequencePlaying()) resolve(0);
+    else resolve(index);
+  }, 50);
+});</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/components/Common/Voice/VoiceSequence/VoiceSequence.jsx</code> — 현재 프레임 표시</div>
+<pre><code>const VoiceSequence = () =&gt; {
+  const { currentVoiceSequenceImg } = VoiceSequenceStore;
+  return (
+    &lt;div&gt;
+      &lt;div className={classes.voiceSquenceBg} /&gt;
+      &lt;img className={classes.voiceSquence} src={currentVoiceSequenceImg()} /&gt;
+    &lt;/div&gt;
+  );
+};</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/stores/VoiceSequenceStore.jsx" target="_blank" rel="noopener">stores/VoiceSequenceStore.jsx</a><span class="src">프레임 시퀀스 로드 · 인덱스 순환 · 상태 전이 · STT 동기화</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/components/Common/Voice/VoiceSequence/VoiceSequence.jsx" target="_blank" rel="noopener">components/Common/Voice/VoiceSequence/VoiceSequence.jsx</a><span class="src">현재 파형 프레임 img 렌더</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/constants/voice.js" target="_blank" rel="noopener">constants/voice.js</a><span class="src">VoiceSequenceType / VoiceActionType 상수</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f08.html">← 키오스크 주문 플로우</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f10.html">효과음 재생 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tpi_prj_aikiosk_webapp_solid 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

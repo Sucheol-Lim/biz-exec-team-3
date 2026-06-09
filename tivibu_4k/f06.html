@@ -1,0 +1,199 @@
+<!doctype html>
+<!-- tivibu_4k · 채널 필터/즐겨찾기/잠금 기능 상세 — 채널 링 필터·favorite·block 시퀀스·클래스 다이어그램 + 코드 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>채널 필터·즐겨찾기·잠금 — tivibu_4k 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Tivibu 4K Android — IPTV/OTT 런처</a><span class="sep">›</span>
+      <span class="here">채널 필터·즐겨찾기·잠금</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV / Leanback · Kotlin</span>
+    </div>
+    <h1>채널 필터·즐겨찾기·잠금</h1>
+    <p class="one-liner">채널 링(장르) 필터를 적용하면 필터 아이콘에 red dot이 표시되고, 설정 화면(<code>FavoriteLockChannelView</code>)에서 즐겨찾기(favorite)와 채널 잠금(block)을 SI <code>ChannelRepository</code>를 통해 관리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tivibu_4k" target="_blank" rel="noopener"><code>tivibu_4k</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>sprint/LS0626_release</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ChannelFilterPopupViewModel</code> · <code>FavoriteLockChannelViewModel</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">라이브 필터 + 설정 즐겨찾기/잠금</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>채널 필터는 채널 링(<code>ChannelRing</code> = 장르 그룹) 기반입니다. 라이브 화면에서 필터 팝업(<code>ChannelFilterPopup</code>)을 열면 <code>ChannelFilterPopupViewModel</code>이 채널 링 목록(<code>TTChannelRing.Genre</code>를 sortNum 순으로 정렬)을 제공하고, 선택한 링을 <code>updateCurrentChannelRingId()</code>로 현재 필터에 반영합니다. 전체(All) 링이 아닌 특정 링이 적용되어 있으면 필터 아이콘에 red dot을 노출하며, 최근 스프린트에서 이 red dot이 필터 리스트 열림/닫힘 상태와 무관하게 표시되도록 보정되었습니다.</p>
+    <p>즐겨찾기·잠금은 설정 화면의 <code>FavoriteLockChannelView</code>/<code>FavoriteLockChannelViewModel</code>에서 관리합니다. 진입 시 <code>channelRepository.updateFavoriteChannelList()</code>로 즐겨찾기 목록을 최신화하고, 전체 채널을 표시한 뒤 항목별로 즐겨찾기(<code>setFavoriteChannel</code> → <code>addFavorite</code>/<code>removeFavorite</code>)와 잠금(<code>setBlockChannel</code> → <code>addBlock</code>/<code>removeBlock</code>)을 토글합니다. 채널의 <code>isFavorite</code>/<code>isBlocked</code> 플래그가 현재 상태를 나타내며, 추가/제거는 SI 채널 레이어에 반영됩니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      필터·즐겨찾기·잠금은 모두 SI 모듈의 <code>ChannelRepository</code> 한 곳을 통해 채널 메타데이터를 갱신합니다. 필터는 "현재 적용된 채널 링"이라는 단일 상태로 표현되고, red dot 노출은 "All 링이 아닌가?"라는 단순 조건으로 파생되어 UI와 데이터의 결합을 최소화했습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 리모컨 (User)
+    participant FP as ChannelFilterPopup
+    participant FVM as ChannelFilterPopupViewModel
+    participant SET as FavoriteLockChannelView
+    participant FLVM as FavoriteLockChannelViewModel
+    participant CR as ChannelRepository (SI)
+
+    Note over U,CR: (A) 채널 필터
+    U->>FP: 채널 링(장르) 선택
+    FP->>FVM: updateCurrentChannelRingId(ringId)
+    FVM->>CR: getChannelList(channelRing)
+    CR--&gt;>FVM: 필터된 채널 목록
+    FVM--&gt;>FP: 현재 링 반영 (All 아니면 red dot)
+
+    Note over U,CR: (B) 즐겨찾기 / 잠금
+    SET->>FLVM: init() / loadChannelsList()
+    FLVM->>CR: updateFavoriteChannelList() / getChannelList()
+    U->>SET: 채널 즐겨찾기/잠금 토글
+    SET->>FLVM: setFavoriteChannel / setBlockChannel
+    FLVM->>CR: addFavorite/removeFavorite · addBlock/removeBlock
+      </div>
+      <p class="cap"><strong>흐름.</strong> (A) 필터 팝업에서 채널 링을 선택하면 ViewModel이 현재 링을 갱신하고 All이 아니면 red dot이 표시됩니다. (B) 설정 화면에서 즐겨찾기/잠금 토글이 SI <code>ChannelRepository</code>에 add/remove로 반영됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ChannelFilterPopup
+    class ChannelFilterPopupViewModel {
+        -_currentChannelRingId
+        +updateCurrentChannelRingId(ringId)
+        +isAllChannelRing(ring) boolean
+        +checkChannelRingIsEmpty(ring) boolean
+    }
+    class FavoriteLockChannelView
+    class FavoriteLockChannelViewModel {
+        +init()
+        +loadChannelsList()
+        +setFavoriteChannel(channel, cb)
+        +setBlockChannel(channel)
+    }
+    class ChannelRepository {
+        &lt;&lt;interface&gt;&gt;
+        +getChannelList(channelRing) List~Channel~
+        +getChannelRingList() List~ChannelRing~
+        +addFavorite(...) / removeFavorite(...)
+        +addBlock(...) / removeBlock(...)
+        +updateFavoriteChannelList()
+    }
+    class Channel {
+        +isFavorite boolean
+        +isBlocked boolean
+    }
+
+    ChannelFilterPopup --&gt; ChannelFilterPopupViewModel : viewModels()
+    FavoriteLockChannelView --&gt; FavoriteLockChannelViewModel : viewModels()
+    ChannelFilterPopupViewModel --&gt; ChannelRepository
+    FavoriteLockChannelViewModel --&gt; ChannelRepository
+    ChannelRepository ..&gt; Channel
+      </div>
+      <p class="cap"><strong>관계.</strong> 필터 팝업과 설정 즐겨찾기/잠금 화면이 각각의 ViewModel을 통해 동일한 SI <code>ChannelRepository</code>에 도달합니다. 채널의 <code>isFavorite</code>/<code>isBlocked</code> 상태가 토글 결과로 갱신됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/setting/view/FavoriteLockChannelViewModel.kt</code> — 잠금/즐겨찾기 토글</div>
+<pre><code>fun setBlockChannel(channel: Channel) {
+    if (!channel.isBlocked) {
+        channelRepository.addBlock(channel)
+            .subscribe({ /* addBlock result */ }, { /* error */ })
+    } else {
+        channelRepository.removeBlock(channel)
+            .subscribe({ /* removeBlock result */ }, { /* error */ })
+    }
+}
+
+fun setFavoriteChannel(channel: Channel, callback: (Channel) -&gt; Unit) {
+    if (!channel.isFavorite) {
+        channelRepository.addFavorite(channel)
+            .subscribe({ /* addFavorite result */ }, { /* error */ })
+    } /* else removeFavorite */
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/livetv/popup/channelfilter/ChannelFilterPopupViewModel.kt</code> — 현재 채널 링 필터 갱신 / All 판정</div>
+<pre><code>fun updateCurrentChannelRingId(channelRingId: String?) {
+    if (channelRingId != null) {
+        _currentChannelRingId.onNext(channelRingId.asNullable())
+    } else {
+        _currentChannelRingId.onNext(
+            (channelAdapter.getCurrentChannelRing()
+                ?.getCurrentFilteredChannelRing() as? TTChannelRing)?.id.asNullable())
+    }
+}
+
+fun isAllChannelRing(channelRing: ChannelRing?): Boolean {
+    return channelRing == channelRepository.getAllChannelRing(contextProvider.getContext())
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/popup/channelfilter/ChannelFilterPopupViewModel.kt" target="_blank" rel="noopener">ui/livetv/popup/channelfilter/ChannelFilterPopupViewModel.kt</a><span class="src">채널 링 필터 상태 · All 판정 · red dot 파생</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/popup/channelfilter/ChannelFilterPopup.kt" target="_blank" rel="noopener">ui/livetv/popup/channelfilter/ChannelFilterPopup.kt</a><span class="src">채널 필터 팝업 UI</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/setting/view/FavoriteLockChannelViewModel.kt" target="_blank" rel="noopener">ui/setting/view/FavoriteLockChannelViewModel.kt</a><span class="src">즐겨찾기/채널 잠금 토글 · 즐겨찾기 목록 갱신</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/setting/view/FavoriteLockChannelView.kt" target="_blank" rel="noopener">ui/setting/view/FavoriteLockChannelView.kt</a><span class="src">설정 즐겨찾기/잠금 채널 리스트 뷰</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/popup/channellist/filter/ChannelFilterView.kt" target="_blank" rel="noopener">ui/livetv/popup/channellist/filter/ChannelFilterView.kt</a><span class="src">채널 리스트 내 필터 뷰</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f05.html">← 구매·결제</a>
+      <a href="f07.html">PIP · 모자이크 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>sprint/LS0626_release</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tivibu_4k 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

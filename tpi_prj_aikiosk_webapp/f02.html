@@ -1,0 +1,200 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp · LLM 자연어 질의 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM 자연어 질의 — AI Kiosk WebApp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp</a><span class="sep">›</span>
+      <span class="here">LLM 자연어 질의</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">React 웹앱 · rxjs ajax</span>
+    </div>
+    <h1>LLM 자연어 질의</h1>
+    <p class="one-liner"><code>LLMManager</code>가 발화 텍스트를 <code>queryManager</code>를 통해 <code>kiosk.altimedia.com/api</code>의 LLM 에이전트 서버에 POST하여 주문 의도·메뉴 안내·일반 질문을 해석합니다. 현재 <code>auto_query</code> 엔드포인트 하나로 의도 분류까지 위임합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 모듈</div><div class="v"><code>voice/LLMManager.js</code> · <code>api/queryManager.js</code></div></div>
+      <div class="item"><div class="k">엔드포인트</div><div class="v"><code>kiosk.altimedia.com/api/auto_query</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>STT로 얻은 발화 텍스트는 LLM 에이전트 서버가 해석합니다. <code>useLLMQuerySequence</code> 훅이 사용자 발화와 직전 대화 이력(<code>queryList</code>)을 합쳐 <code>LLMManager.querySequence()</code>를 호출하면, 매니저 내부에서 <code>autoQuery()</code>가 이전 대화(<code>previous</code>)와 신규 발화(<code>user</code>)를 JSON으로 직렬화해 <code>queryManager.autoQuery()</code>로 넘깁니다.</p>
+    <p><code>queryManager</code>는 <code>SERVER_URL = https://kiosk.altimedia.com/api/</code>의 엔드포인트들(<code>default_query</code>·<code>order_query</code>·<code>beverage_query</code>·<code>other_query</code>·<code>auto_query</code>)을 정의하고 있지만, 현재 운영 경로는 의도 분류까지 서버에 위임하는 <code>auto_query</code> 한 곳입니다. 응답은 rxjs <code>ajax</code> 래퍼(<code>axios-observable</code> 기반, 2회 재시도)로 받아 <code>subscribe</code> 콜백에 전달됩니다.</p>
+    <p>응답 JSON에는 <code>type</code>(new/edit/mix/order/suggestion 등)·<code>message</code>(음성 안내용 문구)·<code>response</code>(주문 메뉴 목록)가 담깁니다. <code>useLLMQuerySequence</code>는 주문류 응답이면 <code>validateOrderQuery</code>로 메뉴 카탈로그에 존재하는 항목만 걸러 <code>queryList</code>에 누적하고, <code>useTTS</code>가 true이면 <code>message</code>를 음성으로 안내합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      가장 최근 커밋(<code>modify llm agent server url</code>)이 이 서버 URL을 변경한 작업입니다. <code>LLMManager</code>에는 <code>defaultQuery</code>/<code>orderQuery</code>/<code>beverageQuery</code>/<code>otherQuery</code>도 남아 있으나 현재 <code>querySequence</code>는 <code>autoQuery</code>만 사용하도록 단순화되어 있습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant HK as useLLMQuerySequence
+    participant LLM as LLMManager
+    participant QM as queryManager
+    participant AJ as ajax-rxjs (axios-observable)
+    participant SRV as LLM 에이전트 서버
+    participant TTS as TTSManager
+
+    HK-&gt;&gt;LLM: querySequence(newQueryList, null, useTTS, cb)
+    LLM-&gt;&gt;LLM: autoQuery() — previous+user JSON 직렬화
+    LLM-&gt;&gt;QM: autoQuery(query, resultCallback)
+    QM-&gt;&gt;AJ: ajax.send(SERVER_URL+auto_query, post)
+    AJ-&gt;&gt;SRV: POST /api/auto_query
+    SRV--&gt;&gt;AJ: 응답 JSON (type/message/response)
+    AJ--&gt;&gt;QM: x.data
+    QM--&gt;&gt;LLM: result
+    alt useTTS &amp;&amp; result.message
+        LLM-&gt;&gt;TTS: handleTts(result.message)
+    end
+    LLM--&gt;&gt;HK: callback(true, data, 'auto')
+    HK-&gt;&gt;HK: validateOrderQuery → queryList 누적
+      </div>
+      <p class="cap"><strong>흐름.</strong> 훅이 누적 대화와 신규 발화를 매니저에 넘기면 <code>autoQuery</code>가 JSON을 만들어 <code>auto_query</code> 엔드포인트로 POST합니다. 응답 message는 TTS로 안내되고, 주문 응답은 검증 후 대화 이력에 쌓입니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class useLLMQuerySequence {
+        +asyncQuerySequence(content, useTTS) Promise
+        -validateOrderQuery(data)
+        -createUserQuery(content)
+        -convertCartToServerData(cartItem)
+    }
+    class LLMManager {
+        -running
+        +initialize()
+        +querySequence(newQuery, prevQuery, useTTS, cb)
+        +autoQuery(newQuery, prevQuery, useTTS, cb)
+        +defaultQuery(...)
+        +orderQuery(...)
+    }
+    class queryManager {
+        +autoQuery(query, subscriber)
+        +defaultQuery(query, subscriber)
+        +orderQuery(query, subscriber)
+        +beverageQuery(query, subscriber)
+        +otherQuery(query, subscriber)
+    }
+    class ajax {
+        +send(url, method, data) Observable
+    }
+    class TTSManager {
+        +handleTts(text)
+    }
+
+    useLLMQuerySequence --&gt; LLMManager : querySequence
+    LLMManager --&gt; queryManager : autoQuery
+    LLMManager --&gt; TTSManager : message 음성 안내
+    queryManager --&gt; ajax : POST 요청
+      </div>
+      <p class="cap"><strong>관계.</strong> 훅 → <code>LLMManager</code> → <code>queryManager</code> → <code>ajax</code> 순으로 위임되며, 응답 <code>message</code>는 <code>TTSManager</code>로 음성 안내됩니다. 의도 분류는 서버의 <code>auto_query</code>가 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/voice/LLMManager.js</code> — auto_query 직렬화와 응답 처리</div>
+<pre><code>querySequence: function(newQuery, prevQuery, useTTS, callback) {
+    var sequenceCallback = function(result, data, type) {
+        if (callback) callback(result, data, type);
+    }
+    self.autoQuery(newQuery, prevQuery, useTTS, sequenceCallback);
+},
+
+autoQuery: function(newQuery, prevQuery, useTTS, callback) {
+    var query;
+    if (prevQuery) {
+        query = JSON.stringify({previous: prevQuery}) + "," + JSON.stringify({user: newQuery});
+    } else {
+        query = newQuery;
+    }
+    queryManager.autoQuery(query, async function(result) {
+        if (typeof result == 'string') result = JSON.parse(result);
+        if (useTTS &amp;&amp; result.message) {
+            await TTSManager.handleTts(result.message);   // 응답 음성 안내
+        }
+        if (result.message == 'ERROR') callback(false, result, 'auto');
+        else                          callback(true,  result, 'auto');
+    });
+},</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/api/queryManager.js</code> — 엔드포인트 정의와 rxjs ajax POST</div>
+<pre><code>const SERVER_URL = "https://kiosk.altimedia.com/api/";
+
+autoQuery: function (query, subscriber) {
+    log.debug('autoQuery');
+    return ajax.send(SERVER_URL + 'auto_query', 'post', query, null, null, null)
+               .subscribe(subscriber);
+},</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/voice/LLMManager.js" target="_blank" rel="noopener">src/voice/LLMManager.js</a><span class="src">대화 이력 직렬화 · auto_query 호출 · 응답 message TTS 연동</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/api/queryManager.js" target="_blank" rel="noopener">src/api/queryManager.js</a><span class="src">LLM 에이전트 서버 엔드포인트 정의 (auto_query 등)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/api/ajax-rxjs.js" target="_blank" rel="noopener">src/api/ajax-rxjs.js</a><span class="src">axios-observable 기반 rxjs ajax 래퍼 (2회 재시도)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/hook/useLLMQuerySequence.jsx" target="_blank" rel="noopener">src/hook/useLLMQuerySequence.jsx</a><span class="src">대화 이력 누적 · 주문 응답 검증 · TTS 분기</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f01.html">← 음성 주문 (STT)</a>
+      <a href="f03.html">음성 안내 (TTS) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">AI Kiosk WebApp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

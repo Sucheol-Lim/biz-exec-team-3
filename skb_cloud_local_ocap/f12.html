@@ -1,0 +1,190 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap · 쿠폰·부가 서비스 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>쿠폰 · 부가 서비스 — skb_cloud_local_ocap 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local App OCAP</a><span class="sep">›</span>
+      <span class="here">쿠폰 · 부가 서비스</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP / MHP STB · Java</span>
+    </div>
+    <h1>쿠폰 · 부가 서비스</h1>
+    <p class="one-liner"><code>coupon.dto</code>의 <code>CouponBox</code>가 쿠폰 서버 응답(파이프 구분 텍스트)을 파싱해 보유 쿠폰을 모델링하고, <code>TbroadCouponNoticeCollector</code>가 이벤트 쿠폰 알림을 수집하며, <code>OneADIdManager</code>가 OneAd 광고 ID를 발급·관리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap" target="_blank" rel="noopener"><code>skb_cloud_local_ocap</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>OCAP_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>coupon/dto/CouponBox.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">쿠폰 시스템 + OneAd 광고 + 앱스토어 진입점</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>coupon</code> 패키지는 SK브로드밴드 쿠폰 시스템 연동의 데이터 모델을 담당합니다. 핵심은 <code>CouponBox</code>(<code>Resource</code> 인터페이스 구현)로, 쿠폰 서버가 내려주는 파이프(<code>|</code>) 구분 텍스트 응답을 <code>parse(String[] src)</code>에서 토큰화해 총 보유 건수·만료 기간·잔여 결제/보너스 금액·사용률과 개별 쿠폰 배열(<code>Coupon[]</code>)로 변환합니다. 각 <code>Coupon</code>은 쿠폰 번호·이름·결제/보너스 금액·만료일·상태(<code>coupon_status</code>)·구매 유형 등의 필드를 가집니다. 쿠폰 서버 URL은 내부/외부로 분리되어 <code>windmill.properties</code>에 설정됩니다.</p>
+    <p>쿠폰 이벤트 알림은 <code>cappl.dm</code>의 <code>TbroadCouponNoticeCollector</code>(<code>NoticeCollector</code> 상속)가 수집합니다. 메일 타입 알림(<code>NOTICE_TYPE_MAIL</code>)을 모아 이벤트 쿠폰(<code>Coupon eventCoupon</code>)을 추출하고, 이미 사용자에게 노출했는지(<code>isShowed()</code>/<code>setShowed()</code>)를 family 계정(<code>TbroadAuthorization.getFamilyAccount()</code>)의 <code>eventCouponId</code>로 판별해 중복 노출을 막습니다.</p>
+    <p>광고 부가 서비스는 OneAd가 대표적입니다. 싱글톤 <code>OneADIdManager</code>가 <code>doCheck()</code>로 OneAd 광고 ID 인증 상태를 확인하고, 사용자(<code>TbroadAuthorization.getCurrentUser()</code>) 기준으로 광고 ID를 발급·갱신해 사용자 프리퍼런스에 저장합니다(<code>writeUP()</code>). 이 ID는 클라우드 홈에 광고를 표시할 때(<code>CloudHomeMain.startConnect()</code>의 IAD 처리, <code>oneAdIDCheck()</code>) 사용됩니다. 홈초이스 앱스토어 등 다른 부가 서비스도 홈 화면의 진입점에서 호출됩니다.</p>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as 쿠폰 화면 / 홈
+    participant NC as TbroadCouponNoticeCollector
+    participant SRV as 쿠폰 서버
+    participant CB as CouponBox
+    participant AUTH as TbroadAuthorization
+    participant OAM as OneADIdManager
+
+    UI-&gt;&gt;SRV: 보유 쿠폰 조회
+    SRV--&gt;&gt;CB: 파이프 구분 텍스트 응답
+    CB-&gt;&gt;CB: parse(src) → Coupon[]
+    CB--&gt;&gt;UI: CouponBox (총건수/잔액/쿠폰 목록)
+    Note over NC,AUTH: 이벤트 쿠폰 알림
+    NC-&gt;&gt;NC: collect (NOTICE_TYPE_MAIL)
+    NC-&gt;&gt;AUTH: getFamilyAccount().eventCouponId
+    NC--&gt;&gt;UI: 미노출 쿠폰이면 알림 표시
+    Note over OAM: 광고 부가 서비스
+    OAM-&gt;&gt;AUTH: getCurrentUser()
+    OAM-&gt;&gt;OAM: doCheck() → OneAd ID 발급/저장
+      </div>
+      <p class="cap"><strong>흐름.</strong> 쿠폰 서버 응답을 <code>CouponBox.parse()</code>가 모델로 변환하고, <code>TbroadCouponNoticeCollector</code>가 이벤트 쿠폰 알림 중복 노출을 막으며, <code>OneADIdManager</code>가 사용자 기준 광고 ID를 관리합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class Resource {
+        &lt;&lt;interface&gt;&gt;
+        +parse(src) Resource
+    }
+    class CouponBox {
+        +int total_num_rows
+        +long expire_duration
+        +String total_rest_pay_amt
+        +int use_rate
+        +Coupon coupon
+        +parse(src) Resource
+    }
+    class Coupon {
+        +String coupon_no
+        +String coupon_name
+        +String expire_dt
+        +int coupon_status
+        +int purchase_type
+    }
+    class TbroadCouponNoticeCollector {
+        -Mail couponMail
+        -Coupon eventCoupon
+        +isShowed() boolean
+        +setShowed(isShowed)
+    }
+    class NoticeCollector {
+        +NOTICE_TYPE_MAIL
+    }
+    class OneADIdManager {
+        +getInstance() OneADIdManager
+        +doCheck()
+        +getIsAuthorized() boolean
+    }
+    class TbroadAuthorization
+
+    CouponBox ..|&gt; Resource : implements
+    CouponBox *-- Coupon : 보유 배열
+    TbroadCouponNoticeCollector --|&gt; NoticeCollector : extends
+    TbroadCouponNoticeCollector ..&gt; Coupon : 이벤트 쿠폰
+    TbroadCouponNoticeCollector ..&gt; TbroadAuthorization : 노출 이력
+    OneADIdManager ..&gt; TbroadAuthorization : 사용자 기준 ID
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>CouponBox</code>가 <code>Resource</code>를 구현해 내부 <code>Coupon</code> 배열을 파싱하고, <code>TbroadCouponNoticeCollector</code>가 이벤트 쿠폰 알림을, <code>OneADIdManager</code>가 광고 ID를 관리합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>coupon/dto/CouponBox.java</code> — 파이프 구분 응답을 쿠폰 모델로 파싱</div>
+<pre><code>public Resource parse(String[] src) {
+    String[] base = TextUtil.tokenize(src[0], "|");
+    total_num_rows       = Util.parseInt(base[2]);
+    expire_duration      = Util.parseLong(base[3]);
+    total_rest_pay_amt   = base[4];
+    total_rest_bonus_amt = base[5];
+    if (base.length &lt;= 7) {
+        num_rows = Util.parseInt(base[6]);
+    } else {
+        use_rate = Util.parseInt(base[6]);
+        num_rows = Util.parseInt(base[7]);
+    }
+    coupon = new Coupon[num_rows];
+    for (int i = 0; i &lt; num_rows; i++) {
+        coupon[i] = new Coupon();
+        coupon[i].parse(src[i + 1]);     // 라인별 개별 쿠폰 파싱
+    }
+    return this;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/coupon/dto/CouponBox.java" target="_blank" rel="noopener">coupon/dto/CouponBox.java</a><span class="src">쿠폰 박스 DTO — 서버 응답 파싱·보유 쿠폰 모델 (parse / 내부 Coupon)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/coupon/dto/Resource.java" target="_blank" rel="noopener">coupon/dto/Resource.java</a><span class="src">쿠폰 리소스 파싱 인터페이스</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/cappl/dm/TbroadCouponNoticeCollector.java" target="_blank" rel="noopener">cappl/dm/TbroadCouponNoticeCollector.java</a><span class="src">이벤트 쿠폰 알림 수집·중복 노출 방지 (isShowed / setShowed)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/home/manager/OneADIdManager.java" target="_blank" rel="noopener">home/manager/OneADIdManager.java</a><span class="src">OneAd 광고 ID 발급·인증·저장 (doCheck / getIsAuthorized)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/resources/properties/windmill.properties" target="_blank" rel="noopener">resources/properties/windmill.properties</a><span class="src">내부/외부 쿠폰 서버 URL 등 부가 서비스 설정</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f11.html">← Windmill 데이터 연동 (cappl.dm)</a>
+      <a href="f13.html">푸시 메시지 처리 (PMS) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>OCAP_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

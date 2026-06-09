@@ -1,0 +1,188 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap_adaptor · 윈도우 표시·소유권 제어 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>윈도우 표시·소유권 제어 — skb_cloud_local_ocap_adaptor 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">SKB(TBroad) Local App OCAP Cloud Adaptor</a><span class="sep">›</span>
+      <span class="here">윈도우 표시·소유권 제어</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP STB · Java(레거시)</span>
+    </div>
+    <h1>윈도우 표시·소유권 제어</h1>
+    <p class="one-liner"><code>showWindow()/hideWindow()</code> 로 메인/위젯 윈도우를 제어하며, 메인 윈도우 소유권이 다른 앱으로 넘어가면 <code>AppManager</code> 가 기존 소유 앱에 <code>onHidden</code>, 나머지 앱에 <code>onMainWindowShown/Hidden</code> 을 통지합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor" target="_blank" rel="noopener"><code>skb_cloud_local_ocap_adaptor</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>cladimpl/manager/AppManager.java</code></div></div>
+      <div class="item"><div class="k">윈도우 모드</div><div class="v"><code>MAIN_WINDOW=1 / WIDGET_WINDOW=0</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>OCAP STB 화면에는 동시에 여러 Cloud App 이 떠 있을 수 있지만, 전체 화면을 점유하는 <strong>메인 윈도우</strong> 는 한 시점에 한 앱만 소유합니다. 앱이 <code>CladContextImpl.showWindow(windowId, windowMode)</code> 를 호출하면 컨텍스트는 모드에 따라 <code>mainWindow</code> 멤버 또는 <code>widgetWindows</code> 해시테이블에 <code>CladWindow</code> 를 등록한 뒤, 소유권 판단을 <code>AppManager.showWindow(windowId, windowMode, appId)</code> 로 위임합니다.</p>
+    <p><code>AppManager</code> 는 <code>WINDOW_LOCK</code> 동기화 블록에서 메인 윈도우 소유권을 관리합니다. 요청 모드가 <code>MAIN_WINDOW</code> 이고 현재 소유자가 존재하며 그 소유자가 요청 앱과 다르면, 기존 소유 앱 컨텍스트에 <code>onHidden()</code> 을 보내 화면을 양보시키고, <code>mainWindowOwner</code>·<code>mainWindowId</code> 를 새 앱으로 갱신한 뒤 <code>notifyMainWindowOwnerChanged(appId, false)</code> 를 호출합니다.</p>
+    <p>이 통지 메서드는 소유자를 제외한 모든 컨텍스트를 순회하며 <code>onMainWindowShown(appId)</code> 를 보냅니다. 반대로 <code>hideWindow</code> 시 닫히는 윈도우가 메인 윈도우(<code>windowId == mainWindowId</code>)이면 소유권을 비우고(<code>NO_MAIN_WINDOW_OWNER = -1</code>) <code>notifyMainWindowOwnerChanged(appId, true)</code> 로 나머지 앱에 <code>onMainWindowHidden()</code> 을 통지합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      소유권 전환 시 두 종류의 통지가 분리됩니다. 화면을 잃는 <strong>기존 소유자</strong> 에게는 직접 <code>onHidden()</code> 을, 화면 상태가 바뀐 것을 알아야 하는 <strong>나머지 앱</strong> 에게는 <code>onMainWindowShown/Hidden</code> 을 브로드캐스트합니다. 모든 메인 윈도우 상태는 <code>AppManager</code> 한 곳에 집중되어 일관성을 유지합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant AppB as App B (신규)
+    participant CtxB as CladContextImpl(B)
+    participant AM as AppManager
+    participant CtxA as CladContextImpl(A, 기존 소유)
+    participant CtxC as CladContextImpl(C, 제3앱)
+
+    AppB-&gt;&gt;CtxB: showWindow(windowId, MAIN_WINDOW)
+    CtxB-&gt;&gt;CtxB: mainWindow = new CladWindow(...)
+    CtxB-&gt;&gt;AM: showWindow(windowId, MAIN_WINDOW, idB)
+    Note over AM: WINDOW_LOCK · 소유자(A) != B
+    AM-&gt;&gt;CtxA: onHidden()
+    AM-&gt;&gt;AM: mainWindowOwner = idB
+    AM-&gt;&gt;AM: notifyMainWindowOwnerChanged(idB, false)
+    AM-&gt;&gt;CtxC: onMainWindowShown(idB)
+    Note over AM,CtxC: 소유자 B 제외 전체에 통지
+      </div>
+      <p class="cap"><strong>흐름.</strong> 앱 B 가 메인 윈도우를 요청하면 기존 소유 앱 A 에는 <code>onHidden</code>, 제3앱 C 에는 <code>onMainWindowShown</code> 이 통지되고 소유권이 B 로 갱신됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class CladContextImpl {
+        -CladWindow mainWindow
+        -Hashtable widgetWindows
+        +showWindow(long windowId, byte windowMode)
+        +hideWindow(long windowId)
+        +isVisible() boolean
+        +onHidden() boolean
+        +onMainWindowShown(long appId)
+        +onMainWindowHidden()
+    }
+    class AppManager {
+        -long mainWindowOwner
+        -long mainWindowId
+        -Object WINDOW_LOCK
+        +showWindow(long windowId, byte windowMode, long appId)
+        +hideWindow(long windowId, long appId)
+        +getMainWindowOwner() long
+        -notifyMainWindowOwnerChanged(long appId, boolean noOwner)
+    }
+    class CladWindow {
+        +long id
+        +byte mode
+    }
+    class WindowMonitor {
+        &lt;&lt;interface&gt;&gt;
+        +onMainWindowShown(long appId)
+        +onMainWindowHidden()
+    }
+
+    CladContextImpl --&gt; AppManager : showWindow / hideWindow 위임
+    CladContextImpl o-- CladWindow : 메인/위젯 보관
+    AppManager --&gt; CladContextImpl : onHidden / onMainWindow* 통지
+    CladContextImpl --&gt; WindowMonitor : 콜백 중계
+      </div>
+      <p class="cap"><strong>관계.</strong> 컨텍스트가 윈도우 객체를 보관하고 소유권 판단을 <code>AppManager</code> 에 위임하며, 매니저는 컨텍스트를 통해 등록된 <code>WindowMonitor</code> 로 통지를 중계합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>cladimpl/manager/AppManager.java</code> — 메인 윈도우 소유권 전환과 통지</div>
+<pre><code>public void showWindow(long windowId, byte windowMode, long appId) {
+    synchronized (WINDOW_LOCK) {
+        if (windowMode == CladContext.MAIN_WINDOW) {
+            if (mainWindowOwner &gt; NO_MAIN_WINDOW_OWNER &amp;&amp; appId != mainWindowOwner) {
+                CladContextImpl context =
+                    (CladContextImpl) contextMap.get(new Long(mainWindowOwner));
+                context.onHidden();                 // 기존 소유자에게 양보 통지
+                mainWindowOwner = appId;             // 소유권 갱신
+                mainWindowId = windowId;
+                notifyMainWindowOwnerChanged(appId, false);
+            }
+        }
+    }
+}
+
+private void notifyMainWindowOwnerChanged(long appId, boolean noOwner) {
+    CladContextImpl[] contexts = getAvailableContexts();
+    for (int i = 0; i &lt; contexts.length; i++) {
+        long id = contexts[i].getId();
+        if (id != appId) {                          // 소유자 제외 전체에 브로드캐스트
+            if (noOwner) contexts[i].onMainWindowHidden();
+            else         contexts[i].onMainWindowShown(appId);
+        }
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/cladimpl/CladContextImpl.java" target="_blank" rel="noopener">cladimpl/CladContextImpl.java</a><span class="src">showWindow/hideWindow 진입 — CladWindow 등록 후 AppManager 위임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/cladimpl/manager/AppManager.java" target="_blank" rel="noopener">cladimpl/manager/AppManager.java</a><span class="src">메인 윈도우 소유권 전환·통지 로직(WINDOW_LOCK)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/cladimpl/manager/CladWindow.java" target="_blank" rel="noopener">cladimpl/manager/CladWindow.java</a><span class="src">윈도우 식별 구조체(id, mode)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/clad/WindowMonitor.java" target="_blank" rel="noopener">clad/WindowMonitor.java</a><span class="src">메인 윈도우 통지 콜백 인터페이스</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">← 앱 단위 컨텍스트</a>
+      <a href="f04.html">세션 데이터 관리 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap_adaptor 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_shortform · BGM·내레이션 사운드 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BGM·내레이션 사운드 — kt_magic_platform_ai_shortform 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 지니숏츠 (AI 숏폼 플랫폼)</a><span class="sep">›</span>
+      <span class="here">BGM·내레이션 사운드</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">데스크톱 웹 (Vue 3 SPA) · JavaScript</span>
+    </div>
+    <h1>BGM·내레이션 사운드</h1>
+    <p class="one-liner"><code>wavesurfer.js</code>로 BGM 파형과 구간(Region)을 표시·조정하고, Typecast 음성 생성(<code>voiceGenerationTypecast</code>)으로 내레이션 오디오를 만들며 내레이션 샘플(성우) 목록을 활용합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform" target="_blank" rel="noopener"><code>kt_magic_platform_ai_shortform</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 파일</div><div class="v"><code>narration/tab/EditNarration.js</code> · <code>tools/NarrationEditTools.vue</code></div></div>
+      <div class="item"><div class="k">음성 생성 잡</div><div class="v"><code>voiceGenerationTypecast</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>BGM은 <code>wavesurfer.js</code>로 파형을 그리고 RegionsPlugin으로 재생 구간을 잡습니다. <code>setBgmWaveSurfer()</code>가 <code>WaveSurfer.create({ container, waveColor, progressColor, url, plugins:[bgmRegions] })</code>로 인스턴스를 만들고, <code>decode</code>·<code>timeupdate</code>·<code>play</code>·<code>pause</code> 이벤트와 <code>region-updated</code>로 시작·종료 ms(<code>selectedBgmStart</code>/<code>selectedBgmEnd</code>)를 갱신합니다. 볼륨은 <code>audioUtils.setBgmVolume()</code>가 UI 0–100을 서버 0–1.0으로 변환해 적용합니다.</p>
+    <p>내레이션은 Typecast 기반 음성 합성으로 생성됩니다. <code>EditNarration.editNarration()</code>이 <code>text</code>·<code>maxSeconds</code>·<code>actorId</code>를 <code>FormData</code>로 묶어 <code>api.api.shortform.voiceGenerationTypecast[1].requestJob(form)</code>으로 잡을 요청하고, <code>getJobResultApi(...)</code>로 결과를 폴링합니다. 성공 시 <code>result.voiceFilePath</code>·<code>durationSec</code>를 받아 내레이션 구간의 종료 시각을 갱신하고 버퍼를 로드합니다.</p>
+    <p>성우(샘플) 목록은 <code>getNarrationSample(api)</code> → <code>GET /nms/magic/shortform/narration-sample</code>로 조회되어 <code>NarrationEditTools.vue</code>의 선택지로 쓰입니다. 음성 글자수가 가능 범위를 넘으면 사용자에게 잘림 경고를 띄우고 진행 여부를 확인합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      내레이션 재수정 시 이전 잡(<code>previousJobIdInfo[narrationIndex].jobId</code>)을 <code>api.narration.deleteNarration</code>으로 정리해 서버 리소스를 누적시키지 않습니다. 오디오 로드 실패 시에는 이전 내레이션 오디오를 유지하도록 폴백합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant NET as NarrationEditTools.vue
+    participant EN as EditNarration.js
+    participant API as api.shortform.voiceGenerationTypecast
+    participant ENG as Typecast 음성 엔진
+    participant WS as wavesurfer.js (BGM)
+
+    U-&gt;&gt;NET: 내레이션 텍스트·성우(actorId) 입력 후 생성
+    NET-&gt;&gt;EN: editNarration(narrationObj, section, ...)
+    EN-&gt;&gt;API: requestJob(FormData{text, maxSeconds, actorId})
+    API-&gt;&gt;ENG: POST /api/magic/shortform/v1/voiceGenerationTypecast
+    ENG--&gt;&gt;API: jobId
+    EN-&gt;&gt;EN: getJobResultApi(getResultApi, jobId, callback) 폴링
+    ENG--&gt;&gt;EN: SUCCESS (voiceFilePath, durationSec)
+    EN-&gt;&gt;EN: 구간 endTime 갱신 · 오디오 버퍼 로드
+    Note over U,WS: BGM은 wavesurfer 파형/Region으로 구간·볼륨 조정
+      </div>
+      <p class="cap"><strong>흐름.</strong> 내레이션은 Typecast 잡으로 합성 후 폴링으로 결과를 받아 구간에 반영하고, BGM은 wavesurfer 파형/Region으로 구간·볼륨을 편집합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class NarrationEditTools {
+        +narrationSampleList
+        +createNarration()
+        +editNarration()
+    }
+    class EditNarration {
+        +editValidationNarration()
+        +editNarration(narrationObj, section, info, actorId)
+    }
+    class shortformVoiceApi {
+        +voiceGenerationTypecast.requestJob(form)
+        +getResultApi(jobId)
+    }
+    class audioUtils {
+        +setBgmVolume()
+        +setNarrationVolume()
+        +extractAudioFromVideo()
+    }
+    class WaveSurfer {
+        +create(options)
+        +on(event)
+        +setVolume()
+    }
+
+    NarrationEditTools --&gt; EditNarration : 생성/수정 위임
+    EditNarration --&gt; shortformVoiceApi : Typecast 잡 요청/폴링
+    NarrationEditTools ..&gt; audioUtils : 볼륨 변환
+    audioUtils ..&gt; WaveSurfer : BGM 인스턴스 제어
+      </div>
+      <p class="cap"><strong>관계.</strong> 내레이션 툴이 <code>EditNarration</code>을 통해 Typecast 음성 잡을 다루고, BGM은 <code>audioUtils</code>·<code>WaveSurfer</code>로 파형·볼륨을 제어합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>user/src/views/common/api/edit/assets/js/narration/tab/EditNarration.js</code> — Typecast 음성 생성 요청·폴링</div>
+<pre><code>let form = new FormData();
+const param = { text: narrationObj.text, maxSeconds: 30 };
+if (actorId) param.actorId = actorId;
+form.append("param", JSON.stringify(param));
+
+const { data: { jobId } } = await api.api.shortform.voiceGenerationTypecast[1].requestJob(form);
+
+const callback = async ({ result, jobStatus }) =&gt; {
+  if (JobStatus.SUCCESS.isStatus(jobStatus)) {
+    data.narrationText[narrationIndex].endTime = millisecondsToTime(
+      timeToMilliseconds(data.narrationText[narrationIndex].startTime) + result?.durationSec * 1000
+    );
+    await timeLine.editNarrationBufferAndLoad(narrationIndex, result?.voiceFilePath);
+  }
+};
+getJobResultApi(api.api.voiceGenerationTypecast.getResultApi, jobId, callback);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>user/src/views/common/api/edit/ShortformHighlightEditLegacy.vue</code> — BGM wavesurfer 인스턴스 생성</div>
+<pre><code>bgmWs = WaveSurfer.create({
+  container: '#bgmWaveform',
+  waveColor: BGM_WAVE_COLOR, progressColor: BGM_PROGRESSCOLOR,
+  url: selectedBgm.value.relativePath, plugins: [bgmRegions],
+  height: 50, barWidth: 1, barRadius: 5, barHeight: 0.7,
+})
+bgmRegions.on('region-updated', (region) =&gt; {
+  selectedBgmStart.value = Math.floor(region.start * 1000);
+  selectedBgmEnd.value = Math.floor(region.end * 1000);
+})</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/assets/js/narration/tab/EditNarration.js" target="_blank" rel="noopener">edit/assets/js/narration/tab/EditNarration.js</a><span class="src">Typecast 음성 생성 요청·폴링·구간 반영</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/components/tools/NarrationEditTools.vue" target="_blank" rel="noopener">edit/components/tools/NarrationEditTools.vue</a><span class="src">내레이션 입력·성우 선택·볼륨 UI</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/assets/js/utils/audioUtils.js" target="_blank" rel="noopener">edit/assets/js/utils/audioUtils.js</a><span class="src">BGM/내레이션 볼륨 변환 · 파형 추출</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/api/api.js" target="_blank" rel="noopener">api/api.js</a><span class="src">voiceGenerationTypecast · getNarrationSample 정의</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f06.html">← 텍스트·자막 편집</a>
+      <a href="f08.html">스타일 템플릿 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_shortform 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

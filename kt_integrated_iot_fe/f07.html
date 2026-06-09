@@ -1,0 +1,179 @@
+<!doctype html>
+<!-- kt_integrated_iot_fe · 디바이스·서비스대상·구역 관리 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>디바이스·서비스대상·구역 관리 — kt_integrated_iot_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT 통합 IoT 관제 FE</a><span class="sep">›</span>
+      <span class="here">디바이스·서비스대상·구역 관리</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관제 콘솔 (React SPA)</span>
+    </div>
+    <h1>디바이스·서비스대상·구역 관리</h1>
+    <p class="one-liner">디바이스, 서비스 대상, 구역(Zone)을 목록·상세·등록·수정·삭제하는 관제용 관리 페이지를 제공합니다. 각 도메인은 <code>list / detail/:id / edit/:id</code> 라우트로 구성됩니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/device · serviceTarget · zone</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">CRUD · BFF /bff/monitor/*</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>관리 페이지는 세 도메인으로 나뉩니다. 디바이스(<code>/devices</code> → <code>DeviceList</code> · <code>DeviceRegisterList</code> · <code>DeviceDetail</code> · <code>DeviceEdit</code>), 서비스 대상(<code>/service-targets</code> → <code>ServiceTargetList/Detail/Edit</code>), 구역(<code>/zones</code> → <code>ZoneList/Detail/Edit</code>)입니다. 라우팅은 각 도메인마다 목록(index), 상세(<code>detail/:id</code>), 편집(<code>edit/:id</code>) 패턴으로 통일되어 있습니다.</p>
+    <p>API는 BFF의 <code>/bff/monitor/*</code> 경로를 사용합니다. 디바이스는 <code>deviceApi.deviceList()</code>/<code>deviceDetail()</code>/<code>deleteDevice()</code>, 구역은 <code>commonApi</code>의 <code>areaList</code>/<code>areaDetail</code>/<code>registArea</code>/<code>editArea</code>/<code>deleteArea</code> 및 구역-디바이스 연동(<code>areaDeviceList</code>/<code>areaDeviceRegist</code>/<code>areaDeviceDelete</code>), 서비스 대상은 <code>serviceTargets</code>/<code>serviceTargetDetail</code>/<code>deleteServiceTarget</code>이 담당합니다. 마커 설정은 <code>areaMarkersList</code>/<code>areaMarkersUpsert</code>로 구역 단위 마커를 관리합니다.</p>
+    <p>조회는 React Query로 페이지네이션·필터(검색 타입·키워드·정렬·삭제 포함 여부)를 적용하고, 등록/수정/삭제는 Mutation으로 처리한 뒤 목록을 무효화·갱신합니다. 모든 요청은 <code>ApiClient</code> 인터셉터가 Bearer 토큰과 <code>unitServiceCode</code> 헤더를 자동 주입합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      구역(Area) API는 <code>download</code> 플래그로 같은 엔드포인트를 <code>/areas.csv</code> + <code>responseType: 'blob'</code>으로 재사용해 목록 조회와 CSV 다운로드를 한 함수로 처리합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant List as DeviceList / ZoneList / ServiceTargetList
+    participant RQ as React Query
+    participant API as deviceApi / commonApi
+    participant Client as ApiClient (interceptor)
+    participant BFF as BFF /bff/monitor
+
+    List-&gt;&gt;RQ: useQuery(목록 + 필터)
+    RQ-&gt;&gt;API: list(params)
+    API-&gt;&gt;Client: GET (Authorization, unitServiceCode 주입)
+    Client-&gt;&gt;BFF: /bff/monitor/devices | /areas | /targets
+    BFF--&gt;&gt;List: rows + paging
+    List-&gt;&gt;API: detail/:id 조회 또는 등록/수정/삭제
+    API-&gt;&gt;BFF: GET/POST/PUT/DELETE
+    BFF--&gt;&gt;List: 결과 → 목록 invalidate/refetch
+      </div>
+      <p class="cap"><strong>흐름.</strong> 목록·상세·편집 화면이 도메인 API를 통해 BFF에 CRUD를 수행하며, 인증 헤더는 <code>ApiClient</code> 인터셉터가 일괄 주입합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class deviceApi {
+        +deviceList(req)
+        +deviceDetail(targetId, deviceId)
+        +deleteDevice(targetId, deviceId)
+    }
+    class commonApi {
+        +areaList(params, download)
+        +areaDetail(areaId)
+        +registArea(params)
+        +editArea(areaId, params)
+        +deleteArea(areaId)
+        +serviceTargets(params)
+        +serviceTargetDetail(id)
+        +deleteServiceTarget(id)
+        +areaMarkersUpsert(areaId, body)
+    }
+    class ApiClient {
+        +interceptors.request
+        +downloadFileFromResponse()
+    }
+    class ManagePage {
+        +List
+        +Detail
+        +Edit
+    }
+
+    ManagePage ..&gt; deviceApi : 디바이스 CRUD
+    ManagePage ..&gt; commonApi : 구역/서비스대상 CRUD
+    deviceApi --&gt; ApiClient
+    commonApi --&gt; ApiClient
+      </div>
+      <p class="cap"><strong>관계.</strong> 관리 화면이 <code>deviceApi</code>·<code>commonApi</code>를 통해 CRUD를 수행하고, 두 모듈 모두 <code>ApiClient</code>(공통 인터셉터)를 거쳐 BFF와 통신합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/api/device.ts</code> — 디바이스 조회/상세/삭제</div>
+<pre><code>export const deviceApi = {
+  deviceList: (deviceRequest: DevicesRequest) =&gt;
+    /* GET /bff/monitor/devices */ /* ... */,
+  deviceDetail: (serviceTargetId: string, deviceId: string) =&gt;
+    apiClient.get(`/bff/monitor/devices/${serviceTargetId}/${deviceId}`).then((res) =&gt; res.data),
+  deleteDevice: (serviceTargetId: string, deviceId: string) =&gt;
+    apiClient.delete(`/bff/monitor/devices/${serviceTargetId}/${deviceId}`).then((res) =&gt; res.data),
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/api/common.ts</code> — 구역(Area) CRUD와 다운로드 겸용 목록</div>
+<pre><code>areaList: (params, download?) =&gt;
+  apiClient.get(`/bff/monitor/areas${download ? '/areas.csv' : ''}`, {
+    responseType: download ? 'blob' : 'json',
+    params: { ...params },
+  }).then((res) =&gt; (download ? res : res.data)),
+registArea: (params) =&gt; apiClient.post('/bff/monitor/areas', { ...params }).then((r) =&gt; r.data),
+editArea: (areaId, params) =&gt; apiClient.put(`/bff/monitor/areas/${areaId}`, { ...params }).then((r) =&gt; r.data),
+deleteArea: (areaId) =&gt; apiClient.delete(`/bff/monitor/areas/${areaId}`).then((r) =&gt; r.data),</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/device.ts" target="_blank" rel="noopener">src/api/device.ts</a><span class="src">디바이스 목록/상세/삭제 API</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/common.ts" target="_blank" rel="noopener">src/api/common.ts</a><span class="src">구역(Area)·서비스대상 CRUD · 구역-디바이스 연동 · 마커 upsert</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/serviceTarget.ts" target="_blank" rel="noopener">src/api/serviceTarget.ts</a><span class="src">서비스 대상 도메인 API</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/area.ts" target="_blank" rel="noopener">src/api/area.ts</a><span class="src">구역 도메인 API</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">devices / service-targets / zones 의 list·detail·edit 라우트</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f06.html">이력 조회</a>
+      <a href="f08.html">SMS 발송 및 알림 설정 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_integrated_iot_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!doctype html>
+<!-- kt_ford_aosp_podcast_app · 미디어 아이콘 제공 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>미디어 아이콘 제공 — kt_ford_aosp_podcast_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford 차량용 팟캐스트 앱</a><span class="sep">›</span>
+      <span class="here">미디어 아이콘 제공</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive · Java</span>
+    </div>
+    <h1>미디어 아이콘 제공</h1>
+    <p class="one-liner"><code>MediaIconContentProvider</code>가 원격 썸네일 URL을 <code>content://</code> URI로 매핑·캐싱해 ContentProvider로 노출함으로써, 미디어 아이템 아이콘이 런처·시스템 미디어 UI에서도 표시되도록 합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app" target="_blank" rel="noopener"><code>kt_ford_aosp_podcast_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop-exoplayer</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>MediaIconContentProvider</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">authorities <code>...service.podcast</code> · 썸네일 노출</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>미디어 세션의 <code>MediaItem</code> 아이콘 URI는 외부 시스템(런처·시스템 미디어 표시)도 읽을 수 있어야 합니다. 원격 HTTP 썸네일 URL을 그대로 넘기면 권한·접근 문제가 생기므로, 채널/에피소드 목록을 만들 때 <code>MediaIconContentProvider.mapUrl()</code>로 원격 URL을 <code>content://com.altimedia.automotive.kt.service.podcast/…</code> 형태의 ContentProvider URI로 변환해 아이콘 URI로 설정합니다. 변환 시 원격 URL ↔ content URI 매핑을 내부 <code>uriMap</code>에 보관합니다.</p>
+    <p>다른 프로세스나 같은 앱의 UI가 이 <code>content://</code> URI를 열면 <code>openFile()</code>이 호출됩니다. 이때 매핑된 원격 URL을 Glide로 다운로드(<code>asFile()</code>, 최대 10초 타임아웃)해 캐시 파일로 저장하고 <code>ParcelFileDescriptor</code>(읽기 전용)로 돌려줍니다. 앱 UI 측은 화면에 직접 그릴 때는 <code>getImageUriFromContentsUri()</code>로 content URI에서 원격 URL을 역조회해 Glide로 로드합니다. ContentProvider는 <code>AndroidManifest.xml</code>에 authorities <code>com.altimedia.automotive.kt.service.podcast</code>, <code>exported="false"</code>로 선언되어 있습니다.</p>
+    <div class="callout">
+      <div class="ct">매핑·캐싱 한 곳에</div>
+      쓰기(목록 생성)는 <code>mapUrl()</code>로 원격→content 매핑을 등록하고, 읽기(아이콘 표시)는 같은 프로바이더의 <code>openFile()</code>이 Glide 캐시 파일을 FD로 제공합니다. UI 내부 표시는 <code>getImageUriFromContentsUri()</code>로 원격 URL을 직접 얻어 우회 로드합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SVC as PodcastBrowserService
+    participant MIL as MediaItemLibrary
+    participant CP as MediaIconContentProvider
+    participant EXT as 런처/시스템 미디어 UI
+    participant GL as Glide
+
+    SVC-&gt;&gt;CP: mapUrl(원격 썸네일 URL, parentId)
+    CP-&gt;&gt;CP: content:// URI 생성 · uriMap에 매핑 저장
+    CP--&gt;&gt;SVC: content:// 아이콘 URI
+    SVC-&gt;&gt;MIL: createBrowsable/PlayableMediaItem(iconUri=content://)
+
+    Note over EXT,CP: 외부가 아이콘 URI를 열 때
+    EXT-&gt;&gt;CP: openFile(content:// URI)
+    CP-&gt;&gt;CP: uriMap에서 원격 URL 조회
+    CP-&gt;&gt;GL: asFile().load(원격 URL).submit().get(10s)
+    GL--&gt;&gt;CP: 캐시 파일
+    CP--&gt;&gt;EXT: ParcelFileDescriptor(READ_ONLY)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 목록 생성 시 원격 URL을 content URI로 매핑하고, 외부가 그 URI를 열면 Glide 캐시 파일을 FD로 돌려줍니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class MediaIconContentProvider {
+        -Map~Uri,Uri~ uriMap
+        +mapUrl(uri, parentId)$ Uri
+        +mapUrl(uri)$ Uri
+        +getImageUriFromContentsUri(contentUri)$ Uri
+        +openFile(uri, mode) ParcelFileDescriptor
+    }
+    class MediaItemLibrary {
+        +createBrowsableMediaItem(mediaId, title, iconUri)$
+        +createPlayableMediaItem(...)$
+    }
+    class PodcastBrowserService {
+        -createBrowsableList(podList, parentId, count)
+        -createPlayableEpisodeList(list, pid, count)
+    }
+    class Constants {
+        +PROVIDER_AUTHORITY
+    }
+    class ContentProvider {
+        &lt;&lt;abstract&gt;&gt;
+    }
+
+    MediaIconContentProvider --|&gt; ContentProvider
+    MediaIconContentProvider ..&gt; Constants : authority 사용
+    PodcastBrowserService --&gt; MediaIconContentProvider : mapUrl로 아이콘 URI 생성
+    PodcastBrowserService --&gt; MediaItemLibrary : MediaItem 생성
+      </div>
+      <p class="cap"><strong>관계.</strong> 서비스가 목록을 만들 때 <code>MediaIconContentProvider.mapUrl()</code>로 content URI를 얻어 <code>MediaItemLibrary</code>에 넘기고, 외부 접근은 같은 프로바이더의 <code>openFile()</code>이 처리합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>media/MediaIconContentProvider.java</code> — 원격 URL → content URI 매핑</div>
+<pre><code>public static Uri mapUrl(Uri uri, String parentId) {
+    String path;
+    if (uri.getEncodedPath() != null) {
+        path = uri.getEncodedPath().substring(1).replace('/', ':');
+        Uri contentUri = new Uri.Builder()
+                .scheme(ContentResolver.SCHEME_CONTENT)
+                .authority(Constants.PROVIDER_AUTHORITY)
+                .path(parentId)
+                .appendPath(path)
+                .build();
+        uriMap.put(contentUri, uri);   // content URI ↔ 원격 URL 매핑
+        return contentUri;
+    }
+    return Uri.EMPTY;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>media/MediaIconContentProvider.java</code> — openFile: Glide 캐시 파일을 FD로 제공</div>
+<pre><code>public ParcelFileDescriptor openFile(@NonNull Uri uri, @NonNull String mode) throws FileNotFoundException {
+    Uri remoteUri = uriMap.get(uri);
+    if (remoteUri == null) throw new FileNotFoundException(uri.getPath());
+    File file = new File(getContext().getCacheDir(), uri.getPath());
+    if (!file.exists()) {
+        File cacheFile = Glide.with(getContext()).asFile().load(remoteUri)
+                .submit().get(DOWNLOAD_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        cacheFile.renameTo(file);
+        file = cacheFile;
+    }
+    return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/MediaIconContentProvider.java" target="_blank" rel="noopener">media/MediaIconContentProvider.java</a><span class="src">mapUrl 매핑 · openFile Glide 캐시 FD · getImageUriFromContentsUri</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/MediaItemLibrary.java" target="_blank" rel="noopener">media/MediaItemLibrary.java</a><span class="src">content 아이콘 URI를 가진 MediaItem 생성</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/PodcastBrowserService.java" target="_blank" rel="noopener">media/PodcastBrowserService.java</a><span class="src">createBrowsableList/createPlayableEpisodeList에서 mapUrl 호출</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/AndroidManifest.xml" target="_blank" rel="noopener">app/src/main/AndroidManifest.xml</a><span class="src">provider authorities=com.altimedia.automotive.kt.service.podcast</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f13.html">← 재생 오류 처리</a>
+      <a href="index.html#features">주요 기능 목록 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop-exoplayer</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_podcast_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

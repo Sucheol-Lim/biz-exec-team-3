@@ -1,0 +1,179 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap_adaptor · UMP 기반 VOD 재생 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UMP 기반 VOD 재생 — skb_cloud_local_ocap_adaptor 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">SKB(TBroad) Local App OCAP Cloud Adaptor</a><span class="sep">›</span>
+      <span class="here">UMP 기반 VOD 재생</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP STB · Java(레거시)</span>
+    </div>
+    <h1>UMP 기반 VOD 재생</h1>
+    <p class="one-liner"><code>UmpMediaPlayerService</code> 가 <code>setDataSourceUmp0~3</code>, <code>demandVODRequestID</code>, VOD 이벤트/상태/결과 상수(VODEVENT_*/UMP_STATUS_*/VODRESULT_*), <code>getUMPStatus/getUMPVersion</code>, ECM 그룹·미디어 비율 등 VOD 세션 전반을 다룹니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor" target="_blank" rel="noopener"><code>skb_cloud_local_ocap_adaptor</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>clad/media/ump/UmpMediaPlayerService.java</code></div></div>
+      <div class="item"><div class="k">인터페이스 태그</div><div class="v"><code>0x12289f3a18ffa279</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>UMP(Unicast Media Player)는 VOD 콘텐츠를 단방향 유니캐스트로 받아 재생하는 모듈입니다. <code>UmpMediaPlayerService</code> 는 <code>CladMediaPlayerService</code> 를 상속하므로 기본 재생 제어(playStart/pause/stop 계열)를 모두 가지면서, 여기에 VOD 세션 전용 기능을 더합니다.</p>
+    <p>세션 시작은 <code>demandVODRequestID(assetId, categoryId)</code> 로 요청 ID를 확보한 뒤, 데이터소스를 네 가지 변형 중 하나로 설정합니다. <code>setDataSourceUmp0(fileName, tsList, offset, requestId)</code>, 우선순위 기준을 더한 <code>...Ump1(..., priorityCriteria)</code>, nodeGroupId 기반 <code>...Ump2(fileName, nodeGroupId, offset, requestId)</code>, 그리고 그 둘을 합친 <code>...Ump3</code> 입니다. 모두 int 결과를 반환하며, 그 값은 <code>VODRESULT_SUCCESS(1)</code> 부터 <code>VODRESULT_SERVER_ERROR(9)</code> 까지의 결과 상수로 해석됩니다(<code>useExtendedResultCode()</code> 로 확장 결과 코드 사용).</p>
+    <p>재생 이벤트는 <code>UmpEventListener.onEvent(int vodEvent)</code> 로 수신합니다. 이벤트 상수에는 광고 시작/종료(<code>VODEVENT_ADVERT_START/STOP</code>), 파일 시작/끝(<code>BEGIN/END_OF_FILE</code>), 튜닝 필요(<code>NEED_TUNE</code>), 일시정지 타임아웃, 세션 에러/정상 등이 있습니다. 세션 상태는 <code>getUMPStatus()</code> 가 <code>UMP_STATUS_INIT(50)</code>/<code>PLAYING(501)</code>/<code>READY(502)</code> 중 하나로 반환하며, ECM 그룹(<code>setECMGroup(byte[])</code>)·미디어 비율(<code>getMediaRatio/setMediaRatio</code>)·앱 이름·VOD 요청 ID·버전(<code>getUMPVersion</code>) 등 부가 제어도 제공합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      데이터소스 설정을 0~3 네 오버로드로 둔 것은 ROP/레거시 Java 에 메서드 오버로딩 시그니처 충돌을 피하면서 인자 조합(tsList vs nodeGroupId, priorityCriteria 유무)을 명시적으로 구분하기 위함입니다. 각 변형은 JS 코덱에서 서로 다른 메서드 해시(0x38729873~0x253890c8)로 등록됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Cloud as Cloud App
+    participant UMP as UmpMediaPlayerService
+    participant L as UmpEventListener
+
+    Cloud-&gt;&gt;UMP: setUmpEventListener(listener)
+    Cloud-&gt;&gt;UMP: demandVODRequestID(assetId, categoryId)
+    Cloud-&gt;&gt;UMP: setDataSourceUmp0(fileName, tsList, offset, requestId)
+    UMP--&gt;&gt;Cloud: VODRESULT_SUCCESS (1)
+    Cloud-&gt;&gt;UMP: playStart()
+    loop 재생 중 이벤트
+        UMP-&gt;&gt;L: onEvent(VODEVENT_BEGIN_OF_FILE)
+        UMP-&gt;&gt;L: onEvent(VODEVENT_ADVERT_START / STOP)
+    end
+    Cloud-&gt;&gt;UMP: getUMPStatus()
+    UMP--&gt;&gt;Cloud: UMP_STATUS_PLAYING (501)
+    UMP-&gt;&gt;L: onEvent(VODEVENT_END_OF_FILE)
+    Cloud-&gt;&gt;UMP: playStop()
+      </div>
+      <p class="cap"><strong>흐름.</strong> 요청 ID 확보 → 데이터소스 설정(결과 코드) → 재생 시작 → VODEVENT 이벤트 수신 → 상태 조회 → 종료의 VOD 세션 사이클입니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class CladMediaPlayerService {
+        &lt;&lt;interface&gt;&gt;
+        +playStart() int
+        +playStop() boolean
+    }
+    class UmpMediaPlayerService {
+        &lt;&lt;interface&gt;&gt;
+        +VODEVENT_ADVERT_START int$
+        +UMP_STATUS_PLAYING int$
+        +VODRESULT_SUCCESS int$
+        +setUmpEventListener(UmpEventListener l)
+        +setDataSourceUmp0(String fileName, tsList, long offset, int requestId) int
+        +setDataSourceUmp2(String fileName, int nodeGroupId, long offset, int requestId) int
+        +demandVODRequestID(String assetId, String categoryId)
+        +setECMGroup(ecmgroup)
+        +getMediaRatio() double
+        +getUMPStatus() int
+        +getUMPVersion() String
+    }
+    class UmpEventListener {
+        &lt;&lt;interface&gt;&gt;
+        +onEvent(int vodEvent)
+    }
+
+    UmpMediaPlayerService --|&gt; CladMediaPlayerService : extends
+    UmpMediaPlayerService --&gt; UmpEventListener : 이벤트 콜백
+      </div>
+      <p class="cap"><strong>관계.</strong> UMP 서비스는 베이스 재생 인터페이스를 상속하고, 등록된 <code>UmpEventListener</code> 로 VOD 이벤트를 통지합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>clad/media/ump/UmpMediaPlayerService.java</code> — 데이터소스·상태·결과 상수(발췌)</div>
+<pre><code>public interface UmpMediaPlayerService extends CladMediaPlayerService {
+    public static final int VODEVENT_ADVERT_START = 100;
+    public static final int VODEVENT_BEGIN_OF_FILE = 102;
+    public static final int VODEVENT_END_OF_FILE = 103;
+    public static final int UMP_STATUS_INIT = 50;
+    public static final int UMP_STATUS_PLAYING = 501;
+    public static final int UMP_STATUS_READY = 502;
+    public static final int VODRESULT_SUCCESS = 1;
+    void setUmpEventListener (UmpEventListener l);
+    int setDataSourceUmp0 (String fileName, int[] tsList, long offset, int requestId);
+    int setDataSourceUmp2 (String fileName, int nodeGroupId, long offset, int requestId);
+    void demandVODRequestID (String assetId, String categoryId);
+    void setECMGroup (byte[] ecmgroup);
+    int getUMPStatus ();
+    String getUMPVersion ();
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>clad/media/ump/UmpEventListener.java</code> — VOD 이벤트 콜백</div>
+<pre><code>public interface UmpEventListener {
+    void onEvent (int vodEvent);   // VODEVENT_* 상수 전달
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/clad/media/ump/UmpMediaPlayerService.java" target="_blank" rel="noopener">clad/media/ump/UmpMediaPlayerService.java</a><span class="src">VOD 확장 인터페이스 — 데이터소스 0~3, 요청 ID, 이벤트/상태/결과 상수</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/clad/media/ump/UmpEventListener.java" target="_blank" rel="noopener">clad/media/ump/UmpEventListener.java</a><span class="src">VOD 이벤트 콜백 인터페이스(onEvent)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/clad/media/CladMediaPlayerService.java" target="_blank" rel="noopener">clad/media/CladMediaPlayerService.java</a><span class="src">상속 부모 — 기본 재생 제어</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f10.html">← 미디어 재생 제어</a>
+      <a href="f12.html">환경 설정 · 핀 관리 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap_adaptor 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

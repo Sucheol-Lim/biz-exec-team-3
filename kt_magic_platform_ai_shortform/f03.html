@@ -1,0 +1,188 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_shortform · 대용량 청크 업로드 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>대용량 청크 업로드 — kt_magic_platform_ai_shortform 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 지니숏츠 (AI 숏폼 플랫폼)</a><span class="sep">›</span>
+      <span class="here">대용량 청크 업로드</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">데스크톱 웹 (Vue 3 SPA) · JavaScript</span>
+    </div>
+    <h1>대용량 청크 업로드</h1>
+    <p class="one-liner"><code>tus-js-client</code> 기반 TUS 프로토콜로 <code>/api/magic/tus/upload/files</code>에 100MB 단위 청크 업로드를 수행하고, 이탈 후 재접속 시 이전 업로드를 이어올립니다(resume).</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform" target="_blank" rel="noopener"><code>kt_magic_platform_ai_shortform</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 파일</div><div class="v"><code>stores/upload.js</code></div></div>
+      <div class="item"><div class="k">업로드 엔드포인트</div><div class="v"><code>/api/magic/tus/upload/files</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>원본 영상은 수백 MB ~ 수 GB 규모가 될 수 있어, 단일 요청 업로드 대신 TUS(resumable upload) 프로토콜로 청크 단위 전송을 사용합니다. <code>useUploadStore.uploadFile(data)</code>가 <code>tus.Upload</code> 인스턴스를 생성하며, <code>endpoint</code>는 <code>/api/magic/tus/upload/files</code>, <code>chunkSize</code>는 <code>100 * 1024 * 1024</code>(100MB)로 설정됩니다.</p>
+    <p>인증 토큰은 <code>headers.Authorization: Bearer ...</code>로 청크 요청마다 실리고, <code>metadata</code>에 파일명·타입과 <code>integrationServiceCode: 'shortform'</code>을 담습니다. 업로드 시작 전에 <code>findPreviousUploads()</code>로 이전 업로드 기록을 조회해 있으면 <code>resumeFromPreviousUpload()</code>로 이어올립니다. 성공하면 응답에서 <code>uploadFilePath</code>를 추출해 생성 잡 요청의 입력 경로로 사용합니다.</p>
+    <p>여러 파일을 동시에 다룰 수 있도록 <code>metaDatas</code> 대기열과 <code>uploadingFiles</code> 진행 맵, <code>uploadInstances</code> 인스턴스 맵을 두고, <code>startAutoUpload()</code>가 3초 간격 인터벌로 대기열을 비웁니다. <code>onProgress</code>로 퍼센트를 갱신하고, <code>cancelUpload()</code>는 해당 인스턴스의 <code>abort()</code>를 호출합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      <code>removeFingerprintOnSuccess: true</code>로 두어 업로드 성공 후 fingerprint를 지우므로 동일 파일을 중복 업로드할 수 있습니다. <code>retryDelays: []</code>는 자동 재시도를 끈 설정으로, 이어올리기는 사용자의 재접속 시 <code>findPreviousUploads</code> 경로로 처리됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SU as ShortformUpload.vue
+    participant UP as useUploadStore
+    participant TUS as tus.Upload
+    participant SVR as /api/magic/tus/upload/files
+
+    SU-&gt;&gt;UP: addData(meta) + startAutoUpload()
+    loop 3초 간격 대기열 처리
+        UP-&gt;&gt;UP: uploadFile(data)
+        UP-&gt;&gt;TUS: new tus.Upload(file, {endpoint, chunkSize 100MB, headers Bearer})
+        UP-&gt;&gt;TUS: findPreviousUploads()
+        alt 이전 업로드 존재
+            UP-&gt;&gt;TUS: resumeFromPreviousUpload(prev)
+        end
+        UP-&gt;&gt;TUS: start()
+        loop 100MB 청크 전송
+            TUS-&gt;&gt;SVR: PATCH (chunk)
+            SVR--&gt;&gt;TUS: offset
+            TUS--&gt;&gt;UP: onProgress(bytesUploaded, bytesTotal)
+        end
+        SVR--&gt;&gt;TUS: 완료 (uploadFilePath)
+        TUS--&gt;&gt;UP: onSuccess → uploadFilePath 추출
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 대기열의 파일마다 TUS 업로드 인스턴스를 만들고, 이전 기록이 있으면 이어올린 뒤 100MB 청크로 전송합니다. 완료 응답의 <code>uploadFilePath</code>가 생성 잡 입력으로 쓰입니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class useUploadStore {
+        +metaDatas
+        +uploadingFiles
+        +uploadInstances
+        +uploadInterval
+        +addData(data)
+        +uploadFile(data)
+        +cancelUpload(data)
+        +startAutoUpload()
+        +stopAutoUpload()
+        +generateRequest(data, filePath)
+    }
+    class tusUpload {
+        +endpoint
+        +chunkSize
+        +metadata
+        +headers
+        +findPreviousUploads()
+        +resumeFromPreviousUpload()
+        +start()
+        +abort()
+    }
+    class useAuthStore {
+        +token
+    }
+
+    useUploadStore o-- tusUpload : 인스턴스 생성/소유
+    useUploadStore --&gt; useAuthStore : Bearer 토큰 주입
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>useUploadStore</code>가 파일별 <code>tus.Upload</code> 인스턴스를 소유·관리하고, <code>useAuthStore.token</code>을 청크 요청 헤더에 주입합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>user/src/stores/upload.js</code> — TUS 업로드 구성과 이어올리기</div>
+<pre><code>var upload = new tus.Upload(videoFile, {
+  endpoint: '/api/magic/tus/upload/files',
+  retryDelays: [],
+  metadata: {
+    filename: videoFile.name,
+    filetype: videoFile.type,
+    integrationServiceCode: 'shortform'
+  },
+  chunkSize: 100 * 1024 * 1024, // 100MB
+  removeFingerprintOnSuccess: true,
+  headers: { "Authorization": `Bearer ${token}` },
+  onProgress: function (bytesUploaded, bytesTotal) {
+    data.progress = ((bytesUploaded / bytesTotal) * 100).toFixed(0)
+  },
+  onSuccess: async function (payload) {
+    let { lastResponse: { _xhr } } = payload
+    let uploadFilePath = JSON.parse(_xhr.response).uploadFilePath  // 생성 잡 입력 경로
+  },
+})
+
+upload.findPreviousUploads().then(function (previousUploads) {
+  if (previousUploads.length) upload.resumeFromPreviousUpload(previousUploads[0]) // 이어올리기
+  upload.start()
+})</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/stores/upload.js" target="_blank" rel="noopener">stores/upload.js</a><span class="src">tus.Upload 구성 · 100MB 청크 · findPreviousUploads · 대기열/인터벌 관리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/ShortformUpload.vue" target="_blank" rel="noopener">views/common/api/ShortformUpload.vue</a><span class="src">업로드 화면 · 진행률 표시 · 취소</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/components/common/UploadStatus.vue" target="_blank" rel="noopener">components/common/UploadStatus.vue</a><span class="src">업로드 진행 상태 UI</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">← 콘텐츠 유형별 생성 방식</a>
+      <a href="f04.html">타임라인 영상 편집기 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_shortform 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

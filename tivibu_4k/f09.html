@@ -1,0 +1,191 @@
+<!doctype html>
+<!-- tivibu_4k · 검색 기능 상세 — SearchViewModel/SearchRepository/SearchApi 시퀀스·클래스 다이어그램 + 코드 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>검색 — tivibu_4k 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Tivibu 4K Android — IPTV/OTT 런처</a><span class="sep">›</span>
+      <span class="here">검색</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV / Leanback · Kotlin</span>
+    </div>
+    <h1>검색</h1>
+    <p class="one-liner"><code>SearchViewModel</code>이 <code>SearchRepository</code> → <code>SearchApi</code>(Retrofit)로 콘텐츠 검색·추천 키워드·정적 추천을 조회하며, UI 언어(터키어/영어)를 검색 파라미터에 반영합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tivibu_4k" target="_blank" rel="noopener"><code>tivibu_4k</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>sprint/LS0626_release</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>home/sub/search/SearchViewModel.kt</code> · <code>data/.../SearchApi.kt</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">홈 서브 영역 콘텐츠 검색 화면</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>검색은 홈 서브 영역의 검색 화면(<code>SearchView</code>/<code>TTSearchKeypad</code>)과 <code>SearchViewModel</code>로 구성됩니다. ViewModel은 키워드 입력에 대한 추천 키워드(<code>loadRecommendKeyword</code> → <code>getKeywordSearch</code>), 실제 검색 결과(<code>loadSearchData</code> → <code>getSearchData</code>), 입력 전 정적 추천(<code>loadStaticContent</code> → <code>getStaticRecommend</code>)을 SI/도메인의 <code>SearchRepository</code>를 통해 가져옵니다. 결과는 필터(<code>SearchFilter</code>)와 함께 콘텐츠 리스트(<code>SearchContent</code>)로 화면에 노출됩니다.</p>
+    <p>검색 언어 처리는 이 화면의 핵심 작업이었습니다. ViewModel은 현재 UI 언어(<code>getUILanguage()</code>)를 읽어 정적 추천·검색 요청 파라미터에 반영하고, 콘텐츠 검색 시 <code>languageType = "tur|eng"</code>처럼 터키어/영어를 함께 질의해 다국어 콘텐츠가 누락되지 않도록 합니다. 검색어 언어 정규화·교정 작업이 별도 스프린트 브랜치에서 진행된 배경입니다.</p>
+    <p>검색 이력은 프로필 단위로 관리됩니다(<code>saveSearchHistory</code>/<code>loadSearchHistory</code>). <code>SearchRepository</code>가 로컬 저장(<code>putSearchHistoryData</code>)과 프로필별 삭제(<code>deleteProfileSearchHistory</code>)를 제공합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      검색 API(<code>SearchApi</code>)는 반환값이 필요한 호출은 <code>Single</code>, 성공 여부만 확인하는 호출은 <code>Completable</code>로 구분한다는 규칙이 인터페이스 주석에 명시되어 있습니다. 각 메서드는 서버 인터페이스 번호(예. <code>3.19.2. Acquisition of Search List Data</code>)와 매핑됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 리모컨 (User)
+    participant KP as TTSearchKeypad
+    participant VM as SearchViewModel
+    participant REPO as SearchRepository
+    participant API as SearchApi (Retrofit)
+    participant SVR as Türk Telekom 서버
+
+    U->>KP: 키워드 입력
+    KP->>VM: loadRecommendKeyword(text)
+    VM->>REPO: getKeywordSearch(condition, ...)
+    REPO->>API: GET getKeywordSearch
+    API--&gt;>VM: KeywordDataDto (추천어)
+    U->>KP: 검색 실행
+    VM->>VM: getUILanguage() → lang
+    VM->>REPO: getSearchData(..., languageType = "tur|eng")
+    REPO->>API: GET getSearchData
+    API->>SVR: 검색 질의
+    SVR--&gt;>VM: SearchDataDto (콘텐츠 목록)
+    VM->>KP: 필터 + 콘텐츠 리스트 갱신
+      </div>
+      <p class="cap"><strong>흐름.</strong> 키워드 입력 시 추천어를, 검색 실행 시 콘텐츠 목록을 <code>SearchRepository</code>→<code>SearchApi</code>로 조회합니다. UI 언어를 읽어 다국어(터키어/영어) 질의에 반영합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class SearchViewModel {
+        +loadSearchData(...)
+        +loadRecommendKeyword(text)
+        +loadStaticContent()
+        +saveSearchHistory(keyword)
+        -getUILanguage() String
+    }
+    class SearchRepository {
+        &lt;&lt;interface&gt;&gt;
+        +getSearchData(...) Single~SearchData~
+        +getKeywordSearch(...) Single~KeywordData~
+        +getStaticRecommend(...) Single~RecommendList~
+        +putSearchHistoryData(...) Completable
+        +deleteProfileSearchHistory(...) Completable
+    }
+    class SearchApi {
+        &lt;&lt;interface&gt;&gt;
+        +getSearchData(...) Single~SearchDataDto~
+        +getKeywordSearch(...) Single~KeywordDataDto~
+        +getStaticRecommend(...) Single~RecommendListDto~
+    }
+    class SearchFilter {
+        &lt;&lt;enumeration&gt;&gt;
+        ALL
+    }
+
+    SearchViewModel --&gt; SearchRepository : 검색/추천/이력
+    SearchRepository --&gt; SearchApi : Retrofit 호출
+    SearchViewModel ..&gt; SearchFilter
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>SearchViewModel</code>이 <code>SearchRepository</code>를 통해 검색·추천·이력을 처리하고, 구현은 Retrofit <code>SearchApi</code>로 서버에 도달합니다. 결과는 <code>SearchFilter</code>로 분류되어 화면에 표시됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>home/sub/search/SearchViewModel.kt</code> — UI 언어 반영 + 다국어 질의</div>
+<pre><code>fun loadSearchData(/* ... */) {
+    val lang = getUILanguage()
+    searchRepository.getSearchData(
+        // ...
+        languageType = "tur|eng",   // 터키어/영어 동시 질의
+        // ...
+    ).subscribe(
+        { result -&gt; /* 콘텐츠 리스트 갱신 */ },
+        { error  -&gt; Timber.d("loadSearchData|getSearchData error=$error") }
+    )
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>data/remote/api/SearchApi.kt</code> — 검색/추천 Retrofit 인터페이스(서버 스펙 번호)</div>
+<pre><code>interface SearchApi {
+    // 3.19.2. Acquisition of Search List Data
+    @GET(DataConfig.API_GET_SEARCH_DATA)
+    fun getSearchData(
+        @Query("condition") condition: String,
+        @Query("languagetype") languageType: String,
+        // ...
+    ): Single&lt;SearchDataDto&gt;
+
+    // 3.19.5. Search For Prompt Word
+    @GET(DataConfig.API_GET_KEYWORD_SEARCH)
+    fun getKeywordSearch(...): Single&lt;KeywordDataDto&gt;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/home/sub/search/SearchViewModel.kt" target="_blank" rel="noopener">home/sub/search/SearchViewModel.kt</a><span class="src">검색/추천/정적추천 로드 · UI 언어 처리 · 검색 이력</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/data/src/main/java/com/altimedia/data/remote/api/SearchApi.kt" target="_blank" rel="noopener">data/remote/api/SearchApi.kt</a><span class="src">검색 Retrofit API (검색/추천어/정적추천)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/domain/src/main/java/com/altimedia/domain/repository/SearchRepository.kt" target="_blank" rel="noopener">domain/repository/SearchRepository.kt</a><span class="src">검색 도메인 repository · 검색 이력 저장/삭제</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/home/sub/search/TTSearchKeypad.kt" target="_blank" rel="noopener">home/sub/search/TTSearchKeypad.kt</a><span class="src">검색어 입력 키패드(언어별 입력)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/home/sub/search/SearchView.kt" target="_blank" rel="noopener">home/sub/search/SearchView.kt</a><span class="src">검색 화면 뷰 · 필터/결과 리스트</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f08.html">← 핑거프린트 오버레이</a>
+      <a href="f10.html">로그인·프로비저닝 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>sprint/LS0626_release</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tivibu_4k 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!doctype html>
+<!-- ott-tvapp · 홈 런처 겸용 기능 상세 — PlaybackActivity singleInstance/HOME 인텐트 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>홈 런처 겸용 — ott-tvapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KCTV 제주 OTT Android TV 앱 (ott-tvapp)</a><span class="sep">›</span>
+      <span class="here">홈 런처 겸용</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KCTV 제주</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>홈 런처 겸용</h1>
+    <p class="one-liner">메인 액티비티 <code>PlaybackActivity</code>가 <code>singleInstance</code> 모드로 동작하며 <code>HOME</code>·<code>LEANBACK_LAUNCHER</code> 인텐트 카테고리를 받아 셋톱박스의 홈 화면(런처) 역할을 겸합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/ott-tvapp" target="_blank" rel="noopener"><code>ott-tvapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>android14/marusys</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>PlaybackActivity</code> · <code>ott/OttApplication</code></div></div>
+      <div class="item"><div class="k">진입 인텐트</div><div class="v"><code>HOME</code> · <code>LEANBACK_LAUNCHER</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>이 앱은 별도 런처를 두지 않고 메인 재생 화면인 <code>PlaybackActivity</code> 자체가 단말의 홈 화면을 겸합니다. <code>AndroidManifest.xml</code>에서 이 액티비티는 <code>android:launchMode="singleInstance"</code>로 선언되어 시스템 전체에 인스턴스가 하나만 존재하며, 인텐트 필터에 <code>category.HOME</code>·<code>category.LEANBACK_LAUNCHER</code>·<code>category.LAUNCHER</code>를 모두 등록해 부팅 직후와 리모컨 홈키 입력 시 이 액티비티가 전면에 올라옵니다.</p>
+    <p>이미 떠 있는 단일 인스턴스에 새 인텐트가 도착하면 <code>onCreate()</code>가 아니라 <code>onNewIntent()</code>가 호출됩니다. 이 콜백은 CAS 팝업·부팅 다이얼로그 표시 여부, VOD 재생 중 여부, <code>MgmtManager</code> 연결 상태 등을 점검해 새 인텐트를 무시하거나 처리하도록 분기합니다. 데이터가 없는 순수 기동(부팅)일 때는 <code>onCreate()</code>에서 네트워크 대기 메시지를 예약하고, TV 프로그램 URI 같은 데이터가 있으면 플레이어를 만들어 곧바로 해당 채널로 진입합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      <code>excludeFromRecents</code>·<code>clearTaskOnLaunch</code>·<code>stateNotNeeded</code> 속성을 함께 지정해 셋톱박스 런처답게 최근 앱 목록에 남지 않고 항상 깨끗한 단일 태스크로 복귀하도록 했습니다. 진입점인 <code>OttApplication</code>은 <code>onCreate()</code>에서 <code>ApplicationLifecycleListener</code>를 등록해 액티비티 생명주기를 추적합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SYS as Android System
+    participant APP as OttApplication
+    participant ACT as PlaybackActivity (singleInstance)
+    participant NET as NetworkStateManager
+    participant PL as ctrl/Player
+
+    SYS-&gt;&gt;APP: 프로세스 기동 onCreate()
+    APP-&gt;&gt;APP: registerActivityLifecycleCallbacks(ApplicationLifecycleListener)
+    SYS-&gt;&gt;ACT: HOME / LEANBACK_LAUNCHER 인텐트
+    alt 인스턴스 없음 (부팅)
+        ACT-&gt;&gt;ACT: onCreate(savedInstanceState)
+        ACT-&gt;&gt;NET: init(this, mNetworkStateHandler)
+        alt intent.getData() == null
+            ACT-&gt;&gt;ACT: sendEmptyMessageDelayed(MSG_BOOTING_NETWORK_WAITING)
+        else 데이터(프로그램 URI) 존재
+            ACT-&gt;&gt;PL: new Player() / player.init(...)
+            ACT-&gt;&gt;ACT: handleIntent(intent)
+        end
+    else 인스턴스 존재 (홈키 재진입)
+        SYS-&gt;&gt;ACT: onNewIntent(intent)
+        ACT-&gt;&gt;ACT: CAS 팝업 / booting / VOD 재생 여부 점검
+        ACT-&gt;&gt;ACT: 무시 또는 handleIntent(intent)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 단일 인스턴스라 부팅 시에는 <code>onCreate()</code>, 이미 떠 있을 때 들어오는 홈키/인텐트는 <code>onNewIntent()</code>로 분기됩니다. 부팅 경로는 네트워크 대기 후 기본 채널 재생으로 이어집니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class OttApplication {
+        +onCreate()
+    }
+    class ApplicationLifecycleListener {
+        +onActivityCreated(activity, bundle)
+        +onActivityResumed(activity)
+    }
+    class PlaybackActivity {
+        +onCreate(Bundle saved)
+        +onNewIntent(Intent intent)
+        +onRestart()
+        +onKeyDown(int keyCode, KeyEvent event)
+        +onKeyUp(int keyCode, KeyEvent event)
+        -handleIntent(Intent intent)
+        -homeMenu(Object param)
+    }
+    class DeviceAPIStateCallback {
+        &lt;&lt;interface&gt;&gt;
+        +onInitialized()
+        +onDeinitialized()
+    }
+    class NetworkStateManager {
+        +init(context, handler)
+    }
+    class Player {
+        +init(handler, context, surfaceView, subtitleView)
+    }
+
+    OttApplication --&gt; ApplicationLifecycleListener : registerActivityLifecycleCallbacks
+    PlaybackActivity ..|&gt; DeviceAPIStateCallback : implements
+    PlaybackActivity --&gt; NetworkStateManager : init
+    PlaybackActivity --&gt; Player : init
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>OttApplication</code>이 생명주기 리스너를 등록하고, 단일 인스턴스 <code>PlaybackActivity</code>가 <code>DeviceAPI.DeviceAPIStateCallback</code>을 구현하며 네트워크·플레이어를 초기화합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>app/src/main/AndroidManifest.xml</code> — 런처 인텐트 필터와 singleInstance 선언</div>
+<pre><code>&lt;activity
+    android:name=".PlaybackActivity"
+    android:clearTaskOnLaunch="true"
+    android:excludeFromRecents="true"
+    android:exported="true"
+    android:launchMode="singleInstance"
+    android:stateNotNeeded="true"&gt;
+    &lt;intent-filter&gt;
+        &lt;action android:name="android.intent.action.MAIN" /&gt;
+        &lt;category android:name="android.intent.category.HOME" /&gt;
+        &lt;category android:name="android.intent.category.DEFAULT" /&gt;
+        &lt;category android:name="android.intent.category.LAUNCHER" /&gt;
+        &lt;category android:name="android.intent.category.LEANBACK_LAUNCHER" /&gt;
+    &lt;/intent-filter&gt;
+&lt;/activity&gt;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>PlaybackActivity.java</code> — onCreate에서 데이터 유무로 부팅/진입 분기</div>
+<pre><code>protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.activity_playback);
+    handler = new MyHandler(this);
+    NetworkStateManager.getInstance().init(this, mNetworkStateHandler);
+
+    Intent intent = getIntent();
+    if (intent.getData() == null) {
+        handler.sendEmptyMessageDelayed(MSG_BOOTING_NETWORK_WAITING, DELAY_BOOTING_WAITTING);
+    } else {
+        if (player == null) player = new Player();
+        VOD.createPlayer(this, findViewById(R.id.surface_view));
+        player.init(handler, this, findViewById(R.id.surface_view), findViewById(R.id.subtitle_view));
+        handleIntent(intent);
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/AndroidManifest.xml" target="_blank" rel="noopener">app/src/main/AndroidManifest.xml</a><span class="src">singleInstance · HOME/LEANBACK_LAUNCHER 인텐트 필터 선언</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/PlaybackActivity.java" target="_blank" rel="noopener">PlaybackActivity.java</a><span class="src">홈/런처 메인 액티비티 · onCreate/onNewIntent/onRestart 진입 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/OttApplication.java" target="_blank" rel="noopener">ott/OttApplication.java</a><span class="src">Application 진입점 · ApplicationLifecycleListener 등록</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/ApplicationLifecycleListener.java" target="_blank" rel="noopener">ott/ApplicationLifecycleListener.java</a><span class="src">액티비티 생명주기 콜백 리스너</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">실시간 채널 시청 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>android14/marusys</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">ott-tvapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

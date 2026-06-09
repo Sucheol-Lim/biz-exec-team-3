@@ -1,0 +1,195 @@
+<!doctype html>
+<!-- ott-tvapp · WebView 하이브리드 UI 기능 상세 — WebServiceHandler JS 브릿지 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WebView 하이브리드 UI — ott-tvapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KCTV 제주 OTT Android TV 앱 (ott-tvapp)</a><span class="sep">›</span>
+      <span class="here">WebView 하이브리드 UI</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KCTV 제주</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>WebView 하이브리드 UI</h1>
+    <p class="one-liner">서버에서 내려받은 iframe 웹 UI를 <code>WebView</code>로 로딩하고, <code>ott/WebServiceHandler</code>가 <code>@JavascriptInterface</code> 브릿지(<code>androidTvLocal</code>)로 단말 정보·재생·CAS 기능을 웹에 노출합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/ott-tvapp" target="_blank" rel="noopener"><code>ott-tvapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>android14/marusys</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ott/WebServiceHandler</code></div></div>
+      <div class="item"><div class="k">JS 인터페이스명</div><div class="v"><code>androidTvLocal</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>화면 UI 대부분은 서버에서 내려받은 iframe(웹 UI 패키지)을 <code>WebView</code>로 로딩해 표현합니다. 싱글턴 <code>WebServiceHandler</code>가 WebView와 네이티브를 잇는 핵심으로, <code>init()</code>으로 컨테이너·WebView·부모 핸들러를 받아두고 <code>startAction(url)</code>에서 JavaScript를 활성화한 뒤 URL을 로드하고 <code>javascript:onStart()</code>를 호출해 웹 앱을 기동합니다.</p>
+    <p><code>initWebView()</code>는 <code>addJavascriptInterface(new AndroidBridge(), "androidTvLocal")</code>로 네이티브 브릿지를 주입합니다. 웹은 이 인터페이스를 통해 <code>getCustomerId()</code>(가입자 ID = <code>SDP.accountId</code>), <code>getContractId()</code>(<code>CAS.SUBSCRIBE_ID</code>), <code>getStbModel()</code>·<code>getMacAddress()</code>·<code>getIP()</code>·<code>getResolution()</code> 같은 단말/가입자 정보와 <code>resizeScreen()</code>·<code>checkPurchasePin()</code> 등 재생·인증 기능을 호출합니다.</p>
+    <p>웹 앱 시작/종료는 <code>WEB_APP_STARTED</code>·<code>WEB_APP_CLOSED</code> 메시지로 부모(<code>PlaybackActivity</code>) 핸들러에 통지됩니다. 종료 시 <code>stopWebService()</code>가 폼 데이터·캐시를 비우고 <code>about:blank</code>로 전환해 자원을 회수합니다.</p>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant ACT as PlaybackActivity
+    participant WSH as ott/WebServiceHandler
+    participant WV as WebView
+    participant WEB as iframe Web UI (JS)
+    participant SDP as ctrl/SDP / ctrl/CAS
+
+    ACT-&gt;&gt;WSH: init(context, rootContainer, webView)
+    ACT-&gt;&gt;WSH: startAction(url)
+    WSH-&gt;&gt;WSH: initWebView() + addJavascriptInterface(AndroidBridge, "androidTvLocal")
+    WSH-&gt;&gt;ACT: parentHandler ← WEB_APP_STARTED
+    WSH-&gt;&gt;WV: loadUrl(url) + loadUrl("javascript:onStart()")
+    WEB-&gt;&gt;WSH: androidTvLocal.getCustomerId()
+    WSH-&gt;&gt;SDP: SDP.accountId
+    SDP--&gt;&gt;WEB: 가입자 ID 반환
+    WEB-&gt;&gt;WSH: androidTvLocal.resizeScreen(x,y,w,h)
+    WSH-&gt;&gt;ACT: Config.resize(rect) (AV 화면 비율 조정)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 액티비티가 핸들러를 초기화·기동하면 브릿지가 주입되고, 웹 UI는 <code>androidTvLocal</code>로 단말 정보 조회·화면 리사이즈 등 네이티브 기능을 호출합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class WebServiceHandler {
+        +int WEB_APP_STARTED
+        +int WEB_APP_CLOSED
+        +getInstance() WebServiceHandler
+        +init(context, rootContainer, webView)
+        +startAction(String url)
+        +stopAction()
+        +stopWebService()
+        +isWebviewStarted() boolean
+        -initWebView()
+    }
+    class AndroidBridge {
+        +setMessage(String arg)
+        +resizeScreen(x, y, width, height) boolean
+        +checkPurchasePin(String pin) boolean
+        +getUserValue(String key) String
+        +getCustomerId() String
+        +getContractId() String
+        +getStbModel() String
+        +getMacAddress() String
+        +getIP() String
+    }
+    class WebView
+    class PlaybackActivity
+    class SDP {
+        +String accountId
+    }
+    class CAS {
+        +String SUBSCRIBE_ID
+    }
+
+    WebServiceHandler *-- AndroidBridge : addJavascriptInterface
+    WebServiceHandler --&gt; WebView : loadUrl
+    WebServiceHandler --&gt; PlaybackActivity : parentHandler 통지
+    AndroidBridge --&gt; SDP : getCustomerId
+    AndroidBridge --&gt; CAS : getContractId
+      </div>
+      <p class="cap"><strong>관계.</strong> 싱글턴 <code>WebServiceHandler</code>가 내부 <code>AndroidBridge</code>를 JS 인터페이스로 주입하고, 브릿지 메서드가 <code>SDP</code>·<code>CAS</code> 등 네이티브 상태를 웹에 전달합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ott/WebServiceHandler.java</code> — startAction: WebView 로드 + onStart 호출</div>
+<pre><code>public void startAction(String url) {
+    initWebView();
+    parentHandler.sendMessage(parentHandler.obtainMessage(WEB_APP_STARTED));
+    rootContainer.setVisibility(View.VISIBLE);
+    rootContainer.requestFocus();
+
+    webView.post(() -&gt; {
+        webView.getSettings().setJavaScriptEnabled(true);
+        webView.setBackgroundColor(Color.TRANSPARENT);
+        webView.loadUrl(url);
+        webView.setVisibility(View.VISIBLE);
+        webView.loadUrl("javascript:onStart()");
+    });
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ott/WebServiceHandler.java</code> — AndroidBridge: 네이티브 정보를 웹에 노출</div>
+<pre><code>webView.addJavascriptInterface(new AndroidBridge(), ANDROID_TV_LOCAL); // "androidTvLocal"
+
+private class AndroidBridge {
+    @JavascriptInterface
+    public boolean resizeScreen(int x, int y, int width, int height) {
+        Config.resize(new Rect(x, y, x + width, y + height));
+        return true;
+    }
+    @JavascriptInterface
+    public String getCustomerId() { return SDP.accountId; }       // 가입자 ID
+    @JavascriptInterface
+    public String getContractId() { return CAS.SUBSCRIBE_ID; }    // 계약/가입 ID
+    @JavascriptInterface
+    public String getIP() { return NetworkStateManager.getInstance().getHostAddress(); }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/WebServiceHandler.java" target="_blank" rel="noopener">ott/WebServiceHandler.java</a><span class="src">WebView ↔ 네이티브 JS 브릿지 · AndroidBridge(androidTvLocal)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/PlaybackActivity.java" target="_blank" rel="noopener">PlaybackActivity.java</a><span class="src">WebView 컨테이너 호스트 · isWebviewStarted/stopAction 연동</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/DownloadWorker.java" target="_blank" rel="noopener">ott/DownloadWorker.java</a><span class="src">iframe(웹 UI) 리소스 다운로드 WorkManager 워커</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/SDP.java" target="_blank" rel="noopener">ctrl/SDP.java</a><span class="src">accountId 등 가입자 정보 (브릿지 getCustomerId 소스)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f04.html">미니 EPG</a>
+      <a href="f06.html">CAS(수신제한) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>android14/marusys</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">ott-tvapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

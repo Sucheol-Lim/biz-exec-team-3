@@ -1,0 +1,187 @@
+<!doctype html>
+<!-- kt_ford_aosp_podcast_app · 재생 오류 처리 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>재생 오류 처리 — kt_ford_aosp_podcast_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford 차량용 팟캐스트 앱</a><span class="sep">›</span>
+      <span class="here">재생 오류 처리</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive · Java · ExoPlayer</span>
+    </div>
+    <h1>재생 오류 처리</h1>
+    <p class="one-liner">ExoPlayer 오류를 분류해 일부는 즉시 재준비(prepare)로 복구하고, 복구 불가 오류는 세션 상태를 <code>STATE_ERROR</code>로 만들어 <code>MainActivity</code>가 <code>PodcastDialog</code> 오류 안내를 띄웁니다. 로드 재시도는 <code>PodcastLoadErrorHandlingPolicy</code>가 담당합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app" target="_blank" rel="noopener"><code>kt_ford_aosp_podcast_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop-exoplayer</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>PodcastExoplayerListener</code> · <code>MainActivity</code> · <code>PodcastDialog</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">STATE_ERROR → 오류 다이얼로그 · 로드 재시도 정책</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>재생 오류는 <code>PodcastExoplayerListener.onPlayerError()</code>에서 <code>PlaybackException.errorCode</code>로 분류됩니다. 위치 범위 초과(<code>ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE</code>)나 라이브 윈도우 이탈(<code>ERROR_CODE_BEHIND_LIVE_WINDOW</code>)처럼 회복 가능한 오류는 <code>exoplayerHelper.prepare()</code>로 즉시 재준비해 자연 복구합니다. 그 외 네트워크·디코딩·DRM 등 복구 불가 오류는 <code>updateSessionPlaybackStateError(errorCode, name)</code>로 세션 <code>PlaybackState</code>를 <code>STATE_ERROR</code>로 세팅합니다.</p>
+    <p><code>MainActivity</code>는 <code>onCreate()</code>에서 재생 상태 LiveData를 관찰하다가 상태가 <code>STATE_ERROR</code>가 되면 <code>showMediaPlayerErrorDialog()</code>를 호출해 <code>PodcastDialog(TYPE_MEDIA_PLAYER_ERROR_NOTICE)</code>를 띄우고, 정상 상태로 돌아오면 같은 타입의 다이얼로그를 닫습니다. 네트워크 조회 실패(<code>SubscriptionCallback.onError</code>)는 별도로 <code>showNetworkErrorDialog()</code>가 처리합니다. 한편 ExoPlayer의 미디어 소스 로드 실패에 대한 재시도 간격·횟수는 <code>PodcastLoadErrorHandlingPolicy</code>(<code>DefaultLoadErrorHandlingPolicy</code> 확장)가 각 <code>MediaSource</code>에 설정되어 처리합니다.</p>
+    <div class="callout">
+      <div class="ct">3단 방어</div>
+      (1) 로드 단계는 <code>PodcastLoadErrorHandlingPolicy</code>가 재시도, (2) 회복 가능 재생 오류는 <code>onPlayerError()</code>가 <code>prepare()</code>로 자동 복구, (3) 복구 불가 오류만 <code>STATE_ERROR</code> → 사용자 다이얼로그로 노출됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant EXO as ExoPlayer
+    participant LST as PodcastExoplayerListener
+    participant HLP as PodcastExoplayerHelper
+    participant SES as MediaSession
+    participant VM as PodcastViewModel
+    participant ACT as MainActivity
+    participant DLG as PodcastDialog
+
+    EXO-&gt;&gt;LST: onPlayerError(PlaybackException)
+    alt 회복 가능(POSITION_OUT_OF_RANGE / BEHIND_LIVE_WINDOW)
+        LST-&gt;&gt;HLP: prepare() 재준비
+    else 복구 불가(IO/디코딩/DRM 등)
+        LST-&gt;&gt;HLP: updateSessionPlaybackStateError(code, name)
+        HLP-&gt;&gt;SES: setPlaybackState(STATE_ERROR)
+        SES--&gt;&gt;VM: onPlaybackStateChanged(STATE_ERROR)
+        VM--&gt;&gt;ACT: playbackState.observe()
+        ACT-&gt;&gt;DLG: showMediaPlayerErrorDialog()
+    end
+    Note over ACT,DLG: 정상 상태 복귀 시 dismissMediaPlayerErrorDialog()
+      </div>
+      <p class="cap"><strong>흐름.</strong> 회복 가능 오류는 재준비로 복구, 복구 불가 오류는 세션 STATE_ERROR → ViewModel → MainActivity 다이얼로그로 노출됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class PodcastExoplayerListener {
+        +onPlayerError(error)
+    }
+    class PodcastExoplayerHelper {
+        +prepare()
+        +updateSessionPlaybackStateError(code, msg)
+        +updateSessionPlaybackState(state)
+    }
+    class PodcastLoadErrorHandlingPolicy {
+        +getRetryDelayMsFor(info) long
+        +getMinimumLoadableRetryCount(type) int
+    }
+    class MainActivity {
+        +showMediaPlayerErrorDialog()
+        +dismissMediaPlayerErrorDialog()
+        +showNetworkErrorDialog()
+    }
+    class PodcastDialog {
+        +DialogType
+        +getDialogType() DialogType
+    }
+    class DefaultLoadErrorHandlingPolicy {
+        &lt;&lt;abstract&gt;&gt;
+    }
+
+    PodcastExoplayerListener --&gt; PodcastExoplayerHelper : prepare/error 위임
+    PodcastLoadErrorHandlingPolicy --|&gt; DefaultLoadErrorHandlingPolicy
+    PodcastExoplayerHelper ..&gt; PodcastLoadErrorHandlingPolicy : MediaSource에 설정
+    MainActivity o-- PodcastDialog : 오류 다이얼로그
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>PodcastExoplayerListener</code>가 오류를 분류해 헬퍼로 위임하고, 복구 불가 오류만 <code>MainActivity</code>의 <code>PodcastDialog</code>로 표면화됩니다. 로드 재시도는 정책 클래스가 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>media/PodcastExoplayerListener.java</code> — 오류 코드별 복구/표면화 분기</div>
+<pre><code>@Override
+public void onPlayerError(PlaybackException error) {
+    switch (error.errorCode) {
+        case PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW:
+        case PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE:
+            exoplayerHelper.prepare();                                  // 자동 복구
+            break;
+        case PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED:
+        case PlaybackException.ERROR_CODE_DECODING_FAILED:
+        /* ... 다수의 복구 불가 코드 ... */
+            exoplayerHelper.updateSessionPlaybackStateError(error.errorCode, error.getErrorCodeName());
+            break;
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/MainActivity.java</code> — STATE_ERROR 관찰 시 다이얼로그 표시</div>
+<pre><code>podcastViewModel.getPodcastData().getPlaybackState().observe(this, playbackStateCompat -&gt; {
+    if (playbackStateCompat != null &amp;&amp; playbackStateCompat.getState() == PlaybackStateCompat.STATE_ERROR) {
+        showMediaPlayerErrorDialog();
+    } else {
+        dismissMediaPlayerErrorDialog();
+    }
+});</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/PodcastExoplayerListener.java" target="_blank" rel="noopener">media/PodcastExoplayerListener.java</a><span class="src">onPlayerError 코드 분류 · prepare 복구 / STATE_ERROR 전환</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/PodcastExoplayerHelper.java" target="_blank" rel="noopener">media/PodcastExoplayerHelper.java</a><span class="src">updateSessionPlaybackStateError로 STATE_ERROR 세팅</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/java/com/altimedia/automotive/kt/service/podcast/ui/MainActivity.java" target="_blank" rel="noopener">ui/MainActivity.java</a><span class="src">STATE_ERROR 관찰 · showMediaPlayerErrorDialog / 네트워크 오류</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/java/com/altimedia/automotive/kt/service/podcast/ui/PodcastDialog.java" target="_blank" rel="noopener">ui/PodcastDialog.java</a><span class="src">DialogType별(미디어 오류/서버 오류/마이팟 상한) 다이얼로그</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/PodcastLoadErrorHandlingPolicy.java" target="_blank" rel="noopener">media/PodcastLoadErrorHandlingPolicy.java</a><span class="src">로드 재시도 지연/횟수 정책(DefaultLoadErrorHandlingPolicy 확장)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f12.html">← 스트리밍 안정화 (리다이렉트·CBR)</a>
+      <a href="f14.html">미디어 아이콘 제공 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop-exoplayer</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_podcast_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

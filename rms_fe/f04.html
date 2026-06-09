@@ -1,0 +1,175 @@
+<!doctype html>
+<!-- rms_fe · VoC 고객 응대 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VoC 고객 응대 — rms_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">RMS FrontEnd 과제</a><span class="sep">›</span>
+      <span class="here">VoC 고객 응대</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Altimedia RMS</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
+    </div>
+    <h1>VoC 고객 응대</h1>
+    <p class="one-liner"><code>agentDevicelist</code> 화면이 <code>VocApiManager</code>로 상담원(agent)별 응대 통계와 단말 목록을 조회해, 상담원이 특정 가입자 단말의 상태를 빠르게 확인하고 <code>InitiatedVOCSessionModal</code>로 VoC 세션을 시작하도록 지원합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/voc/agentDevicelist.tsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">상담원 응대 · 가입자 단말 조회</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>VoC(Voice of Customer) 영역은 상담원이 고객 문의를 받았을 때 해당 가입자 단말의 상태를 빠르게 확인하도록 돕습니다. 핵심 화면 <code>agentDevicelist.tsx</code>는 마운트 시 <code>VocApiManager.getVOCAgentOverview()</code>(<code>/api/v2/voc/agent/overview</code>)로 상담원 응대 요약(기간별 통계)을 받고, <code>getIssueList</code>·<code>getVOCHistory</code>로 이슈 분포와 응대 이력을 채웁니다. 통계는 <code>ActiveDeviceDonutChart</code>·<code>CustomizedBarchart</code>로 시각화됩니다.</p>
+    <p>화면 하단의 단말 테이블은 상담원이 조회한 가입자 단말 목록을 보여주며, 행 단위로 단말 정보 버튼(<code>AgentDevicelistInfoButton</code>)을 제공합니다. 상담원이 응대를 시작하면 <code>InitiatedVOCSessionModal</code>이 열려 단말 식별자를 입력하고 VoC 세션을 개시합니다. VoC 대시보드 영역은 <code>VocApiManager</code>의 <code>voc-overview</code>/<code>voc-connection-status</code> 계열 엔드포인트로 활성 단말 수, 모델/OS 분포, 연결 사유 통계 등을 집계합니다.</p>
+    <div class="callout">
+      <div class="ct">agent 파라미터</div>
+      VoC agent 화면에서는 조회 시 상담원(agent)을 필수 파라미터로 추가합니다(소스 주석 명시). 즉 같은 단말 조회 API라도 VoC 컨텍스트에서는 "누가 응대 중인가"를 함께 식별합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant AG as 상담원 (Browser)
+    participant ADL as agentDevicelist.tsx
+    participant VM as VocApiManager (_api/Voc)
+    participant BE as RMS BE 서버
+    participant MOD as InitiatedVOCSessionModal
+
+    AG-&gt;&gt;ADL: VoC 화면 진입
+    ADL-&gt;&gt;VM: getVOCAgentOverview(from, to)
+    VM-&gt;&gt;BE: GET /api/v2/voc/agent/overview
+    ADL-&gt;&gt;VM: getIssueList()
+    ADL-&gt;&gt;VM: getVOCHistory()
+    VM-&gt;&gt;BE: GET 이슈/이력
+    BE--&gt;&gt;ADL: 응대 통계·이력
+    ADL-&gt;&gt;ADL: Donut/Bar 차트 렌더
+    AG-&gt;&gt;ADL: 단말 행 정보 확인
+    AG-&gt;&gt;ADL: VoC 세션 시작
+    ADL-&gt;&gt;MOD: InitiatedVOCSessionModal 열기
+    MOD-&gt;&gt;BE: 세션 개시 (단말 식별자)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 화면 진입 시 상담원 응대 요약·이슈·이력을 조회해 차트로 표시하고, 단말 행에서 정보를 확인한 뒤 <code>InitiatedVOCSessionModal</code>로 응대 세션을 시작합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class AgentDevicelist {
+        +getWidgetData()
+        +refresh()
+    }
+    class VocApiManager {
+        +getVOCAgentOverview(cb, from, to)
+        +getIssueList(cb)
+        +getVOCHistory(cb)
+        +getStatsEnrolledDevices(cb, ...)
+        +getActiveDeviceCount(cb)
+    }
+    class InitiatedVOCSessionModal {
+        +open
+        +setOpen()
+    }
+    class AgentDevicelistInfoButton {
+        +row
+    }
+    class ActiveDeviceDonutChart {
+        +data
+    }
+    class CustomizedBarchart {
+        +data
+    }
+
+    AgentDevicelist --&gt; VocApiManager : 통계/이력 조회
+    AgentDevicelist o-- InitiatedVOCSessionModal : 세션 개시
+    AgentDevicelist o-- AgentDevicelistInfoButton : 단말 정보 버튼
+    AgentDevicelist ..&gt; ActiveDeviceDonutChart
+    AgentDevicelist ..&gt; CustomizedBarchart
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>AgentDevicelist</code>가 <code>VocApiManager</code>로 응대 통계를 받아 도넛/바 차트로 그리고, 단말 행마다 정보 버튼을, 응대 시작 시 <code>InitiatedVOCSessionModal</code>을 소유합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>_api/Voc.tsx</code> — VoC 상담원 응대 요약 조회 (v2 엔드포인트)</div>
+<pre><code>getVOCAgentOverview: (callback: CallbackFunction, from: string, to: string) =&gt; {
+  const data = { from, to };
+  request('get', `/api/v2/voc/agent/overview`, callback, data);
+},
+// voc agent 에서는 조회 시 agent 를 필수로 추가</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>pages/voc/agentDevicelist.tsx</code> — 응대 통계 수집 후 VoC 세션 모달 트리거</div>
+<pre><code>VocApiManager.getVOCAgentOverview((result, data) =&gt; { /* overview 차트 */ }, from, to);
+VocApiManager.getIssueList((result, data) =&gt; { /* 이슈 분포 */ });
+VocApiManager.getVOCHistory((result, data) =&gt; { /* 응대 이력 */ });
+// ...
+{openVOCSession &amp;&amp; &lt;InitiateVOCSessioModal open={openVOCSession} setOpen={setOpenVOCSession} /&gt;}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/voc/agentDevicelist.tsx" target="_blank" rel="noopener">pages/voc/agentDevicelist.tsx</a><span class="src">상담원별 단말 조회 — 응대 통계·이슈·이력·세션 시작</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Voc.tsx" target="_blank" rel="noopener">_api/Voc.tsx</a><span class="src">VocApiManager — voc-overview / voc-connection-status / v2 agent overview</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/components/InitiatedVOCSessionModal.tsx" target="_blank" rel="noopener">pages/management/components/InitiatedVOCSessionModal.tsx</a><span class="src">VoC 세션 개시 모달</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/voc/deviceslist.tsx" target="_blank" rel="noopener">pages/voc/deviceslist.tsx</a><span class="src">VoC 단말 목록 화면</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f03.html">← 배치 리포트</a>
+      <a href="f05.html">단말(Device) 관리 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">rms_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap_adaptor · 권한·서비스 컨텍스트 콜백 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>권한·서비스 컨텍스트 콜백 — skb_cloud_local_ocap_adaptor 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">SKB(TBroad) Local App OCAP Cloud Adaptor</a><span class="sep">›</span>
+      <span class="here">권한·서비스 컨텍스트 콜백</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP STB · Java(레거시)</span>
+    </div>
+    <h1>권한·서비스 컨텍스트 콜백</h1>
+    <p class="one-liner"><code>ChannelEventListener</code> 로 채널 권한(PERM_OK·USER_SKIPPED·PARENTAL/CA/ADULT_BLOCKED·WRONG_PIN)을, <code>ServiceContextListener</code> 로 서비스 컨텍스트 이벤트(Presentation/Alternative/Normal/Terminated 등)를 Cloud 측에 콜백합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor" target="_blank" rel="noopener"><code>skb_cloud_local_ocap_adaptor</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ChannelEventListener · ServiceContextListener</code></div></div>
+      <div class="item"><div class="k">통지 경로</div><div class="v"><code>AppManager.notifyChannelEvent</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>채널 선택과 서비스 표시 결과는 동기 반환값이 아니라 비동기 콜백으로 Cloud App 에 전달됩니다. 두 개의 리스너 인터페이스가 이 역할을 합니다. <code>ChannelEventListener</code> 는 채널 변경 시 채널 ID·번호·이름과 함께 권한 코드(<code>perm</code>)를 <code>onChannelEvent(chid, chNum, chName, perm)</code> 로 통지합니다. 권한 코드는 상수로 정의되어 <code>PERM_OK(0)</code>, <code>PERM_USER_SKIPPED(1)</code>, <code>PERM_PARENTAL_RATING_BLOCKED(2)</code>, <code>PERM_CA_BLOCKED(3)</code>, <code>PERM_ADULT_BLOCKED(4)</code>, <code>PERM_WRONG_PIN(5)</code> 로 구분됩니다.</p>
+    <p><code>ServiceContextListener</code> 는 서비스 컨텍스트 생명주기 이벤트를 <code>onServiceContextEvent(event, reason)</code> 로 통지합니다. 이벤트 상수에는 <code>PresentationChangedEvent(10)</code>, <code>AlternativeContentEvent(101)</code>, <code>NormalContentEvent(102)</code>, <code>PresentationTerminatedEvent(20)</code>, <code>SelectionFailedEvent(30)</code>, <code>ServiceContextDestroyedEvent(40)</code> 등이 있어, 일반/대체 콘텐츠 전환과 표시 종료·선택 실패 같은 상태 변화를 구분합니다.</p>
+    <p>통지 경로는 두 갈래입니다. 리스너 등록은 <code>CladTVServiceImpl.setChannelEventListener / setServiceContextListener</code> 로 컨텍스트별 TV 서비스에 보관되며, 플랫폼에서 채널 이벤트가 발생하면 <code>AppManager.notifyChannelEvent(chId, chNum, chName, perm)</code> 가 모든 활성 컨텍스트의 TV 서비스를 순회하며 <code>onChannelEvent</code> 를 호출해 브로드캐스트합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      권한 코드를 enum 이 아니라 int 상수로 둔 것은 레거시 Java/ROP 직렬화 호환을 위함입니다. 콜백 도중 예외가 나면 <code>CladTVServiceImpl.onChannelEvent</code> 는 리스너를 null 로 비워(끊긴 원격 참조 정리) 이후 호출에서 죽은 stub 으로 재시도하지 않도록 합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Cloud as Cloud App
+    participant TV as CladTVServiceImpl
+    participant AM as AppManager
+    participant PF as STB 플랫폼
+
+    Cloud-&gt;&gt;TV: setChannelEventListener(listener)
+    Cloud-&gt;&gt;TV: setServiceContextListener(scListener)
+    PF-&gt;&gt;AM: 채널 이벤트 발생
+    AM-&gt;&gt;AM: notifyChannelEvent(chId, chNum, chName, perm)
+    loop 모든 활성 컨텍스트
+        AM-&gt;&gt;TV: onChannelEvent(chId, chNum, chName, perm)
+        TV-&gt;&gt;Cloud: listener.onChannelEvent(... perm ...)
+    end
+    PF-&gt;&gt;TV: onServiceContextEvent(event, reason)
+    TV-&gt;&gt;Cloud: scListener.onServiceContextEvent(event, reason)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 리스너 등록 후, 채널 이벤트는 <code>AppManager</code> 가 전 컨텍스트에 브로드캐스트해 권한 코드와 함께 통지하고, 서비스 컨텍스트 이벤트는 등록 리스너로 직접 전달됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ChannelEventListener {
+        &lt;&lt;interface&gt;&gt;
+        +PERM_OK int$
+        +PERM_USER_SKIPPED int$
+        +PERM_PARENTAL_RATING_BLOCKED int$
+        +PERM_CA_BLOCKED int$
+        +PERM_ADULT_BLOCKED int$
+        +PERM_WRONG_PIN int$
+        +onChannelEvent(String chid, int chNum, String chName, int perm)
+    }
+    class ServiceContextListener {
+        &lt;&lt;interface&gt;&gt;
+        +PresentationChangedEvent int$
+        +AlternativeContentEvent int$
+        +NormalContentEvent int$
+        +PresentationTerminatedEvent int$
+        +onServiceContextEvent(int event, int reason)
+    }
+    class CladTVServiceImpl {
+        #ChannelEventListener listener
+        #ServiceContextListener cladServiceContextListener
+        +setChannelEventListener(ChannelEventListener listener)
+        +setServiceContextListener(ServiceContextListener listener)
+        +onChannelEvent(String chid, int chNum, String chName, int perm)
+        +onServiceContextEvent(int event, int reason)
+    }
+    class AppManager {
+        +notifyChannelEvent(String chId, int chNum, String chName, int perm)
+    }
+
+    CladTVServiceImpl --&gt; ChannelEventListener : 등록·콜백
+    CladTVServiceImpl --&gt; ServiceContextListener : 등록·콜백
+    AppManager --&gt; CladTVServiceImpl : 전 컨텍스트 브로드캐스트
+      </div>
+      <p class="cap"><strong>관계.</strong> 두 리스너는 TV 서비스에 등록되며, 채널 이벤트는 <code>AppManager</code> 가 모든 TV 서비스로 브로드캐스트해 권한 코드를 통지합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>clad/tv/ChannelEventListener.java</code> — 권한 코드 상수와 콜백</div>
+<pre><code>public interface ChannelEventListener {
+    public static final int PERM_OK = 0;
+    public static final int PERM_USER_SKIPPED = 1;
+    public static final int PERM_PARENTAL_RATING_BLOCKED = 2;
+    public static final int PERM_CA_BLOCKED = 3;
+    public static final int PERM_ADULT_BLOCKED = 4;
+    public static final int PERM_WRONG_PIN = 5;
+    void onChannelEvent (String chid, int chNum, String chName, int perm);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>cladimpl/manager/AppManager.java</code> — 채널 이벤트 전 컨텍스트 브로드캐스트</div>
+<pre><code>public void notifyChannelEvent(String chId, int chNum, String chName, int perm) {
+    CladContextImpl[] contexts = getAvailableContexts();
+    for (int i = 0; i &lt; contexts.length; i++) {
+        CladTVServiceImpl tvService = (CladTVServiceImpl) contexts[i].getTVService();
+        if (tvService != null) {
+            tvService.onChannelEvent(chId, chNum, chName, perm);   // 각 앱 리스너로 통지
+        }
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/clad/tv/ChannelEventListener.java" target="_blank" rel="noopener">clad/tv/ChannelEventListener.java</a><span class="src">채널 권한 코드(PERM_*) 상수·onChannelEvent 콜백</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/clad/tv/ServiceContextListener.java" target="_blank" rel="noopener">clad/tv/ServiceContextListener.java</a><span class="src">서비스 컨텍스트 이벤트 상수·onServiceContextEvent 콜백</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/cladimpl/tv/CladTVServiceImpl.java" target="_blank" rel="noopener">cladimpl/tv/CladTVServiceImpl.java</a><span class="src">리스너 등록과 onChannelEvent/onServiceContextEvent 중계</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/cladimpl/manager/AppManager.java" target="_blank" rel="noopener">cladimpl/manager/AppManager.java</a><span class="src">notifyChannelEvent — 전 컨텍스트 브로드캐스트</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f07.html">← 비디오 리사이즈(DFC) · PIP</a>
+      <a href="f09.html">SI 채널 리스트 조회 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap_adaptor 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

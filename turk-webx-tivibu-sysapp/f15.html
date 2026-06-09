@@ -1,0 +1,191 @@
+<!doctype html>
+<!-- turk-webx-tivibu-sysapp · CAS / 핑거프린트 / 보안 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CAS · 핑거프린트 · 보안 — turk-webx-tivibu-sysapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Türk Telekom Tivibu STB 시스템 앱 (EPG SYSAPP)</a><span class="sep">›</span>
+      <span class="here">CAS · 핑거프린트 · 보안</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">WebX STB · JavaScript (ES6/AMD)</span>
+    </div>
+    <h1>CAS · 핑거프린트 · 보안</h1>
+    <p class="one-liner"><code>CAManager</code>가 OIPF CA System 객체의 CA 이벤트를 받아 에러를 OSD로 통보하고, <code>FingerprintController</code>가 핑거프린트를, <code>HDCPController</code>가 HDCP 인증 실패를 처리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp" target="_blank" rel="noopener"><code>turk-webx-tivibu-sysapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>controller/CAManager.js</code> · <code>CasController.js</code> · <code>FingerprintController.js</code> · <code>HDCPController.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">조건부 접근 · 핑거프린트 · HDCP</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>CAS(Conditional Access System, 조건부 접근)는 가입자 권한이 있는 콘텐츠만 복호화·시청하도록 통제합니다. <code>CAManager</code>는 초기화 시 <code>SystemInterface.getCASystemObject()</code>로 OIPF CA System 객체를 얻어 <code>connect()</code>하고 <code>CAEvent</code> 리스너를 등록합니다. CA 이벤트가 오면 <code>receiveCAEvent()</code>가 에러 코드(<code>e.code</code>)를 검사해, 양수면 에러 메시지·코드를 매핑해 <code>OSDConstant.CAS</code> OSD를 띄우고, 0 이하면 CAS OSD를 닫습니다. 에러 코드는 <code>errorNotAvailable(1)</code>·<code>errorBlackOut(2)</code>·<code>errorDenied(3)</code> 등으로 정의되어 있고, 화면용 CAS OSD는 <code>CasController</code>(<code>ui/cas/CasFrame</code>)가 렌더링합니다.</p>
+    <p>핑거프린트는 화면에 사용자 식별 표식을 띄워 불법 재배포를 추적하는 보안 기능으로, <code>FingerprintController</code>(<code>ui/fingerprint/FingerprintFrame</code>)가 표시를 담당합니다. <code>HDCPController</code>는 출력 보호(HDCP) 인증 상태를 감시해, 인증 실패(미인증) 콜백이 오면 HDCP 에러 OSD를 띄우고 인증 성공 시 닫습니다. 이를 위해 <code>SystemInterface.addHDCPListener(authenticated, unauthenticated)</code>로 인증/미인증 콜백을 등록합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      보안 기능들은 모두 <code>SystemInterface</code>(OIPF/미들웨어)가 추상화한 이벤트·콜백에 반응하는 구조입니다. CAS는 CA 이벤트, HDCP는 인증 상태 콜백을 받아 OSD를 띄우거나 닫는 방식으로 동작해, 하드웨어 보안 상태를 사용자 화면과 일관되게 동기화합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SI as SystemInterface (OIPF CA)
+    participant CA as CAManager
+    participant OSD as OSDController
+    participant CAS as CasController
+    participant HDCP as HDCPController
+
+    CA-&gt;&gt;SI: getCASystemObject() → connect()
+    CA-&gt;&gt;SI: addEventListener('CAEvent', receiveCAEvent)
+    SI--&gt;&gt;CA: CAEvent (ccid, casType, code)
+    alt code &gt; 0 (에러)
+        CA-&gt;&gt;CA: getCAErrorMessage(code) / getCACode(code)
+        CA-&gt;&gt;OSD: setOSD(CAS, {msg, code})
+        OSD-&gt;&gt;CAS: CAS 화면 표시
+    else code &lt;= 0
+        CA-&gt;&gt;OSD: resetOSD(CAS)
+    end
+    Note over HDCP,SI: 출력 보호
+    HDCP-&gt;&gt;SI: addHDCPListener(auth, unauth)
+    SI--&gt;&gt;HDCP: unauthenticated → showHDCPError()
+    SI--&gt;&gt;HDCP: authenticated → hideHDCPError()
+      </div>
+      <p class="cap"><strong>흐름.</strong> CA 이벤트의 에러 코드에 따라 CAS OSD를 띄우거나 닫고, HDCP 인증 상태 변화에 따라 출력 보호 에러를 표시/해제합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class CAManager {
+        -caSystem
+        +initialize()
+        +receiveCAEvent(e)
+        +getCAErrorMessage(code) string
+        +getCACode(code) int
+    }
+    class CasController {
+        -casFrame CasFrame
+        +show(param)
+        +hide(param)
+    }
+    class FingerprintController {
+        -fingerprintFrame FingerprintFrame
+        +show(param)
+        +hide(param)
+    }
+    class HDCPController {
+        +initialize()
+        +addHDCPListener()
+        +showHDCPError()
+        +hideHDCPError()
+    }
+    class SystemInterface {
+        +getCASystemObject()
+        +addHDCPListener(auth, unauth)
+    }
+
+    CAManager --&gt; SystemInterface : CA System 객체
+    CAManager ..&gt; CasController : CAS OSD 표시
+    HDCPController --&gt; SystemInterface : HDCP 인증 리스너
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>CAManager</code>가 CA 이벤트를, <code>HDCPController</code>가 HDCP 인증을 처리하며, 둘 다 <code>SystemInterface</code>가 추상화한 보안 API에 의존합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>controller/CAManager.js</code> — CA 이벤트 처리</div>
+<pre><code>receiveCAEvent: function(e) {
+    if (e.code &gt; 0) {
+        var msg  = _self.getCAErrorMessage(e.code);
+        var code = _self.getCACode(e.code);
+        if (msg) {
+            SYSAPP.OSDController.setOSD(OSDConstant.CAS, {msg: msg, code: code});
+        }
+    } else {
+        SYSAPP.OSDController.resetOSD(OSDConstant.CAS, null, false);
+    }
+}
+
+// 에러 코드: errorNotAvailable=1, errorBlackOut=2, errorDenied=3, ...</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>controller/HDCPController.js</code> — HDCP 인증 리스너</div>
+<pre><code>addHDCPListener: function() {
+    let unauthenticatedCallback = function() {
+        _self.showHDCPError();          // 미인증 → HDCP 에러 OSD
+    };
+    let authenticatedCallback = function() {
+        _self.hideHDCPError();          // 인증 → 에러 해제
+    };
+    SYSAPP.SystemInterface.addHDCPListener(authenticatedCallback, unauthenticatedCallback);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/CAManager.js" target="_blank" rel="noopener">controller/CAManager.js</a><span class="src">CA System 연결 · CAEvent 처리 · 에러 코드 매핑</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/CasController.js" target="_blank" rel="noopener">controller/CasController.js</a><span class="src">CAS OSD 화면 프레임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/FingerprintController.js" target="_blank" rel="noopener">controller/FingerprintController.js</a><span class="src">핑거프린트 표시 프레임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/HDCPController.js" target="_blank" rel="noopener">controller/HDCPController.js</a><span class="src">HDCP 인증 상태 감시 · 에러 OSD</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/core/sys/SystemInterface.js" target="_blank" rel="noopener">core/sys/SystemInterface.js</a><span class="src">CA System 객체 · HDCP 리스너 등록</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f14.html">← 광고 / 캠페인 / 알림</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f16.html">하트비트 · 로그 업로드 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">turk-webx-tivibu-sysapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

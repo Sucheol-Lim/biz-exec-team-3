@@ -1,0 +1,493 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TBroad(SKB) Cloud Home — 과제 설명</title>
+<style>
+:root{
+  --accent:#ff6a00;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">STB 클라우드 UI (Wind.js / WCloud)</span>
+      <span class="badge gray">JavaScript (ES5)</span>
+    </div>
+    <h1>TBroad(SKB) Cloud Home (Command)</h1>
+    <p class="one-liner">SK브로드밴드 TBroad 케이블/IPTV 셋톱박스에서 동작하는 클라우드 기반 홈 포털 UI 애플리케이션입니다. 서버 측 클라우드 컨테이너에서 구동되며 셋톱박스 어댑터(<code>cloud_adaptor</code>)를 통해 채널·미디어·설정 등 단말 기능과 연동합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb.cloud.home" target="_blank" rel="noopener"><code>skb.cloud.home</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-03-19 · 999ace2cc 로그 삭제</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>com.tbroad.cloud.ep3</code> / 빌드 시 주입(예 <code>1.10.x</code>)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>본 과제는 SK브로드밴드(SKB)가 운영하는 <strong>TBroad</strong> 케이블/IPTV 셋톱박스(STB)에서 동작하는 클라우드 기반 홈 포털 UI 애플리케이션입니다. 일반적인 단말 내장 앱과 달리 UI 로직이 서버 측 <strong>클라우드 컨테이너</strong>에서 구동되고, 셋톱박스에는 화면 출력과 키 입력을 위한 클라이언트만 존재하는 클라우드 UI(Cloud UI) 방식으로 설계되어 있습니다. 화면 구성·데이터 연동·비즈니스 로직은 모두 클라우드에서 처리되며, 채널 전환·미디어 재생·PIN·설정 같은 단말 고유 기능은 <code>cloud_adaptor</code> RPC 인터페이스를 통해 셋톱박스로 위임됩니다.</p>
+    <p>패키지명은 <code>com.tbroad.cloud.ep3</code>이며, 부트 로그에는 <code>TBROAD CLOUD HOME</code>으로 표기됩니다(<code>src/Preload.js</code>). 대상 단말은 TBroad STB로, 해상도 540(720p 계열) 및 1080(1080p) 두 가지 단말 프로파일을 지원합니다(<code>src/env/STB-540.js</code>, <code>src/env/STB-1080.js</code>). 실행 환경은 Alticast의 Wind.js(WCloud) 런타임이며, 앱은 <code>WCloud.App.extend({...})</code> 형태로 정의됩니다(<code>src/Boot.js</code>).</p>
+    <p>주요 화면은 홈, 실시간 TV 시청 및 편성표(EPG), VOD 탐색·상세·구매·재생, 검색(텍스트·음성), 마이홈(최근 시청·구매목록·즐겨찾기·가입내역·쿠폰), 4방향 라이브, 홍보채널, 스마트 리모콘 페어링, TV 청구서 등으로 구성됩니다. 화면은 모두 <code>src/scene/</code> 아래에 Scene 단위로 모듈화되어 있으며, 메뉴·채널·VOD 데이터는 SDP 서버에서 받아 구성합니다.</p>
+    <div class="callout">
+      <div class="ct">클라우드 UI 구조의 의미</div>
+      이 앱의 코드는 셋톱박스가 아닌 서버 컨테이너(예 <code>ccui_home_hp_ep2_540...</code>)에서 Node.js 런타임으로 실행됩니다. 따라서 빌드 산출물은 단말에 설치되는 APK가 아니라, 클라우드 서버로 업로드되어 컨테이너로 서비스되는 소스/리소스 묶음입니다. 단말과의 모든 상호작용은 RPC(rop) 기반 <code>clad.*</code> 인터페이스를 거칩니다.
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">홈 / 큐레이션</div><div class="d">메뉴·배너·추천 콘텐츠로 구성된 홈 화면과 큐레이션을 제공합니다(<code>scene/home</code>, <code>scene/homeEx</code>). PIP·홍보 영역을 포함합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">편성표(EPG)</div><div class="d">EPG Grid 기반 전체 편성표를 제공합니다(<code>scene/epg</code>). 실시간 인기 채널, 선호 채널, 채널 안내, 미구매 채널 PIP 표시를 지원합니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">실시간 TV 시청</div><div class="d">채널 선택·전환·예약·즐겨찾기·시청제한(연령/CA) 처리를 단말 어댑터(<code>TVServiceManager</code>)와 연동해 수행합니다(<code>scene/watchingTv</code>).</div></a>
+      <a class="card" href="f04.html"><div class="t">VOD 탐색 · 상세</div><div class="d">VOD 목록·카테고리·상세(단편/시리즈/패키지) 화면을 제공합니다(<code>scene/vod</code>, <code>scene/vodDetail</code>). 예고편·3분 미리보기를 지원합니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">VOD 구매 · 결제</div><div class="d">단편/시리즈/월정액 구매, 일반·단체 가입자 분기, 쿠폰·할인권·티켓·포인트 적용까지 구매 흐름을 처리합니다(<code>scene/purchase</code>, <code>CouponManager</code>, <code>UPMSManager</code>).</div></a>
+      <a class="card" href="f06.html"><div class="t">VOD 재생(UMP)</div><div class="d">UMP 미디어 플레이어(<code>UMPMediaPlayer</code>, <code>clad.media.ump.UmpMediaPlayerService</code>)로 재생 시작·중지·완료·이어보기를 제어합니다(<code>scene/watchingVod</code>).</div></a>
+      <a class="card" href="f07.html"><div class="t">검색(텍스트 · 음성)</div><div class="d">키보드 입력 검색과 음성 검색을 제공하며, 검색 결과 캐싱 처리를 포함합니다(<code>scene/search</code>, <code>SearchManager</code>).</div></a>
+      <a class="card" href="f08.html"><div class="t">4방향 라이브</div><div class="d">실시간 인기 채널·연관 콘텐츠·마이메뉴·검색을 4분할 화면에서 동시 탐색하는 라이브 4방향 기능입니다(<code>scene/4way</code>).</div></a>
+      <a class="card" href="f09.html"><div class="t">마이홈</div><div class="d">쿠폰·공지사항, 최근 시청 VOD, 구매목록, 즐겨찾기, 가입내역, 월정액 내역 조회·삭제를 제공합니다(<code>scene/myHomeSub</code>, <code>scene/history</code>).</div></a>
+      <a class="card" href="f10.html"><div class="t">홍보채널 / 홈쇼핑</div><div class="d">홍보채널(VOD Asset·성인채널·PIP·데이터방송·예고편)과 홈쇼핑 모아보기를 별도 부트 액션으로 진입 처리합니다(<code>scene/contentPromoCh</code>).</div></a>
+      <a class="card" href="f11.html"><div class="t">스마트 리모콘 페어링</div><div class="d">블루투스 스마트 리모콘 페어링 및 Companion OTP 연동을 지원합니다(<code>PairingManager</code>, <code>ConfigServiceManager</code>).</div></a>
+      <a class="card" href="f12.html"><div class="t">TV 청구서 / 고객만족도</div><div class="d">TV 청구서 조회·미납요금 결제와 고객만족도 조사를 제공합니다(<code>scene/customerSatisfaction</code>, <code>TvCsManager</code>, <code>CustomerSurveyManager</code>).</div></a>
+      <a class="card" href="f13.html"><div class="t">PIN · 시청제한</div><div class="d">클라우드 PIN 모드, 연령 등급(Parental Rating), 성인/CA 차단 등 시청제한과 PIN 입력을 처리합니다(<code>PinManager</code>, <code>clad.config.CladConfigService</code>).</div></a>
+      <a class="card" href="f14.html"><div class="t">추천 · 날씨 · 쿠폰 캐싱</div><div class="d">추천 시스템 연동(<code>RCMDManager</code>), 날씨 정보(<code>WeatherManager</code>), 쿠폰·포인트 캐싱(<code>CouponCacheManager</code>) 등 부가 데이터 서비스를 제공합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>소스는 부팅 계층(<code>Boot.js</code>·<code>BootConfig.js</code>·<code>Preload.js</code>), 단말 연동 계층(<code>common/adapter</code> + <code>cloud_adaptor.js</code>), 서버 데이터 계층(<code>common/interface</code>), 화면 계층(<code>scene/*</code>), 전역 공통(<code>global/*</code>)으로 나뉩니다. 모든 모듈은 <code>W.Mod.define({의존성}, function(W, d){...})</code> 형식의 Wind 모듈로 정의되며, 전역 객체 <code>W</code>(모듈/리모콘/뷰/로그 등)에 의존합니다.</p>
+
+    <h3>디렉토리 구조</h3>
+    <pre class="tree">skb.cloud.home/
+├── package.json          # 앱 패키지 정의(com.tbroad.cloud.ep3) 및 런타임 의존성
+├── cloud_home.iml        # IntelliJ/WebStorm WEB_MODULE 설정
+├── src/                  # 애플리케이션 소스
+│   ├── Boot.js           # 앱 엔트리포인트(WCloud.App) · onStart/onStop 라이프사이클
+│   ├── BootConfig.js     # 어댑터/부트옵션/전역 W 초기화 허브
+│   ├── Preload.js        # 부트 로깅 · 버전/스케줄 어댑터 · 템플릿 사전 컴파일
+│   ├── cloud_adaptor.js  # 클라우드 어댑터 RPC 인터페이스 정의(clad.*)
+│   ├── wind-node.js      # 번들된 Wind.js(WCloud) 런타임(약 800KB)
+│   ├── env/              # 환경/단말 프로파일
+│   │   ├── HE-testbed.js / HE-live.js / HE-sat.js / HE-suyu.js  # 헤드엔드(HE) 서버 설정
+│   │   ├── STB-540.js / STB-1080.js                            # 해상도별 단말 설정
+│   │   └── RCU-stb.js / RCU-emul.js                            # 리모콘 키맵(실단말/에뮬레이터)
+│   ├── global/           # 전역 공통 모듈
+│   │   ├── Config.js      # 메뉴 타입, SDP API, 타임아웃, TLS 포트 등 전역 상수
+│   │   ├── Ajax.js / HttpAgent.js / HttpsAgent.js              # HTTP/HTTPS 통신
+│   │   ├── Messages.js / TbroadErrorCode.js / ErrorCode.js    # 메시지/에러코드
+│   │   ├── TemplateManager.js / TemplateObj.js                # UI 템플릿 엔진
+│   │   ├── sha1hmac.js / TripleDes.js / euckrURLEncoding.js   # 인증/암호화/EUC-KR 인코딩 (추정)
+│   │   ├── style / style-540 / style-1080                     # 해상도별 스타일
+│   │   └── updateModule/  # 메뉴/채널/편성/플랫폼 버전 동기화 어댑터
+│   ├── common/           # 공통 매니저/컴포넌트
+│   │   ├── adapter/       # 단말 연동(AdaptorHandler, AppHandler, TVServiceManager,
+│   │   │                  #   UMPMediaPlayer, SessionManager, PinManager, TLSManager 등)
+│   │   ├── interface/     # 서버 데이터(MenuDataManager, PlatformManager, SearchManager,
+│   │   │                  #   CouponManager, RCMDManager, WeatherManager, TvCsManager 등)
+│   │   ├── component/     # 재사용 UI 컴포넌트(pin, scroll2, scrollPopup)
+│   │   ├── uiManager/     # UI 캐시/배경/IFrame 관리
+│   │   ├── util/          # 로깅, 타이머, 이벤트큐, 리모콘 유틸
+│   │   ├── User.js / STBInfo.js                               # 사용자/단말 정보
+│   │   ├── SharedDataManager.js / CloudStateManager.js        # 상태 공유/저장
+│   │   └── ErrorHandler.js / Loading.js / KeyEventFilter.js   # 에러/로딩/키 처리
+│   └── scene/            # 화면(Scene) 단위 모듈
+│       ├── home / homeEx           # 홈 화면 및 큐레이션
+│       ├── epg                     # 편성표(EPG Grid)
+│       ├── watchingTv / watchingVod # 실시간 TV / VOD 시청
+│       ├── vod / vodDetail         # VOD 목록·구매·재생 / 상세
+│       ├── search                  # 검색(입력·결과, 음성 검색)
+│       ├── 4way                    # 4방향 라이브(인기채널·연관콘텐츠·마이메뉴·검색)
+│       ├── myHomeSub / history     # 마이홈 / 최근 시청
+│       ├── purchase                # 구매 흐름
+│       ├── contentPromoCh          # 홍보채널
+│       ├── customerSatisfaction    # 고객만족도 조사
+│       ├── authorityClosePayment   # 권한/결제 종료 처리
+│       └── popup                   # 공통 팝업
+├── data/                 # 샘플/OOB 데이터(menus.json, channel.json, campaign.json,
+│                         #   platform.json, Resource_ko_KR.properties, meta.json 등)
+├── res-540/ , res-1080/  # 해상도별 이미지 리소스
+├── grunt/                # 빌드 시스템(Gruntfile.js, Version.js, GruntTasks/)
+└── uml/                  # 기능별 PlantUML 시퀀스 다이어그램(60여 개)</pre>
+
+    <h3>주요 모듈 / 계층</h3>
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>계층</th><th>모듈 / 파일</th><th>역할</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>엔트리포인트</td><td><code>src/Boot.js</code></td><td><code>WCloud.App</code> 확장. <code>onStart</code>에서 전역 W 초기화·부트 옵션 파싱·어댑터 연결, 메뉴 동기화 후 첫 화면 표시. 실패 시 <code>terminateOnBootError</code>(CL1000/CL1001) 처리.</td></tr>
+        <tr><td>부팅 설정</td><td><code>src/BootConfig.js</code></td><td><code>initializeGlobalW</code>·<code>initializeAdaptor</code>·<code>initializeBootOption</code>으로 어댑터·환경·Manager 의존성을 주입하는 부팅 허브.</td></tr>
+        <tr><td>사전 로딩</td><td><code>src/Preload.js</code></td><td>버전/스케줄 버전 어댑터 초기화, 템플릿 사전 컴파일(<code>templateManager.compile</code>), 부트 로그 출력.</td></tr>
+        <tr><td>단말 RPC 정의</td><td><code>src/cloud_adaptor.js</code></td><td><code>acba.define("js:cloud_adaptor", ["js:rop"], ...)</code>로 <code>clad.tv</code>·<code>clad.media</code>·<code>clad.media.ump</code>·<code>clad.config</code>·<code>clad.si</code> 등 RPC 인터페이스(메서드 시그니처·코덱)를 선언.</td></tr>
+        <tr><td>단말 연동</td><td><code>common/adapter/*</code></td><td><code>AdaptorHandler</code>(연결/통지), <code>AppHandler</code>(앱 메시지 라우팅), <code>TVServiceManager</code>(채널/예약/즐겨찾기/재부팅), <code>UMPMediaPlayer</code>(VOD 재생), <code>ConfigServiceManager</code>(설정/PIN/시스템정보), <code>SessionManager</code>·<code>TLSManager</code>.</td></tr>
+        <tr><td>서버 데이터</td><td><code>common/interface/*</code></td><td><code>MenuDataManager</code>/<code>PlatformManager</code>(SDP 메뉴·플랫폼), <code>ScheduleDataManager</code>(편성), <code>SearchManager</code>, <code>CouponManager</code>/<code>UPMSManager</code>, <code>RCMDManager</code>, <code>WeatherManager</code>, <code>TvCsManager</code>/<code>CustomerSurveyManager</code>, <code>ACMSManager</code>.</td></tr>
+        <tr><td>화면</td><td><code>src/scene/*</code></td><td>Scene 단위 화면. 홈·EPG·시청·VOD·검색·4방향·마이홈·구매·홍보채널·만족도 조사 등.</td></tr>
+        <tr><td>전역 공통</td><td><code>src/global/*</code></td><td><code>Config</code>(전역 상수), <code>TemplateManager</code>+<code>style*/</code>(해상도별 템플릿), HTTP 통신, 메시지/에러코드, 암호화/인코딩 유틸.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>외부 연동 관계</h3>
+    <p>앱은 두 방향으로 외부와 연동합니다. 아래로는 <strong>셋톱박스</strong>와 RPC(rop) 기반 <code>cloud_adaptor</code>로 통신해 채널 선택(<code>selectChannel</code>), VOD 재생(<code>playStart</code>·<code>stopAndPlay</code>), PIN 관리(<code>managePin</code>), 시스템 정보(<code>getSystemInfo</code>), 시청제한 처리 등을 수행합니다. 위로는 <strong>SDP/서비스 서버</strong>와 HTTP/HTTPS로 통신해 메뉴·채널·편성·VOD·쿠폰·추천·날씨·고객 데이터를 받아옵니다. 헤드엔드(HE) 서버 주소는 <code>src/env/HE-*.js</code>에 환경별로 정의되어 있으며(testbed/live/sat/suyu), 예를 들어 testbed 환경의 SDP 서버는 <code>192.168.255.60</code>입니다. 앱 코드 자체는 클라우드 서버 컨테이너에서 실행되어 화면을 단말로 스트리밍/전달하는 클라우드 UI 구조입니다.</p>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>언어</td><td>JavaScript (ES5, <code>'use strict'</code>)</td><td>-</td><td>전 소스가 <code>W.Mod.define</code> 모듈 패턴</td></tr>
+        <tr><td>런타임 / 프레임워크</td><td>Wind.js (WCloud) — Alticast STB UI 프레임워크</td><td>번들(<code>src/wind-node.js</code>)</td><td><code>WCloud.App</code>, <code>W.Mod</code>, <code>W.CRoot</code>, <code>W.RCU</code> 전역 사용</td></tr>
+        <tr><td>실행 환경</td><td>Node.js</td><td>4.5.0</td><td><code>package.json</code> <code>engines</code> 명시 · 클라우드 컨테이너 구동</td></tr>
+        <tr><td>단말 연동</td><td>RPC(rop) 클라우드 어댑터 <code>clad.*</code></td><td>-</td><td><code>cloud_adaptor.js</code> 정의 · TV/Media/UMP/Config/SI 서비스</td></tr>
+        <tr><td>빌드 시스템</td><td>Grunt + grunt-cli</td><td>^1.0.1 / ^1.2.0</td><td><code>grunt/Gruntfile.js</code> · GruntTasks(copy/compress/clean/jshint/sftp/ssh/shell/watch)</td></tr>
+        <tr><td>HTTP / 네트워크</td><td><code>xhr2</code>, <code>xmlhttprequest</code>, <code>ws</code>, <code>dns</code></td><td>0.1.2 / 1.7.0 / 1.0.1 / 0.2.2</td><td>SDP/서비스 서버 통신</td></tr>
+        <tr><td>유틸 / 비동기</td><td><code>async</code>, <code>jquery</code>, <code>jsdom</code>, <code>iconv-lite</code></td><td>0.9.2 / 2.1.4 / 9.0.0 / 0.4.11</td><td>비동기 제어 · DOM · 인코딩 변환</td></tr>
+        <tr><td>보안 / 인코딩 (추정)</td><td><code>sha1hmac.js</code>, <code>TripleDes.js</code>, <code>euckrURLEncoding.js</code></td><td>-</td><td>인증 토큰·EUC-KR URL 인코딩 처리(파일명·위치 기준 추정)</td></tr>
+        <tr><td>정적 검사</td><td>JSHint (<code>grunt-contrib-jshint</code>)</td><td>^1.0.0</td><td><code>grunt hint</code></td></tr>
+        <tr><td>CI</td><td><code>ci-agent</code></td><td>0.0.19</td><td><code>package.json</code> <code>engines</code> 명시</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+
+    <h3>클라우드 앱 부팅 시퀀스 (<code>Boot.js</code>)</h3>
+    <ol class="steps">
+      <li><span class="st">전역 W 초기화</span><span class="sd"><code>onStart(W, appConfig)</code>에서 <code>new W.CRoot()</code>를 만들고 <code>BootConfig.initializeGlobalW</code>로 전역 모듈을 구성합니다.</span></li>
+      <li><span class="st">부트 옵션 파싱</span><span class="sd">에뮬레이터면 <code>W.RCU.appOption</code>, 실단말이면 <code>appConfig.option</code>(JSON)을 파싱합니다. 실단말의 경우 <code>initializeAdaptor</code>로 어댑터를 연결합니다.</span></li>
+      <li><span class="st">부트 옵션 적용 · 세션 시작</span><span class="sd"><code>initializeBootOption</code>으로 환경을 반영하고 HOST MAC·ACCESS TOKEN·USER ID·LOCAL VERSION을 로그로 남깁니다. 실패 시 <code>terminateOnBootError(CL1000)</code>로 에러 팝업을 띄웁니다.</span></li>
+      <li><span class="st">진입 유형 분기</span><span class="sd">옵션 id에 따라 <code>doCloudInit</code>(부트 캐싱), <code>doAction</code>(홍보채널/홈쇼핑), 일반 메뉴 진입으로 분기합니다.</span></li>
+      <li><span class="st">메뉴 데이터 동기화</span><span class="sd">일반 진입 시 <code>MenuDataManager.syncData</code>로 SDP 메뉴를 동기화합니다. 실패하면 <code>terminateOnBootError(CL1001)</code>로 종료합니다.</span></li>
+      <li><span class="st">첫 화면 표시</span><span class="sd">성공 시 <code>AppHandler.onMessage(bootOption.id, ...)</code>로 첫 Scene을 띄우고 <code>SharedDataManager</code>에 <code>BOOT_COMPLETED</code>를 기록합니다. 종료 시 <code>onStop</code>에서 세션 정리 후 <code>W.PM.destroyApp()</code>으로 앱을 파기합니다.</span></li>
+    </ol>
+
+    <h3>VOD 구매 · 재생 흐름</h3>
+    <ol class="steps">
+      <li><span class="st">VOD 상세 진입</span><span class="sd"><code>scene/vodDetail</code>에서 단편·시리즈·패키지 유형별 상세 정보를 표시하고 예고편/3분 미리보기를 제공합니다.</span></li>
+      <li><span class="st">구매 처리</span><span class="sd"><code>scene/purchase</code>가 일반/단체 가입자, 단편/시리즈/월정액을 분기 처리하고 <code>CouponManager</code>·<code>UPMSManager</code>로 쿠폰·할인권·티켓·포인트를 적용합니다. 필요 시 PIN 인증(<code>PinManager</code>)을 거칩니다.</span></li>
+      <li><span class="st">재생 시작</span><span class="sd"><code>UMPMediaPlayer</code>가 <code>UmpMediaPlayerService.setDataSourceUmp*</code>와 <code>playStart</code>를 호출해 재생을 시작하고 <code>UmpEventListener</code>로 광고 시작/종료·BOF/EOF 등 이벤트를 수신합니다.</span></li>
+      <li><span class="st">재생 중지 · 완료</span><span class="sd">중지 시 <code>playStop</code>/<code>playStopWithoutTune</code>, 채널 복귀가 필요하면 <code>playStopWithChChange</code>를 호출합니다. 재생 완료(EndOfMedia) 후 시청 화면을 정리합니다.</span></li>
+    </ol>
+
+    <h3>실시간 채널 전환 · 시청제한 흐름</h3>
+    <ol class="steps">
+      <li><span class="st">채널 선택</span><span class="sd">편성표/4방향에서 채널을 고르면 <code>TVServiceManager</code>가 <code>CladTVService.selectChannel</code>(또는 <code>selectChannelById</code>)을 호출합니다.</span></li>
+      <li><span class="st">채널 이벤트 수신</span><span class="sd"><code>ChannelEventListener.onChannelEvent</code>로 <code>PERM_OK</code>·<code>PERM_PARENTAL_RATING_BLOCKED</code>·<code>PERM_ADULT_BLOCKED</code>·<code>PERM_CA_BLOCKED</code>·<code>PERM_WRONG_PIN</code> 등 권한 결과를 받습니다.</span></li>
+      <li><span class="st">시청제한 처리</span><span class="sd">연령/성인 제한 채널은 PIN 입력(<code>PinManager</code>)이나 시청 제한·연령 제한 문구를 표시하고, 미구매 채널은 PIP로 표시합니다. 최종 권한은 <code>getFinalPermission</code>으로 확인합니다.</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>빌드는 <code>grunt/</code> 디렉토리에서 수행합니다. 동봉된 래퍼 스크립트(<code>grunt.sh</code> / <code>grunt.cmd</code>)는 <code>node_modules</code>가 없으면 <code>npm install</code>을 먼저 실행한 뒤 grunt를 구동합니다. Node.js 4.5.0 환경을 전제로 합니다.</p>
+    <pre><code># grunt 디렉토리에서 의존성 설치 (최초 1회)
+npm install
+
+# 기본 태스크 — 소스를 빌드(dist 복사)하고 변경 감지(watch)
+sh grunt.sh        # 또는 grunt
+
+# 개발용 bare 서버에 이미지+소스 업로드
+grunt lightbuild  --dev=6 --he-env=testbed --resolution=1080 --ver=1.1.6
+# 소스만 업로드(경량)
+grunt lightbuild2 --dev=6 --he-env=testbed --resolution=1080 --ver=1.1.6
+
+# 정식 릴리즈
+grunt releaseall --ver=1.10.2
+
+# node_modules 포함 src 압축 릴리즈 / JSHint 정적 검사
+grunt release
+grunt hint</code></pre>
+
+    <h3>주요 Grunt 태스크 (<code>Gruntfile.js</code>)</h3>
+    <ul>
+      <li><code>default</code> = <code>buildcopy</code> + <code>watch</code> — 소스 변경 시 자동 재빌드합니다.</li>
+      <li><code>buildtest</code> / <code>buildcopy</code> — clean 후 소스·필터·리소스를 <code>dist/</code>로 복사합니다.</li>
+      <li><code>release</code>(= <code>product</code>) — <code>node_modules</code>를 포함한 소스를 복사·압축(zip)합니다.</li>
+      <li><code>lightbuild</code> / <code>lightbuild2</code> — clean 후 빌드하여 Alti 클라우드 bare 서버(<code>192.168.254.11</code>)에 SFTP 업로드합니다(개발자별 인스턴스 경로 <code>inst&lt;dev&gt;</code>).</li>
+      <li><code>releaseall</code> / <code>releaseproduct</code> — shell 태스크 기반 릴리즈입니다.</li>
+    </ul>
+
+    <h3>빌드 옵션</h3>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>옵션</th><th>기본값</th><th>값 / 의미</th></tr></thead>
+      <tbody>
+        <tr><td><code>--he-env</code></td><td><code>testbed</code></td><td>헤드엔드 환경 — testbed / live / sat / suyu. <code>src/env/HE-&lt;env&gt;.js</code> 선택.</td></tr>
+        <tr><td><code>--resolution</code></td><td><code>540</code></td><td>단말 해상도 — 540 / 1080. <code>STB-&lt;res&gt;.js</code>·<code>style-&lt;res&gt;</code>·<code>res-&lt;res&gt;</code> 선택.</td></tr>
+        <tr><td><code>--isemul</code></td><td><code>false</code></td><td>에뮬레이터 여부. true면 <code>RCU-emul.js</code>, false면 <code>RCU-stb.js</code>.</td></tr>
+        <tr><td><code>--dev</code></td><td>-</td><td>bare 서버 개발자 포트(1~99). lightbuild 계열에서 필수.</td></tr>
+        <tr><td><code>--ver</code></td><td><code>0.0.1</code></td><td>패키지 버전 오버라이드(release 외에는 0.0.1 고정).</td></tr>
+        <tr><td><code>--log</code></td><td><code>true</code></td><td>로그 포함 여부.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>산출물은 <code>../dist/&lt;패키지명&gt;</code> 경로에 생성되며, 패키지명은 해상도(및 sat 환경 여부)에 따라 <code>com.tbroad.cloud.ep3.540</code>, <code>com.tbroad.cloud.ep3.1080.sat</code> 등으로 조합됩니다. 빌드 시 <code>grunt/Version.js</code>가 템플릿 처리되어 버전과 업데이트 날짜(<code>UPDATE</code>)가 주입됩니다. 산출물은 단말 APK가 아니라 클라우드 서버 컨테이너로 배포되는 소스/리소스 묶음입니다.</p>
+    <div class="callout warn">
+      <div class="ct">서버 정보</div>
+      <code>Gruntfile.js</code>의 <code>CLOUD_BARE_SERVER</code>에 bare(개발) 서버의 SFTP 호스트·계정·앱/리소스/데이터 경로가 하드코딩되어 있습니다. 사내 Confluence "Cloud 개발 세팅"에 testbed/live 서버 IP, 로그 확인 명령(<code>tail -f /var/log/cloud/service/app.log</code>), 빌드 옵션 예시가 정리되어 있습니다.
+    </div>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>저장소는 2018-06-19 최초 커밋 이후 약 5,877개의 커밋이 쌓인 장기 운영 프로젝트입니다(버전 라인 브랜치 1.0.x~1.11.x, 3.2.1 등). master 기준 최근 작업은 편성표(EPG)·4방향 라이브의 시청제한/연령제한 처리 정교화, VOD 상세·구매·찜한 VOD 화면의 포커스·표시 버그 수정, 인기 채널·검색·PIP 동작 안정화에 집중되어 있습니다. 가장 최근 커밋(2026-03-19)은 로그 정리입니다.</p>
+    <ul class="commits">
+      <li><span class="date">2026-03-19</span><span class="msg">로그 삭제 (999ace2cc)</span></li>
+      <li><span class="date">2026-03-18</span><span class="msg">연령 제한 프로그램 문구 변경</span></li>
+      <li><span class="date">2026-03-18</span><span class="msg">프로그램 정보 유무에 따라 시청 제한 / 연령 제한 문구 표시</span></li>
+      <li><span class="date">2026-03-18</span><span class="msg">4방향 채널 연령제한 프로그램 확인 동작 수정</span></li>
+      <li><span class="date">2026-03-17</span><span class="msg">4방향 채널 연령제한 프로그램 확인 동작 수정</span></li>
+      <li><span class="date">2026-03-04</span><span class="msg">인기채널 에러 팝업 변경</span></li>
+      <li><span class="date">2026-02-06</span><span class="msg">B tv 모바일 앱 관련 동작 제거</span></li>
+      <li><span class="date">2026-02-05</span><span class="msg">testbed SDP server ip 변경</span></li>
+      <li><span class="date">2025-11-13</span><span class="msg">채널 가입 시 "가입" 버튼 배경 초기화 수정</span></li>
+      <li><span class="date">2025-11-13</span><span class="msg">구매내역 삭제 팝업 후 대여 VOD 상단 2개만 출력되는 문제 / focus index 조정 수정</span></li>
+      <li><span class="date">2025-11-12</span><span class="msg">CPM482 안드로이드 편성표에서 다른 채널 선택 시 이동 안 되는 증상 수정</span></li>
+      <li><span class="date">2025-11-12</span><span class="msg">홈을 통하지 않고 편성표 진입 시 채널 이벤트 등록 타이밍 보정</span></li>
+      <li><span class="date">2025-11-12</span><span class="msg">전체 편성표에서 검색 진입 후 이전키 키동작 미동작 수정</span></li>
+      <li><span class="date">2025-11-11</span><span class="msg">편성표 실시간 인기 채널 12개 → 20개로 변경</span></li>
+      <li><span class="date">2025-11-11</span><span class="msg">선호채널 없을 시 전체편성표 선호채널 진입 키동작 미동작 예외처리</span></li>
+      <li><span class="date">2025-11-07</span><span class="msg">리모콘 &gt; [채널안내] 동작 수정</span></li>
+      <li><span class="date">2025-11-06</span><span class="msg">[CPM-469] 편성표 진입 시 미구매 채널 PIP 미표시 수정</span></li>
+      <li><span class="date">2025-10-29</span><span class="msg">전체 편성표 갱신 시 로딩바 제거 / 1080 타임라인 width 변경</span></li>
+      <li><span class="date">2025-10-29</span><span class="msg">시청제한 채널 PIP 표시 문제 수정(lastpermission 타이밍 보정)</span></li>
+      <li><span class="date">2025-10-28</span><span class="msg">편성표 확인버튼 동작 추가</span></li>
+    </ul>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li><code>/Users/lim/Altimedia/workspace_biz_3rd/skb.cloud.home/README.md</code><span class="src">저장소 README — 과제 개요/구조/빌드</span></li>
+      <li><code>src/Boot.js</code>, <code>src/BootConfig.js</code>, <code>src/Preload.js</code><span class="src">앱 엔트리포인트 · 부팅 시퀀스</span></li>
+      <li><code>src/cloud_adaptor.js</code><span class="src">클라우드 어댑터 RPC 인터페이스(clad.*) 정의</span></li>
+      <li><code>grunt/Gruntfile.js</code>, <code>grunt/Version.js</code>, <code>grunt/grunt.sh</code><span class="src">빌드 시스템 · 태스크 · 버전 주입</span></li>
+      <li><code>src/env/HE-testbed.js</code> 등 / <code>data/meta.json</code><span class="src">헤드엔드 서버 설정 · OOB 데이터 메타</span></li>
+      <li><code>uml/</code> (PlantUML 시퀀스 다이어그램 60여 개)<span class="src">기능별 동작 흐름 문서(구매/재생/검색/4방향/마이홈 등)</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/2870054741">클라우드 시스템 분석</a><span class="src">Confluence(ORGAPPDEV) — 서비스/Docker 컨테이너·로그·모니터링·API 테스트</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3648651738">Cloud 개발 세팅</a><span class="src">Confluence(ORGAPPDEV) — 서버 IP·로그 확인·grunt 빌드 옵션·FTP</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

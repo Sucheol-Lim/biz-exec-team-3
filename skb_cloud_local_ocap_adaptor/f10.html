@@ -1,0 +1,170 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap_adaptor · 미디어 재생 제어 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>미디어 재생 제어 — skb_cloud_local_ocap_adaptor 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">SKB(TBroad) Local App OCAP Cloud Adaptor</a><span class="sep">›</span>
+      <span class="here">미디어 재생 제어</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP STB · Java(레거시)</span>
+    </div>
+    <h1>미디어 재생 제어</h1>
+    <p class="one-liner"><code>CladMediaPlayerService</code> 가 <code>playStart/pause/resume</code>, 트레일러 재생, 다양한 정지(<code>playStop/playStopWithoutTune/playStopWithChChange/playStopWithReservedCh</code>), <code>stopAndPlay</code>, <code>setMediaConfig</code> 를 정의합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor" target="_blank" rel="noopener"><code>skb_cloud_local_ocap_adaptor</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>clad/media/CladMediaPlayerService.java</code></div></div>
+      <div class="item"><div class="k">인터페이스 태그</div><div class="v"><code>0xa97377888a7debd2</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>CladMediaPlayerService</code> 는 미디어 재생의 베이스 인터페이스로, <code>CladContext.getMediaPlayerService()</code> 로 획득합니다. 기본 재생 제어는 <code>playStart()</code>(int 반환), <code>pause()</code>/<code>resume()</code>(boolean)로 구성되고, 트레일러 재생용 <code>playStartVodTrailer()</code> 와 sid 지정 <code>playStartTrailer(int sid)</code> 가 별도로 있습니다.</p>
+    <p>정지 동작은 상황별로 네 갈래로 세분화됩니다. 일반 정지 <code>playStop()</code>, 튜닝 없이 정지 <code>playStopWithoutTune()</code>, 채널 전환을 동반한 정지 <code>playStopWithChChange()</code>, 예약 채널로 정지 <code>playStopWithReservedCh(int sid)</code> 입니다. 정지와 다음 콘텐츠 재생을 한 번에 처리하는 <code>stopAndPlay(List value)</code> 는 int 결과를 반환합니다(2019-02-27 커밋 <code>d319626</code> 에서 추가).</p>
+    <p>재생 환경 설정은 <code>setMediaConfig(String key, List value)</code> 로 키-값 형태로 지정합니다. 이 베이스 인터페이스는 VOD 전용 확장 <code>UmpMediaPlayerService</code> 의 부모이며, UMP 는 여기에 데이터소스 설정·VOD 요청 ID·이벤트/결과 상수 등을 더합니다(상세는 "UMP 기반 VOD 재생" 기능 참고).</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      정지 메서드를 단일 <code>stop()</code> 이 아니라 네 종류로 나눈 이유는, 셋톱박스에서 미디어 정지 후 후속 동작(채널 튜닝 여부·예약 채널 이동)이 달라 자원/튜너 처리 흐름이 다르기 때문입니다. Cloud App 이 의도를 명시하도록 메서드를 분리했습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Cloud as Cloud App
+    participant CTX as CladContextImpl
+    participant MP as CladMediaPlayerService
+
+    Cloud-&gt;&gt;CTX: getMediaPlayerService()
+    CTX--&gt;&gt;Cloud: CladMediaPlayerService
+    Cloud-&gt;&gt;MP: setMediaConfig(key, value)
+    MP--&gt;&gt;Cloud: boolean
+    Cloud-&gt;&gt;MP: playStart()
+    MP--&gt;&gt;Cloud: int (결과)
+    Cloud-&gt;&gt;MP: pause()
+    Cloud-&gt;&gt;MP: resume()
+    alt 채널 전환하며 종료
+        Cloud-&gt;&gt;MP: playStopWithChChange()
+    else 다음 콘텐츠로 전환
+        Cloud-&gt;&gt;MP: stopAndPlay(value)
+        MP--&gt;&gt;Cloud: int (결과)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 컨텍스트로 플레이어를 받아 설정 후 재생/일시정지/재개하고, 종료 시 후속 동작에 맞춰 정지 또는 stopAndPlay 를 선택합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class CladMediaPlayerService {
+        &lt;&lt;interface&gt;&gt;
+        +playStart() int
+        +playStartVodTrailer() int
+        +playStartTrailer(int sid) int
+        +pause() boolean
+        +resume() boolean
+        +playStop() boolean
+        +playStopWithoutTune() boolean
+        +playStopWithChChange() boolean
+        +playStopWithReservedCh(int sid) boolean
+        +setMediaConfig(String key, List value) boolean
+        +stopAndPlay(List value) int
+    }
+    class UmpMediaPlayerService {
+        &lt;&lt;interface&gt;&gt;
+        +demandVODRequestID(String assetId, String categoryId)
+        +getUMPStatus() int
+    }
+    class CladMediaPlayerServiceImpl {
+        +createSkeleton() Skeleton
+    }
+
+    UmpMediaPlayerService --|&gt; CladMediaPlayerService : extends
+    CladMediaPlayerServiceImpl ..|&gt; CladMediaPlayerService : implements
+      </div>
+      <p class="cap"><strong>관계.</strong> 베이스 <code>CladMediaPlayerService</code> 가 재생 제어를 정의하고, VOD 확장 <code>UmpMediaPlayerService</code> 가 이를 상속해 UMP 세션 기능을 추가합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>clad/media/CladMediaPlayerService.java</code> — 재생 제어 인터페이스 전체</div>
+<pre><code>public interface CladMediaPlayerService {
+    int playStart ();
+    int playStartVodTrailer ();
+    int playStartTrailer (int sid);
+    boolean pause ();
+    boolean resume ();
+    boolean playStop ();
+    boolean playStopWithoutTune ();
+    boolean playStopWithChChange ();
+    boolean playStopWithReservedCh (int sid);
+    boolean setMediaConfig (String key, List value);
+    int stopAndPlay (List value);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/clad/media/CladMediaPlayerService.java" target="_blank" rel="noopener">clad/media/CladMediaPlayerService.java</a><span class="src">미디어 재생 베이스 인터페이스 — 재생/일시정지/정지 4종/stopAndPlay</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/cladimpl/media/CladMediaPlayerServiceImpl.java" target="_blank" rel="noopener">cladimpl/media/CladMediaPlayerServiceImpl.java</a><span class="src">미디어 서비스 구현체(골격)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap_adaptor/src/master/java/com/alticast/clad/media/ump/UmpMediaPlayerService.java" target="_blank" rel="noopener">clad/media/ump/UmpMediaPlayerService.java</a><span class="src">VOD 확장 인터페이스(상속) — UMP 세션 기능</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f09.html">← SI 채널 리스트 조회</a>
+      <a href="f11.html">UMP 기반 VOD 재생 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap_adaptor 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

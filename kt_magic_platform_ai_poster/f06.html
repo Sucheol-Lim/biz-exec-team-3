@@ -1,0 +1,205 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_poster · 결과 폴링 처리(10초 간격 + AbortSignal) 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결과 폴링 처리 — kt_magic_platform_ai_poster 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 포스터 (지니 포스터 편집툴)</a><span class="sep">›</span>
+      <span class="here">결과 폴링 처리</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">PC 웹 (Vue 3 SPA) · 비동기 폴링</span>
+    </div>
+    <h1>결과 폴링 처리</h1>
+    <p class="one-liner">확장 작업은 10초 간격으로 결과를 폴링합니다. 진행 중 상태를 콜백으로 갱신하고, <code>SUCCESS/COMPLETED</code> 또는 <code>ERROR/FAILED</code> 상태로 종료를 판정하며, <code>AbortSignal</code>로 폴링을 취소할 수도 있습니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster" target="_blank" rel="noopener"><code>kt_magic_platform_ai_poster</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 함수</div><div class="v"><code>pollingImageExtensionResultsWithCallback()</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">이미지 확장 비동기 완료 대기</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>이미지 확장은 서버에서 오래 걸리는 작업이라 즉시 결과가 오지 않습니다. <code>ResultArea.vue</code>는 진입 시 확장 상태가 진행 중(<code>status</code> 0/1)이면 <code>startPolling()</code>으로 <code>apiUtils.js</code>의 <code>pollingImageExtensionResultsWithCallback()</code>을 호출합니다. 이 함수는 <code>POLL_INTERVAL = 10000</code>(10초) 간격으로 <code>getImageExpansionResult(projectId, jobId)</code>를 호출하며, 매 폴마다 전달받은 <code>onUpdate</code> 콜백에 전체 응답 데이터를 넘겨 진행률·부분 결과를 화면에 반영합니다.</p>
+    <p>종료 판정은 응답의 <code>status</code>로 합니다. <code>SUCCESS</code> 또는 <code>COMPLETED</code>면 <code>resolve</code>로 완료, <code>ERROR</code> 또는 <code>FAILED</code>면 <code>reject</code>로 실패 처리합니다. 폴링 취소는 <code>AbortSignal</code>로 지원하는데, <code>ResultArea</code>가 들고 있는 <code>AbortController</code>를 <code>abort()</code>하면 <code>signal</code>의 abort 리스너가 타이머를 정리하고 <code>AbortError</code>로 reject합니다. 컴포넌트는 이 에러를 정상 취소로 간주해 조용히 무시합니다.</p>
+    <div class="callout">
+      <div class="ct">두 가지 폴링 루프</div>
+      이미지 확장은 <code>apiUtils.js</code>의 <code>setTimeout</code> 재귀 폴링(콜백·AbortSignal 지원)을 쓰고, 텍스트 제거는 <code>PosterEdit.vue</code>의 <code>setInterval</code> 10초 폴링을 따로 씁니다. 둘 다 10초 간격이지만 구현과 종료 조건(전자는 status 문자열, 후자는 <code>result.imageUrl</code> 존재)이 다릅니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant RA as ResultArea.vue
+    participant AU as polling...WithCallback
+    participant API as api.poster
+    participant AB as AbortController
+
+    RA-&gt;&gt;AB: new AbortController()
+    RA-&gt;&gt;AU: poll(api, projectId, jobId, onUpdate, signal)
+    loop 10초 간격 (status 미종료)
+        AU-&gt;&gt;API: getImageExpansionResult(projectId, jobId)
+        API--&gt;&gt;AU: { status, items, progress }
+        AU-&gt;&gt;RA: onUpdate(responseData) → 진행률/부분결과 갱신
+        alt SUCCESS / COMPLETED
+            AU--&gt;&gt;RA: resolve(responseData)
+        else ERROR / FAILED
+            AU--&gt;&gt;RA: reject(Error)
+        else 진행 중
+            AU-&gt;&gt;AU: setTimeout(poll, 10000)
+        end
+    end
+    Note over RA,AB: 화면 이탈/뒤로가기 시
+    RA-&gt;&gt;AB: abort()
+    AB-&gt;&gt;AU: signal → AbortError reject (타이머 정리)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 콜백으로 진행 상황을 흘려보내며 10초마다 재폴링하고, 종료 status에서 resolve/reject합니다. AbortController로 언제든 중단할 수 있습니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class apiUtils {
+        +pollingImageExtensionResults(api, projectId, jobId)
+        +pollingImageExtensionResultsWithCallback(api, projectId, jobId, onUpdate, signal)
+    }
+    class ResultArea {
+        -isPolling
+        -abortController
+        +startPolling()
+        +stopPolling()
+    }
+    class PosterApi {
+        +getImageExpansionResult(projectId, jobId)
+    }
+    class AbortController {
+        +signal
+        +abort()
+    }
+
+    ResultArea ..&gt; apiUtils : startPolling
+    ResultArea o-- AbortController : 취소 제어
+    apiUtils ..&gt; PosterApi : getImageExpansionResult
+    apiUtils --&gt; AbortController : signal 구독
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>ResultArea</code>가 <code>AbortController</code>를 소유하고 폴링 함수에 <code>signal</code>을 넘깁니다. 폴링 함수는 <code>getImageExpansionResult</code>를 반복 호출합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/assets/js/utils/apiUtils.js</code> — 10초 폴링 + 종료 판정 + AbortSignal</div>
+<pre><code>const POLL_INTERVAL = 10000; // 10 seconds
+
+if (signal) {
+    signal.addEventListener('abort', () =&gt; {
+        clearTimeout(timeoutId);
+        reject(new DOMException('Polling aborted', 'AbortError'));
+    });
+}
+
+const poll = async () =&gt; {
+    if (signal?.aborted) return;
+    const response = await api.poster.getImageExpansionResult(projectId, jobId);
+    const responseData = response.data;
+    const { status } = responseData;
+
+    if (onUpdate) onUpdate(responseData);                  // 진행률/부분결과 콜백
+
+    if (status === 'ERROR' || status === 'FAILED') { clearTimeout(timeoutId); reject(new Error('Extension generation failed')); return; }
+    if (status === 'SUCCESS' || status === 'COMPLETED') { clearTimeout(timeoutId); resolve(responseData); return; }
+
+    timeoutId = setTimeout(poll, POLL_INTERVAL);           // 진행 중 → 재폴링
+};
+poll();</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/components/ResultArea.vue</code> — startPolling / stopPolling(AbortController)</div>
+<pre><code>async function startPolling() {
+    if (isPolling.value) return
+    isPolling.value = true
+    abortController = new AbortController()
+
+    await pollingImageExtensionResultsWithCallback(
+        api, props.projectId, extensionId.value,
+        (responseData) =&gt; {
+            emit('extension-data-update', responseData)
+            const { status, items } = responseData
+            if (status === 'done')       { rawItems.value = items || []; stopPolling(); }
+            else if (status === 'error') { rawItems.value = items || []; stopPolling(); }
+            else { rawItems.value = [...(items || []), LOADING_CARD]; }
+        },
+        abortController.signal
+    )
+}
+
+function stopPolling() {
+    if (abortController) { abortController.abort(); abortController = null }
+    isPolling.value = false
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/assets/js/utils/apiUtils.js" target="_blank" rel="noopener">posteredit/assets/js/utils/apiUtils.js</a><span class="src">pollingImageExtensionResultsWithCallback — 10초 간격 · SUCCESS/COMPLETED·ERROR/FAILED 판정 · AbortSignal</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/ResultArea.vue" target="_blank" rel="noopener">posteredit/components/ResultArea.vue</a><span class="src">startPolling/stopPolling · AbortController · onUpdate로 진행률·부분결과 반영</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/api/poster.js" target="_blank" rel="noopener">user/src/api/poster.js</a><span class="src">getImageExpansionResult / deleteImageExpansionJob 엔드포인트</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f05.html">← 배너 템플릿 세트</a>
+      <a href="f07.html">결과 조회·다운로드 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_poster 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

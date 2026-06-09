@@ -1,0 +1,190 @@
+<!doctype html>
+<!-- skb_cloud_local_android · 미디어 재생 연동(UMP) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>미디어 재생 연동(UMP) — skb_cloud_local_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local EPG (Android)</a><span class="sep">›</span>
+      <span class="here">미디어 재생 연동(UMP)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>미디어 재생 연동(UMP)</h1>
+    <p class="one-liner"><code>UmpController</code>가 <code>UnitedMediaPlayer</code> AIDL 인터페이스로 외부 미디어 플레이어 서비스(<code>com.castis.ump.umpService</code>)에 바인딩해 VOD를 재생하고, <code>UMPEventListener</code> 콜백으로 재생 이벤트를 수신합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_android" target="_blank" rel="noopener"><code>skb_cloud_local_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>UC500_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>UmpController</code> · <code>UnitedMediaPlayer</code>(AIDL) · <code>UMPEventListener</code>(AIDL)</div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">외부 VOD 플레이어 AIDL 연동</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>VOD/미디어 재생은 본 앱이 직접 디코딩하지 않고, 외부 미디어 플레이어 프로세스(<code>com.castis.vod_service</code>)에 AIDL로 위임합니다. 앱의 <code>aidl/com/castis/ump</code>에 정의된 <code>UnitedMediaPlayer</code> 인터페이스는 <code>play</code>·<code>stop</code>·<code>setRate</code>·<code>setMediaOffset</code>·<code>demandVODRequestID</code>·<code>setECMGroup</code> 등 재생 제어 메서드와, 결과 콜백용 <code>UMPEventListener</code>를 가집니다.</p>
+    <p><code>UmpController</code>(싱글턴)가 연동의 핵심입니다. <code>bindUmp()</code>가 <code>com.castis.ump.umpService</code> 액션 인텐트(패키지 <code>com.castis.vod_service</code>)로 <code>bindService()</code>를 걸고, <code>onServiceConnected()</code>에서 <code>UnitedMediaPlayer.Stub.asInterface(iBinder)</code>로 원격 바인더를 얻습니다. 이어 <code>setUMPEventListener()</code>로 이벤트 리스너를 등록하고 <code>setTerminalId()</code>로 단말 MAC을 전달하며, 콘텐츠 암호화 키가 있으면 <code>setECMGroup()</code>으로 ECM을 주입합니다.</p>
+    <p>재생 이벤트는 <code>UMPEventListenerImpl</code>이 받아 <code>VodEventCode</code>로 매핑하고, <code>VodManager</code>가 VOD 상태(<code>VodInfo</code>)와 트릭모드(빨리감기/되감기)를 관리합니다. 라이브 시청과의 화면 점유 충돌은 <code>UmpController.isStopped()</code> 상태로 판단해 <code>PlaybackFragment</code> 튠 로직과 조율합니다. 서비스 연결이 끊기면(<code>onServiceDisconnected</code>) 세션 에러(<code>EVENT_SESSION_ERROR</code>)를 통보합니다.</p>
+    <div class="callout">
+      <div class="ct">EPG ↔ UMP 화면 점유</div>
+      라이브 EPG와 외부 VOD 플레이어는 동일 비디오 평면을 공유하므로, UMP는 <code>af.intent.action.EPG_STATE_SHOWING</code>/<code>EPG_STATE_STOPPED</code> 브로드캐스트로 EPG 표시 상태를 외부 플레이어에 알려 화면 점유를 조율합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant APP as UmpController
+    participant SYS as Android (bindService)
+    participant SVC as com.castis.vod_service (UMP)
+    participant UMP as UnitedMediaPlayer (AIDL)
+    participant LSN as UMPEventListenerImpl
+
+    APP-&gt;&gt;SYS: bindService("com.castis.ump.umpService")
+    SYS-&gt;&gt;SVC: 외부 플레이어 서비스 기동/연결
+    SVC--&gt;&gt;APP: onServiceConnected(iBinder)
+    APP-&gt;&gt;UMP: Stub.asInterface(iBinder)
+    APP-&gt;&gt;UMP: setUMPEventListener(LSN)
+    APP-&gt;&gt;UMP: setTerminalId(MAC) / setECMGroup(ecm)
+    Note over APP: VOD 재생 요청
+    APP-&gt;&gt;UMP: play(transactionId, fileName, offset)
+    UMP--&gt;&gt;LSN: 재생 이벤트 콜백
+    LSN-&gt;&gt;APP: VodEventCode 매핑 / VodManager 갱신
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>UmpController</code>가 외부 UMP 서비스에 바인딩해 AIDL 바인더를 얻고 리스너·단말 정보를 설정한 뒤 <code>play()</code>로 재생하며, 이벤트는 콜백으로 돌아옵니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class UnitedMediaPlayer {
+        &lt;&lt;interface&gt;&gt;
+        +play(transactionId, fileName, offset)
+        +stop(transactionId)
+        +setRate(transactionId, rate)
+        +setUMPEventListener(listener)
+        +setTerminalId(String)
+        +setECMGroup(byte ecm)
+        +getUMPStatus() int
+    }
+    class UMPEventListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class UmpController {
+        -UnitedMediaPlayer vodPlayer
+        -ServiceConnection umpConnection
+        +bindUmp()
+        +isStopped() boolean
+    }
+    class UMPEventListenerImpl
+    class VodManager {
+        +getInstance() VodManager
+    }
+    class VodEventCode {
+        +EVENT_SESSION_ERROR int
+    }
+
+    UmpController --&gt; UnitedMediaPlayer : AIDL 바인더
+    UmpController o-- UMPEventListenerImpl
+    UMPEventListenerImpl ..|&gt; UMPEventListener
+    UMPEventListenerImpl ..&gt; VodEventCode
+    UmpController ..&gt; VodManager : 상태 갱신
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>UmpController</code>가 AIDL <code>UnitedMediaPlayer</code> 바인더를 보유하고, <code>UMPEventListenerImpl</code>이 <code>UMPEventListener</code>를 구현해 이벤트를 받습니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>module/ump/UmpController.java</code> — 외부 UMP 서비스 바인딩 및 AIDL 인터페이스 획득</div>
+<pre><code>umpConnection = new ServiceConnection() {
+    public void onServiceConnected(ComponentName c, IBinder iBinder) {
+        vodPlayer = UnitedMediaPlayer.Stub.asInterface(iBinder);   // AIDL 바인더
+        umpEvtListenerImpl = new UMPEventListenerImpl();
+        vodPlayer.setUMPEventListener(umpEvtListenerImpl);          // 이벤트 리스너 등록
+        vodPlayer.setTerminalId(DeviceInfoManager.getInstance().getMacAddress());
+        // 암호화 키 있으면 ECM 주입
+    }
+    public void onServiceDisconnected(ComponentName c) {
+        if (!isStopped()) playFail(VodEventCode.EVENT_SESSION_ERROR);
+    }
+};
+Intent intent = new Intent("com.castis.ump.umpService");
+intent.setPackage("com.castis.vod_service");
+mContext.bindService(intent, umpConnection, Context.BIND_AUTO_CREATE);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>aidl/com/castis/ump/UnitedMediaPlayer.aidl</code> — 외부 플레이어 제어 인터페이스(발췌)</div>
+<pre><code>interface UnitedMediaPlayer {
+    void play(in int transactionId, in String fileName, in long offset);
+    void stop(in int transactionId);
+    void setRate(in int transactionId, in int rate);
+    void setUMPEventListener(UMPEventListener umpEventListener);
+    void setTerminalId(in String terminalId);
+    void setECMGroup(in byte[] ecmGroup);
+    int getUMPStatus();
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/ump/UmpController.java" target="_blank" rel="noopener">module/ump/UmpController.java</a><span class="src">UMP 서비스 바인딩 · AIDL 인터페이스 획득 · 재생 제어</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/aidl/com/castis/ump/UnitedMediaPlayer.aidl" target="_blank" rel="noopener">aidl/com/castis/ump/UnitedMediaPlayer.aidl</a><span class="src">외부 미디어 플레이어 제어 AIDL 인터페이스</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/aidl/com/castis/ump/UMPEventListener.aidl" target="_blank" rel="noopener">aidl/com/castis/ump/UMPEventListener.aidl</a><span class="src">UMP 재생 이벤트 콜백 AIDL</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/ump/VodManager.java" target="_blank" rel="noopener">module/ump/VodManager.java</a><span class="src">VOD 상태(VodInfo)·트릭모드 관리</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f09.html">← 클라우드 홈 / CAPPL</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f11.html">검색 (글로벌/프로그램) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>UC500_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

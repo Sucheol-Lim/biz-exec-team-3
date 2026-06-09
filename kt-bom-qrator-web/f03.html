@@ -1,0 +1,204 @@
+<!doctype html>
+<!-- kt-bom-qrator-web · 샤프(#)키 처리(sharp) 기능 상세 — #키로 실행 가능한 BOM 앱 선택 UI -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>샤프(#)키 처리 (sharp) — kt-bom-qrator-web 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT BOM Qrator Web (언바운드 위젯 앱)</a><span class="sep">›</span>
+      <span class="here">샤프(#)키 처리 (sharp)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">olleh tv 웹 미들웨어 STB · JavaScript</span>
+    </div>
+    <h1>샤프(#)키 처리 (sharp)</h1>
+    <p class="one-liner">리모컨 # 키(VK_F12)로 현재 채널에서 실행 가능한 BOM 앱을 선택·실행하는 sharp UI입니다. 채널뷰(chview)·비밀번호(pwd)·아람(aram)·서비스 에러 팝업을 제공하며, # 키 더블 입력 시 "샵샵(##)" 동작으로 전환됩니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web" target="_blank" rel="noopener"><code>kt-bom-qrator-web</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>apps/sharp/js/main.js</code></div></div>
+      <div class="item"><div class="k">진입 키</div><div class="v"><code>VK_F12</code> (#키, hide 상태)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>샤프 UI는 위젯이 숨겨진 상태(<code>_handleKeyWhileHidden</code>)에서 # 키(<code>VK_F12</code>)가 들어오면 <code>_sharpKeyWhenHide</code> → <code>sharpUi.sharpKey()</code>로 진입합니다. 단, 위젯·BOM 앱이 떠 있거나 양방향(데이터) 채널 상태라면 # 키를 처리하지 않습니다. 진입하면 옵저버에 <code>obs_requestShow</code>를 보내 표시 승인을 받은 뒤, 채널뷰(<code>goChview</code>) 모델을 트리거해 현재 채널의 # 채널 정보를 보여줍니다.</p>
+    <p>모든 통신은 qrator를 통한 postMessage입니다. <code>requestShow(timer)</code>는 활성 앱을 <code>sharpUi</code>로 바꾸고 옵저버에 표시를 요청하며, <code>requestHide</code>는 <code>obs_hide</code>를 보내 종료합니다. 표시·숨김 응답은 <code>qMessage(events)</code>에서 메서드별로 처리됩니다. 자체 API(<code>sharp_api</code>)로 사내 sharp_ui 서버(<code>mapi.bom.kt.com/sharpui</code>)와 연동합니다.</p>
+    <p>특수 기능인 "샵샵(##)"은 <code>ssharp</code> 모듈이 담당합니다. 짧은 시간 내 # 키가 두 번 들어오면 스택(<code>ssharpStacks</code>)이 2 이상이 되어 <code>isStandby()</code>가 참이 되고, 다른 언바운드 앱 실행 여부를 확인한 뒤 <code>qrt_moveToSharpLink</code>를 <code>brk</code>로 전달해 #채널 링크로 이동합니다.</p>
+    <div class="callout">
+      <div class="ct">하위 화면 구성</div>
+      sharp는 <code>view/page/chview.js</code>(채널뷰)와 <code>view/popup/</code>의 <code>pwd.js</code>(비밀번호 입력)·<code>aram.js</code>(아람 알림)·<code>serviceError.js</code>(서비스 에러)로 화면을 구성합니다. 각 뷰는 <code>appMgr.modelTrigger()</code>로 전환됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자/리모컨
+    participant Q as qrator
+    participant SH as sharpUi (main)
+    participant SS as ssharp
+    participant OBS as Observer
+    participant VIEW as appMgr (chview)
+
+    U-&gt;&gt;Q: # 키(VK_F12), hide 상태
+    Q-&gt;&gt;Q: _sharpKeyWhenHide() (위젯/데이터채널 아니면)
+    Q-&gt;&gt;SH: sharpUi.sharpKey()
+    SH-&gt;&gt;SS: ssharp.ssharpProcess()
+    SS-&gt;&gt;OBS: isOnUnboundApplication() (obs_isLoadingUnboundApplication)
+    OBS--&gt;&gt;SS: 다른 언바운드 앱 없음
+    SS-&gt;&gt;SH: requestShow(0)
+    SH-&gt;&gt;OBS: obs_requestShow
+    OBS--&gt;&gt;SH: res = yes
+    SH-&gt;&gt;VIEW: modelTrigger(goChview)
+    VIEW--&gt;&gt;U: 채널뷰 표시
+
+    Note over U,SS: # 키 재입력(2회) → ssharpTrigger
+    U-&gt;&gt;SS: # 키
+    SS-&gt;&gt;SH: brk.qMessage(qrt_moveToSharpLink)
+      </div>
+      <p class="cap"><strong>흐름.</strong> hide 상태에서 # 키가 들어오면 <code>ssharpProcess</code>가 다른 언바운드 앱 유무를 확인하고, 없으면 옵저버 승인을 받아 채널뷰를 표시합니다. # 키가 한 번 더 들어와 standby가 되면 <code>qrt_moveToSharpLink</code>로 #채널 이동을 brk에 위임합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class sharpUi {
+        -info_state
+        +init(isFirstMode, stbInfo, container)
+        +show(restart)
+        +hide(afterFn)
+        +sharpKey()
+        +requestShow(timer)
+        +requestHide(requestCallback)
+        +requestHideWhenShow()
+        +qMessage(events)
+        +isOnUnboundApplication(appId, onFn, offFn, timer)
+    }
+    class ssharp {
+        -ssharpStacks
+        +addStack()
+        +isStandby()
+        +free()
+        +ssharpTrigger(isAfterHide)
+        +ssharpProcess()
+    }
+    class sharp_api {
+        +setDependencyData(data)
+    }
+    class oipf {
+        +getSAID()
+        +getModelName()
+    }
+    class qrator {
+        +activateSharpUI()
+        +deactivateSharpUI()
+        +sendPostMessage(from, to, msg)
+    }
+
+    sharpUi *-- ssharp : 소유(샵샵)
+    sharpUi o-- sharp_api : sharp_ui 서버
+    sharpUi o-- oipf : 단말 정보
+    sharpUi --&gt; qrator : 표시/키 위임
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>sharpUi</code>가 내부 <code>ssharp</code>(##)을 소유하고, <code>sharp_api</code>·<code>oipf</code> 컴포넌트로 서버/단말 정보를 다룹니다. 표시·활성 전환은 <code>qrator</code>에 위임합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>qrator/js/main.js</code> — _sharpKeyWhenHide: # 키 처리 가드</div>
+<pre><code>function _sharpKeyWhenHide(event) {
+    // 위젯(또는 BOM앱)이 실행중이거나 양방향 채널 상태라면 #키를 처리하지 않음
+    if (stateManager.isShow() || oipfUtil.isDataChannel()) {
+        return;
+    }
+    _sharpKey(event);
+}
+
+function _sharpKey(event) {
+    sharpUi.sharpKey(event);
+    _consumed(event);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>apps/sharp/js/main.js</code> — ssharpProcess: 샵샵 진입과 언바운드 앱 확인</div>
+<pre><code>ssharpProcess: function () {
+    var ssharp = this;
+    qrator.activateSharpUI();
+
+    // 다른 언바운드 앱이 실행중인지 체크함
+    ssharpTimer = sharpUi.isOnUnboundApplication(null, function () {
+        // 다른 언바운드 앱이 실행 중일 때, hide 상태로 전환
+        qrator.deactivateSharpUI();
+        ssharp.free();
+    }, function () {
+        // 실행 중인 다른 언바운드 앱이 없을 경우
+        ssharpTimer = sharpUi.requestShow(0);
+    }, 0);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/sharp/js/main.js" target="_blank" rel="noopener">apps/sharp/js/main.js</a><span class="src">sharpUi 본체. show/hide·requestShow·ssharp(##) 모듈·언바운드 앱 확인</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/sharp/js/view/page/chview.js" target="_blank" rel="noopener">apps/sharp/js/view/page/chview.js</a><span class="src">채널뷰 페이지(goChview 모델 트리거 대상)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/sharp/js/view/popup/pwd.js" target="_blank" rel="noopener">apps/sharp/js/view/popup/pwd.js</a><span class="src">비밀번호 입력 팝업</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/sharp/js/view/popup/serviceError.js" target="_blank" rel="noopener">apps/sharp/js/view/popup/serviceError.js</a><span class="src">서비스 에러 팝업</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/sharp/js/component/sharp_api.js" target="_blank" rel="noopener">apps/sharp/js/component/sharp_api.js</a><span class="src">sharp_ui 서버 API 컴포넌트</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">← Brokering 위젯 UI (brk)</a>
+      <a href="f04.html">BOM 채널 트리거 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt-bom-qrator-web 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

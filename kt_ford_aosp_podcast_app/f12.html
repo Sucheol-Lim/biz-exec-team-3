@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- kt_ford_aosp_podcast_app · 스트리밍 안정화(리다이렉트·CBR) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스트리밍 안정화 (리다이렉트·CBR) — kt_ford_aosp_podcast_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford 차량용 팟캐스트 앱</a><span class="sep">›</span>
+      <span class="here">스트리밍 안정화 (리다이렉트·CBR)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive · Java · ExoPlayer</span>
+    </div>
+    <h1>스트리밍 안정화 (리다이렉트·CBR)</h1>
+    <p class="one-liner"><code>CustomHttpDataSource</code>가 첫 요청의 HTTP 리다이렉트 결과(최종 콘텐츠 URL)를 추적해 두고, 이후 버퍼 요청을 그 URL로 직접 보냅니다. MP3 재생을 위해 고정 비트레이트(CBR) 시킹 플래그와 비동기 코덱 큐잉을 적용합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app" target="_blank" rel="noopener"><code>kt_ford_aosp_podcast_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop-exoplayer</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>CustomHttpDataSource</code> · <code>WrappedDataSource</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">리다이렉트 추적 · MP3 CBR 시킹 · 비동기 코덱</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>팟캐스트 오디오 URL은 게이트웨이에서 실제 콘텐츠 서버로 HTTP 리다이렉트되는 경우가 많습니다. 매 버퍼 요청마다 리다이렉트 체인을 다시 타면 지연·실패 위험이 커지므로, <code>CustomHttpDataSource</code>는 ExoPlayer 기본 <code>DefaultHttpDataSource</code>를 본떠 만들되 리다이렉트 처리를 직접 수행하고 <strong>최초로 도달한 최종 콘텐츠 URL</strong>을 <code>contentUrl</code> 필드에 보관합니다. 그 뒤 <code>finishRedirect=true</code>가 되면 <code>makeConnection()</code>은 원래 URL이 아니라 저장된 <code>contentUrl</code>로 곧장 연결해 후속 시킹·버퍼 요청을 안정화합니다(커밋 "redirect 이후 획득한 최종컨텐츠 uri로 다음 버퍼 요청"에 해당).</p>
+    <p>데이터소스는 <code>WrappedDataSource</code>가 <code>CustomHttpDataSource</code>를 감싸 사용합니다. 읽기 중 <code>TYPE_READ</code> 예외가 나면 직전 DataSpec과 읽은 바이트 수를 보관해 재개 시 위치를 보정하고, 끊김(discontinuity) 신호를 받으면 위치 검증을 건너뜁니다. MP3 콘텐츠 재생을 위해 <code>PodcastExoplayerHelper</code>는 <code>DefaultExtractorsFactory.setMp3ExtractorFlags(FLAG_ENABLE_CONSTANT_BITRATE_SEEKING)</code>로 고정 비트레이트 시킹을 켜고, <code>DefaultRenderersFactory.forceEnableMediaCodecAsynchronousQueueing()</code>으로 비동기 코덱 큐잉을 활성화해 차량 환경에서의 끊김을 줄입니다.</p>
+    <div class="callout">
+      <div class="ct">왜 최종 URL을 고정하나</div>
+      시킹·재버퍼링 때마다 게이트웨이 → 콘텐츠 서버 리다이렉트를 반복하면 매번 30x 왕복 비용과 실패 가능성이 누적됩니다. 한 번 확인한 최종 URL로 직접 붙으면 왕복이 줄고, MP3의 CBR 시킹 플래그와 결합해 색인 없는 MP3에서도 위치 점프가 매끄러워집니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant EXO as ExoPlayer
+    participant WDS as WrappedDataSource
+    participant CHD as CustomHttpDataSource
+    participant GW as 게이트웨이(원본 URL)
+    participant CON as 콘텐츠 서버(최종 URL)
+
+    EXO-&gt;&gt;WDS: open(dataSpec) 첫 버퍼
+    WDS-&gt;&gt;CHD: open(dataSpec)
+    CHD-&gt;&gt;GW: GET 원본 URL
+    GW--&gt;&gt;CHD: 30x Location (리다이렉트)
+    CHD-&gt;&gt;CON: handleRedirect → GET 최종 URL
+    CON--&gt;&gt;CHD: 200 OK (스트림)
+    CHD-&gt;&gt;CHD: finishRedirect=true, contentUrl=최종 URL
+
+    Note over EXO,CHD: 이후 시킹/재버퍼링
+    EXO-&gt;&gt;WDS: open(dataSpec) 후속 버퍼
+    WDS-&gt;&gt;CHD: open(dataSpec)
+    CHD-&gt;&gt;CON: makeConnection(contentUrl) 직접 연결
+    CON--&gt;&gt;CHD: 206 Partial (Range)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 첫 요청에서 리다이렉트를 따라가 최종 URL을 확정·저장하고, 이후 버퍼 요청은 그 URL로 직접 연결해 왕복을 제거합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class WrappedDataSource {
+        -CustomHttpDataSource httpDataSource
+        -DataSpec prevDataSpec
+        -long prevBytesRead
+        +open(dataSpec) long
+        +read(buffer, offset, length) int
+        +onDiscontinuity()
+    }
+    class CustomHttpDataSource {
+        -boolean finishRedirect
+        -URL contentUrl
+        +open(dataSpec) long
+        -makeConnection(dataSpec) HttpURLConnection
+        -handleRedirect(url, location, dataSpec) URL
+    }
+    class PodcastExoplayerHelper {
+        -DefaultExtractorsFactory extractorsFactory
+        -RenderersFactory renderersFactory
+        +setPodcastPlayList(list)
+    }
+    class DataSource_Factory {
+        &lt;&lt;interface&gt;&gt;
+        +createDataSource() DataSource
+    }
+    class HttpDataSource {
+        &lt;&lt;interface&gt;&gt;
+    }
+
+    WrappedDataSource o-- CustomHttpDataSource : 위임
+    CustomHttpDataSource ..|&gt; HttpDataSource
+    WrappedDataSource ..&gt; DataSource_Factory : Factory
+    CustomHttpDataSource ..&gt; DataSource_Factory : Factory
+    PodcastExoplayerHelper --&gt; WrappedDataSource : DataSource.Factory
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>WrappedDataSource</code>가 <code>CustomHttpDataSource</code>를 감싸고, <code>PodcastExoplayerHelper</code>가 이 팩토리와 MP3 CBR·비동기 코덱 설정을 ExoPlayer에 연결합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>media/CustomHttpDataSource.java</code> — 최종 콘텐츠 URL 저장 및 재사용</div>
+<pre><code>} else if (finishRedirect) {
+    return makeConnection(
+        contentUrl, httpMethod, httpBody, position, length, allowGzip,
+        /* followRedirects= */ true, dataSpec.httpRequestHeaders);   // 저장된 최종 URL로 직접
+}
+// ... 리다이렉트 루프에서 최종 도달 시
+} else {
+    finishRedirect = true;
+    contentUrl = url;          // 최종 콘텐츠 URL 보관
+    return connection;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>media/PodcastExoplayerHelper.java</code> — MP3 CBR 시킹 + 비동기 코덱 큐잉</div>
+<pre><code>renderersFactory = new DefaultRenderersFactory(podcastBrowserService)
+        .forceEnableMediaCodecAsynchronousQueueing();
+extractorsFactory = new DefaultExtractorsFactory()
+        .setMp3ExtractorFlags(/*FLAG_ENABLE_INDEX_SEEKING|*/Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING);</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/CustomHttpDataSource.java" target="_blank" rel="noopener">media/CustomHttpDataSource.java</a><span class="src">리다이렉트 직접 처리 · finishRedirect/contentUrl 추적</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/WrappedDataSource.java" target="_blank" rel="noopener">media/WrappedDataSource.java</a><span class="src">CustomHttpDataSource 래핑 · 읽기 예외 시 위치 보정 · discontinuity</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/PodcastExoplayerHelper.java" target="_blank" rel="noopener">media/PodcastExoplayerHelper.java</a><span class="src">MP3 CBR 시킹 플래그 · 비동기 코덱 큐잉 · DataSource.Factory 연결</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/DiscontinuityListener.java" target="_blank" rel="noopener">media/DiscontinuityListener.java</a><span class="src">끊김 신호 전달 · 위치 검증 분기 트리거</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f11.html">← 야간(Night) 모드</a>
+      <a href="f13.html">재생 오류 처리 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop-exoplayer</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_podcast_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

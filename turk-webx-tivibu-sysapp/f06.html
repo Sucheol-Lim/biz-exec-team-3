@@ -1,0 +1,191 @@
+<!doctype html>
+<!-- turk-webx-tivibu-sysapp · VOD / 시리즈 상세·재생 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VOD / 시리즈 상세 · 재생 — turk-webx-tivibu-sysapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Türk Telekom Tivibu STB 시스템 앱 (EPG SYSAPP)</a><span class="sep">›</span>
+      <span class="here">VOD / 시리즈 상세 · 재생</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">WebX STB · JavaScript (ES6/AMD)</span>
+    </div>
+    <h1>VOD / 시리즈 상세 · 재생</h1>
+    <p class="one-liner"><code>TVDetailController</code>가 VOD·시리즈 상세를 보여주고, <code>SeriesUtil</code>로 시즌/에피소드 모델을 구성하며, <code>VodPlayController</code>가 HTML5 <code>&lt;video&gt;</code>로 재생합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp" target="_blank" rel="noopener"><code>turk-webx-tivibu-sysapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>controller/VodPlayController.js</code> · <code>controller/TVDetailController.js</code> · <code>data/SeriesUtil.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">시즌/에피소드 · 북마크 · DRM 재생</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>VOD·시리즈 상세는 콘텐츠 정보(포스터·줄거리·등급)와 시즌/에피소드 목록, 재생/구매/녹화 버튼을 보여주는 화면입니다. <code>TVDetailController</code>가 2022 리뉴얼 상세 프레임(<code>ui2022/tvdetail/TVDetailFrame</code>)을 띄우며, 시리즈인 경우 <code>SeriesUtil</code>이 <code>QueryManager</code>를 통해 <code>SeriesHeader</code>·<code>Season</code>·<code>Episode</code> 모델을 구성해 시즌 전환과 에피소드 선택을 지원합니다.</p>
+    <p>재생은 <code>VodPlayController</code>가 담당합니다. 생성 시 <code>SystemInterface.getVideoPlayer()</code>로 HTML5 <code>&lt;video&gt;</code>(<code>videoPlayer</code> DOM)를 가져오고, <code>loadedmetadata</code> 이벤트에 자막 트랙 초기화를 연결합니다. <code>startPlay(param)</code>은 재생 모드(VOD/PLTV)에 따라 재생 URL을 만들고, DRM이 필요한 경우 <code>updatePlayerConfig()</code>에서 Widevine 라이선스 URL과 CustomData(시리얼·usertoken 기반)를 구성합니다. 재생 위치(북마크)는 <code>QueryManager</code>로 조회·저장하며, 시리즈는 다음 에피소드 자동 재생을 처리합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      라이브 방송이 OIPF VBO를 쓰는 것과 달리, VOD/PLTV 재생은 HTML5 <code>&lt;video&gt;</code> 요소와 Widevine DRM 경로를 사용합니다. 최근 스프린트(Jira <code>VLTRANLAND-1738/1760/1779</code>)에서 VOD 리모컨 사용성, 썸네일 롱프레스 점프, 스크롤 리셋 로직이 개선되었습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant TVD as TVDetailController
+    participant SU as SeriesUtil
+    participant QM as QueryManager
+    participant VPC as VodPlayController
+    participant SI as SystemInterface
+    participant VID as HTML5 video (videoPlayer)
+
+    TVD-&gt;&gt;TVD: show(param) (VOD/시리즈 상세)
+    alt 시리즈
+        TVD-&gt;&gt;SU: 시즌/에피소드 모델 구성
+        SU-&gt;&gt;QM: getSeries... (시즌·에피소드 조회)
+        QM--&gt;&gt;SU: SeriesHeader/Season/Episode
+        SU--&gt;&gt;TVD: 에피소드 목록
+    end
+    Note over TVD,VPC: 재생 버튼 선택
+    TVD-&gt;&gt;VPC: startPlay(param)
+    VPC-&gt;&gt;VPC: updatePlayerConfig() (Widevine URL · CustomData)
+    VPC-&gt;&gt;SI: getVideoPlayer()
+    SI--&gt;&gt;VPC: videoPlayer (HTML5 video)
+    VPC-&gt;&gt;VID: src = playUrl → play()
+    VID--&gt;&gt;VPC: loadedmetadata → 자막 트랙 초기화
+      </div>
+      <p class="cap"><strong>흐름.</strong> 상세 화면에서 시리즈는 <code>SeriesUtil</code>로 에피소드 모델을 받아 표시하고, 재생 시 <code>VodPlayController</code>가 DRM 설정을 구성한 뒤 HTML5 <code>&lt;video&gt;</code>로 재생합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class TVDetailController {
+        -tvDetailFrame TVDetailFrame
+        +show(param, entrance)
+        +hide(param)
+        +getPriority() int
+    }
+    class VodPlayController {
+        -player video
+        -mode int
+        -playItem
+        +startPlay(param)
+        +updatePlayerConfig()
+        +initTextTracks()
+    }
+    class SeriesUtil {
+        +makeSeriesHeader(...)
+        +getSeasons(...)
+        +getEpisodes(...)
+    }
+    class SeriesHeader {
+    }
+    class SystemInterface {
+        +getVideoPlayer() video
+        +getSerialNumber()
+    }
+
+    TVDetailController ..&gt; SeriesUtil : 시리즈 모델 구성
+    TVDetailController ..&gt; VodPlayController : 재생 위임
+    SeriesUtil --&gt; SeriesHeader : 시즌/에피소드 모델
+    VodPlayController --&gt; SystemInterface : HTML5 video 획득
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>TVDetailController</code>가 상세 화면을, <code>SeriesUtil</code>이 시리즈 모델을, <code>VodPlayController</code>가 <code>SystemInterface</code>의 HTML5 <code>&lt;video&gt;</code>로 재생을 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>controller/VodPlayController.js</code> — 플레이어 획득과 DRM 설정</div>
+<pre><code>init: function init() {
+    this.player = SYSAPP.SystemInterface.getVideoPlayer();   // HTML5 video
+    this.player.addEventListener('loadedmetadata', _self.initTextTracks);
+    ...
+},
+
+initPlayerConfig: function() {
+    this.customData = 'CustomData: ' + EncryptUtils.customData(
+        "TIVIBU", SYSAPP.SystemInterface.getSerialNumber(), "ZTE",
+        SYSAPP.SystemInterface.getConfiguration('usertoken'));
+    this.dashDrmUrl = SYSAPP.UserConfigManager.getWidevineLicenseUrl()
+        .concat('?deviceId=').concat(SYSAPP.SystemInterface.getSerialNumber())
+        .concat('&amp;terminaltype=').concat(QueryConstants.VALUE_TERMINAL_FLAG_STB);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>data/SeriesUtil.js</code> — 시리즈 모델 의존성</div>
+<pre><code>define('app/data/SeriesUtil', [
+    'antie/class', 'core/util/Log', 'app/data/QueryManager',
+    'app/data/SeriesHeader', 'app/data/Season', 'app/data/Episode',
+    'app/data/QueryConstants', 'app/ui/tvdetail/TVDetailConfig',
+], function (Class, Log, QueryManager, SeriesHeader, Season, Episode, ...) {
+    const SERIES = TVDetailConfig.DETAIL_TYPE.SERIES;
+    // SeriesHeader / Season / Episode 모델로 시즌·에피소드 트리 구성
+});</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/VodPlayController.js" target="_blank" rel="noopener">controller/VodPlayController.js</a><span class="src">VOD/PLTV 재생 · DRM 설정 · 북마크 · 다음 에피소드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/TVDetailController.js" target="_blank" rel="noopener">controller/TVDetailController.js</a><span class="src">VOD/시리즈 상세(2022) 프레임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/data/SeriesUtil.js" target="_blank" rel="noopener">data/SeriesUtil.js</a><span class="src">시리즈/시즌/에피소드 모델 구성</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/data/SeriesHeader.js" target="_blank" rel="noopener">data/SeriesHeader.js</a><span class="src">시리즈 헤더 모델</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/core/sys/SystemInterface.js" target="_blank" rel="noopener">core/sys/SystemInterface.js</a><span class="src">getVideoPlayer (HTML5 video) · 시리얼/usertoken</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f05.html">← 검색 / 검색 상세</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f07.html">녹화(Recording) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">turk-webx-tivibu-sysapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

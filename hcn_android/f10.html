@@ -1,0 +1,203 @@
+<!doctype html>
+<!-- hcn_android · 히든/제조사 메뉴 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>히든 / 제조사 메뉴 — hcn_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">HCN Android EPG · 런처</a><span class="sep">›</span>
+      <span class="here">히든 / 제조사 메뉴</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">HCN (현대HCN)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) STB · Java</span>
+    </div>
+    <h1>히든 / 제조사 메뉴</h1>
+    <p class="one-liner"><code>MainActivity</code>가 제조사(가온·테크니컬러·이노피아)별로 <code>FragmentBasic</code> 화면 맵을 구성하고, <code>HiddenStatus</code> 상태값으로 다수의 <code>FragmentSub*</code> 진단·정합 화면을 전환합니다. MAP_ID 입력, WIFI Hotspot, 해상도 변경 등 엔지니어 메뉴를 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/hcn_android" target="_blank" rel="noopener"><code>hcn_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>MainActivity</code> · <code>FragmentMain</code> · <code>FragmentSub*</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">엔지니어 진단·제조사 정합</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>히든 메뉴는 현장 엔지니어가 단말 진단·정합을 수행하는 비공개 메뉴로, <code>hidden_menu-module</code>의 <code>MainActivity</code>가 진입점입니다. <code>onCreate</code>에서 단말 제조사를 판별(<code>Utils.isKaonStb()</code>·<code>isTechStb()</code>·<code>isInnopiaStb()</code>)해 해당 제조사용 화면 맵(<code>kaonMap</code> / <code>techniColorMap</code> / 이노피아)을 구성합니다. 각 맵은 <code>HiddenStatus</code> 상수(예: <code>MAINMENU</code>, <code>SUBMENU_721</code>, <code>SUBMENU_76</code>)를 키로, 해당 화면 <code>FragmentBasic</code> 구현(<code>FragmentMain</code>·<code>FragmentSub5</code> 등 47여 개의 <code>FragmentSub*</code>)을 값으로 담습니다.</p>
+    <p>메인 메뉴(<code>FragmentMain</code>)는 리스트에서 항목을 선택하면 <code>changeMenu(event)</code>를 호출하고, <code>MainActivity</code>는 <code>changeFragment(event)</code>로 다음 화면을 결정해 <code>framemain</code> 컨테이너에 <code>replace</code>합니다. 일부 항목은 자체 화면 대신 구글 시스템 설정으로 위임합니다. 예를 들어 HDMI/SPDIF 오디오 설정(<code>SUBMENU_721/75</code>)은 <code>openGoogleSoundSetting()</code>, WIFI Hotspot(<code>SUBMENU_76</code>)은 <code>openGoogleWifiHotspot()</code>, IP 설정(<code>SUBMENU_51</code>)은 <code>openGoogleIPSetting()</code>으로 분기합니다. MAP_ID는 <code>FragmentSub5</code>가 <code>TaurusUserPreferenceManager</code>의 <code>KEY_MAP_ID</code>를 읽어 표시하고 입력받습니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      화면 전환을 <code>HiddenStatus</code> 정수 상태값 + 제조사별 <code>Map&lt;Integer, FragmentBasic&gt;</code> 조합으로 다룹니다. 같은 메뉴 번호라도 제조사에 따라 다른 화면(또는 구글 설정 위임)으로 연결되므로, 가온·테크니컬러·이노피아 박스의 정합 차이를 한 액티비티에서 흡수합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant E as 엔지니어
+    participant MA as MainActivity
+    participant U as Utils (제조사 판별)
+    participant FM as FragmentMain
+    participant FS as FragmentSub* / 구글 설정
+
+    E-&gt;&gt;MA: 히든 메뉴 진입
+    MA-&gt;&gt;U: isKaonStb / isTechStb / isInnopiaStb
+    MA-&gt;&gt;MA: setKaonMap / setTechniColorMap / setInnopiaMap
+    MA-&gt;&gt;MA: changeMenu(MAINMENU)
+    MA-&gt;&gt;FM: framemain 에 replace
+    E-&gt;&gt;FM: 항목 선택 (onItemClick)
+    FM-&gt;&gt;MA: changeMenu(event)
+    MA-&gt;&gt;MA: changeFragment(event)
+    alt 구글 설정 위임 (Hotspot/IP/Audio)
+        MA-&gt;&gt;FS: openGoogleWifiHotspot() 등
+    else 내부 진단 화면
+        MA-&gt;&gt;FS: map.get(event) → replace
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 진입 시 제조사를 판별해 화면 맵을 구성하고 메인 메뉴를 띄우며, 항목 선택은 <code>changeMenu</code>/<code>changeFragment</code>로 다음 <code>FragmentSub*</code> 또는 구글 시스템 설정으로 분기합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class MainActivity {
+        -int status
+        -Map~Integer_FragmentBasic~ kaonMap
+        -Map~Integer_FragmentBasic~ techniColorMap
+        +changeMenu(event)
+        -changeFragment(event)
+        -openGoogleWifiHotspot()
+        -openGoogleIPSetting()
+    }
+    class FragmentBasic {
+        +onKeyEvent(keyCode)
+    }
+    class FragmentMain {
+        +onItemClick(...)
+    }
+    class FragmentSub5 {
+        KEY_MAP_ID 표시/입력
+    }
+    class HiddenStatus {
+        MAINMENU
+        SUBMENU_76 (Hotspot)
+        SUBMENU_51 (IP)
+    }
+    class Utils {
+        +isKaonStb() boolean
+        +isTechStb() boolean
+        +isInnopiaStb() boolean
+    }
+
+    FragmentMain --|&gt; FragmentBasic : 상속
+    FragmentSub5 --|&gt; FragmentBasic : 상속
+    MainActivity o-- FragmentBasic : 화면 맵 보유
+    MainActivity ..&gt; HiddenStatus : 상태 전환
+    MainActivity ..&gt; Utils : 제조사 분기
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>MainActivity</code>는 제조사별 <code>FragmentBasic</code> 맵을 보유하고 <code>HiddenStatus</code> 상태로 <code>FragmentMain</code>·각종 <code>FragmentSub*</code>를 전환하며, 일부는 구글 설정으로 위임합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>hidden_menu-module/.../MainActivity.java</code> — 상태값 기반 화면 전환과 제조사 분기</div>
+<pre><code>public void changeMenu(int event) {
+    status = event;
+    changeFragment(event);
+    if (currentFragment == null) return;
+    FragmentTransaction ft = fm.beginTransaction();
+    Bundle bundle = new Bundle();
+    bundle.putInt("event", event);
+    currentFragment.setArguments(bundle);
+    ft.replace(R.id.framemain, currentFragment);
+    ft.commitAllowingStateLoss();
+}
+
+private void changeFragment(int event) {
+    if (Utils.isTechStb() || Utils.isInnopiaStb()) {
+        if (event == HiddenStatus.SUBMENU_721 || event == HiddenStatus.SUBMENU_75) {
+            openGoogleSoundSetting();
+        } else if (event == HiddenStatus.SUBMENU_76) {
+            openGoogleWifiHotspot();          // WIFI Hotspot → 구글 설정 위임
+        } else if (event == HiddenStatus.SUBMENU_51) {
+            openGoogleIPSetting();
+        } else {
+            currentFragment = techniColorMap.get(event);
+        }
+    }
+    // ... isKaonStb() 분기
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>hidden_menu-module/.../FragmentSub5.java</code> — MAP_ID 표시 (이노피아 박스)</div>
+<pre><code>} else if (Utils.isInnopiaStb()) {
+    String mapId = TaurusUserPreferenceManager.getInstance()
+            .readUserPreference(UserPreferenceKeyDef.KEY_MAP_ID, "NotAssigned");
+    mDatas.add("5.1 IP 설정");
+    mDatas.add("5.2 MAP ID 설정 (" + mapId + ")");
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/hidden_menu-module/src/main/java/com/altimedia/module/hidden/MainActivity.java" target="_blank" rel="noopener">hidden_menu-module/.../MainActivity.java</a><span class="src">히든 메뉴 진입 · 제조사별 화면 맵 · 상태 전환/구글 설정 위임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/hidden_menu-module/src/main/java/com/altimedia/module/hidden/FragmentMain.java" target="_blank" rel="noopener">hidden_menu-module/.../FragmentMain.java</a><span class="src">메인 메뉴 리스트 · 항목 선택 → changeMenu</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/hidden_menu-module/src/main/java/com/altimedia/module/hidden/FragmentBasic.java" target="_blank" rel="noopener">hidden_menu-module/.../FragmentBasic.java</a><span class="src">서브 화면 공통 베이스 · 키 이벤트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/hidden_menu-module/src/main/java/com/altimedia/module/hidden/FragmentSub5.java" target="_blank" rel="noopener">hidden_menu-module/.../FragmentSub5.java</a><span class="src">IP/MAP_ID 설정 화면 (제조사별 항목 구성)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/hidden_menu-module/src/main/java/com/altimedia/module/hidden/HiddenStatus.java" target="_blank" rel="noopener">hidden_menu-module/.../HiddenStatus.java</a><span class="src">메뉴 상태 상수 정의 (MAINMENU/SUBMENU_*)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f09.html">← 설정 · 사용자 환경</a>
+      <a href="f11.html">RCU OTA · 블루투스 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">hcn_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

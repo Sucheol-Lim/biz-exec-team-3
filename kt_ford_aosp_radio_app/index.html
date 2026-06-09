@@ -1,0 +1,459 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KT Ford AOSP 라디오 앱 — 과제 설명</title>
+<style>
+:root{
+  --accent:#d6001c;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">Android Automotive (AOSP/AAOS)</span>
+      <span class="badge gray">Java</span>
+    </div>
+    <h1>KT Ford AOSP 라디오 앱 (kt_ford_aosp_radio_app)</h1>
+    <p class="one-liner">KT가 Ford 차량용으로 공급하는 AOSP 기반 인포테인먼트 단말에 탑재되는 국내 라디오 실시간 스트리밍 애플리케이션입니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app" target="_blank" rel="noopener"><code>kt_ford_aosp_radio_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2023-04-24 · 77a37a2 Merge origin/develop into develop</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>com.altimedia.automotive.kt.service.radio</code> / 1.0.8</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>이 프로젝트는 KT가 Ford 차량용으로 공급하는 AOSP 기반 모빌리티 인포테인먼트 단말에 탑재되는 라디오 앱입니다. 운전자·탑승자가 차량 화면에서 MBC·SBS·TBS·아리랑·불교방송(BBS)·극동방송(FEBC)·CTS·국악방송 등 국내 라디오 채널을 실시간으로 청취할 수 있도록 합니다. 앱 패키지명은 <code>com.altimedia.automotive.kt.service.radio</code>이며, 단말에 표시되는 이름은 한국어 로케일에서 <code>라디오</code>, 영문 로케일에서 <code>Radio</code>입니다.</p>
+    <p>대상 플랫폼은 Android 7.0(API 24, <code>minSdk 24</code>) 이상의 AOSP / Android Automotive 환경입니다(<code>compileSdk</code> / <code>targetSdk</code> 30). 단일 Activity가 차량 런처(<code>com.kt.automotive.service.launcher</code>)와 브로드캐스트로 연동되며, 런처가 보내는 앱 시작·정지·뒤로·종료, 다음/이전 채널, "지금 듣고 있는 채널" TTS 요청에 반응하고, 재생 상태를 다시 런처로 통지합니다.</p>
+    <p>차량용 멀티윈도우 환경을 고려해 다중 해상도와 세로(Portrait)·가로(Landscape) 방향을 모두 지원하며, 동일 레이아웃에 대해 해상도(dpi)별 스타일을 분기 적용하는 방식으로 개발되었습니다. Confluence 사양에 따르면 Aviator(1280×800)·Navigator/Nautilus/Corsair(2348×1080)·Expedition·Ranger·Bronco·Mustang 등 Ford 차종별 디스플레이 해상도를 지원 대상으로 합니다. KT Ford 향은 Freedom·PIP 모드는 사용하지 않고 시스템에서 half 사이즈로 고정된 split screen 모드를 사용합니다.</p>
+    <div class="callout">
+      <div class="ct">설계상의 핵심 특징</div>
+      <p style="margin:0">재생 코어는 <code>MediaBrowserService</code> + <code>MediaSession</code> 기반의 포그라운드 서비스로 구성되어, 화면(Activity)이 백그라운드로 가도 재생이 유지됩니다. 채널 목록은 서버 조회 없이 앱 내부에 12개 채널로 하드코딩되어 있으며(KBS는 판권 문제로 제외), MBC·SBS는 재생 직전 사업자 API를 한 번 더 호출해 실제 스트림 URL을 받아오고 그 외 채널은 HLS(<code>.m3u8</code>)를 직접 재생합니다.</p>
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">국내 라디오 12개 채널 실시간 청취</div><div class="d">MBC 표준 FM·FM4U, SBS 파워 FM·러브 FM, TBS FM·eFM, 아리랑 FM, BBS 불교방송, FEBC 극동방송, CTS 라디오·라디오 JOY, 국악방송을 제공합니다. 채널 목록은 <code>ChannelListItems</code>에 하드코딩되어 있습니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">백그라운드 지속 재생</div><div class="d"><code>MediaBrowserServiceCompat</code> + <code>MediaSessionCompat</code> 기반 포그라운드 서비스로 동작해, 화면을 닫거나 다른 앱으로 전환해도 라디오 재생이 끊기지 않고 유지됩니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">사업자 API 기반 스트림 URL 획득</div><div class="d">MBC·SBS는 채널의 API URL로 온에어 정보를 한 번 더 조회해 실제 재생 URL을 받아옵니다. SBS는 응답의 <code>mediaurl</code>이 암호화되어 있어 AES 복호화가 필요합니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">SBS 스트림 AES 복호화</div><div class="d"><code>Base64Decoder</code>가 <code>assets/encryption.txt</code>의 2줄(암호화된 키 + 시크릿)에서 세션키를 복원한 뒤 <code>AES/ECB/PKCS5Padding</code>으로 SBS 스트림 URL을 복호화합니다. 보안성 검사 대응으로 키 하드코딩이 제거되었습니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">HLS 직접 재생</div><div class="d">TBS·아리랑·BBS·FEBC·CTS·국악방송 등은 채널 데이터의 <code>.m3u8</code> URL을 <code>MediaPlayer</code>로 그대로 재생합니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">차량 런처 연동 (브로드캐스트)</div><div class="d"><code>RadioReceiver</code>가 <code>radio.play</code>, <code>kas.action.app.start</code>, <code>kas.action.app.clear</code>를 수신해 서비스를 기동/제어합니다. 정지·뒤로·종료·셧다운 등 KT 런처 인터페이스(<code>kas.action.app.*</code>)에 대응합니다.</div></a>
+      <a class="card" href="f07.html"><div class="t">음성(TTS) "지금 듣고 있는 채널" 응답</div><div class="d">런처의 <code>radio.nowPlaying</code> 요청을 받아 현재 재생 채널 정보를 <code>kas.action.app.tts</code> 인터페이스로 런처에 회신합니다(기가지니 음성 명령 시나리오).</div></a>
+      <a class="card" href="f08.html"><div class="t">다음/이전 채널 전환</div><div class="d"><code>skipToNext</code> / <code>skipToPrevious</code> 세션 콜백과 <code>radio.playNextChannel</code> / <code>radio.playPrevChannel</code> 브로드캐스트로 채널을 순환 전환합니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">오디오 포커스 관리</div><div class="d"><code>AudioManager</code> / <code>AudioFocusRequest</code>로 오디오 포커스를 요청·감시합니다. 포커스 상실 시 mute/pause, 복귀 시 unmute로 회복하는 정책을 구현합니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">마지막 청취 채널 복원</div><div class="d"><code>RadioPreferenceManager</code>(SharedPreferences)가 마지막 청취 위치(<code>LCW</code>)를 저장·복원해, 재실행 시 직전에 듣던 채널로 이어집니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">미디어 알림 / 포그라운드 유지</div><div class="d"><code>RadioNotification</code>이 재생 상태에 따라 미디어 알림을 갱신해 포그라운드 서비스 상태를 유지합니다.</div></a>
+      <a class="card" href="f12.html"><div class="t">적응형 멀티윈도우 UI</div><div class="d">해상도별·세로/가로 방향별 레이아웃·드로어블 리소스를 분기하고, half/full split screen 멀티윈도우 환경에 맞춰 화면을 구성합니다. 구성 변경 시 Fragment 재생성과 화면 방향 보정을 처리합니다.</div></a>
+      <a class="card" href="f13.html"><div class="t">주·야간 테마</div><div class="d"><code>drawable-night</code> / <code>values-night</code> 리소스 분기로 단말 uiMode(주간·야간)에 따라 테마가 전환됩니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">다국어 리소스 (한/영)</div><div class="d">기본(한국어) 문자열과 <code>values-en-rUS</code> 영문 리소스를 제공해 로케일에 따라 앱 이름·문구가 전환됩니다(v1.0.7에서 영문 리소스 추가).</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>단일 애플리케이션 모듈(<code>:app</code>)로 구성된 표준 Android 프로젝트입니다. 단일 Activity + Fragment(AndroidX Navigation) 구조의 UI 레이어가 <code>RadioClient</code>(MediaBrowser 클라이언트)를 통해 재생 코어인 <code>RadioBrowserService</code>에 연결됩니다. 외부 연동은 두 갈래로, 하나는 사업자 스트림 API(MBC <code>sminiplay.imbc.com</code> / SBS <code>apis.sbs.co.kr</code>)를 향한 Retrofit 호출이고, 다른 하나는 KT 차량 런처와의 브로드캐스트 인터페이스입니다.</p>
+    <pre class="tree">kt_ford_aosp_radio_app/
+├── build.gradle                # 루트 빌드 스크립트, 라이브러리 버전 ext 정의
+├── settings.gradle             # 모듈 포함(:app)
+├── gradle.properties           # AndroidX / nonTransitiveRClass 설정
+├── gradle/wrapper/             # Gradle 7.2 Wrapper
+└── app/
+    ├── build.gradle            # 앱 모듈 빌드, 버전 자동증가/서명/빌드 타입
+    ├── version.properties      # VERSION_MAJOR/MINOR/PATCH (현재 1.0.8)
+    ├── proguard-rules.pro
+    ├── keystore/release.keystore.jks   # 릴리스 서명 키스토어
+    └── src/main/
+        ├── AndroidManifest.xml
+        ├── assets/
+        │   ├── encryption.txt          # AES 세션키 복호화용 키 파일
+        │   └── radio_channel.json      # 라디오 채널 정의 데이터(JSON)
+        ├── res/                        # 레이아웃/드로어블(주야간·세로/가로 분기), nav, 다국어
+        └── java/.../radio/
+            ├── RadioApplication.java   # Application, PreferenceManager 초기화
+            ├── RadioViewModel.java     # 화면 상태(재생 위치·멀티윈도우·방향) LiveData
+            ├── Constants.java          # API URL, 런처 연동 액션/키 상수
+            ├── data/ChannelListItems.java   # 채널 목록(이름·URL·아이콘) 하드코딩
+            ├── media/
+            │   ├── RadioBrowserService.java # MediaBrowserService + MediaSession (재생 코어)
+            │   ├── RadioPlayerHelper.java   # MediaPlayer 제어, 오디오 포커스, 채널별 스트림 획득
+            │   ├── RadioNotification.java   # 미디어 알림(포그라운드 서비스용)
+            │   └── RadioPlayObject.java     # 재생 요청 메시지 래퍼
+            ├── network/RadioApiService.java # Retrofit 인터페이스(MBC/SBS 온에어)
+            ├── model/
+            │   ├── channel/                 # LocalChannel(s)
+            │   ├── mbc/MbcChannel.java       # MBC 응답 모델
+            │   └── sbs/                      # SBS 응답 모델(SbsOnAir, SbsSourceModel 등)
+            ├── manager/RadioPreferenceManager.java  # SharedPreferences(LCW 등)
+            ├── receiver/RadioReceiver.java   # 런처 브로드캐스트 수신
+            ├── ui/
+            │   ├── MainActivity.java         # 단일 Activity, MediaController 연결/구성변경
+            │   ├── RadioFragment.java        # 메인 재생 화면(시작 목적지)
+            │   ├── ChannelListFragment.java  # 채널 목록 화면
+            │   ├── ChannelListAdapter.java   # 채널 목록 RecyclerView 어댑터
+            │   └── RadioClient.java          # MediaBrowser 클라이언트(연결/구독/콜백)
+            └── util/
+                ├── Base64Decoder.java        # AES/ECB 복호화(SBS 스트림 URL, 세션키)
+                ├── Utils.java                # 화면 방향, ConnectionSpec, 런처 통지 등
+                ├── OnSwipeTouchListener.java
+                └── RadioItemCallback.java</pre>
+
+    <h3>주요 모듈 · 클래스</h3>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>구분</th><th>클래스 / 파일</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td>재생 코어</td><td><code>RadioBrowserService</code></td><td><code>MediaBrowserServiceCompat</code>. <code>MediaSessionCompat</code>과 <code>RadioSessionCallback</code>(play/pause/stop/skipNext/skipPrev)을 생성하고 채널을 <code>MediaItem</code> 트리(<code>radio_root_id</code> → <code>HOME</code> → 채널들)로 노출합니다. 런처 브로드캐스트를 수신해 세션 콜백으로 위임합니다.</td></tr>
+        <tr><td>재생 코어</td><td><code>RadioPlayerHelper</code></td><td><code>MediaPlayer</code>를 직접 제어하고 오디오 포커스를 관리합니다. 채널명을 보고 <code>playMBCChannel()</code> / <code>playSBSChannel()</code> / <code>playOtherChannel()</code>로 분기합니다.</td></tr>
+        <tr><td>재생 코어</td><td><code>RadioNotification</code></td><td>재생 상태에 따른 미디어 알림을 갱신해 포그라운드 서비스를 유지합니다.</td></tr>
+        <tr><td>데이터</td><td><code>ChannelListItems</code></td><td>12개 채널(이름·스트림 URL·아이콘 드로어블)을 코드에 하드코딩해 <code>MediaItem</code> 리스트로 만듭니다.</td></tr>
+        <tr><td>네트워크</td><td><code>RadioApiService</code></td><td>Retrofit 인터페이스로 <code>getMbcChannelSSL</code> / <code>getSbsChannelSSL</code> 두 GET 호출을 정의합니다(스트림 URL을 <code>@Url</code>로 동적 지정).</td></tr>
+        <tr><td>모델</td><td><code>model.mbc.*</code> · <code>model.sbs.*</code></td><td>MBC / SBS 사업자 응답 JSON 매핑 모델(<code>MbcChannel</code>, <code>SbsOnAir</code>, <code>SbsSourceModel</code> 등).</td></tr>
+        <tr><td>UI</td><td><code>MainActivity</code></td><td>단일 Activity(<code>singleTask</code>). <code>RadioClient</code>로 서비스에 연결하고 <code>RadioViewModel</code>로 재생 상태를 관찰합니다. 구성 변경(uiMode·방향)과 런처 연동(뒤로 시 <code>moveTaskToBack</code>, 정지·종료 시 <code>finish</code>)을 처리합니다.</td></tr>
+        <tr><td>UI</td><td><code>RadioClient</code></td><td><code>MediaBrowserCompat</code> 클라이언트. 서비스 연결 후 <code>MediaControllerCompat</code>을 설정하고 채널 목록을 구독하며, 재생 상태·메타데이터 변경을 ViewModel로 반영합니다.</td></tr>
+        <tr><td>UI</td><td><code>RadioFragment</code> · <code>ChannelListFragment</code> · <code>ChannelListAdapter</code></td><td>Navigation 그래프(시작 목적지 <code>radioFragment</code>)로 메인 재생 화면과 채널 목록 화면을 전환합니다.</td></tr>
+        <tr><td>연동</td><td><code>RadioReceiver</code> · <code>Constants</code></td><td>매니페스트 등록 리시버가 <code>radio.play</code> / <code>kas.action.app.start</code> / <code>kas.action.app.clear</code>를 수신합니다. <code>Constants</code>가 런처 액션/키와 사업자 API URL을 한곳에 정의합니다.</td></tr>
+        <tr><td>보안/유틸</td><td><code>Base64Decoder</code> · <code>Utils</code> · <code>RadioPreferenceManager</code></td><td>SBS 스트림 AES 복호화, 화면 방향·ConnectionSpec·런처 통지 유틸, 마지막 청취 채널(LCW) 보관 등을 담당합니다.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>계층 관계는 다음과 같습니다. UI 레이어(<code>MainActivity</code> + Fragment)는 <code>RadioClient</code>를 통해서만 재생 코어와 통신하고, 재생 코어(<code>RadioBrowserService</code>)는 <code>RadioPlayerHelper</code>를 통해 <code>MediaPlayer</code>와 사업자 API에 접근합니다. 외부 시스템(KT 런처)과는 <code>RadioReceiver</code>(수신)와 <code>Utils</code>의 통지 로직(송신)이라는 단방향 두 경로로 느슨하게 결합됩니다.</p>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>언어</td><td>Java</td><td>Java 8 호환</td><td>소스 전부 Java. <code>sourceCompatibility</code>/<code>targetCompatibility</code> = <code>VERSION_1_8</code></td></tr>
+        <tr><td>플랫폼</td><td>Android (AOSP / Android Automotive)</td><td>minSdk 24 / target 30</td><td><code>compileSdk 30</code>, <code>buildToolsVersion 30.0.3</code></td></tr>
+        <tr><td>빌드</td><td>Gradle (Wrapper) + Android Gradle Plugin</td><td>Gradle 7.2 / AGP 7.1.3</td><td><code>buildFeatures { dataBinding true }</code></td></tr>
+        <tr><td>미디어</td><td>AndroidX Media</td><td>1.4.0</td><td><code>MediaBrowserServiceCompat</code>, <code>MediaSessionCompat</code>, <code>MediaPlayer</code> 기반</td></tr>
+        <tr><td>화면 전환</td><td>AndroidX Navigation (fragment/ui)</td><td>2.3.2</td><td>단일 Activity + Fragment</td></tr>
+        <tr><td>네트워크</td><td>Retrofit2 + Gson 컨버터</td><td>2.9.0</td><td>MBC/SBS 온에어 API 호출</td></tr>
+        <tr><td>네트워크</td><td>OkHttp3 + logging-interceptor</td><td>4.9.3</td><td>HTTP 클라이언트 / 디버그 로깅</td></tr>
+        <tr><td>이미지</td><td>Glide</td><td>4.13.0</td><td>채널 로고 등 이미지 로딩</td></tr>
+        <tr><td>뷰 스타일</td><td>Airbnb Paris (+ paris-processor)</td><td>2.0.0</td><td>뷰 스타일 동적 적용(annotationProcessor)</td></tr>
+        <tr><td>그래픽</td><td>android-gif-drawable</td><td>1.2.24</td><td><code>pl.droidsonroids.gif</code>, GIF 처리(재생 애니메이션 등)</td></tr>
+        <tr><td>UI 컴포넌트</td><td>AppCompat / Material / ConstraintLayout</td><td>1.3.0 / 1.3.0 / 2.1.3</td><td>적응형 레이아웃 구성</td></tr>
+        <tr><td>암호화</td><td>Java Cipher (AES/ECB/PKCS5Padding)</td><td>-</td><td>SBS 스트림 URL·세션키 복호화</td></tr>
+        <tr><td>테스트</td><td>JUnit / AndroidX Test ext-junit / Espresso</td><td>4.13.2 / 1.1.3 / 3.4.0</td><td>기본 스캐폴드(테스트 비중은 낮음, 추정)</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+
+    <h3>1) 런처 명령으로 라디오 재생 시작</h3>
+    <ol class="steps">
+      <li><span class="st">브로드캐스트 수신</span><span class="sd">런처가 <code>radio.play</code>(또는 <code>kas.action.app.start</code>)를 보내면 <code>RadioReceiver</code>가 수신합니다. <code>radio.play</code>의 extras에 <code>metadata</code>(예: <code>{"Channel":"SBS 파워 FM"}</code>)가 있으면 채널명을 파싱해 인텐트에 담습니다.</span></li>
+      <li><span class="st">포그라운드 서비스 기동</span><span class="sd"><code>startForegroundService()</code>로 <code>RadioBrowserService</code>를 시작합니다(Android O 이상). 서비스는 <code>MediaSession</code>·<code>RadioPlayerHelper</code>·<code>RadioNotification</code>을 초기화합니다.</span></li>
+      <li><span class="st">채널 결정 및 세션 콜백 호출</span><span class="sd">지정된 채널(또는 마지막 청취 채널 LCW)을 선택해 <code>MediaMetadata</code>를 구성하고 <code>RadioSessionCallback.onPlay()</code>를 통해 <code>RadioPlayerHelper.playChannel()</code>을 호출합니다.</span></li>
+      <li><span class="st">채널 유형별 스트림 획득</span><span class="sd">채널명이 MBC면 imbc 온에어 API로 <code>play_url</code>(HLS)을 받아오고, SBS면 SBS API 응답의 <code>mediaurl</code>을 <code>Base64Decoder</code>로 AES 복호화합니다. 그 외 채널은 데이터에 있는 <code>.m3u8</code> URL을 그대로 사용합니다.</span></li>
+      <li><span class="st">재생 및 알림 갱신</span><span class="sd">오디오 포커스를 획득한 뒤 <code>MediaPlayer</code>로 스트림을 재생하고, <code>RadioNotification</code>이 알림을 갱신해 포그라운드 상태를 유지합니다. 재생 상태(<code>playType</code>)는 런처로 통지됩니다.</span></li>
+    </ol>
+
+    <h3>2) "지금 듣고 있는 채널" 음성(TTS) 응답</h3>
+    <ol class="steps">
+      <li><span class="st">조회 요청 수신</span><span class="sd">기가지니 음성 명령이 들어오면 런처가 <code>radio.nowPlaying</code> 브로드캐스트를 보내고, 서비스가 등록한 인텐트 필터가 이를 수신합니다.</span></li>
+      <li><span class="st">현재 재생 정보 구성</span><span class="sd">현재 <code>MediaMetadata</code>에서 채널명을 읽어 안내 문구(<code>text</code>)를 만듭니다.</span></li>
+      <li><span class="st">런처로 TTS 회신</span><span class="sd"><code>kas.action.app.tts</code> 액션으로 안내 문구를 런처에 전달하면 런처가 음성으로 안내합니다.</span></li>
+    </ol>
+
+    <h3>3) 사용자 채널 목록 선택 및 전환</h3>
+    <ol class="steps">
+      <li><span class="st">채널 목록 진입</span><span class="sd"><code>RadioFragment</code>(메인 재생 화면)에서 목록 진입 시 Navigation으로 <code>ChannelListFragment</code>로 전환되고, <code>RadioClient</code>가 구독한 <code>MediaItem</code> 목록이 RecyclerView로 표시됩니다.</span></li>
+      <li><span class="st">채널 선택</span><span class="sd">사용자가 항목을 선택하면 해당 <code>mediaId</code>로 <code>MediaController.transportControls.playFromMediaId()</code>가 호출됩니다.</span></li>
+      <li><span class="st">재생 전환 및 상태 반영</span><span class="sd">서비스가 새 채널을 재생하고, 재생 상태·메타데이터 변경 콜백이 <code>RadioViewModel</code>로 반영되어 현재 채널 인덱스·재생 아이콘 등 UI가 갱신됩니다.</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>표준 Android Gradle 프로젝트로, 프로젝트 루트의 Wrapper(Gradle 7.2)를 사용해 빌드합니다. 릴리스 빌드 타입은 버전 자동 증가 단위(major/minor/patch)에 따라 태스크가 분리되어 있습니다.</p>
+    <pre><code># 디버그 빌드 (versionNameSuffix "-debug", BuildConfig.DEBUG=true)
+./gradlew assembleDebug
+
+# 릴리스 빌드 — 버전 자동 증가 단위별 태스크 (version.properties가 갱신·저장됨)
+./gradlew assembleRelease_patch   # patch 증가
+./gradlew assembleRelease_minor   # minor 증가
+./gradlew assembleRelease_major   # major 증가
+
+# 클린 / 테스트
+./gradlew clean
+./gradlew test
+./gradlew connectedAndroidTest</code></pre>
+    <p>환경 설정·산출물 관련 사항입니다.</p>
+    <ul>
+      <li>버전 정보는 <code>app/version.properties</code>(<code>VERSION_MAJOR/MINOR/PATCH</code>, 현재 1.0.8)에 저장되며, <code>versionCode</code>는 <code>major*100 + minor*10 + patch + 9900</code> 규칙으로 계산됩니다(현재 10008).</li>
+      <li><code>release_*</code> 및 <code>debug</code> 빌드 타입 모두 <code>signingConfigs.release</code>(<code>app/keystore/release.keystore.jks</code>, keyAlias <code>kt.ford.radio</code>)로 서명합니다. 키스토어 비밀번호는 <code>app/build.gradle</code>에 평문으로 기재되어 있습니다.</li>
+      <li>APK 파일명은 <code>kt_ford_radio_v.&lt;major&gt;.&lt;minor&gt;.&lt;patch&gt;{-debug|-release}_&lt;빌드날짜&gt;.apk</code> 형태로 생성됩니다.</li>
+      <li>SBS 채널 재생을 위해서는 <code>app/src/main/assets/encryption.txt</code> 키 파일이 있어야 정상 복호화됩니다.</li>
+      <li><code>minifyEnabled false</code>이며, 모든 빌드 타입이 <code>proguard-rules.pro</code>를 참조하고 <code>lint-baseline.xml</code> 기준선을 사용합니다.</li>
+    </ul>
+    <div class="callout warn">
+      <div class="ct">참고 — 분기 작업 흔적</div>
+      <p style="margin:0">원격에 <code>develop-aaos</code>, <code>develop-aaos-exoplayer</code>, <code>kotlin_version</code> 등의 브랜치가 존재해 ExoPlayer 전환 및 Kotlin 마이그레이션 시도가 별도 브랜치에서 진행된 흔적이 있습니다. 다만 분석 기준 <code>develop</code> 브랜치는 <code>MediaPlayer</code> 기반 + 전부 Java 구성이며, 다른 브랜치의 작업 내용은 미확인입니다(브랜치명에 근거한 추정).</p>
+    </div>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>최근 작업은 차량 화면 적응형 UI를 다듬는 마무리 단계에 집중되어 있습니다. 2023년 들어 채널 목록의 아이템 하단 마진·정렬 이슈 수정(KTFORDIVI-2), 영문 리소스 추가, MediaSession 활성화 시점 보정 등이 이루어졌고, 그 이전(2022년 말)에는 보안성 검사 대응(암호화 로직 하드코딩 제거, Exported 속성 정리)과 버전 네이밍 규칙 정비, Adapter/Activity 안정화(간헐적 크래시·인덱스 -1 처리)가 진행되었습니다. 아래는 <code>develop</code> 기준 최근 커밋입니다.</p>
+    <ul class="commits">
+      <li><span class="date">2023-04-24</span><span class="msg">Merge remote-tracking branch 'origin/develop' into develop (77a37a2)</span></li>
+      <li><span class="date">2023-04-24</span><span class="msg">fix. session active 시점을 session 생성하여 초기화 후 하도록 수정</span></li>
+      <li><span class="date">2023-04-05</span><span class="msg">update. version up.</span></li>
+      <li><span class="date">2023-04-05</span><span class="msg">fix. KTFORDIVI-2 ChannelList Item Decoration 하단 마진 조건 수정, spanCount에 따른 동작 추가</span></li>
+      <li><span class="date">2023-04-05</span><span class="msg">Merge branch 'develop' of bitbucket.org:altimedia/kt_ford_aosp_radio_app into develop</span></li>
+      <li><span class="date">2023-04-05</span><span class="msg">fix. ChannelList Item Decoration 하단 마진 조건 수정 (마지막 아이템 Column이 홀수일 경우에만 마진 추가)</span></li>
+      <li><span class="date">2023-02-03</span><span class="msg">update. version up</span></li>
+      <li><span class="date">2023-01-30</span><span class="msg">update. add english resource</span></li>
+      <li><span class="date">2022-12-23</span><span class="msg">update. version up</span></li>
+      <li><span class="date">2022-12-23</span><span class="msg">fix. 코드 정리</span></li>
+      <li><span class="date">2022-12-21</span><span class="msg">fix. VersionName 규칙 수정 (v. 제거)</span></li>
+      <li><span class="date">2022-12-21</span><span class="msg">fix. 암호화로직 하드코딩제거 (221220 보안성검사 8950325)</span></li>
+      <li><span class="date">2022-12-21</span><span class="msg">fix. Exported 속성값 삭제 (Default Value 사용되도록) (221220 보안성검사 8950324)</span></li>
+      <li><span class="date">2022-12-09</span><span class="msg">update. version up.</span></li>
+      <li><span class="date">2022-12-08</span><span class="msg">fix. 채널리스트 하단 그림자 & 여백 추가</span></li>
+      <li><span class="date">2022-12-06</span><span class="msg">update. local.properties 삭제 (local에서만 개별적으로 사용)</span></li>
+      <li><span class="date">2022-11-25</span><span class="msg">update. version up & version naming rule 변경</span></li>
+      <li><span class="date">2022-11-16</span><span class="msg">fix. Completion 이벤트 시 현재 채널 다시 재생하도록 변경</span></li>
+      <li><span class="date">2022-11-11</span><span class="msg">Fix. Adapter notifyDataChanged 처리 중 getAdapterPosition -1 값 처리</span></li>
+      <li><span class="date">2022-11-09</span><span class="msg">Fix. 사용자가 정지버튼 터치로 클릭한 경우만 런처로 pause 이벤트 발신</span></li>
+    </ul>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li>README_CLAUDE.md — 과제 개요·기술 스택·구조 요약<span class="src">저장소 루트 / <code>/Users/lim/Altimedia/workspace_biz_3rd/kt_ford_aosp_radio_app/README_CLAUDE.md</code></span></li>
+      <li><code>app/src/main/java/com/altimedia/automotive/kt/service/radio/</code> — 실제 소스(media·ui·receiver·network·util 패키지)<span class="src">소스 / 사실 검증 1차 근거</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3258384511/KT_Ford_Radio_Application">KT_Ford_Radio_Application</a> — 전제 사항, 채널 데이터, SBS/MBC URL 획득·복호화 분석<span class="src">Confluence (ORGAPPDEV) / pageId 3258384511</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3253830369/202203_KT_Ford_Radio_PodCast">202203_KT_Ford_Radio_PodCast</a> — 프로젝트 개요, Target Display(차종별 해상도), 형상·펌웨어·디버깅<span class="src">Confluence (ORGAPPDEV) / pageId 3253830369</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3268444256/KT_Ford_Radio_App_Release_Note">KT_Ford_Radio_App_Release_Note</a> — 버전별 변경 이력(v0.01.00 ~ v1.0.8)<span class="src">Confluence (ORGAPPDEV) / pageId 3268444256</span></li>
+      <li>Bitbucket 저장소 <code>git@bitbucket.org:altimedia/kt_ford_aosp_radio_app.git</code><span class="src">형상 관리 / 기본 브랜치 master, 분석 기준 develop</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

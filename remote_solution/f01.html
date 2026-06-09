@@ -1,0 +1,231 @@
+<!doctype html>
+<!-- remote_solution · BLE 입력 장치 제어(GATT) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BLE 입력 장치 제어 (GATT) — remote_solution 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Remote Solution PoC App</a><span class="sep">›</span>
+      <span class="here">BLE 입력 장치 제어 (GATT)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Altimedia PoC</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Kotlin</span>
+    </div>
+    <h1>BLE 입력 장치 제어 (GATT)</h1>
+    <p class="one-liner">본딩된 장치 이름으로 <code>MN3</code>/<code>SMART_RING</code>/<code>DEFAULT</code>를 판별하고, 커스텀 GATT 서비스(<code>F3C5B4E1-…</code>)의 TX/RX 캐릭터리스틱을 찾아 코루틴 작업 큐(<code>CharacteristicWorker</code>)로 쓰기를 직렬화합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/remote_solution" target="_blank" rel="noopener"><code>remote_solution</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ui/BluetoothViewModel.kt</code></div></div>
+      <div class="item"><div class="k">연결 트리거</div><div class="v"><code>MainActivity.onStart/onStop</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>이 기능은 외부 입력 장치(Aero Pointer 계열 <code>mn3</code> 리모컨, <code>Smart Air Ring</code>)와 앱을 BLE GATT로 연결하고, 장치의 동작 모드를 제어 신호로 송신하는 핵심 경로입니다. <code>MainActivity</code>가 <code>onStart()</code>에서 <code>BLUETOOTH_CONNECT</code> 권한을 확인한 뒤 <code>BluetoothViewModel.connectRemoteSolution()</code>을 호출하면, 본딩(bonded)된 장치 목록을 순회하며 이름 접두사로 장치 종류를 판별합니다.</p>
+    <p>연결 성공 후 <code>onServicesDiscovered()</code> 콜백에서 커스텀 서비스 UUID(<code>F3C5B4E1-6B72-4FC1-9E4D-0B4D9B7F5D1E</code>)를 찾고, 그 안의 TX(<code>…E2</code>)/RX(<code>…E3</code>) 캐릭터리스틱을 확보합니다. RX는 <code>setCharacteristicNotification</code>과 CCCD(<code>2902</code>) 활성화로 알림을 켜고, 첫 제어 신호로 <code>ControlMode.INIT</code>을 큐에 넣은 뒤 <code>CharacteristicWorker.start()</code>로 작업 루프를 시작합니다.</p>
+    <p>BLE 쓰기는 비동기 콜백 기반이라 연속 호출이 충돌하기 쉽습니다. 이를 막기 위해 모든 쓰기/읽기/CCCD 작업을 <code>BluetoothWork</code> 객체로 큐에 적재하고, <code>gattReady</code> 플래그가 켜졌을 때만 하나씩 꺼내 처리하는 단일 코루틴(IO 디스패처) 워커로 직렬화합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      <code>onCharacteristicWrite</code>/<code>onDescriptorWrite</code>/<code>onCharacteristicRead</code> 콜백마다 <code>gattReady.set(true)</code>로 다음 작업을 허용합니다. 즉 "직전 작업의 완료 콜백을 받은 뒤에야 다음 작업을 보낸다"는 흐름 제어로, 안드로이드 BLE 스택의 동시 쓰기 제약을 우회합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant ACT as MainActivity
+    participant VM as BluetoothViewModel
+    participant CB as gattCallback
+    participant W as CharacteristicWorker
+    participant GATT as BluetoothGatt
+
+    ACT-&gt;&gt;VM: onStart() connectRemoteSolution(context)
+    VM-&gt;&gt;VM: bondedDevices 순회, 이름 접두사 판별
+    Note over VM: mn3 → MN3 / Smart Air Ring → SMART_RING
+    VM-&gt;&gt;GATT: device.connectGatt(gattCallback)
+    GATT--&gt;&gt;CB: onConnectionStateChange(CONNECTED)
+    CB-&gt;&gt;GATT: discoverServices()
+    GATT--&gt;&gt;CB: onServicesDiscovered()
+    CB-&gt;&gt;CB: UUID_SERVICE 매칭 후 TX/RX 캐릭터리스틱 확보
+    CB-&gt;&gt;W: addWorkCCCD(true) / addWorkWrite(INIT)
+    CB-&gt;&gt;W: start()
+    activate W
+    loop gattReady 일 때만 1건씩 처리
+        W-&gt;&gt;GATT: writeCharacteristic / writeDescriptor
+        GATT--&gt;&gt;CB: onCharacteristicWrite()
+        CB-&gt;&gt;W: gattReady.set(true)
+    end
+    deactivate W
+    ACT-&gt;&gt;VM: onStop() disconnectRemoteSolution()
+    VM-&gt;&gt;W: finish() → EXIT 송신 후 gatt.close()
+      </div>
+      <p class="cap"><strong>흐름.</strong> 본딩 장치 판별 → GATT 연결 → 서비스 탐색 → TX/RX 확보 → INIT 송신 → 워커 루프로 직렬 처리. 종료 시 <code>EXIT</code>을 보내고 큐가 비워진 뒤 <code>gatt.close()</code>로 정리합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class MainActivity {
+        +viewModel BluetoothViewModel
+        +onStart()
+        +onStop()
+    }
+    class BluetoothViewModel {
+        -BluetoothGatt gatt
+        -BluetoothGattCharacteristic txCharacteristic
+        -BluetoothGattCharacteristic rxCharacteristic
+        -Device deviceType
+        +connectRemoteSolution(context)
+        +addWorkWrite(ControlMode)
+        +addWorkCCCD(enable)
+        +disconnectRemoteSolution()
+        +getGattDeviceType() Device
+    }
+    class CharacteristicWorker {
+        +AtomicBoolean workerReady
+        +AtomicBoolean gattReady
+        +ArrayDeque~BluetoothWork~ queue
+        +addWork(work)
+        +start()
+        +finish(onSuccess)
+    }
+    class BluetoothWork {
+        &lt;&lt;sealed&gt;&gt;
+    }
+    class TXCharacteristic {
+        +ByteArray value
+        +int writeType
+    }
+    class RxCccdEnable {
+        +boolean enabled
+    }
+    class ControlMode {
+        &lt;&lt;enumeration&gt;&gt;
+        +Byte header
+        +Byte controlBits
+    }
+    class Device {
+        &lt;&lt;enumeration&gt;&gt;
+        DEFAULT
+        MN3
+        SMART_RING
+    }
+    class BluetoothGattCallback {
+        +onConnectionStateChange()
+        +onServicesDiscovered()
+        +onCharacteristicWrite()
+    }
+
+    MainActivity --&gt; BluetoothViewModel : 소유
+    BluetoothViewModel *-- CharacteristicWorker : 소유
+    BluetoothViewModel ..&gt; ControlMode : 비트 조합 송신
+    BluetoothViewModel ..&gt; Device : 판별 결과
+    BluetoothViewModel --&gt; BluetoothGattCallback : gattCallback
+    CharacteristicWorker o-- BluetoothWork : 큐 적재
+    BluetoothWork &lt;|-- TXCharacteristic
+    BluetoothWork &lt;|-- RxCccdEnable
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>BluetoothViewModel</code>이 GATT 핸들과 콜백·워커를 모두 소유합니다. 모든 입출력은 <code>BluetoothWork</code> 종류(TX 쓰기 / RX 읽기 / CCCD)로 큐에 쌓여 <code>CharacteristicWorker</code> 단일 루프에서 직렬 처리됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/BluetoothViewModel.kt</code> — 본딩 장치 판별 후 GATT 연결</div>
+<pre><code>bluetoothAdapter.bondedDevices.also {
+    it.forEach { device -&gt;
+        val deviceName = device.name
+        if (deviceName != null) {
+            if (deviceName.startsWith("mn3", ignoreCase = true)) {
+                deviceType = Device.MN3
+                device.connectGatt(context, false, gattCallback)
+                return
+            } else if (deviceName.startsWith("Smart Air Ring", ignoreCase = true)) {
+                deviceType = Device.SMART_RING
+                return
+            }
+        }
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/BluetoothViewModel.kt</code> — 워커 루프의 쓰기 직렬화 (발췌)</div>
+<pre><code>worker = CoroutineScope(Dispatchers.IO).launch {
+    gattReady.set(true)
+    workerReady.set(true)
+    while (true) {
+        if (!queue.isEmpty() &amp;&amp; gattReady.getAndSet(false)) {  // 완료 콜백 전까지 잠금
+            val char = queue.pop()
+            if (char is BluetoothWork.TXCharacteristic) {
+                gatt.writeCharacteristic(char.characteristic, char.value, char.writeType)
+            } else if (char is BluetoothWork.RxCccdEnable) {
+                char.characteristic.getDescriptor(UUID.fromString(UUID_CCCD))?.let { d -&gt;
+                    gatt.writeDescriptor(d, ENABLE_NOTIFICATION_VALUE)
+                }
+            }
+        }
+        delay(10)
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/ui/BluetoothViewModel.kt" target="_blank" rel="noopener">ui/BluetoothViewModel.kt</a><span class="src">GATT 연결·서비스 탐색·CharacteristicWorker 큐·ControlMode/Device enum·UUID 상수</span></li>
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/ui/MainActivity.kt" target="_blank" rel="noopener">ui/MainActivity.kt</a><span class="src">BLUETOOTH_CONNECT 권한 요청 · onStart/onStop 에서 연결/해제 트리거</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">화면별 제어 모드 전환 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">remote_solution 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

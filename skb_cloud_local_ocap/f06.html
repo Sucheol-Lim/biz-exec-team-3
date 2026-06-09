@@ -1,0 +1,196 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap · STB 상태 모니터링(Monitor) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STB 상태 모니터링 (Monitor) — skb_cloud_local_ocap 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local App OCAP</a><span class="sep">›</span>
+      <span class="here">STB 상태 모니터링 (Monitor)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP / MHP STB · Java</span>
+    </div>
+    <h1>STB 상태 모니터링 (Monitor)</h1>
+    <p class="one-liner"><code>Monitor</code>가 부팅 시 NavigatorHandler·ServiceHandler·CAS·EPG를 단계적으로 기동하고 IXC 인터페이스를 바인딩하며, 대기모드(<code>StandbyModeControl</code>)·배터리(<code>BatteryStatusManager</code>)·컬러키 등 시스템 레벨 제어를 담당합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap" target="_blank" rel="noopener"><code>skb_cloud_local_ocap</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>OCAP_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>monitor/Monitor.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">시스템 레벨 제어 (상태·키·대기모드·배터리)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>Monitor는 OCAP 미들웨어의 모니터 애플리케이션 역할에 해당하는 시스템 레벨 제어 계층입니다. <code>Monitor.init(xletContext)</code>는 인스턴스를 만들어 <code>start()</code>를 호출하고, <code>start()</code>는 정해진 step 순서대로 하위 서브시스템을 기동합니다. (step1) NavigatorHandler 초기화로 채널 데이터베이스를 구성하고, (step2) IXC(Inter-Xlet Communication) 인터페이스를 바인딩하며, (step3) EPG 관련 <code>ProgramTable</code>·<code>MiniEpgController</code>를, (step4) ServiceHandler·컬러키·COQP·채널 로그 전송기 등을 띄웁니다.</p>
+    <p>대기모드는 싱글톤 <code>StandbyModeControl</code>이 Alticast <code>PowerModeControl</code>과 연계해 standby 진입/해제를 관리하고, 별도 standby 체크 스레드와 전용 키 컨트롤(레이어드 UI)을 운영합니다. 저배터리 상황은 <code>LowBatteryControl</code>/<code>BatteryStatusManager</code>가 감시하며, 컬러키는 <code>ColorKeyManager</code>가 처리합니다. CAS는 <code>CaManagerImpl</code>이 Monitor 기동 단계에서 함께 초기화됩니다.</p>
+    <p>Monitor의 키 입력 경로는 <code>monitor/svc</code>의 <code>MonitorKeyHandler</code>·<code>DefaultKeyManager</code> 등으로 구성되며, 가상 마우스·TV 잠금(<code>TVLocker</code>)·STB 버전 전송(<code>STBVersionSendManager</code>) 같은 운영 기능도 이 계층에 포함됩니다.</p>
+    <div class="callout">
+      <div class="ct">단계적 기동(step) 순서</div>
+      <code>Monitor.start()</code>는 로그에 step1~step4를 명시하며 채널 DB → IXC 바인딩 → EPG → 서비스 핸들러 순으로 순차 기동합니다. 부팅 의존성이 큰 모듈이므로 순서가 고정되어 있습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant HM as HomeMain
+    participant MON as Monitor
+    participant NAV as NavigatorHandler
+    participant CA as CaManagerImpl
+    participant EPG as ProgramTable / MiniEpgController
+    participant SVC as ServiceHandler
+    participant STB as StandbyModeControl
+
+    HM-&gt;&gt;MON: init(xletContext)
+    MON-&gt;&gt;MON: start(xletContext)
+    MON-&gt;&gt;CA: getInstance() (CAS 초기화)
+    MON-&gt;&gt;NAV: createNavHandler().init()  [step1 채널 DB]
+    MON-&gt;&gt;MON: controlIXCInterface(true) [step2 IXC 바인딩]
+    MON-&gt;&gt;EPG: getInstance() [step3 EPG]
+    MON-&gt;&gt;SVC: createSvcHandler() [step4 서비스 핸들러]
+    Note over MON,STB: 이후 키/대기모드/배터리 이벤트 처리
+    STB-&gt;&gt;STB: standby 진입/해제 제어
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>HomeMain</code>이 <code>Monitor.init()</code>을 호출하면 CAS·채널 DB·IXC·EPG·서비스 핸들러가 step 순서로 기동되고, 이후 대기모드·배터리·키 이벤트를 시스템 레벨에서 처리합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class Monitor {
+        -NavigatorHandler navHandler
+        -ServiceHandler svcHandler
+        -MaServiceImpl maService
+        +init(xletContext)$ Monitor
+        +start(xletContext)
+        +pause()
+        +destroy(uncond)
+    }
+    class NavigatorHandler {
+        +init()
+    }
+    class ServiceHandler
+    class CaManagerImpl {
+        +getInstance() CaManagerImpl
+    }
+    class StandbyModeControl {
+        +getInstance() StandbyModeControl
+    }
+    class BatteryStatusManager
+    class LowBatteryControl {
+        +getInstance() LowBatteryControl
+    }
+    class ColorKeyManager {
+        +getInstance() ColorKeyManager
+        +init()
+    }
+    class TVLocker
+
+    Monitor o-- NavigatorHandler : 소유
+    Monitor o-- ServiceHandler : 소유
+    Monitor ..&gt; CaManagerImpl : 초기화
+    Monitor ..&gt; StandbyModeControl : 대기모드
+    Monitor ..&gt; ColorKeyManager : 컬러키
+    StandbyModeControl ..&gt; TVLocker : TV 잠금
+    LowBatteryControl ..&gt; BatteryStatusManager : 배터리 상태
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>Monitor</code>가 NavigatorHandler·ServiceHandler를 소유하고, CAS·대기모드·컬러키·배터리 제어 서브시스템을 기동·연계합니다. <code>monitor/svc</code> 패키지가 시스템 제어 구현을 담습니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>monitor/Monitor.java</code> — init이 start를 호출하고 step 순서로 기동</div>
+<pre><code>public static final Monitor init(XletContext xletContext) {
+    instance = new Monitor();
+    try {
+        instance.start(xletContext);
+    } catch (XletStateChangeException e) {
+        e.printStackTrace();
+    }
+    return instance;
+}
+
+public void start(XletContext xletContext) throws XletStateChangeException {
+    this.xletContext = xletContext;
+    maService = createMaService();
+    UserPreferenceUtilImpl.getInstance().load();
+    CaManagerImpl.getInstance();                 // CAS 초기화
+
+    // step 1 : 채널 데이터베이스 구성
+    navHandler = createNavHandler();
+    navHandler.init();
+    // step 2 : IXC 바인딩
+    controlIXCInterface(true);
+    // step 3 : EPG
+    ProgramTable.getInstance();
+    MiniEpgController.getInstance();
+    // step 4 : 서비스 핸들러 / 컬러키 / 채널 로그 전송기 ...
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/monitor/Monitor.java" target="_blank" rel="noopener">monitor/Monitor.java</a><span class="src">모니터 진입점 — step 단계 기동·IXC 바인딩·라이프사이클</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/monitor/svc/StandbyModeControl.java" target="_blank" rel="noopener">monitor/svc/StandbyModeControl.java</a><span class="src">대기모드 진입/해제 제어 (Alticast PowerModeControl 연계)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/monitor/svc/BatteryStatusManager.java" target="_blank" rel="noopener">monitor/svc/BatteryStatusManager.java</a><span class="src">배터리 상태 감시</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/monitor/svc/LowBatteryControl.java" target="_blank" rel="noopener">monitor/svc/LowBatteryControl.java</a><span class="src">저배터리 경고·제어</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/monitor/svc/MonitorKeyHandler.java" target="_blank" rel="noopener">monitor/svc/MonitorKeyHandler.java</a><span class="src">시스템 레벨 키 입력 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/monitor/svc/TVLocker.java" target="_blank" rel="noopener">monitor/svc/TVLocker.java</a><span class="src">TV 잠금 제어</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f05.html">← 방송 품질 계측 (TiMS)</a>
+      <a href="f07.html">CAS 수신제한 연동 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>OCAP_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

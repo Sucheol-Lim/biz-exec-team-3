@@ -1,0 +1,198 @@
+<!doctype html>
+<!-- hcn_android · PVR 녹화/예약 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PVR 녹화 · 예약 — hcn_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">HCN Android EPG · 런처</a><span class="sep">›</span>
+      <span class="here">PVR 녹화 · 예약</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">HCN (현대HCN)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) STB · Java</span>
+    </div>
+    <h1>PVR 녹화 · 예약</h1>
+    <p class="one-liner"><code>PvrMain</code>이 즉시·예약 녹화 진입점을 제공하고, <code>PvrSessionManager</code>가 녹화 세션을, <code>StorageManager</code>가 저장 공간을 관리하며, 중복 예약·이미 녹화 중 같은 충돌을 <code>PvrException</code>으로 분기합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/hcn_android" target="_blank" rel="noopener"><code>hcn_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>PvrMain</code> · <code>PvrSessionManager</code> · <code>StorageManager</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">녹화/예약 · 스토리지</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>PVR(Personal Video Recorder)은 라이브 프로그램을 단말 저장소에 녹화하는 기능입니다. <code>pvr-module</code>(<code>com.altimedia.alaska.pvr</code>)의 <code>PvrMain</code>이 외부에서 호출하는 진입 싱글턴이며, 즉시 녹화(<code>startRecord</code>)와 예약 녹화(<code>reserveRecord</code>), 취소(<code>cancelReservedRecord</code>)를 제공합니다. 즉시 녹화도 내부적으로는 <code>reserveRecord</code>를 호출하는 단일 경로로 모입니다.</p>
+    <p><code>reserveRecord(PvrProgram)</code>은 예약을 받기 전에 여러 충돌·유효성 검사를 거칩니다. 먼저 <code>PvrDataUtil.isValidProgram()</code>으로 프로그램 유효성을 확인하고, 현재 진행 중인 프로그램이면 <code>PvrSessionManager.getExistPvrSession(srcId)</code>로 이미 같은 소스에 녹화 세션이 있는지 봅니다. 녹화 중이면 후처리 시간(<code>isPostRecordingTime()</code>)이면 기존 세션을 정리하고, 아니면 <code>FAIL_TO_START_RECORDING_FOR_ALREADY_RECORDING</code> 예외로 거절합니다. 동일 예약 아이템이 이미 있으면 except 값 처리 또는 중복 예약(<code>FAIL_TO_BE_DUPLICATED_SCHEDULE_ITEM</code>) 예외로 분기합니다. 통과하면 <code>PvrScheduleItemManager.addScheduleItem()</code>으로 예약 아이템을 생성합니다. 저장 공간은 <code>StorageManager</code>가 자동 관리(<code>isHddAutoManagement</code> 시 오래된 녹화 삭제)·포맷 등을 담당합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      모든 녹화 요청이 <code>reserveRecord</code>로 수렴하고, 충돌은 코드화된 <code>PvrExceptionCode</code>(이미 녹화 중·중복 예약·유효하지 않은 프로그램 등)로 표현됩니다. 호출 측은 예외 코드를 받아 사용자에게 적절한 안내/대체 동작을 보여줄 수 있습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자 (EPG)
+    participant PM as PvrMain
+    participant SM as PvrSessionManager
+    participant SIM as PvrScheduleItemManager
+    participant STG as StorageManager
+
+    U-&gt;&gt;PM: reserveRecord(PvrProgram)
+    PM-&gt;&gt;PM: isValidProgram() 검사
+    alt 현재 진행 프로그램
+        PM-&gt;&gt;SM: getExistPvrSession(srcId)
+        alt 이미 녹화 중 (후처리 아님)
+            PM--&gt;&gt;U: throw FAIL_..._ALREADY_RECORDING
+        end
+    end
+    PM-&gt;&gt;SIM: getScheduleItem(program)
+    alt 중복 예약
+        PM--&gt;&gt;U: throw FAIL_TO_BE_DUPLICATED_SCHEDULE_ITEM
+    else 신규 예약
+        PM-&gt;&gt;SIM: addScheduleItem(program, recType)
+        SIM--&gt;&gt;PM: ExScheduleItem
+        PM-&gt;&gt;STG: 저장 공간 확인/자동 관리
+        PM--&gt;&gt;U: 예약 완료 아이템
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 녹화 요청은 <code>reserveRecord</code>에서 유효성·세션·중복 검사를 거쳐 충돌 시 <code>PvrException</code>으로 거절하고, 통과하면 스케줄 아이템을 생성하며 <code>StorageManager</code>가 저장 공간을 관리합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class PvrMain {
+        +getInstance() PvrMain
+        +startRecord(PvrProgram) ExScheduleItem
+        +reserveRecord(PvrProgram) ExScheduleItem
+        +stopRecord(PvrProgram) ExScheduleItem
+        +cancelReservedRecord(PvrProgram) ExScheduleItem
+    }
+    class PvrSessionManager {
+        +getInstance() PvrSessionManager
+        +getExistPvrSession(srcId) PvrSession
+        +getAllPvrSession() PvrSession
+    }
+    class PvrScheduleItemManager {
+        +getScheduleItem(program) ExScheduleItem
+        +addScheduleItem(program, recType) ExScheduleItem
+    }
+    class StorageManager {
+        +getInstance() StorageManager
+        +getStorageInfo() StorageInfo
+        +format()
+    }
+    class PvrSession {
+        +isPostRecordingTime() boolean
+    }
+    class PvrException
+    class PvrExceptionCode {
+        &lt;&lt;enumeration&gt;&gt;
+        INVALID_PROGRAM_INFO
+        FAIL_TO_START_RECORDING_FOR_ALREADY_RECORDING
+        FAIL_TO_BE_DUPLICATED_SCHEDULE_ITEM
+    }
+
+    PvrMain --&gt; PvrSessionManager : 세션 조회
+    PvrMain --&gt; PvrScheduleItemManager : 예약 생성
+    PvrMain ..&gt; StorageManager : 저장 공간
+    PvrMain ..&gt; PvrException : 충돌 시 throw
+    PvrException ..&gt; PvrExceptionCode
+    PvrSessionManager o-- PvrSession
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>PvrMain</code>은 세션(<code>PvrSessionManager</code>)·예약(<code>PvrScheduleItemManager</code>)·저장(<code>StorageManager</code>)을 조율하며 충돌은 <code>PvrException</code>/<code>PvrExceptionCode</code>로 표현합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>pvr-module/.../pvr/PvrMain.java</code> — 예약 충돌 검사와 스케줄 아이템 생성</div>
+<pre><code>public ExScheduleItem reserveRecord(PvrProgram program) throws PvrException {
+    if (!PvrDataUtil.isValidProgram(program)) {
+        throw new PvrException(PvrExceptionCode.INVALID_PROGRAM_INFO);
+    }
+    if (PvrDataUtil.isCurrentProgram(program)) {
+        PvrSession session = PvrSessionManager.getInstance().getExistPvrSession(program.getSrcId());
+        if (session != null) {
+            if (session.isPostRecordingTime()) {
+                PvrActionManager.getInstance().stopPvrSession(program.getSrcId(), true);
+            } else {
+                throw new PvrException(PvrExceptionCode.FAIL_TO_START_RECORDING_FOR_ALREADY_RECORDING);
+            }
+        }
+    }
+    ExScheduleItem reservedItem = PvrScheduleItemManager.getInstance().getScheduleItem(program);
+    if (reservedItem != null) {
+        if (program.getRecordingType() == RecordingType.CUSTOMIZED) {
+            throw new PvrException(PvrExceptionCode.FAIL_TO_BE_DUPLICATED_SCHEDULE_ITEM);
+        }
+        throw new PvrException(PvrExceptionCode.INVALID_REQUEST);
+    }
+    int recType = getRecordType(program, program.isRequestedByGroup());
+    return PvrScheduleItemManager.getInstance().addScheduleItem(program, recType);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/pvr-module/src/main/java/com/altimedia/alaska/pvr/PvrMain.java" target="_blank" rel="noopener">pvr-module/.../alaska/pvr/PvrMain.java</a><span class="src">녹화 진입점 · 예약 충돌 검사 · 스케줄 생성</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/pvr-module/src/main/java/com/altimedia/alaska/pvr/PvrSessionManager.java" target="_blank" rel="noopener">pvr-module/.../alaska/pvr/PvrSessionManager.java</a><span class="src">녹화 세션 관리 · getExistPvrSession</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/pvr-module/src/main/java/com/altimedia/alaska/storage/StorageManager.java" target="_blank" rel="noopener">pvr-module/.../alaska/storage/StorageManager.java</a><span class="src">저장 공간 자동 관리 · 포맷 · StorageInfo</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f06.html">← VOD 재생</a>
+      <a href="f08.html">케이블 백엔드 연동 (OOB/SDV/MGW) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">hcn_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

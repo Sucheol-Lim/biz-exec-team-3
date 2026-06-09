@@ -1,0 +1,200 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp · 음성 안내(TTS) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>음성 안내 (TTS) — AI Kiosk WebApp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp</a><span class="sep">›</span>
+      <span class="here">음성 안내 (TTS)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">KT GiGA Genie TTS · Azure TTS</span>
+    </div>
+    <h1>음성 안내 (TTS)</h1>
+    <p class="one-liner"><code>TTSManager.handleTts</code>가 LLM 응답 메시지를 음성으로 합성합니다. 언어와 <code>Config.APP_KOR_TTS</code> 설정에 따라 KT GiGA Genie TTS와 Azure TTS(<code>ko-KR-SunHiNeural</code> / <code>en-US-JaneNeural</code>)로 분기합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 모듈</div><div class="v"><code>voice/TTSManager.js</code> · <code>AzureTTSManager.js</code> · <code>KTTTSManager.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">LLM 응답 음성 출력 단계</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>음성 안내(TTS)는 LLM 응답의 <code>message</code> 문구를 사람이 듣는 음성으로 합성하는 단계입니다. 진입점은 <code>TTSManager.handleTts(text)</code> 하나이며, 내부에서 현재 언어(i18n)와 <code>Config.APP_KOR_TTS</code> 토글을 보고 두 엔진 중 하나로 분기합니다.</p>
+    <p>영어(<code>en</code>)이거나 한국어 TTS 서버가 <code>AZURE</code>로 설정된 경우 <code>AzureTTSManager.handleTts</code>를 사용합니다. 이때 언어에 맞춰 음성 모델을 바꾸는데, 영어는 <code>en-US-JaneNeural</code>(speed 20), 한국어는 <code>ko-KR-SunHiNeural</code>(speed 5)을 적용하고 SSML <code>prosody</code>/<code>mstts:express-as</code>로 속도·스타일을 지정한 뒤 <code>speakSsmlAsync</code>로 합성합니다. 합성된 오디오는 풀 스트림으로 받아 <code>SingletonAudioPlayer</code>로 재생합니다.</p>
+    <p>그 외(현재 기본값인 한국어 + <code>KT</code>)에는 <code>KTTTSManager.handleTts</code>를 사용합니다. KT 경로는 GiGA Genie OpenAPI 인증(UUID 발급/재사용)을 거쳐 시그니처가 포함된 헤더로 TTS 요청을 보내고, 응답 WAV 버퍼를 재생합니다. <code>Config.js</code>의 현재 기본값은 <code>APP_AZURE_SPEECH_REGION = KOREA</code>, <code>APP_KOR_TTS = KT</code>입니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      <code>handleTts</code>는 입력 텍스트에서 줄바꿈(<code>\n</code>)을 제거해 합성합니다(<code>remove \n on tts text</code> 커밋). 새 발화가 들어오면 이전 합성/재생을 <code>AbortController</code>와 <code>handleStopAudio</code>로 중단해 음성이 겹치지 않게 합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant LLM as LLMManager
+    participant TM as TTSManager
+    participant CFG as Config
+    participant AZ as AzureTTSManager
+    participant KT as KTTTSManager
+    participant AP as SingletonAudioPlayer / AudioPlayer
+
+    LLM-&gt;&gt;TM: handleTts(result.message)
+    TM-&gt;&gt;CFG: i18n.language / APP_KOR_TTS 확인
+    alt en 또는 APP_KOR_TTS == AZURE
+        TM-&gt;&gt;AZ: handleChangeVoice(ko-KR-SunHiNeural / en-US-JaneNeural)
+        TM-&gt;&gt;AZ: handleTts(text 줄바꿈 제거)
+        AZ-&gt;&gt;AZ: SSML 작성 후 speakSsmlAsync
+        AZ-&gt;&gt;AP: playAudioBuffer(오디오 스트림)
+    else 기본 (ko + KT)
+        TM-&gt;&gt;KT: handleTts(text)
+        KT-&gt;&gt;KT: UUID 발급/재사용 + 시그니처
+        KT-&gt;&gt;AP: WAV 응답 재생
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>handleTts</code> 단일 진입점이 언어·설정을 보고 Azure 또는 KT 엔진으로 분기합니다. 두 엔진 모두 합성 결과 오디오를 플레이어로 재생합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class TTSManager {
+        +handleTts(inputText)
+        +handleStopAudio()
+    }
+    class AzureTTSManager {
+        -selectedVoice
+        -selectedSynthesizeRate
+        +handleTts(text)
+        +startSpeechSynthesize(text)
+        +handleChangeVoice(name)
+        +setSpeed(value)
+        +handleStopAudio()
+    }
+    class KTTTSManager {
+        -selectedVoice
+        -abortController
+        +handleTts(text)
+        +handleStopAudio()
+    }
+    class Config {
+        +APP_KOR_TTS
+        +APP_AZURE_SPEECH_REGION
+    }
+    class KtApi {
+        +runTextToSpeech(params, signal)
+        +stopTextToSpeech()
+    }
+    class SingletonAudioPlayer {
+        +playAudioBuffer(stream)
+    }
+
+    TTSManager --&gt; Config : 분기 판단
+    TTSManager --&gt; AzureTTSManager : en / AZURE
+    TTSManager --&gt; KTTTSManager : 기본 ko + KT
+    KTTTSManager --&gt; KtApi : TTS 호출
+    AzureTTSManager --&gt; SingletonAudioPlayer : 재생
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>TTSManager</code>가 <code>Config</code>와 언어를 보고 <code>AzureTTSManager</code> 또는 <code>KTTTSManager</code>로 위임합니다. KT 경로는 <code>KtApi</code>로 OpenAPI를 호출합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/voice/TTSManager.js</code> — 언어/설정 기반 엔진 분기</div>
+<pre><code>handleTts : async (_inputText) =&gt; {
+    if (i18n.language == "en" || Config.APP_KOR_TTS == "AZURE") {
+        if (Config.APP_KOR_TTS == "AZURE") {
+            if (i18n.language == "en") {
+                AzureTTSManager.handleChangeVoice("en-US-JaneNeural");
+                AzureTTSManager.setSpeed(20);
+            } else {
+                AzureTTSManager.handleChangeVoice("ko-KR-SunHiNeural");
+                AzureTTSManager.setSpeed(5);
+            }
+        }
+        await AzureTTSManager.handleTts(_inputText?.replace("\n", ""));
+    } else {
+        await KTTTSManager.handleTts(_inputText);
+    }
+},</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/voice/AzureTTSManager.js</code> — SSML 합성</div>
+<pre><code>var ssml = `&lt;speak version="1.0" xml:lang="ko-KR"&gt;
+    &lt;voice name='${selectedVoice}'&gt;
+        &lt;prosody rate="${selectedSynthesizeRate}%" volume="${selectedSynthesizeVolume}" pitch="${selectedVoicePitch}"&gt;
+            &lt;mstts:express-as style="${selectedVoiceStyle}" styledegree="2"&gt;
+                ${text}
+            &lt;/mstts:express-as&gt;
+        &lt;/prosody&gt;
+    &lt;/voice&gt;
+&lt;/speak&gt;`;
+synthesizer.speakSsmlAsync(ssml, complete_cb, err_cb);</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/voice/TTSManager.js" target="_blank" rel="noopener">src/voice/TTSManager.js</a><span class="src">handleTts 진입점 · 언어/Config 기반 KT↔Azure 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/voice/AzureTTSManager.js" target="_blank" rel="noopener">src/voice/AzureTTSManager.js</a><span class="src">Azure SSML 합성 · 음성 모델/속도 설정 · 스트림 재생</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/voice/KTTTSManager.js" target="_blank" rel="noopener">src/voice/KTTTSManager.js</a><span class="src">KT GiGA Genie TTS · UUID 발급/재사용 · AbortController</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/voice/kt/KtApi.tsx" target="_blank" rel="noopener">src/voice/kt/KtApi.tsx</a><span class="src">KT OpenAPI TTS 요청 · 시그니처 헤더 · WAV 응답 재생</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/Config.js" target="_blank" rel="noopener">src/Config.js</a><span class="src">APP_KOR_TTS(KT/AZURE) · APP_AZURE_SPEECH_REGION 토글</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">← LLM 자연어 질의</a>
+      <a href="f04.html">Android WebView STT 브리지 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">AI Kiosk WebApp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

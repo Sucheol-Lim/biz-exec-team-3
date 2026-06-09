@@ -1,0 +1,181 @@
+<!doctype html>
+<!-- hcn_android · 케이블 백엔드 연동(OOB/SDV/MGW) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>케이블 백엔드 연동 (OOB/SDV/MGW) — hcn_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">HCN Android EPG · 런처</a><span class="sep">›</span>
+      <span class="here">케이블 백엔드 연동 (OOB/SDV/MGW)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">HCN (현대HCN)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) STB · Java</span>
+    </div>
+    <h1>케이블 백엔드 연동 (OOB/SDV/MGW)</h1>
+    <p class="one-liner"><code>oob-module</code>의 <code>DataManager</code>가 편성·상품·다운로드 데이터를 섹션 필터로 수신하고, <code>sdv-module</code>의 <code>SdvMain</code>이 스위치드 비디오 세션을, <code>mgw-module</code>의 <code>MgwReceiver</code>/<code>MgwSender</code>가 미디어 게이트웨이 메시지를 UDP로 송수신합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/hcn_android" target="_blank" rel="noopener"><code>hcn_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>DataManager</code> · <code>SdvMain</code> · <code>MgwReceiver</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">케이블 방송 인프라 연동</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>케이블 STB는 IP 외에 방송망 고유 채널로 사업자 백엔드와 통신합니다. HCN 앱은 이를 세 모듈로 분리합니다. OOB(Out-Of-Band)는 <code>oob-module</code>의 <code>DataManager</code>가 담당하며, 부팅 시 <code>init(ctx, reqParam, handler)</code>로 다수의 도메인 핸들러(채널 로고·SO 맵 ID·히든 채널·가상 채널·키즈 채널·트리거·긴급 공지 등)를 초기화하고, 각 핸들러가 <code>DMTableSectionFilter</code>로 해당 테이블을 수신해 편성·상품·다운로드 데이터를 갱신합니다.</p>
+    <p>SDV(Switched Digital Video)는 모든 채널을 동시 송출하지 않고 시청 요청이 있을 때만 주파수를 할당하는 케이블 기술입니다. <code>sdv-module</code>의 <code>SdvMain</code>이 진입 싱글턴이며 <code>SdvClientSessionManager.createSdvClientSession(SdvInfo)</code>로 요청 소스에 튜너 ID를 예약·세션을 만들고, <code>sendSdvServerTuneMessage(SdvInfo)</code>로 CSRM 서버에 튜닝을 요청합니다. MGW(Media Gateway)는 <code>mgw-module</code>의 <code>MgwReceiver</code>(UDP 수신 스레드)가 게이트웨이 메시지를 받아 <code>MgwMain.sendCommandMessage(new MgwMessage(jsonStr))</code>로 디스패치하고, 응답은 <code>MgwSender.sendResultToMgw(...)</code>로 회신합니다(음성 UX 페어링·SVC_CD 등).</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      세 채널 모두 이벤트 핸들러(<code>ResourceEventHandler</code>·<code>SdvEventHandler</code>·<code>MgwEventHandler</code>)를 통해 EPG 본체와 느슨하게 결합됩니다. OOB는 섹션 필터 push, SDV는 세션-요청/응답, MGW는 UDP 메시지 송수신으로 각자 비동기 통지하므로, EPG는 결과만 핸들러 콜백으로 받습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant BM as BootManager
+    participant DM as DataManager (OOB)
+    participant H as 도메인 핸들러들
+    participant SDV as SdvMain
+    participant MGWR as MgwReceiver (UDP)
+    participant MGW as MgwMain / MgwSender
+
+    BM-&gt;&gt;DM: init(ctx, reqParam, handler)
+    DM-&gt;&gt;H: 각 핸들러 init() (섹션 필터 등록)
+    H--&gt;&gt;DM: 편성/상품/다운로드 데이터 갱신
+    DM--&gt;&gt;BM: EVENT_DATA_MANAGER_INITIALIZED
+    Note over SDV: 시청 요청 시
+    SDV-&gt;&gt;SDV: createSdvClientSession(SdvInfo)
+    SDV-&gt;&gt;SDV: sendSdvServerTuneMessage(SdvInfo)
+    Note over MGWR,MGW: 게이트웨이 메시지
+    MGWR-&gt;&gt;MGW: sendCommandMessage(new MgwMessage(json))
+    MGW-&gt;&gt;MGW: sendResultToMgw(reqMsg, responseJson)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 부팅 시 OOB <code>DataManager</code>가 핸들러를 초기화해 방송 데이터를 수신하고, SDV는 시청 요청 시 세션·튜닝 메시지를, MGW는 UDP로 들어온 메시지를 <code>MgwMain</code>이 디스패치하고 결과를 회신합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class DataManager {
+        +getInstance() DataManager
+        +init(ctx, reqParam, handler)
+        +getDataRepository() File
+    }
+    class ResourceEventHandler {
+        &lt;&lt;interface&gt;&gt;
+        +sendResourceUpdateMessage(msg)
+    }
+    class SdvMain {
+        +getInstance() SdvMain
+        +init(handler, ltsReq)
+        +sendSdvServerTuneMessage(SdvInfo)
+        +sendMcDataTuneMessage(SdvInfo)
+    }
+    class SdvClientSessionManager {
+        +createSdvClientSession(SdvInfo) SdvClientSession
+        +disposeSdvClientSession(srcId)
+    }
+    class MgwReceiver {
+        +UDP 수신 스레드
+    }
+    class MgwMain {
+        +getInstance() MgwMain
+        +sendCommandMessage(MgwMessage)
+    }
+    class MgwSender {
+        +getInstance() MgwSender
+        +sendResultToMgw(reqMsg, json)
+    }
+
+    DataManager ..&gt; ResourceEventHandler : 갱신 통지
+    SdvMain --&gt; SdvClientSessionManager : 세션 생성
+    MgwReceiver --&gt; MgwMain : 메시지 디스패치
+    MgwMain --&gt; MgwSender : 응답 회신
+      </div>
+      <p class="cap"><strong>관계.</strong> OOB <code>DataManager</code>는 핸들러로 데이터를 받아 <code>ResourceEventHandler</code>로 통지하고, <code>SdvMain</code>은 세션 매니저로 튜닝을, <code>MgwReceiver</code>→<code>MgwMain</code>→<code>MgwSender</code>로 게이트웨이 메시지를 처리합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>mgw-module/.../service/MgwReceiverService.java</code> — UDP 수신 후 MgwMain 디스패치</div>
+<pre><code>String jsonStr = getMgwMessageBody(bData, packetLength);
+if (!TextUtils.isEmpty(jsonStr)) {
+    MgwMain.getInstance().sendCommandMessage(new MgwMessage(jsonStr));
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>sdv-module/.../SdvClientSessionManager.java</code> — 튜너 예약과 SDV 세션 생성</div>
+<pre><code>public SdvClientSession createSdvClientSession(SdvInfo reqSdvInfo) {
+    int tunerId = TunerIdManager.getInstance().reserveTunerId(reqSdvInfo.getSrcId());
+    reqSdvInfo.setTunerId(tunerId);
+    SdvClientSession sdvClientSession = new SdvClientSession(reqSdvInfo);
+    putSdvClientSession(sdvClientSession);
+    return sdvClientSession;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/oob-module/src/main/java/com/altimedia/module/oob/dm/DataManager.java" target="_blank" rel="noopener">oob-module/.../dm/DataManager.java</a><span class="src">OOB 데이터 매니저 · 도메인 핸들러 init · 데이터 저장소</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/sdv-module/src/main/java/com/altimedia/module/sdv/SdvMain.java" target="_blank" rel="noopener">sdv-module/.../SdvMain.java</a><span class="src">SDV 진입 · sendSdvServerTuneMessage / sendMcDataTuneMessage</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/sdv-module/src/main/java/com/altimedia/module/sdv/SdvClientSessionManager.java" target="_blank" rel="noopener">sdv-module/.../SdvClientSessionManager.java</a><span class="src">튜너 예약 · SDV 세션 생성/해제</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/mgw-module/src/main/java/com/altimedia/module/mgw/service/MgwReceiverService.java" target="_blank" rel="noopener">mgw-module/.../service/MgwReceiverService.java</a><span class="src">MGW UDP 수신 서비스 · MgwMain 디스패치</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/mgw-module/src/main/java/com/altimedia/module/mgw/sender/MgwSender.java" target="_blank" rel="noopener">mgw-module/.../sender/MgwSender.java</a><span class="src">MGW 응답 송신 · sendResultToMgw</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f07.html">← PVR 녹화 · 예약</a>
+      <a href="f09.html">설정 · 사용자 환경 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">hcn_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

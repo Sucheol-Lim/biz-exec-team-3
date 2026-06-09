@@ -1,0 +1,183 @@
+<!doctype html>
+<!-- remote_solution · GIF 썸네일 로딩(Coil3 AnimatedImageDecoder) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GIF 썸네일 로딩 — remote_solution 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Remote Solution PoC App</a><span class="sep">›</span>
+      <span class="here">GIF 썸네일 로딩</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Altimedia PoC</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Kotlin</span>
+    </div>
+    <h1>GIF 썸네일 로딩</h1>
+    <p class="one-liner">Coil3의 <code>AnimatedImageDecoder</code>로 라이브 채널/튜토리얼 영역의 애니메이션 GIF를 디코딩·표시합니다. <code>ImageLoader.Builder</code>에 디코더 팩토리를 등록해 <code>load()</code>로 재생합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/remote_solution" target="_blank" rel="noopener"><code>remote_solution</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v">Coil3 <code>AnimatedImageDecoder</code></div></div>
+      <div class="item"><div class="k">사용처</div><div class="v"><code>WheelTutorialView</code> · <code>ChannelFragment</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>일반 정지 이미지는 Coil3의 기본 <code>load()</code> 확장으로 충분하지만, 애니메이션 GIF는 디코더를 명시적으로 등록해야 재생됩니다. 이 앱은 <code>ImageLoader.Builder(context).components { add(AnimatedImageDecoder.Factory()) }.build()</code>로 GIF 디코더를 포함한 전용 <code>ImageLoader</code>를 만들어, <code>ImageView.load(resId, imageLoader)</code>에 넘겨 GIF를 디코딩·재생합니다.</p>
+    <p>대표 사용처는 휠/링 인터랙션 튜토리얼(<code>WheelTutorialView</code>)입니다. 휠 모드면 <code>tutorial_wheel_wheel_anim</code>, 링 모드면 <code>tutorial_wheel_ring_anim</code> GIF를 로드하고, 화살표 GIF는 <code>PorterDuffColorFilter</code>로 색을 입혀 함께 재생합니다. 디코딩된 결과가 <code>ScaleDrawable</code>(내부에 <code>AnimatedImageDrawable</code>)이면 <code>Animatable.start()</code>로 재생을 시작하고, <code>AnimationCallback.onAnimationEnd</code>에서 모든 화살표 애니메이션이 끝났을 때 1초 후 다시 시작하도록 동기화합니다.</p>
+    <p>라이브 채널 화면(<code>ChannelFragment</code>)도 같은 디코더를 임포트하며, 채널 튜토리얼 이미지(<code>tutorial_live_mn3</code>/<code>tutorial_live_wheel</code>) 로딩에 활용합니다. Coil3 GIF 의존성은 버전 카탈로그에 <code>coil-gif</code>로 선언되어 있습니다.</p>
+    <div class="callout warn">
+      <div class="ct">근거 보정 — 카드 설명과 실제 코드 차이</div>
+      매니페스트 카드는 "라이브 채널 <em>썸네일</em>의 GIF"라고 표현하지만, 실제 코드에서 채널/프로그램 썸네일(<code>thumbnailSrc</code>)은 정적 PNG 드로어블(<code>channel_img_*</code>)을 <code>setImageResource</code>로 표시합니다. Coil3 <code>AnimatedImageDecoder</code>가 실제로 쓰이는 곳은 <code>WheelTutorialView</code>의 휠/링/화살표 GIF와 <code>ChannelFragment</code>의 라이브 튜토리얼 이미지입니다. 본 페이지는 실제 코드 사용처를 기준으로 작성했습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant V as WheelTutorialView / ChannelFragment
+    participant IL as ImageLoader.Builder
+    participant DEC as AnimatedImageDecoder
+    participant IV as ImageView (load)
+    participant DR as AnimatedImageDrawable
+
+    V-&gt;&gt;IL: components { add(AnimatedImageDecoder.Factory()) }.build()
+    IL--&gt;&gt;V: ImageLoader
+    V-&gt;&gt;IV: load(gifResId, imageLoader)
+    IV-&gt;&gt;DEC: GIF 프레임 디코딩
+    DEC--&gt;&gt;IV: ScaleDrawable(AnimatedImageDrawable)
+    IV-&gt;&gt;DR: Animatable.start() (재생)
+    DR--&gt;&gt;V: onAnimationEnd → 1초 후 재시작 동기화
+      </div>
+      <p class="cap"><strong>흐름.</strong> GIF 디코더를 등록한 ImageLoader로 GIF를 로드 → 디코딩된 <code>AnimatedImageDrawable</code>을 <code>Animatable.start()</code>로 재생 → 종료 콜백에서 반복 재생을 동기화.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class WheelTutorialView {
+        +startAnimation(isRing)
+        -setArrowAnim(res, color, imageLoader)
+    }
+    class ChannelFragment {
+        +initTutorialView()
+    }
+    class ImageLoader {
+        +Builder components()
+        +build() ImageLoader
+    }
+    class AnimatedImageDecoder {
+        +Factory()
+    }
+    class AnimatedImageDrawable {
+        +start()
+        +registerAnimationCallback()
+    }
+
+    WheelTutorialView ..&gt; ImageLoader : 디코더 포함 빌드
+    ChannelFragment ..&gt; ImageLoader : 디코더 포함 빌드
+    ImageLoader o-- AnimatedImageDecoder : components add
+    WheelTutorialView --&gt; AnimatedImageDrawable : start / 콜백 재시작
+      </div>
+      <p class="cap"><strong>관계.</strong> 두 사용처 모두 <code>AnimatedImageDecoder.Factory()</code>를 등록한 <code>ImageLoader</code>를 만들어 GIF를 로드하고, <code>WheelTutorialView</code>는 디코딩된 <code>AnimatedImageDrawable</code>의 재생/반복을 직접 제어합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/tutorial/WheelTutorialView.kt</code> — GIF 디코더 포함 ImageLoader 로 로드</div>
+<pre><code>val imageLoader = ImageLoader.Builder(context)
+    .components {
+        add(AnimatedImageDecoder.Factory())
+    }
+    .build()
+
+if (isRing) {
+    binding.ivWheelTutorialRing.load(R.drawable.tutorial_wheel_ring_anim, imageLoader)
+} else {
+    binding.ivWheelTutorialWheel.load(R.drawable.tutorial_wheel_wheel_anim, imageLoader)
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/tutorial/WheelTutorialView.kt</code> — 디코딩 결과 재생/반복 동기화 (발췌)</div>
+<pre><code>target { drawable -&gt;
+    val drawable = drawable.asDrawable(context.resources)
+    setImageDrawable(drawable)
+    if (drawable is ScaleDrawable) {
+        val animatable = drawable as Animatable
+        val child = drawable.child
+        if (child is AnimatedImageDrawable) {
+            child.registerAnimationCallback(object : Animatable2.AnimationCallback() {
+                override fun onAnimationEnd(d: Drawable?) {
+                    // 모든 화살표 애니메이션이 끝나면 1초 후 재시작
+                    jobs[id] = findViewTreeLifecycleOwner()?.lifecycleScope?.launch {
+                        delay(1000); animatable.start()
+                    }
+                }
+            })
+        }
+        animatable.start()
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/ui/tutorial/WheelTutorialView.kt" target="_blank" rel="noopener">ui/tutorial/WheelTutorialView.kt</a><span class="src">AnimatedImageDecoder.Factory 등록 · 휠/링/화살표 GIF 로드 · Animatable 재생/반복 동기화</span></li>
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/ui/channel/ChannelFragment.kt" target="_blank" rel="noopener">ui/channel/ChannelFragment.kt</a><span class="src">coil3.gif.AnimatedImageDecoder 임포트 · 라이브 튜토리얼 이미지 로드(initTutorialView)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/ui/channel/miniguide/MiniguideAdapter.kt" target="_blank" rel="noopener">ui/channel/miniguide/MiniguideAdapter.kt</a><span class="src">참고 — 채널 썸네일은 정적 드로어블(setImageResource), GIF 아님</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f12.html">← 스플래시 진입 흐름</a>
+      <a href="f01.html">BLE 입력 장치 제어 (GATT) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">remote_solution 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

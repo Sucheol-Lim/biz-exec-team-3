@@ -1,0 +1,168 @@
+<!doctype html>
+<!-- kt_ford_aosp_podcast_app · 야간(Night) 모드 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>야간(Night) 모드 — kt_ford_aosp_podcast_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford 차량용 팟캐스트 앱</a><span class="sep">›</span>
+      <span class="here">야간(Night) 모드</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive · Java</span>
+    </div>
+    <h1>야간(Night) 모드</h1>
+    <p class="one-liner"><code>values-night</code>·<code>drawable-night*</code> 리소스로 야간 테마를 제공하고, 야간일 때 썸네일 등에 알파(<code>NIGHT_MODE_ALPHA = 0.88</code>)를 적용해 밝기를 낮춥니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app" target="_blank" rel="noopener"><code>kt_ford_aosp_podcast_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop-exoplayer</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>Utils.isNightMode()</code> · <code>getOpacity()</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">야간 리소스 한정자 · 알파 0.88</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>야간 모드는 두 층위로 처리됩니다. 첫째, 안드로이드 표준 리소스 한정자입니다. <code>res/values-night/colors.xml</code>로 야간 색상을, <code>res/drawable-night</code>·<code>drawable-night-hdpi/…/xxxhdpi</code>로 밀도별 야간 아이콘 세트를 제공해, 시스템 <code>uiMode</code>가 야간이면 해당 리소스가 자동 선택됩니다. <code>MainActivity</code>는 <code>onConfigurationChanged()</code>에서 <code>uiMode</code> 변경을 감지하면 nav_host Fragment를 detach/attach로 재생성해 야간 리소스를 다시 바인딩합니다.</p>
+    <p>둘째, 코드 레벨의 알파 보정입니다. <code>Utils.isNightMode(config)</code>로 야간 여부를 판정하고, <code>Utils.getOpacity(isNightMode)</code>가 야간이면 <code>Constants.NIGHT_MODE_ALPHA(0.88f)</code>, 주간이면 <code>NO_ALPHA(1.00f)</code>를 돌려줍니다. 재생 화면·재생 목록의 썸네일 이미지뷰에 이 값을 <code>setAlpha()</code>로 적용해 야간에는 이미지를 살짝 어둡게 표시합니다. 목록 어댑터도 <code>setNightMode(Utils.isNightMode(...))</code>로 야간 상태를 받아 아이템 표현을 조정합니다.</p>
+    <div class="callout">
+      <div class="ct">리소스 + 코드 이중 적용</div>
+      색/아이콘은 리소스 한정자가, 이미지 밝기(알파)는 코드가 담당합니다. 0.88이라는 값은 차량 야간 주행 시 화면 눈부심을 줄이기 위한 미세 조정으로, 한 곳(<code>Constants</code>)에 상수로 모여 있어 일괄 변경이 가능합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SYS as 시스템(uiMode)
+    participant ACT as MainActivity
+    participant FR as Fragment (PlayControl/PlayList)
+    participant U as Utils
+    participant RES as 리소스(values-night / drawable-night)
+
+    SYS-&gt;&gt;ACT: onConfigurationChanged(uiMode=NIGHT)
+    ACT-&gt;&gt;ACT: nav_host Fragment detach → attach (재생성)
+    FR-&gt;&gt;U: isNightMode(getConfiguration())
+    U--&gt;&gt;FR: true
+    FR-&gt;&gt;U: getOpacity(true)
+    U--&gt;&gt;FR: NIGHT_MODE_ALPHA(0.88)
+    FR-&gt;&gt;FR: imageView.setAlpha(0.88)
+    Note over FR,RES: 색/아이콘은 values-night·drawable-night 자동 선택
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>uiMode</code>가 야간이면 Fragment 재생성으로 야간 리소스를 다시 바인딩하고, 썸네일에는 0.88 알파를 적용합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class Utils {
+        +isNightMode(config)$ boolean
+        +getOpacity(isNight)$ float
+    }
+    class Constants {
+        +NIGHT_MODE_ALPHA
+        +NO_ALPHA
+    }
+    class MainActivity {
+        -int uiMode
+        +onConfigurationChanged(newConfig)
+    }
+    class PlayControlFragment {
+        -updateContentInfo(item)
+    }
+    class PlayListFragment {
+        -updateTitle()
+    }
+    class MainListAdapter {
+        +setNightMode(night)
+    }
+
+    Utils ..&gt; Constants : 알파 상수 참조
+    PlayControlFragment ..&gt; Utils : getOpacity 적용
+    PlayListFragment ..&gt; Utils : getOpacity 적용
+    MainListAdapter ..&gt; Utils : isNightMode
+    MainActivity ..&gt; Utils : 야간 구성 처리
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>Utils</code>가 야간 판정·알파 산출을 제공하고, 각 화면과 어댑터가 이를 호출해 표현을 조정합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>common/util/Utils.java</code> — 야간 판정과 알파 산출</div>
+<pre><code>public static boolean isNightMode(Configuration config) {
+    return (config.uiMode &amp; Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+}
+
+public static float getOpacity(boolean isNightMode) {
+    return isNightMode ? Constants.NIGHT_MODE_ALPHA : Constants.NO_ALPHA;  // 0.88f : 1.00f
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/PlayControlFragment.java</code> — 썸네일에 야간 알파 적용</div>
+<pre><code>binding.layoutPlayControlBodyContentInfo.imageviewPlayControlEpisode
+    .setAlpha(Utils.getOpacity(Utils.isNightMode(getResources().getConfiguration())));</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/util/Utils.java" target="_blank" rel="noopener">util/Utils.java</a><span class="src">isNightMode · getOpacity 야간 판정/알파</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/util/Constants.java" target="_blank" rel="noopener">util/Constants.java</a><span class="src">NIGHT_MODE_ALPHA=0.88f · NO_ALPHA=1.00f</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/res/values-night" target="_blank" rel="noopener">app/src/main/res/values-night</a><span class="src">야간 색상 리소스(colors.xml)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/res/drawable-night" target="_blank" rel="noopener">app/src/main/res/drawable-night</a><span class="src">밀도별 야간 아이콘 세트(drawable-night*)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/java/com/altimedia/automotive/kt/service/podcast/ui/MainActivity.java" target="_blank" rel="noopener">ui/MainActivity.java</a><span class="src">uiMode 변경 시 Fragment 재생성으로 야간 리소스 재바인딩</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f10.html">← 멀티윈도우·해상도 대응</a>
+      <a href="f12.html">스트리밍 안정화 (리다이렉트·CBR) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop-exoplayer</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_podcast_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

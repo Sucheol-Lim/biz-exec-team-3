@@ -1,0 +1,178 @@
+<!doctype html>
+<!-- ott-tvapp · VOD / CH-VOD 재생 기능 상세 — KctvVoDPlayer(OTT) HLS 재생 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VOD / CH-VOD 재생 — ott-tvapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KCTV 제주 OTT Android TV 앱 (ott-tvapp)</a><span class="sep">›</span>
+      <span class="here">VOD / CH-VOD 재생</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KCTV 제주</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>VOD / CH-VOD 재생</h1>
+    <p class="one-liner"><code>ctrl/VOD</code>가 KctvPlayer 계열 <code>KctvVoDPlayer</code>로 HLS(<code>playlist.m3u8</code>) 기반 VOD·채널형 VOD를 재생합니다. Legacy의 RTSP 전송 방식을 HLS로 전환한 결과입니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/ott-tvapp" target="_blank" rel="noopener"><code>ott-tvapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>android14/marusys</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ctrl/VOD</code> · <code>ott/VODInfo</code></div></div>
+      <div class="item"><div class="k">전송 방식</div><div class="v">HLS (<code>BuildConfig.HLS_BASE</code>)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>VOD 재생은 라이브와 별도의 <code>ctrl/VOD</code> 클래스가 담당합니다. <code>VOD.createPlayer()</code>로 <code>SurfaceView</code> 홀더를 준비한 뒤, 실제 재생 시점에 <code>KctvVoDPlayer</code>(KctvPlayer OTT 엔진) 인스턴스를 만들어 HLS 스트림을 재생합니다. 일반 VOD는 <code>playVOD()</code>, 홍보/예고편은 <code>playPromoVOD()</code>·<code>startPromoVOD()</code>가 진입점입니다.</p>
+    <p>재생 URL은 <code>VODInfo.makeUrl(BuildConfig.HLS_BASE)</code>로 만들어지며, 자산명·요청 ID·재생 위치 등을 담은 <code>VODInfo</code>가 <code>/kctv/ott/playlist.m3u8</code> 형태의 HLS 플레이리스트 주소를 구성합니다. 이 base 주소는 빌드 플레이버(livePublish/develop)에 따라 <code>BuildConfig</code>로 주입됩니다.</p>
+    <p>채널형 VOD(CH-VOD)는 라이브 채널 목록 안에 존재하지만 재생 매체는 VOD입니다. 라이브 튜닝 흐름(<code>Player.tuneLiveChannel</code>)에서 <code>Channels.isChVod()</code>로 판별되면 라이브 플레이어를 멈추고 VOD 재생 경로로 넘어가, 라이브와 VOD 재생기가 동일 <code>Surface</code>를 번갈아 사용합니다.</p>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as PlaybackActivity / WebView
+    participant VOD as ctrl/VOD
+    participant PL as ctrl/Player
+    participant VI as ott/VODInfo
+    participant VP as KctvVoDPlayer (KctvPlayer)
+
+    UI-&gt;&gt;VOD: playVOD(assetName, requestIDs, file, posInSec, vodType, isTrailer)
+    VOD-&gt;&gt;VOD: releasePlayer()
+    VOD-&gt;&gt;PL: Player.stop(forVod=true)
+    VOD-&gt;&gt;VI: new VODInfo(assetName, requestIDs, file, pos, vodType)
+    VOD-&gt;&gt;VI: makeUrl(BuildConfig.HLS_BASE)
+    VI--&gt;&gt;VOD: .../kctv/ott/playlist.m3u8?...
+    VOD-&gt;&gt;VP: new KctvVoDPlayer(ID_VOD, ctx, surface, onResult)
+    VOD-&gt;&gt;VP: playback(url, position, audioMode)
+    VP--&gt;&gt;VOD: KctvPlayerEventListener 이벤트(ENDED 등)
+    VOD-&gt;&gt;UI: handler 메시지(재생 상태/종료)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 라이브 재생을 멈추고 <code>VODInfo</code>로 HLS URL을 만든 뒤 <code>KctvVoDPlayer.playback()</code>으로 VOD를 재생합니다. CH-VOD도 동일 경로로 합류합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class VOD {
+        +createPlayer(Context, SurfaceView)
+        +playVOD(assetName, purchased, requestIDs, file, posInSec, vodType, isTrailer) String
+        +playPromoVOD(file, uri)
+        +STOP(int srcId) boolean
+        +SEEK_sec(int sec) boolean
+        +changePlayRate(float speedRate) boolean
+        +isPurchased() boolean
+    }
+    class VODInfo {
+        +makeUrl(String base) String
+        +getPosition() long
+    }
+    class KctvVoDPlayer {
+        +playback(String url, long position, boolean audioMode) Results
+        +stop()
+        +addKctvPlayerListener(listener)
+    }
+    class KctvPlayerEventListener {
+        &lt;&lt;interface&gt;&gt;
+        +onPlayerEvent(opcode, data)
+    }
+    class Player {
+        +stop(boolean forVod)
+    }
+
+    VOD --&gt; VODInfo : URL 생성
+    VOD --&gt; KctvVoDPlayer : playback
+    VOD ..&gt; KctvPlayerEventListener : 이벤트 수신
+    VOD --&gt; Player : 라이브 정지 요청
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>VOD</code>가 <code>VODInfo</code>로 HLS URL을 만들고 <code>KctvVoDPlayer</code>로 재생하며, 진입 시 <code>Player.stop()</code>으로 라이브를 양보받습니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ctrl/VOD.java</code> — playVOD: HLS URL 구성 후 KctvVoDPlayer 재생</div>
+<pre><code>releasePlayer();
+Player.stop(isTrailer ? false : true);   // 라이브 정지(또는 트레일러용)
+
+m_vodInfo = new VODInfo(assetName, requestIDs, file, posInSec * 1000L, vodType);
+String url = m_vodInfo.makeUrl(BuildConfig.HLS_BASE);   // .../playlist.m3u8
+
+try {
+    vodPlayer = new KctvVoDPlayer(ID_VOD, mContext, mSurfaceHolder.getSurface(), VOD::onResultReceived);
+    vodPlayer.addKctvPlayerListener(playerEventListener);
+    vodPlayer.setEosTime(EOS_TIME);
+    boolean audioMode = Config.getAudioOutput() == Config.AUDIO_OUTPUT_AC3;
+    Results result = vodPlayer.playback(url, m_vodInfo.getPosition(), audioMode);
+} catch (KctvPlayerException e) {
+    e.printStackTrace();
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ott/VODInfo.java</code> — makeUrl: HLS 플레이리스트 주소 조립</div>
+<pre><code>public String makeUrl(String base) {
+    return base + "/kctv/ott/playlist.m3u8" + /* 자산/요청 파라미터 부가 */ ...;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/VOD.java" target="_blank" rel="noopener">ctrl/VOD.java</a><span class="src">VOD/CH-VOD 재생 컨트롤러 · KctvVoDPlayer 래핑 · seek/배속/구매 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/VODInfo.java" target="_blank" rel="noopener">ott/VODInfo.java</a><span class="src">VOD 메타 모델 · HLS 재생 URL 생성(makeUrl)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/Player.java" target="_blank" rel="noopener">ctrl/Player.java</a><span class="src">VOD 진입 시 라이브 정지 / CH-VOD 분기(isChVod)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/build.gradle" target="_blank" rel="noopener">app/build.gradle</a><span class="src">HLS_BASE 등 서버 주소 buildConfigField (livePublish/develop)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">실시간 채널 시청</a>
+      <a href="f04.html">미니 EPG →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>android14/marusys</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">ott-tvapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

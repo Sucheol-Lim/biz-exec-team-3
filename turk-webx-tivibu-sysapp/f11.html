@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- turk-webx-tivibu-sysapp · 프로필 / 사용자 설정 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>프로필 / 사용자 설정 — turk-webx-tivibu-sysapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Türk Telekom Tivibu STB 시스템 앱 (EPG SYSAPP)</a><span class="sep">›</span>
+      <span class="here">프로필 / 사용자 설정</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">WebX STB · JavaScript (ES6/AMD)</span>
+    </div>
+    <h1>프로필 / 사용자 설정</h1>
+    <p class="one-liner"><code>ProfileController</code>가 프로필 선택 화면을 띄우고, <code>ProfileManager</code>가 현재 프로필·시청 등급을 관리하며, <code>UserConfigManager</code>가 서버 사용자 프레임 설정(컬럼·DRM URL 등)을 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp" target="_blank" rel="noopener"><code>turk-webx-tivibu-sysapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>controller/ProfileController.js</code> · <code>data/ProfileManager.js</code> · <code>data/UserConfigManager.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">프로필 전환 · 등급 동기화 · 사용자 설정</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>프로필은 한 가구의 여러 사용자(성인·키즈 등)를 구분해 시청 등급과 환경을 분리합니다. <code>ProfileController</code>는 <code>ProfileFrame</code>을 띄워 프로필 목록을 보여주고 선택을 받습니다. 선택된 프로필은 <code>ProfileManager.setCurrentProfile(profile)</code>로 저장되며, <code>UserPreference.setLastProfile()</code>에 직렬화되어 영속화되고, 필요 시 <code>updateUserLevel()</code>로 서버에서 시청 등급(userlevel)을 다시 받아 동기화합니다.</p>
+    <p>프로필 전환 시 PIN 보호가 걸려 있으면(<code>hasPassword()</code>) 확인이 필요하고, PIN이 없는 관리자(admin) 프로필이면 <code>checkNeedCreatePassword()</code>가 PIN 생성 OSD(<code>CREATE_PW</code>)를 띄웁니다. <code>UserConfigManager</code>는 부팅 시 <code>QueryManager.getUserFrameConfig()</code>로 서버 사용자 설정을 받아, TV/VOD 컬럼 코드, 페이지 점프, framecode, 수집 에이전트 URL, Widevine 라이선스 URL, 정상/키즈 프로필 ID 등 앱 전반의 구성 값을 제공합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      "프로필 화면"(<code>ProfileController</code>), "현재 프로필·등급 상태"(<code>ProfileManager</code>), "서버 사용자 구성"(<code>UserConfigManager</code>)을 분리합니다. 프로필 전환이 곧 시청 등급 변경으로 이어지므로, <code>setCurrentProfile</code>은 기본적으로 <code>updateUserLevel</code>을 함께 호출해 부모 잠금 판정과 일관성을 유지합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant PC as ProfileController
+    participant PF as ProfileFrame
+    participant PM as ProfileManager
+    participant UP as UserPreference
+    participant QM as QueryManager
+    participant UCM as UserConfigManager
+
+    Note over UCM: 부팅 시
+    UCM-&gt;&gt;QM: getUserFrameConfig()
+    QM--&gt;&gt;UCM: 컬럼·DRM·프로필 ID 등 설정
+    Note over PC: 프로필 화면 진입
+    PC-&gt;&gt;PF: RootWindow.showFrame('profileFrame')
+    PF--&gt;&gt;PC: 프로필 선택
+    PC-&gt;&gt;PM: setCurrentProfile(profile)
+    PM-&gt;&gt;UP: setLastProfile(profile)
+    PM-&gt;&gt;PM: updateUserLevel()
+    PM-&gt;&gt;QM: getInitialUserInfo()
+    QM--&gt;&gt;PM: userlevel → setParentalRatingThreshold
+      </div>
+      <p class="cap"><strong>흐름.</strong> 부팅 시 <code>UserConfigManager</code>가 서버 설정을 받고, 프로필 선택 시 <code>ProfileManager</code>가 현재 프로필을 저장하며 시청 등급을 동기화합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ProfileController {
+        -profileFrame ProfileFrame
+        +show(param, entrance)
+        +update(param)
+        +hide(param)
+    }
+    class ProfileManager {
+        +getProfileList() list
+        +getCurrentProfile() Profile
+        +setCurrentProfile(profile, needUpdate)
+        +hasPassword() bool
+        +checkNeedCreatePassword(cb)
+        +updateUserLevel(cb)
+    }
+    class UserConfigManager {
+        +getTvColumn()
+        +getWidevineLicenseUrl()
+        +getNormalProfileId()
+        +getKidsProfileId()
+        +getFramecode()
+    }
+    class UserPreference {
+        +setLastProfile(s)
+        +setParentalRatingThreshold(v)
+    }
+
+    ProfileController --&gt; ProfileManager : 프로필 선택 적용
+    ProfileManager --&gt; UserPreference : 영속화 · 등급 저장
+    ProfileManager ..&gt; UserConfigManager : 프로필 ID 등 설정
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>ProfileController</code>가 화면을, <code>ProfileManager</code>가 현재 프로필·등급 상태를, <code>UserConfigManager</code>가 서버 사용자 구성을 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>data/ProfileManager.js</code> — 현재 프로필 저장과 등급 동기화</div>
+<pre><code>setCurrentProfile: function(profile, needUpdateUserLevel = true) {
+    SYSAPP.UserPreference.setLastProfile(safeStringify(profile));
+    this.lastProfile = null;             // refresh 유도
+    if (needUpdateUserLevel) {
+        this.updateUserLevel();          // 프로필 전환 → 시청 등급 재동기화
+    }
+},
+
+hasPassword: function() {
+    var masterProfile = this.getMasterProfile();
+    return !(masterProfile &amp;&amp; masterProfile.havepwd == 0);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>data/UserConfigManager.js</code> — 서버 사용자 프레임 설정 로드</div>
+<pre><code>QueryManager.getUserFrameConfig(function(result) {
+    if (result &amp;&amp; result.success) {
+        if (_self.getDebugFtpIpList())
+            SYSAPP.UserPreference.setStorageUrl(_self.getDebugFtpIpList());
+        // getTvColumn / getWidevineLicenseUrl / getFramecode /
+        // getNormalProfileId / getKidsProfileId 등으로 앱 전반에 설정 제공
+    }
+});</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/ProfileController.js" target="_blank" rel="noopener">controller/ProfileController.js</a><span class="src">프로필 선택 화면 프레임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/data/ProfileManager.js" target="_blank" rel="noopener">data/ProfileManager.js</a><span class="src">현재 프로필·시청 등급 관리 · PIN 보호 점검</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/data/UserConfigManager.js" target="_blank" rel="noopener">data/UserConfigManager.js</a><span class="src">서버 사용자 프레임 설정(컬럼·DRM·프로필 ID 등)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/ui/profile/ProfileFrame.js" target="_blank" rel="noopener">ui/profile/ProfileFrame.js</a><span class="src">프로필 화면 위젯</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f10.html">← 부모 잠금 / 핀 관리</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f12.html">설정 · 시스템 관리 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">turk-webx-tivibu-sysapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

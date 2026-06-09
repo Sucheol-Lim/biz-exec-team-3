@@ -1,0 +1,202 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_poster · 영역 그리기 도구(rect/brush/eraser) 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>영역 그리기 도구 — kt_magic_platform_ai_poster 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 포스터 (지니 포스터 편집툴)</a><span class="sep">›</span>
+      <span class="here">영역 그리기 도구</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">PC 웹 (Vue 3 SPA) · Konva</span>
+    </div>
+    <h1>영역 그리기 도구</h1>
+    <p class="one-liner">선택 모드에서 사각형(rect)·브러쉬(brush)·지우개(eraser) 도구로 제거할 영역의 마스크를 그립니다. <code>PreviewPanel.vue</code>의 Konva 캔버스 위에서 동작하며, 브러쉬·지우개 크기는 슬라이더(기본 24, 범위 10~200)로 조절합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster" target="_blank" rel="noopener"><code>kt_magic_platform_ai_poster</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>PreviewPanel.vue</code> · <code>EditArea.vue</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">텍스트 제거 입력 단계 · 마스크 작성</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>영역 그리기는 부분 텍스트 제거에 쓸 마스크를 사용자가 직접 그리는 도구 모음입니다. <code>EditArea.vue</code>가 도구 상태(<code>textDeleteToolSelect</code>=none/all/select, <code>activeDrawTool</code>=rect/brush/eraser, <code>selectedToolGroup</code>=rect/brush)와 크기 값(<code>brushSize</code>, <code>eraserSize</code> 기본 24)을 관리하고, 이를 props로 <code>PreviewPanel.vue</code>에 내려 줍니다. <code>PreviewPanel</code>은 <code>props.textDeleteToolSelect</code>와 <code>props.activeDrawTool</code> 변화를 <code>watch</code>로 감지해 Konva Stage 이벤트를 다시 바인딩합니다(<code>bindStageEventsByState</code>).</p>
+    <p>사각형 도구는 <code>rectMouseDown/Move/Up</code>으로 드래그 영역을 그리고, 브러쉬·지우개는 <code>startDraw/drawMove/endDraw</code>로 선을 칠합니다. 지우개는 화면용 캔버스에서 <code>globalCompositeOperation = 'destination-out'</code>으로 지우면서, 전송용 API 마스크 캔버스에는 검정(<code>#000</code>)으로 덮어 "제거 안 함"으로 되돌립니다. 도구를 전환하면 <code>isDrawing</code> 상태와 이벤트가 초기화되어 잔여 입력이 다른 도구로 새지 않습니다.</p>
+    <div class="callout">
+      <div class="ct">두 개의 캔버스</div>
+      <code>PreviewPanel</code>은 화면 표시용 <code>maskCanvas</code>(반투명 핑크 <code>#f62556</code>, opacity 0.4)와 서버 전송용 <code>apiMaskCanvas</code>(제거 영역 흰색 <code>#fff</code>, 배경 검정)를 분리해 동시에 갱신합니다. 사용자에게 보이는 색과 실제 마스크 의미(흰=제거)가 다르기 때문입니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor U as 사용자
+    participant EA as EditArea.vue
+    participant PP as PreviewPanel.vue
+    participant ST as Konva Stage
+    participant MC as maskCanvas (화면)
+    participant AC as apiMaskCanvas (전송)
+
+    U-&gt;&gt;EA: 브러쉬/지우개/사각형 선택
+    EA-&gt;&gt;PP: props activeDrawTool / brushSize 변경
+    PP-&gt;&gt;ST: bindStageEventsByState() 재바인딩
+    U-&gt;&gt;ST: mousedown (그리기 시작)
+    ST-&gt;&gt;PP: startDraw(e)
+    PP-&gt;&gt;MC: 핑크 stroke 시작 (source-over)
+    PP-&gt;&gt;AC: 흰색 stroke 시작 (제거=흰)
+    loop 드래그 중
+        ST-&gt;&gt;PP: drawMove(e) → clampPointToImage()
+        PP-&gt;&gt;MC: lineTo + stroke
+        PP-&gt;&gt;AC: lineTo + stroke
+    end
+    ST-&gt;&gt;PP: mouseup → endDraw()
+    Note over PP: 지우개는 destination-out(화면) / #000(전송)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 도구 선택은 props로 내려오고, 실제 그리기는 Konva Stage의 포인터 이벤트가 화면용·전송용 두 캔버스에 동시 반영합니다. 좌표는 <code>clampPointToImage</code>로 이미지 영역 안쪽에 가둡니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class EditArea {
+        -textDeleteToolSelect
+        -activeDrawTool
+        -selectedToolGroup
+        -brushSize
+        -eraserSize
+        +handleRectClick()
+        +handleBrushClick()
+        +handleEraserClick()
+        +handleSliderChange(e)
+    }
+    class PreviewPanel {
+        -isDrawing
+        -selectionMode
+        -maskCanvas
+        -apiMaskCanvas
+        +startDraw(e)
+        +drawMove(e)
+        +endDraw()
+        +rectMouseDown()
+        +rectMouseMove(e)
+        +rectMouseUp()
+        +clampPointToImage(pos)
+        +bindStageEventsByState()
+    }
+    class KonvaStage {
+        +on(event, handler)
+        +getPointerPosition()
+    }
+
+    EditArea o-- PreviewPanel : props 전달 + ref
+    PreviewPanel o-- KonvaStage : Stage 소유
+    PreviewPanel ..&gt; KonvaStage : 이벤트 바인딩
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>EditArea</code>가 도구·크기 상태를 props로 내려 주면, <code>PreviewPanel</code>이 그 값에 맞춰 Konva Stage 이벤트를 바인딩하고 두 캔버스에 그립니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/components/panels/PreviewPanel.vue</code> — drawMove(): 화면용·전송용 동시 stroke</div>
+<pre><code>const clamped = clampPointToImage(pos);
+const size = props.activeDrawTool === "eraser" ? props.eraserSize : props.brushSize;
+
+// UI용(화면): 핑크, 지우개는 destination-out
+maskCtx.lineWidth = size;
+maskCtx.strokeStyle = "#f62556";
+maskCtx.globalCompositeOperation =
+    props.activeDrawTool === "eraser" ? "destination-out" : "source-over";
+maskCtx.lineTo(clamped.x, clamped.y);
+maskCtx.stroke();
+
+// maskImage 전송용: 제거=흰(#fff), 지우개는 검정(#000)으로 되돌림
+apiMaskCtx.lineWidth = size;
+apiMaskCtx.globalCompositeOperation = "source-over";
+apiMaskCtx.strokeStyle = props.activeDrawTool === "eraser" ? "#000" : "#fff";
+apiMaskCtx.lineTo(clamped.x, clamped.y);
+apiMaskCtx.stroke();
+
+maskImage?.getLayer()?.batchDraw();</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/components/panels/PreviewPanel.vue</code> — bindStageEventsByState(): 도구별 이벤트 바인딩</div>
+<pre><code>if (props.activeDrawTool === 'rect') {
+    stage.container().style.cursor = 'crosshair';
+    stage.on("mousedown", rectMouseDown);
+    stage.on("touchstart", rectMouseDown);
+    return;
+}
+
+if (props.activeDrawTool === 'brush' || props.activeDrawTool === 'eraser') {
+    stage.container().style.cursor = 'none';      // 커스텀 브러쉬 커서 사용
+    stage.on("mousedown touchstart", startDraw);
+    stage.on("mousemove touchmove", drawMove);
+    stage.on("mouseup touchend", endDraw);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/panels/PreviewPanel.vue" target="_blank" rel="noopener">posteredit/components/panels/PreviewPanel.vue</a><span class="src">Konva 캔버스 · startDraw/drawMove/endDraw · rectMouseDown/Move/Up · clampPointToImage</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/EditArea.vue" target="_blank" rel="noopener">posteredit/components/EditArea.vue</a><span class="src">도구 상태(activeDrawTool/selectedToolGroup) · brushSize/eraserSize · handleSliderChange</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/panels/RightPanel.vue" target="_blank" rel="noopener">posteredit/components/panels/RightPanel.vue</a><span class="src">전체/사각형/브러쉬 진입 버튼 (onTextDelete → select-text-tool)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f01.html">← 텍스트 제거</a>
+      <a href="f03.html">마스크 기반 부분 제거 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_poster 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

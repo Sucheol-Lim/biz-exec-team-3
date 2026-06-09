@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap · Mini EPG·채널 예약 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini EPG · 채널 예약 — skb_cloud_local_ocap 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local App OCAP</a><span class="sep">›</span>
+      <span class="here">Mini EPG · 채널 예약</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP / MHP STB · Java</span>
+    </div>
+    <h1>Mini EPG · 채널 예약</h1>
+    <p class="one-liner"><code>MiniEpgController</code>가 접근/서핑/오디오 채널 목록과 현재·다음 프로그램(<code>ProgramTable</code>)을 관리해 간이 편성표를 제공하고, <code>ReserveManager</code>가 시청 예약을 <code>Reminder</code>(TVTimer)로 등록·트리거합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap" target="_blank" rel="noopener"><code>skb_cloud_local_ocap</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>OCAP_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>miniepg/MiniEpgController.java</code> · <code>miniepg/reserve/ReserveManager.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">채널 배너 편성 정보 + 시청 예약 알림</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>Mini EPG는 채널 전환 시 화면 하단에 뜨는 채널 배너의 편성 정보(현재/다음 프로그램)와 채널 목록 탐색을 담당하는 간이 편성표입니다. 싱글톤 <code>MiniEpgController</code>가 <code>ChannelDatabaseEventListener</code>로 동작하며, 채널 DB 변경 시 접근 가능 채널(<code>chAccessable</code>), 서핑 채널(<code>chSurfable</code>), 오디오 채널(<code>chAudio</code>) 목록과 즐겨찾기·스킵·유료 채널 ID 배열을 갱신합니다(<code>updateChannels()</code>). 프로그램 정보는 <code>ProgramTable</code>/<code>ProgramInfo</code>에서 가져옵니다.</p>
+    <p>채널 예약은 <code>miniepg/reserve</code>의 <code>ReserveManager</code>가 담당합니다. <code>ReserveManager</code>는 (1) 예약된 프로그램 리스트(<code>reservedPrograms</code>, 최대 30개), (2) 정해진 시간에 트리거될 알림 리스트(<code>alarmReminderList</code>), (3) 트리거 후 사용자 액션을 처리하는 <code>actReminderList</code> 세 가지를 관리합니다. 예약은 사용자 프리퍼런스(<code>UserPreferenceItem.RESERVED_PROGRAMS</code>)에 저장되어 부팅 시 <code>load()</code>로 복원됩니다.</p>
+    <p>각 예약은 <code>Reminder</code>가 <code>TVTimerSpec</code>으로 등록되며, 프로그램 시작 <code>alarmBefore</code>(기본 60초) 전에 <code>AlarmEventListener</code>로 알림이 발생합니다. <code>MiniEpgController.init()</code>이 <code>ReserveManager.start()</code>를 호출해 예약 데이터를 로드하고 알림 리스너를 등록합니다.</p>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant MON as Monitor
+    participant MEC as MiniEpgController
+    participant PT as ProgramTable
+    participant RM as ReserveManager
+    participant TVT as TVTimer
+    participant AL as AlarmEventListener
+
+    MON-&gt;&gt;MEC: getInstance() / init()
+    MEC-&gt;&gt;MEC: updateChannels() (접근/서핑/오디오 목록)
+    MEC-&gt;&gt;PT: 현재/다음 프로그램 조회
+    MEC-&gt;&gt;RM: addAlarmEventListener(AlarmListener)
+    MEC-&gt;&gt;RM: start()
+    RM-&gt;&gt;RM: load() (예약 프로그램 복원)
+    loop 예약별
+        RM-&gt;&gt;TVT: addReminder (TVTimerSpec, 시작 60초 전)
+    end
+    Note over RM,AL: 예약 시각 도달
+    TVT-&gt;&gt;RM: timerWentOff
+    RM-&gt;&gt;AL: 알림 발생 (시청 안내 팝업)
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>MiniEpgController</code>가 채널·편성 목록을 구성하고 <code>ReserveManager.start()</code>로 예약을 로드합니다. 각 예약은 TVTimer로 등록되어 시작 전에 알림을 트리거합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class MiniEpgController {
+        +Channel[] chAccessable
+        +Channel[] chSurfable
+        +Channel[] chAudio
+        +getInstance() MiniEpgController
+        -init()
+        -updateChannels()
+    }
+    class ChannelDatabaseEventListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class ProgramTable {
+        +getInstance() ProgramTable
+    }
+    class ReserveManager {
+        +MAX_RESERVE
+        +long alarmBefore
+        +getInstance() ReserveManager
+        +start()
+        +addAlarmEventListener(listener)
+        -load()
+        -addReminder(reserved) boolean
+    }
+    class Reminder
+    class AlarmEventListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class ReservedProgram
+
+    MiniEpgController ..|&gt; ChannelDatabaseEventListener : implements
+    MiniEpgController ..&gt; ProgramTable : 편성 조회
+    MiniEpgController ..&gt; ReserveManager : start
+    ReserveManager o-- Reminder : 알림 보유
+    ReserveManager ..&gt; ReservedProgram : 예약 데이터
+    ReserveManager ..&gt; AlarmEventListener : 알림 통보
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>MiniEpgController</code>는 채널 DB 이벤트를 받아 편성 목록을 갱신하고 <code>ProgramTable</code>로 프로그램 정보를 얻습니다. <code>ReserveManager</code>는 예약을 <code>Reminder</code>로 보관하고 <code>AlarmEventListener</code>로 알림을 통보합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>miniepg/MiniEpgController.java</code> — 채널 목록 갱신 후 예약 매니저 기동</div>
+<pre><code>private void init() {
+    updateChannels();                                  // 접근/서핑/오디오 채널 목록 구성
+    MiniEpgChannelEventListener.getInstance();         // 채널 선택 이벤트 등록
+    MiniEpgUPController.getInstance();                 // UP(즐겨찾기/스킵 등) 변경 이벤트
+    // 예약: 알림 리스너 먼저 등록 후 start (load 시점에 Timer 리스너 등록 가능)
+    ReserveManager.getInstance().addAlarmEventListener(AlarmListener.getInstance());
+    ReserveManager.getInstance().start();
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>miniepg/reserve/ReserveManager.java</code> — 예약/알림 리스트 정의</div>
+<pre><code>public static final int MAX_RESERVE = 30;
+public static long DEFAULT_ALARM_BEFORE = 60 * 1000L;   // 시작 60초 전 알림
+public long alarmBefore = DEFAULT_ALARM_BEFORE;
+
+List reservedPrograms  = new ArrayList(MAX_RESERVE);    // 예약된 프로그램
+List alarmReminderList = new ArrayList(MAX_RESERVE);    // 트리거될 알림(TVTimerSpec)
+List actReminderList   = new ArrayList(MAX_RESERVE);    // 트리거 후 사용자 액션</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/miniepg/MiniEpgController.java" target="_blank" rel="noopener">miniepg/MiniEpgController.java</a><span class="src">Mini EPG 컨트롤러 — 채널 목록·편성 갱신, 예약 매니저 기동</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/miniepg/data/ProgramTable.java" target="_blank" rel="noopener">miniepg/data/ProgramTable.java</a><span class="src">현재/다음 프로그램 편성 테이블</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/miniepg/reserve/ReserveManager.java" target="_blank" rel="noopener">miniepg/reserve/ReserveManager.java</a><span class="src">시청 예약 관리 — 예약/알림/액션 리스트, TVTimer 등록 (start / load)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/miniepg/reserve/Reminder.java" target="_blank" rel="noopener">miniepg/reserve/Reminder.java</a><span class="src">개별 예약 알림(TVTimerSpec 래핑)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/miniepg/reserve/AlarmListener.java" target="_blank" rel="noopener">miniepg/reserve/AlarmListener.java</a><span class="src">예약 알림 이벤트 수신 리스너</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f08.html">← SDV 스위치드 디지털 비디오</a>
+      <a href="f10.html">VOD 재생 제어 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>OCAP_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

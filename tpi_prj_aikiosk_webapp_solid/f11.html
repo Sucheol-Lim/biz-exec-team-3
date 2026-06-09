@@ -1,0 +1,194 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp_solid · 다국어(i18n) 기능 상세 — i18next + LanguagePopup 언어 전환 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>다국어(i18n) — tpi_prj_aikiosk_webapp_solid 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp (SolidJS)</a><span class="sep">›</span>
+      <span class="here">다국어(i18n)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹앱 · Android WebView 키오스크 (Galaxy Tab S8)</span>
+    </div>
+    <h1>다국어(i18n)</h1>
+    <p class="one-liner">i18next 기반으로 한국어/영어 리소스를 제공하며, <code>LanguagePopup</code>으로 언어를 전환합니다. 언어 설정에 따라 STT 인식 언어와 TTS 서버가 함께 바뀝니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp_solid</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>index.jsx</code> · <code>LanguagePopup.jsx</code> · <code>ButtonLanguage.jsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">언어 전환 → STT/TTS 연동</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>다국어는 i18next를 SolidJS용 래퍼(<code>@mbarzda/solid-i18next</code>)로 구성합니다. <code>index.jsx</code>가 <code>TransProvider</code>로 앱을 감싸고, 한국어(<code>locales/ko/common.json</code>)·영어(<code>locales/en/common.json</code>) 리소스를 등록하며 초기 언어를 한국어(<code>ISO639CODE.Korean</code>)로 설정합니다. 화면 문구는 컴포넌트에서 <code>useTransContext</code>의 <code>t(key)</code>로 번역 키를 해석해 표시합니다.</p>
+    <p>언어 전환은 <code>LanguagePopup</code>이 제공합니다. 한국어·영어·독일어·프랑스어·네덜란드어·스페인어 6개 버튼을 렌더하지만, <code>ButtonLanguage</code>에서 한국어·영어만 활성화(<code>disabled=false</code>)되고 나머지는 비활성입니다. 버튼을 누르면 <code>actions.changeLanguage(lang)</code>로 i18next 언어를 바꾸고 팝업을 닫습니다. 언어가 바뀌면 STT·TTS도 함께 따라갑니다. STT는 <code>i18next.language</code>로 인식 언어(en-US/ko-KR)와 리전을 분기하고(기능 02), TTS는 영어=Azure·한국어=KT로 서버를 분기합니다(기능 03). 화면 안내 음성도 <code>IBCTTSManager</code>가 영어일 때 에셋 음성을, 그 외에는 번역 키를 합성합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      언어 코드가 STT 인식 언어와 TTS 서버 선택의 단일 기준이 되어, 언어를 한 번 바꾸면 텍스트·음성 인식·음성 합성이 일관되게 따라옵니다. 미지원 언어 버튼은 UI에는 노출하되 <code>disabled</code>로 막아 향후 확장 여지를 남겨 둡니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant LP as LanguagePopup
+    participant BL as ButtonLanguage
+    participant I18 as i18next
+    participant STT as AzureSTTManager
+    participant TTS as TTSManager
+
+    U->>LP: 언어 버튼 터치
+    LP->>BL: ButtonLanguage (lang)
+    alt 활성 언어 (ko / en)
+        BL->>I18: actions.changeLanguage(lang)
+        BL->>LP: closePopup()
+    else 비활성 언어
+        BL->>BL: 무시 (disabled)
+    end
+    Note over I18: 이후 인식/합성이 언어 기준으로 분기
+    STT->>I18: i18next.language == "en" ? en-US : ko-KR
+    TTS->>I18: i18n.language == "en" ? Azure : KT
+      </div>
+      <p class="cap"><strong>흐름.</strong> 활성 언어 버튼만 <code>changeLanguage</code>로 i18next 언어를 바꾸고, 이후 STT 인식 언어와 TTS 서버가 그 값을 기준으로 분기합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class index_jsx {
+        +TransProvider(resources, lng)
+    }
+    class LanguagePopup {
+        -langArray
+        +touchEndHandler()
+    }
+    class ButtonLanguage {
+        -lang
+        -disabled
+        +touchEndHandler()
+    }
+    class i18next {
+        +language
+        +changeLanguage(lang)
+        +t(key)
+    }
+    class ISO639CODE {
+        &lt;&lt;enumeration&gt;&gt;
+        Korean
+        English
+        German
+        French
+        Nederlands
+        Spanish
+    }
+
+    index_jsx --> i18next : Provider 구성
+    LanguagePopup --> ButtonLanguage : 언어별 버튼
+    ButtonLanguage --> i18next : changeLanguage
+    LanguagePopup ..> ISO639CODE
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>index.jsx</code>가 i18next Provider를 구성하고, <code>LanguagePopup</code>의 <code>ButtonLanguage</code>가 활성 언어를 <code>changeLanguage</code>로 전환합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/index.jsx</code> — i18next Provider 구성</div>
+<pre><code>const resources = {
+  en: { translation: translationEN },
+  ko: { translation: translationKO },
+};
+const initialLanguage = ISO639CODE.Korean;
+
+render(
+  () =&gt; (
+    &lt;TransProvider
+      options={{ resources, lng: initialLanguage }}
+      children={&lt;App /&gt;}
+    /&gt;
+  ),
+  root
+);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/components/Popup/LanguagePopup/ButtonLanguage/ButtonLanguage.jsx</code> — 활성 언어만 전환</div>
+<pre><code>switch (lang) {
+  case ISO639CODE.Korean:  icon = KorIcon; text = "한국어";   disabled = false; break;
+  case ISO639CODE.English: icon = EngIcon; text = "English";  disabled = false; break;
+  case ISO639CODE.German:  icon = GerIcon; text = "Deutsch";  disabled = true;  break;
+  /* French / Nederlands / Spanish: disabled = true */
+}
+
+const touchEndHandler = () =&gt; {
+  if (!disabled &amp;&amp; !isSelected()) {
+    closePopup();
+    actions.changeLanguage(lang);          // STT/TTS 분기 기준 변경
+  }
+};</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/index.jsx" target="_blank" rel="noopener">index.jsx</a><span class="src">TransProvider · ko/en 리소스 등록 · 초기 언어 한국어</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/popups/LanguagePopup/LanguagePopup.jsx" target="_blank" rel="noopener">popups/LanguagePopup/LanguagePopup.jsx</a><span class="src">언어 버튼 목록 렌더 · 닫기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/components/Popup/LanguagePopup/ButtonLanguage/ButtonLanguage.jsx" target="_blank" rel="noopener">components/Popup/LanguagePopup/ButtonLanguage/ButtonLanguage.jsx</a><span class="src">활성/비활성 분기 · changeLanguage 호출</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/constants/language.js" target="_blank" rel="noopener">constants/language.js</a><span class="src">ISO639CODE 언어 코드 정의</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f10.html">← 효과음 재생</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f12.html">전역 팝업 시스템 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tpi_prj_aikiosk_webapp_solid 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

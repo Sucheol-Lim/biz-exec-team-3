@@ -1,0 +1,186 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_poster · 결과 조회·다운로드(ResultArea, ZIP blob) 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결과 조회·다운로드 — kt_magic_platform_ai_poster 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 포스터 (지니 포스터 편집툴)</a><span class="sep">›</span>
+      <span class="here">결과 조회·다운로드</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">PC 웹 (Vue 3 SPA) · Blob 다운로드</span>
+    </div>
+    <h1>결과 조회·다운로드</h1>
+    <p class="one-liner">확장 결과를 결과 화면(<code>ResultArea.vue</code>)에서 카드로 표시하고, 전체/선택 항목을 ZIP(blob)으로 묶어 다운로드합니다. 불필요한 결과 이미지는 개별 선택해 삭제할 수 있습니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster" target="_blank" rel="noopener"><code>kt_magic_platform_ai_poster</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>ResultArea.vue</code> · <code>ResultCard.vue</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">이미지 확장 결과 산출물 관리</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>ResultArea.vue</code>는 확장 작업이 끝난 배너들을 그리드 카드(<code>ResultCard.vue</code>)로 보여 줍니다. 서버 응답의 <code>items</code>는 배너(규격)마다 여러 이미지를 담은 2단 구조라, <code>results</code> computed가 이를 <code>flatMap</code>으로 펼쳐 카드 한 장당 이미지 하나로 평탄화하고 각 이미지에 배너의 width/height를 붙입니다. 좌측 정보 패널에는 템플릿명·요청 시각·진행률·전체 상태가 표시됩니다.</p>
+    <p>다운로드는 선택한 이미지 ID 배열을 <code>postDownloadImages(projectId, jobId, { imageIds, format })</code>로 보내고, 응답을 <code>responseType: 'blob'</code>으로 받습니다. <code>handleConfirmDownload</code>가 이 응답을 <code>new Blob([...], { type: 'application/zip' })</code>로 감싼 뒤 <code>URL.createObjectURL</code> + 임시 앵커 클릭으로 ZIP 파일을 내려받고 즉시 <code>revokeObjectURL</code>로 정리합니다. 삭제는 <code>deleteImages(projectId, jobId, { data: { imageIds } })</code>로 처리하고, 성공 시 <code>rawItems</code>에서 해당 이미지를 제거해 화면을 갱신합니다.</p>
+    <div class="callout">
+      <div class="ct">선택 모드</div>
+      체크박스로 하나 이상 선택하면(<code>selectedCount &gt; 0</code>) 다운로드·삭제 버튼이 나타나고 "전체 선택" 토글이 활성화됩니다. 선택 ID는 <code>selectedImageIds</code> computed가 모아 다운로드/삭제 요청 본문에 그대로 사용합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor U as 사용자
+    participant RA as ResultArea.vue
+    participant RC as ResultCard.vue
+    participant API as api.poster
+    participant DOM as Browser (Blob/anchor)
+
+    RA-&gt;&gt;RC: results(평탄화된 카드) 렌더
+    U-&gt;&gt;RC: 카드 선택 (체크박스)
+    RC-&gt;&gt;RA: toggle-selection(resultId)
+    U-&gt;&gt;RA: "다운로드" → handleConfirmDownload(format)
+    RA-&gt;&gt;API: postDownloadImages(projectId, jobId, {imageIds, format}) (blob)
+    API--&gt;&gt;RA: ZIP blob
+    RA-&gt;&gt;DOM: createObjectURL + anchor.click() → revokeObjectURL
+    Note over U: 선택 항목 ZIP 저장
+    U-&gt;&gt;RA: "삭제" → handleConfirmDelete
+    RA-&gt;&gt;API: deleteImages(projectId, jobId, {imageIds})
+    RA-&gt;&gt;RA: rawItems에서 제거 → 그리드 갱신
+      </div>
+      <p class="cap"><strong>흐름.</strong> 평탄화된 카드에서 선택한 ID를 모아 ZIP blob으로 다운로드하거나 삭제 API로 정리합니다. 다운로드는 임시 앵커로 처리하고 즉시 URL을 해제합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ResultArea {
+        -rawItems
+        -selectedResults
+        +results
+        +selectedImageIds
+        +handleConfirmDownload(format)
+        +handleConfirmDelete(confirmed)
+        +toggleSelection(id)
+        +toggleSelectAll()
+    }
+    class ResultCard {
+        +result
+        +isSelected
+        +toggle-selection emit
+    }
+    class DownloadPopup {
+        +confirm(format) emit
+    }
+    class PosterApi {
+        +postDownloadImages(projectId, jobId, data)
+        +deleteImages(projectId, jobId, data)
+    }
+
+    ResultArea o-- ResultCard : v-for 카드
+    ResultArea o-- DownloadPopup : 형식 선택
+    ResultArea ..&gt; PosterApi : 다운로드/삭제
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>ResultArea</code>가 카드 목록과 선택 상태를 관리하고, 다운로드 형식은 <code>DownloadPopup</code>이 결정하며, 실제 ZIP/삭제는 <code>$api.poster</code>로 처리합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/components/ResultArea.vue</code> — ZIP blob 다운로드</div>
+<pre><code>async function handleConfirmDownload(format) {
+    showDownloadPopup.value = false
+    if (!format || selectedImageIds.value.length === 0) return
+
+    const response = await api.poster.postDownloadImages(
+        props.projectId, extensionId.value,
+        { imageIds: selectedImageIds.value, format: format.toLowerCase() }
+    )
+
+    const blob = new Blob([response.data], { type: 'application/zip' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `${props.projectDetail?.name || props.projectId}.zip`
+    anchor.click()
+    URL.revokeObjectURL(url)
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/components/ResultArea.vue</code> — 2단 items → 카드 평탄화</div>
+<pre><code>const results = computed(() =&gt; {
+    if (!rawItems.value || rawItems.value.length === 0) return []
+    return rawItems.value.flatMap(item =&gt; {
+        if (item.id === 'loading') return [item]              // 로딩 카드 유지
+        return (item.images || []).map(img =&gt; ({
+            ...img, width: item.width, height: item.height     // 배너 규격 부착
+        }))
+    })
+})</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/ResultArea.vue" target="_blank" rel="noopener">posteredit/components/ResultArea.vue</a><span class="src">결과 그리드 · results 평탄화 · handleConfirmDownload(ZIP blob) · handleConfirmDelete</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/ResultCard.vue" target="_blank" rel="noopener">posteredit/components/ResultCard.vue</a><span class="src">개별 결과 카드 · 선택 체크박스 · 확대(zoom) 트리거</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/popups/DownloadPopup.vue" target="_blank" rel="noopener">posteredit/components/popups/DownloadPopup.vue</a><span class="src">다운로드 형식(JPG/PNG) 선택 팝업</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/api/poster.js" target="_blank" rel="noopener">user/src/api/poster.js</a><span class="src">postDownloadImages(responseType blob) / deleteImages 엔드포인트</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f06.html">← 결과 폴링 처리</a>
+      <a href="f08.html">미리보기 확대/축소 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_poster 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

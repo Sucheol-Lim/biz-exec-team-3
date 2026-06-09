@@ -1,0 +1,195 @@
+<!doctype html>
+<!-- kt_integrated_iot_fe · 보안 로그인·마스킹 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>보안 로그인·마스킹 — kt_integrated_iot_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT 통합 IoT 관제 FE</a><span class="sep">›</span>
+      <span class="here">보안 로그인·마스킹</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관제 콘솔 (React SPA)</span>
+    </div>
+    <h1>보안 로그인·마스킹</h1>
+    <p class="one-liner">RSA 공개키로 암호화한 자격증명과 Google reCAPTCHA v3 토큰으로 로그인하고, 개인정보 마스킹/해제·OTP·비밀번호 변경 등 인증 모달을 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/auth/Login.tsx</code> · <code>utils/rsa.ts</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">RSA · reCAPTCHA v3 · maskValue</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>로그인 화면(<code>pages/auth/Login.tsx</code>)은 Formik 폼에 입력된 ID/비밀번호로 로그인합니다. 제출 시 먼저 <code>commonApi.getRsakey(id)</code>로 사용자별 RSA 공개키(<code>modulus</code>·<code>exponent</code>)와 <code>randomString</code>을 받아, <code>encryptPassword</code>(<code>utils/rsa.ts</code>)로 비밀번호를 PKCS#1 v1.5 패딩 후 RSA 암호화합니다. 이어 <code>executeRecaptcha('login')</code>으로 reCAPTCHA v3 토큰을 발급받습니다.</p>
+    <p>암호화된 비밀번호·<code>randomString</code>·reCAPTCHA 토큰을 묶어 <code>commonApi.login()</code>으로 전송하며, 토큰은 <code>X-RECAPTCHA-TOKEN</code> 헤더로 함께 전달됩니다. 응답이 <code>OK</code>이고 사용자가 해당 사이트 권한(플랫폼 관리자이거나 <code>unitServiceCodes</code>에 대상 코드 포함)을 가지면 <code>accessToken</code>·<code>site</code>를 세션에 저장하고 사용자 정보·서비스 대상을 세팅한 뒤 홈으로 이동합니다. 비밀번호 만료/임시 비밀번호면 약관·비밀번호 변경 모달을 거칩니다.</p>
+    <p>개인정보 마스킹은 <code>maskValue(type, value)</code> 유틸이 전화번호·ID·IP·이메일 타입별 규칙으로 일부 문자를 <code>*</code>로 가립니다. 마스킹 해제는 <code>ChangeMask</code> 모달로 사유·인증을 거쳐 평문을 조회하며(<code>userDetail(..., mask, reason)</code>), OTP(<code>Otp</code>)·비밀번호 변경(<code>ChangePassword</code>) 등 추가 인증 모달이 함께 제공됩니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      RSA 암호화는 외부 키 노출 없이 비밀번호 평문이 네트워크에 흐르지 않도록 클라이언트에서 수행합니다. <code>rsa.ts</code>는 BigInt 기반 <code>modPowInt</code>(Square-and-Multiply)로 모듈러 지수승을 구현해 별도 의존성 없이 동작합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant L as Login (pages/auth)
+    participant RSA as encryptPassword (utils/rsa)
+    participant CAP as reCAPTCHA v3
+    participant API as commonApi
+    participant SS as sessionStorage
+
+    L-&gt;&gt;API: getRsakey(id)
+    API--&gt;&gt;L: { modulus, exponent, randomString }
+    L-&gt;&gt;RSA: encryptPassword(pw, modulus, exponent)
+    RSA--&gt;&gt;L: 암호화된 비밀번호(hex)
+    L-&gt;&gt;CAP: executeRecaptcha('login')
+    CAP--&gt;&gt;L: recaptchaToken
+    L-&gt;&gt;API: login(payload) + X-RECAPTCHA-TOKEN
+    API--&gt;&gt;L: { accessToken, userRoleId, unitServiceCodes }
+    alt 권한 충족
+        L-&gt;&gt;SS: setSessionStorage(accessToken, site)
+        L-&gt;&gt;L: 사용자/서비스대상 세팅 → 홈 이동
+    else 불일치
+        L--&gt;&gt;L: 로그인 실패 메시지
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> RSA 키 수신 → 비밀번호 암호화 → reCAPTCHA 토큰 발급 → 로그인 요청 → 권한 확인 후 세션 저장의 순서로 진행됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class Login {
+        -formik
+        +onSubmit(values)
+        +settingUserInfo()
+        +goHome()
+    }
+    class rsa {
+        +encryptPassword(pw, modulus, exponent) string
+    }
+    class RSAKey {
+        -n BigInteger
+        -e
+        +setPublic(key)
+        +encrypt(text)
+    }
+    class commonApi {
+        +getRsakey(id)
+        +login(params, token)
+        +userDetail(id, mask, reason)
+    }
+    class util {
+        +maskValue(type, value) string
+    }
+    class AuthModal {
+        +ChangeMask
+        +ChangePassword
+        +Otp
+    }
+
+    Login ..&gt; rsa : 비밀번호 암호화
+    rsa --&gt; RSAKey : modPowInt
+    Login ..&gt; commonApi : 로그인/RSA키/상세
+    Login ..&gt; AuthModal : 비밀번호 변경/약관
+    AuthModal ..&gt; util : maskValue 마스킹
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>Login</code>이 <code>rsa</code>로 비밀번호를 암호화하고 <code>commonApi</code>로 인증하며, 마스킹은 <code>maskValue</code>, 추가 인증은 auth 모달들이 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/auth/Login.tsx</code> — RSA 암호화 + reCAPTCHA 로그인</div>
+<pre><code>const { data: rsaResult } = await rsaQuery.refetch();
+const { exponent, modulus, randomString } = rsaResult.result;
+const encryptedPassword = encryptPassword(formik.values.password, modulus, exponent);
+const recaptchaToken = await executeRecaptcha('login');
+const payload = { id: formik.values.userId, password: encryptedPassword, randomString, recaptchaToken };
+const loginResult = await loginMutation.mutateAsync(payload);
+if (loginResult.message === 'OK') {
+  if (loginResult.result.userRoleId === USER_ROLES[4].roleId
+      || loginResult.result.unitServiceCodes.includes(target?.realcode)) {
+    setSessionStorage('accessToken', loginResult.result.accessToken);
+    setSessionStorage('site', target);
+  }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/utils/util.ts</code> — 타입별 개인정보 마스킹</div>
+<pre><code>export function maskValue(type, value): string | null {
+  if (type == null || value == null) return null;
+  switch (type) {
+    case 'phone': /* 6~8번째 자리를 * 로 */ return value.replace(/\d/g, ...);
+    case 'id':    return value.length &lt;= 3 ? '***' : value.slice(0, -3) + '***';
+    case 'email': /* local 뒤 3자리 마스킹 */ return `${local.slice(0, -3)}***@${domain}`;
+    default:      return value.length &lt;= 1 ? '*' : value.slice(0, -1) + '*';
+  }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/auth/Login.tsx" target="_blank" rel="noopener">src/pages/auth/Login.tsx</a><span class="src">RSA 암호화 + reCAPTCHA v3 + 권한 확인 로그인</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/rsa.ts" target="_blank" rel="noopener">src/utils/rsa.ts</a><span class="src">RSAKey / encryptPassword · BigInt modPowInt</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/util.ts" target="_blank" rel="noopener">src/utils/util.ts</a><span class="src">maskValue 타입별 마스킹</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/common.ts" target="_blank" rel="noopener">src/api/common.ts</a><span class="src">login(X-RECAPTCHA-TOKEN) · getRsakey · userDetail(mask, reason)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modal/auth/ChangeMask.tsx" target="_blank" rel="noopener">src/modal/auth/ChangeMask.tsx</a><span class="src">마스킹 해제 인증 모달(OTP/비밀번호 변경 등 동위)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f11.html">권한 기반 사이트 전환 제어</a>
+      <a href="f13.html">과천 관제센터 특화 화면 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_integrated_iot_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

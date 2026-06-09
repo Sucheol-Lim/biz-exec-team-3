@@ -1,0 +1,198 @@
+<!doctype html>
+<!-- rms_fe · 모니터링 대시보드 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>모니터링 대시보드 — rms_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">RMS FrontEnd 과제</a><span class="sep">›</span>
+      <span class="here">모니터링 대시보드</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Altimedia RMS</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
+    </div>
+    <h1>모니터링 대시보드</h1>
+    <p class="one-liner"><code>dashboardRms</code> 화면이 <code>react-grid-layout</code> 기반의 드래그 가능한 위젯 그리드를 구성하고, <code>dashboardAxios</code>로 레이아웃·위젯 설정과 각 위젯 데이터를 받아 ApexCharts/Nivo 차트로 단말 상태를 실시간 집계해 보여줍니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/monitoring/dashboardRms.tsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">운영자 첫 진입 화면 · 단말 지표 집계</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>모니터링 대시보드는 운영자가 RMS에 로그인하면 처음 마주하는 화면으로, 현장에 배포된 단말의 온라인 수·모델별 분포·임계치 초과 추이 등을 위젯 단위로 보여줍니다. 화면 본체인 <code>dashboardRms.tsx</code>는 <code>react-grid-layout</code>의 <code>Responsive</code>를 <code>WidthProvider</code>로 감싼 <code>ResponsiveGridLayout</code>을 렌더링하며, 각 칸이 하나의 <code>DashboardItem</code> 위젯이 됩니다. 레이아웃 컬럼 수(<code>lg: 16</code>)와 행 높이는 컴포넌트 상단 상수로 고정되어 있습니다.</p>
+    <p>위젯 데이터는 서버 상태로 관리됩니다. 화면이 뜨면 <code>dashboardAxios</code>로 저장된 레이아웃(<code>/api/v1/dashboard-config/layouts</code>)과 위젯 목록(<code>/api/v1/dashboard-config/widgets</code>), 온라인 단말 수를 <code>Promise.all</code>로 병렬 조회한 뒤 <code>buildLayouts()</code>로 위젯과 레이아웃을 결합합니다. 이후 위젯별로 <code>widgetDetailInfos</code>에 정의된 개별 API를 호출해 차트 데이터를 채웁니다. 운영자가 위젯을 드래그하거나 크기를 조정하면 <code>onLayoutChange</code>가 상태를 갱신하고, 편집 모드에서 저장하면 <code>saveLayout()</code>이 변경된 레이아웃을 서버에 POST 합니다.</p>
+    <div class="callout">
+      <div class="ct">사이트별 위젯 분기</div>
+      <code>utils/env.ts</code>의 <code>widgetPermissions</code>에 따라 단말 위치 지도(<code>deviceLocationMap</code>)·브랜드 모델·네트워크 인터페이스 위젯은 OBE/TTG 타깃에서 숨겨지고, KT 타깃은 <code>disableEditMode</code>로 편집 자체가 비활성화됩니다. 즉 같은 코드가 사이트에 따라 다른 위젯 구성을 노출합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant OP as 운영자 (Browser)
+    participant DRM as dashboardRms.tsx
+    participant DA as dashboardAxios (_api/Dashboard)
+    participant BE as RMS BE 서버
+    participant GRID as ResponsiveGridLayout
+    participant ITEM as DashboardItem (차트)
+
+    OP-&gt;&gt;DRM: 대시보드 진입 (mount)
+    DRM-&gt;&gt;DA: getLayout() GET /dashboard-config/layouts
+    DRM-&gt;&gt;DA: getWidget() GET /dashboard-config/widgets
+    DRM-&gt;&gt;DA: getOnlineDevice()
+    DA-&gt;&gt;BE: Promise.all 병렬 요청
+    BE--&gt;&gt;DA: layouts / widgets / onlineDevice
+    DA--&gt;&gt;DRM: 응답 데이터
+    DRM-&gt;&gt;DRM: buildLayouts(widgets, layouts)
+    DRM-&gt;&gt;GRID: setLayouts(rebuildLayoutsData)
+    loop 위젯마다
+        DRM-&gt;&gt;DA: get(widgetAPI, widgetAPIParams)
+        DA--&gt;&gt;DRM: 위젯 데이터
+        DRM-&gt;&gt;ITEM: parsing() 후 차트 렌더
+    end
+    OP-&gt;&gt;GRID: 위젯 드래그 / 리사이즈
+    GRID-&gt;&gt;DRM: onLayoutChange(currentLayout, allLayouts)
+    OP-&gt;&gt;DRM: 저장
+    DRM-&gt;&gt;DA: saveLayout() POST /dashboard-config/layouts
+      </div>
+      <p class="cap"><strong>흐름.</strong> 마운트 시 레이아웃·위젯·온라인 수를 병렬 조회해 그리드를 재구성하고, 위젯별 개별 API로 차트를 채웁니다. 드래그/리사이즈는 <code>onLayoutChange</code>로 반영되고 저장 시 <code>saveLayout()</code>이 서버에 POST 합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class DashboardRms {
+        -layouts Layouts
+        +getLayout() Promise
+        +getWidget() Promise
+        +getOnlineDevice() Promise
+        +buildLayouts(widgets, layouts) Layouts
+        +onLayoutChange(current, all)
+        +saveLayout() Promise
+        +saveWidgets() Promise
+    }
+    class ResponsiveGridLayout {
+        +onLayoutChange()
+        +isDraggable
+        +isResizable
+    }
+    class DashboardItem {
+        +renderChart()
+    }
+    class dashboardAxios {
+        +get(url, params)
+        +post(url, data)
+    }
+    class widgetInfos {
+        +w
+        +h
+        +widgetAPI
+        +widgetAPIParams
+    }
+    class widgetPermissions {
+        +deviceLocationMap
+        +deviceBrandModel
+        +networkInterface
+        +disableEditMode
+    }
+
+    DashboardRms --&gt; ResponsiveGridLayout : 렌더
+    DashboardRms o-- DashboardItem : 위젯 소유
+    DashboardRms --&gt; dashboardAxios : 레이아웃/위젯 조회·저장
+    DashboardRms ..&gt; widgetInfos : 위젯 메타 참조
+    DashboardRms ..&gt; widgetPermissions : 사이트별 노출 분기
+    DashboardItem ..&gt; dashboardAxios : 위젯 데이터 조회
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>DashboardRms</code>가 <code>ResponsiveGridLayout</code>을 렌더하고 다수의 <code>DashboardItem</code>을 소유하며, <code>dashboardAxios</code>로 설정/데이터를 주고받습니다. 위젯 크기는 <code>widgetInfos</code>, 사이트별 노출은 <code>widgetPermissions</code>에서 결정됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>pages/monitoring/dashboardRms.tsx</code> — 레이아웃·위젯·온라인 수 병렬 조회 후 그리드 재구성</div>
+<pre><code>const [layoutsData, widgetsData, onlineDevice] = await Promise.all([
+  getLayout(),
+  getWidget(),
+  getOnlineDevice()
+]);
+const rebuildLayoutsData = buildLayouts(widgetsData, layoutsData);
+setLayouts(rebuildLayoutsData);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>pages/monitoring/dashboardRms.tsx</code> — 편집 후 레이아웃 저장 (드래그/리사이즈 메타 제거 후 POST)</div>
+<pre><code>const saveLayout = async () =&gt; {
+  const resizeLayout = mapValues(layouts, (layout) =&gt; {
+    return layout.map(({ isDraggable, isResizable, moved, static: staticValue, ...postLayout }: Layout) =&gt; {
+      return postLayout;
+    });
+  });
+  await dashboardAxios.post('api/v1/dashboard-config/layouts', resizeLayout);
+};</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/dashboardRms.tsx" target="_blank" rel="noopener">pages/monitoring/dashboardRms.tsx</a><span class="src">대시보드 본체 — 그리드 구성·레이아웃/위젯 조회·저장·onLayoutChange</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Dashboard.tsx" target="_blank" rel="noopener">_api/Dashboard.tsx</a><span class="src">dashboardAxios 인스턴스 — baseURL·토큰/Time-Zone 인터셉터·widgets 응답 필터</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/dashboardDetailModal.tsx" target="_blank" rel="noopener">pages/monitoring/dashboardDetailModal.tsx</a><span class="src">위젯 상세 모달 — 개별 위젯 데이터 상세 표시</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/utils/env.ts" target="_blank" rel="noopener">utils/env.ts</a><span class="src">widgetPermissions — 사이트별 위젯 노출·편집 모드 분기</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="index.html#features">이전 기능 없음</a>
+      <a href="f02.html">시스템 모니터링 · Quick Operation →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">rms_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

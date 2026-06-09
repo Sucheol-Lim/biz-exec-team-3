@@ -1,0 +1,451 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Kiosk WebApp (SolidJS) — 과제 설명</title>
+<style>
+:root{
+  --accent:#db2777;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">웹앱 · Android WebView 키오스크 (Galaxy Tab S8)</span>
+      <span class="badge gray">JavaScript (JSX)</span>
+    </div>
+    <h1>AI Kiosk WebApp (SolidJS)</h1>
+    <p class="one-liner">음성 인식(STT)·LLM 대화·음성 합성(TTS)으로 카페 메뉴를 주문하는 AI 키오스크 웹앱입니다. SolidJS로 구현한 성능평가용(React 대비) 산출물입니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp_solid</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2024-11-04 · 73886bc update order popup</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v">AIKioskWebApp_SOLID / 0.0.0</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>본 과제는 음성 기반 AI 주문 키오스크를 SolidJS로 구현한 웹 애플리케이션입니다. 사용자가 마이크에 말을 하면 STT(Speech-to-Text)로 음성을 텍스트로 변환하고, 대화 내용을 LLM 질의 서버로 전송해 주문 의도를 해석하며, 응답 메시지를 TTS(Text-to-Speech)로 음성 안내합니다. 화면에는 커피·티·주스 카테고리의 메뉴를 보여 주고, 장바구니 담기에서 결제·카드 삽입·영수증·완료에 이르는 키오스크 주문 플로우 전체를 제공합니다.</p>
+    <p>대상 단말은 삼성 Galaxy Tab S8 태블릿이며, 화면 해상도는 924x1480 고정(세로형)으로 정의되어 있습니다. 입력 방식은 터치와 음성을 함께 사용합니다. 앱은 Vite로 빌드된 브라우저 웹앱이지만, 키오스크 단말에서는 Android WebView에 탑재되어 동작하는 것을 전제로 합니다. <code>window.android</code> 네이티브 인터페이스가 존재하면 네이티브 STT를 호출하고, 그렇지 않은 일반 브라우저 환경에서는 Azure Speech SDK로 마이크를 직접 사용하도록 분기합니다.</p>
+    <p>화면 스케일은 <code>index.jsx</code>에서 <code>window.innerHeight / 1480</code> 비율로 <code>body</code>의 <code>zoom</code>을 조정해 다양한 해상도에 맞춥니다. 빌드는 <code>base: "./"</code>와 <code>no-crossorigin</code> 플러그인을 통해 <code>file://</code> 프로토콜에서도 동작하도록 구성되어 있어, 별도 웹 서버 없이 단말에 패키징해 띄울 수 있습니다.</p>
+    <div class="callout">
+      <div class="ct">성격 — 성능평가용 비교 구현</div>
+      사내 Confluence(Environment - AI Kiosk)에 따르면 AI Kiosk의 주 UI 라이브러리는 React이고, Solid는 "UI Library for Test"로 명시되어 있습니다. 즉 본 저장소는 동일한 AI 키오스크 기능을 React 버전과 비교·평가하기 위한 SolidJS 구현 산출물입니다. 빌드 시스템(Vite), 대상 단말(Galaxy Tab S8), 고정 해상도(924x1480), 입력 방식(터치·음성)은 규격 문서와 일치합니다.
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">음성 주문 대화</div><div class="d">마이크로 입력한 발화를 STT로 텍스트화하고, 대화 누적 목록을 LLM 질의 서버에 보내 주문 의도를 해석한 뒤 응답을 TTS로 음성 안내합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">STT(음성 인식) 이중 경로</div><div class="d">Android WebView에서는 <code>window.android</code> 네이티브 STT로 위임하고, 일반 브라우저에서는 Azure Speech SDK의 <code>SpeechRecognizer</code>를 직접 사용합니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">TTS(음성 합성) 분기</div><div class="d">한국어는 KT GiGA Genie OpenAPI TTS(기본 보이스 "다솜"), 영어는 Azure TTS로 분기합니다. 화면 안내 문구는 IBC TTS 경로로 재생합니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">LLM 질의 시퀀스</div><div class="d">이전 대화(previous)와 신규 발화(user)를 묶어 질의 서버의 <code>auto_query</code>로 POST하고, 응답 <code>type</code>(order/new/edit/mix/suggestion 등)에 따라 주문을 검증·정리합니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">메뉴 카탈로그</div><div class="d">커피·티·주스 3개 카테고리의 메뉴를 <code>data.js</code>에 정의하고, 카테고리별 이미지를 <code>import.meta.glob</code>로 로드해 페이지당 8개씩 페이지네이션합니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">옵션 선택</div><div class="d">온도(HOT/ICE), 디카페인, 시럽, 농도(연하게/진하게) 등 음료 옵션을 OptionPopup으로 선택하고 장바구니 항목에 반영합니다.</div></a>
+      <a class="card" href="f07.html"><div class="t">장바구니 관리</div><div class="d"><code>CartStore</code>가 장바구니 항목·총수량·총금액과 매장/포장(here·to go) 선택을 관리합니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">키오스크 주문 플로우</div><div class="d">Home → Menu → Cart → Pay → InsertCard → Receipt → Complete로 이어지는 결제·영수증·완료 화면 흐름을 <code>HashRouter</code> 라우트로 구성합니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">음성 파형 애니메이션</div><div class="d"><code>VoiceSequenceStore</code>가 프레임 이미지를 순환 재생해 "원→물결→직선→원" 상태로 음성 입력 중 시각 피드백을 제공합니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">효과음 재생</div><div class="d"><code>AudioPlayer</code>가 인식 시작 시 <code>siri_open.wav</code> 등 효과음을 재생해 대화 시작·종료를 사용자에게 알립니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">다국어(i18n)</div><div class="d">i18next 기반으로 한국어/영어 리소스를 제공하며, LanguagePopup으로 언어를 전환합니다. 언어 설정에 따라 STT 인식 언어와 TTS 서버가 함께 바뀝니다.</div></a>
+      <a class="card" href="f12.html"><div class="t">전역 팝업 시스템</div><div class="d"><code>popup.jsx</code>가 Portal로 전역 팝업 영역에 마운트하고, <code>PopupStore</code>로 Cart/Help/Language/Option 팝업을 띄웁니다.</div></a>
+      <a class="card" href="f13.html"><div class="t">file:// 단독 실행</div><div class="d"><code>base: "./"</code>와 <code>no-crossorigin</code> 플러그인으로 빌드 산출물이 별도 서버 없이 파일 프로토콜에서 그대로 실행됩니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">레벨별 로깅</div><div class="d"><code>CommonLog.getLog(name)</code>로 모듈별 태그 로그를 남기며, 빌드 인자(<code>log=false/true</code>)로 INFO/DEBUG 레벨을 전환합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>SolidJS 단일 페이지 웹앱이며, 화면은 <code>@solidjs/router</code>의 <code>HashRouter</code>로 라우팅합니다. 전역 상태는 <code>createRoot</code> 기반 스토어(<code>src/stores</code>)에 두고, 음성 입출력·LLM 질의 등 부수효과는 매니저 객체(<code>src/voices</code>, <code>src/api</code>)에 분리했습니다. UI는 <code>pages</code>(화면 단위)·<code>popups</code>(팝업)·<code>components</code>(공용 UI)로 나뉩니다.</p>
+    <pre class="tree">tpi_prj_aikiosk_webapp_solid/
+├─ index.html               # 진입 HTML. #root, #popup-area, /src/index.jsx 로드
+├─ vite.config.js           # Vite 설정 (alias, 폰트, mode별 build, zip pack)
+├─ jsconfig.json            # @ 경로 alias 정의
+├─ .env                     # APP_ prefix 환경변수 (키/엔드포인트/이름·버전)
+├─ package.json             # 스크립트·의존성
+└─ src/
+   ├─ index.jsx             # 엔트리. i18n Provider 구성, zoom 초기화, App 렌더
+   ├─ App.jsx               # HashRouter 라우트 정의, 매니저/스토어 초기화
+   ├─ Config.js             # STT 리전·TTS 서버 선택 상수
+   ├─ data.js               # 메뉴 데이터(커피/티/주스, 옵션, 가격, 이미지)
+   ├─ popup.jsx             # Portal 기반 전역 팝업 마운트
+   ├─ api/                  # 서버 통신
+   │  ├─ ajax-rxjs.js       # axios-observable + rxjs 래퍼 (retry 2회)
+   │  └─ queryManager.js    # LLM 질의 엔드포인트(default/order/beverage/other/auto)
+   ├─ voices/               # 음성 입출력 매니저
+   │  ├─ AzureSTTManager.js # Azure STT + Android 네이티브 STT 분기
+   │  ├─ AzureTTSManager.js / KTTTSManager.js / IBCTTSManager.js / TTSManager.js
+   │  ├─ LLMManager.js      # 질의 시퀀스 → queryManager 호출 → TTS 연동
+   │  ├─ AudioPlayer.js     # 효과음/오디오 재생
+   │  └─ kt/                # KT GiGA Genie API (auth, client, KtApi, util)
+   ├─ stores/               # SolidJS createRoot 기반 전역 상태
+   │  ├─ MenuStore.jsx      # 카테고리/페이지네이션
+   │  ├─ CartStore.jsx      # 장바구니·합계·매장/포장
+   │  ├─ LLMStore.jsx       # 대화 질의 시퀀스·주문 검증
+   │  ├─ STTStore.jsx       # 마이크 열고닫기·인식 텍스트
+   │  ├─ VoiceSequenceStore.jsx # 음성 파형 애니메이션 시퀀스
+   │  ├─ TTSTextStore.jsx / QueryStore.jsx / PopupStore.jsx / VolumeStore.jsx
+   ├─ pages/                # 화면 단위
+   │  ├─ Home/              # 시작/대기 화면
+   │  ├─ Menu/              # 메뉴 선택 화면
+   │  └─ Purchase/          # Cart, Pay, InsertCard, Receipt, Complete + Layout
+   ├─ popups/               # CartPopup/HelpPopup/LanguagePopup/OptionPopup + PopupLayout
+   ├─ components/           # Common / Home / Menu / Popup / Purchase 하위 UI
+   ├─ constants/            # menu, voice, popup, language, common 상수
+   ├─ hooks/                # useTTS, useIsMounted
+   ├─ utils/                # CommonLog, CartList, Option, Volume
+   ├─ locales/              # ko/common.json, en/common.json
+   └─ assets/               # 폰트, 메뉴 이미지, 음성 효과음, 파형 애니메이션 프레임</pre>
+
+    <h3>주요 모듈 · 클래스</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>모듈 / 파일</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td><code>App.jsx</code></td><td>HashRouter 라우트(<code>/</code>, <code>/menu</code>, <code>/purchase/*</code>) 정의. onMount에서 VolumeStore·STTStore·AzureTTSManager·LLMManager를 초기화합니다.</td></tr>
+          <tr><td><code>index.jsx</code></td><td>엔트리. i18n Provider 구성, <code>window.innerHeight / 1480</code> 비율로 body zoom 초기화 후 App 렌더.</td></tr>
+          <tr><td><code>voices/AzureSTTManager.js</code></td><td>STT 핵심. Android(<code>window.android</code>) 환경은 네이티브 STT(<code>azureMicOpenAndroid</code>)로, 그 외는 Azure <code>SpeechRecognizer</code>로 위임. 언어별 리전·엔드포인트 분기와 <code>PhraseListGrammar</code> 보강.</td></tr>
+          <tr><td><code>voices/LLMManager.js</code></td><td>대화 질의 시퀀스 처리. previous/user를 묶어 <code>queryManager.autoQuery</code> 호출 후, <code>useTTS</code> 시 응답 message를 TTS로 재생하고 결과를 콜백으로 전달.</td></tr>
+          <tr><td><code>voices/TTSManager.js</code></td><td>언어에 따라 영어는 AzureTTSManager, 한국어는 KTTTSManager로 TTS를 분기하는 <code>handleTts</code> 제공.</td></tr>
+          <tr><td><code>voices/KTTTSManager.js</code> · <code>voices/kt/</code></td><td>KT GiGA Genie OpenAPI(auth·client·KtApi·util)로 UUID 발급 후 한국어 TTS 재생. 기본 보이스 "다솜".</td></tr>
+          <tr><td><code>api/queryManager.js</code></td><td>LLM 질의 서버(<code>https://qz7d803.glddns.com:11591/api/</code>) 하위 <code>auto_query</code>/<code>default_query</code>/<code>order_query</code>/<code>beverage_query</code>/<code>other_query</code>로 POST.</td></tr>
+          <tr><td><code>api/ajax-rxjs.js</code></td><td>axios-observable 요청에 rxjs <code>retry(2)</code>와 에러 전파를 적용한 공통 송신 함수.</td></tr>
+          <tr><td><code>stores/MenuStore.jsx</code></td><td>data.js 메뉴를 커피/티/주스로 나눠 페이지당 8개(<code>ITEM_PER_PAGE</code>)로 페이지네이션.</td></tr>
+          <tr><td><code>stores/CartStore.jsx</code></td><td>장바구니 항목·총수량·총금액(<code>getTotalPrice</code>)·매장/포장(<code>hereTogo</code>) 관리.</td></tr>
+          <tr><td><code>stores/LLMStore.jsx</code></td><td>대화 누적 목록(role: user/assistant) 생성, <code>asyncQuerySequence</code>로 LLMManager 호출, 주문 검증(<code>validateOrderQuery</code>).</td></tr>
+          <tr><td><code>stores/STTStore.jsx</code></td><td>마이크 열고닫기(<code>startSTTAsync</code>), 인식 시작 효과음 재생, 인식 텍스트 상태 보관.</td></tr>
+          <tr><td><code>data.js</code></td><td>메뉴명·다국어 키·옵션(온도/디카페인/시럽/농도)·가격·카테고리별 이미지 정의.</td></tr>
+          <tr><td><code>Config.js</code></td><td>STT 리전(KOREA/SWEDEN)·TTS 서버(KT/AZURE) 선택 상수. 기본값 KOREA + KT.</td></tr>
+          <tr><td><code>utils/CommonLog.js</code></td><td><code>APP_LOG_LEVEL</code> 기반 태그 로거. 대부분 모듈이 <code>CommonLog.getLog(name)</code> 사용.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>계층 · 외부 연동</h3>
+    <p>UI 계층(pages·popups·components)은 스토어를 구독해 렌더링하고, 사용자 입력·음성 이벤트는 스토어 → 매니저(voices·api) → 외부 서비스 순으로 흐릅니다. 외부 연동은 세 갈래입니다. (1) Azure Speech(STT/영어 TTS), (2) KT GiGA Genie OpenAPI(한국어 TTS), (3) 사내 LLM 질의 서버(<code>qz7d803.glddns.com:11591</code>)입니다. 단말 측 네이티브 STT는 <code>window.android</code> JavaScript 인터페이스(<code>setSTTCallback</code>·<code>requestSpeechToText</code>·<code>setSpeechConfiguration</code>·<code>stopSpeechToText</code>)로 WebView 호스트와 양방향 통신합니다.</p>
+    <p>경로 alias는 <code>vite.config.js</code>와 <code>jsconfig.json</code>에 정의됩니다(<code>@</code>=src, <code>@pages</code>, <code>@popups</code>, <code>@components</code>, <code>@assets</code>, <code>@stores</code>, <code>@utils</code>, <code>@voices</code>, <code>@locales</code>). 다만 <code>@components</code>가 vite 설정에서는 <code>src/component</code>로, jsconfig에서는 <code>src/components</code>로 매핑되어 실제 디렉토리(<code>src/components</code>)와 설정 간 불일치가 존재합니다(추정 — 실 빌드 동작은 확인 필요).</p>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>언어</td><td>JavaScript (JSX)</td><td>-</td><td>TypeScript 미사용. jsconfig.json은 경로 alias 용도.</td></tr>
+          <tr><td>UI 프레임워크</td><td>SolidJS (solid-js)</td><td>^1.9.3 (lockfile 1.8.17)</td><td>성능평가용 Solid 구현. 주 버전은 React(Confluence 기준).</td></tr>
+          <tr><td>라우팅</td><td>@solidjs/router</td><td>^0.14.10</td><td>HashRouter 사용.</td></tr>
+          <tr><td>빌드 시스템</td><td>Vite + vite-plugin-solid</td><td>5.2.13 / 2.10.2</td><td><code>base: "./"</code>, file:// 대응 no-crossorigin 플러그인.</td></tr>
+          <tr><td>STT</td><td>microsoft-cognitiveservices-speech-sdk</td><td>^1.38.0</td><td>Azure Speech. Android에서는 네이티브 STT로 위임.</td></tr>
+          <tr><td>TTS</td><td>KT GiGA Genie OpenAPI / Azure TTS</td><td>-</td><td>한국어=KT, 영어=Azure. 화면 안내는 IBC 경로.</td></tr>
+          <tr><td>HTTP</td><td>axios + axios-observable + rxjs</td><td>^1.7.7 / ^2.0.0 / ^7.8.1</td><td>retry(2)·map·catchError 옵저버블 방식.</td></tr>
+          <tr><td>국제화</td><td>i18next / @mbarzda/solid-i18next / @solid-primitives/i18n</td><td>^23.15.1 / ^1.4.1 / ^2.1.1</td><td>한국어·영어 리소스(locales).</td></tr>
+          <tr><td>날짜</td><td>dayjs</td><td>^1.11.11</td><td>빌드 시각 <code>APP_UPDATE_DATE</code> 생성.</td></tr>
+          <tr><td>폰트/에셋</td><td>unplugin-fonts / vite-svg-loader / rollup-plugin-copy</td><td>^1.1.1 / ^5.1.0 / ^3.5.0</td><td>Pretendard·KCC-Hanbit 폰트 등록.</td></tr>
+          <tr><td>릴리스 패킹</td><td>vite-plugin-zip-pack</td><td>^1.2.3</td><td>release 모드에서 dist를 zip으로 압축.</td></tr>
+          <tr><td>린트</td><td>ESLint</td><td>^9.4.0</td><td><code>eslint . --ext js,jsx</code>.</td></tr>
+          <tr><td>대상 단말</td><td>Galaxy Tab S8 (Android WebView)</td><td>-</td><td>해상도 924x1480 고정(세로형), 입력 터치·음성.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+
+    <h3>음성 주문 파이프라인 (STT → LLM → TTS)</h3>
+    <ol class="steps">
+      <li><span class="st">마이크 열기 · STT 시작</span><span class="sd"><code>STTStore</code>가 <code>startSTTAsync</code>로 마이크를 열고 시작 효과음(<code>siri_open.wav</code>)을 재생합니다. 실제 인식은 <code>AzureSTTManager</code>가 담당합니다.</span></li>
+      <li><span class="st">STT 경로 분기</span><span class="sd">Android(<code>window.android</code> 존재) 환경은 네이티브 STT(<code>azureMicOpenAndroid</code>)로, 일반 브라우저는 Azure <code>SpeechRecognizer</code>로 위임합니다. 언어(<code>i18next.language</code>)에 따라 ko-KR/en-US와 리전·엔드포인트를 분기하고 <code>PhraseListGrammar</code>로 인식 정확도를 보강합니다.</span></li>
+      <li><span class="st">LLM 질의</span><span class="sd"><code>LLMStore.asyncQuerySequence</code>가 대화 누적 목록을 만들어 <code>LLMManager.querySequence</code>로 전달하고, <code>LLMManager</code>는 previous/user를 묶어 <code>queryManager.autoQuery</code>로 질의 서버(<code>/api/auto_query</code>)에 POST합니다.</span></li>
+      <li><span class="st">응답 해석 · 주문 검증</span><span class="sd">응답 <code>type</code>(order/new/edit/mix/suggestion 등)에 따라 주문을 검증(<code>validateOrderQuery</code>)하거나 추천 질의를 정리하고, 결과 message가 "ERROR"인지에 따라 성공/실패 콜백을 분기합니다.</span></li>
+      <li><span class="st">TTS 음성 안내</span><span class="sd"><code>TTSManager.handleTts</code>가 한국어는 KTTTSManager(KT GiGA Genie, 보이스 "다솜"), 영어는 AzureTTSManager로 분기해 응답 메시지를 음성으로 재생합니다.</span></li>
+      <li><span class="st">시각 피드백</span><span class="sd"><code>VoiceSequenceStore</code>가 파형 프레임 이미지를 "원→물결→직선→원"으로 순환 재생해 음성 입력 상태를 화면에 표시합니다.</span></li>
+    </ol>
+
+    <h3>키오스크 주문 화면 플로우</h3>
+    <ol class="steps">
+      <li><span class="st">Home (대기/시작)</span><span class="sd"><code>/</code> 경로. 키오스크 시작·음성 안내 대기 화면입니다.</span></li>
+      <li><span class="st">Menu (메뉴 선택)</span><span class="sd"><code>/menu</code>. 커피·티·주스 카테고리를 페이지당 8개로 보여 주고, OptionPopup으로 옵션을 선택합니다.</span></li>
+      <li><span class="st">Cart (장바구니)</span><span class="sd"><code>/purchase/cart</code>. <code>CartStore</code>가 항목·수량·총금액과 매장/포장 선택을 관리합니다.</span></li>
+      <li><span class="st">Pay → InsertCard</span><span class="sd"><code>/purchase/pay</code> → <code>/purchase/insert-card</code>. 결제 진행과 카드 삽입 안내 화면입니다.</span></li>
+      <li><span class="st">Receipt → Complete</span><span class="sd"><code>/purchase/receipt</code> → <code>/purchase/complete</code>. 영수증 출력과 주문 완료로 플로우를 마칩니다.</span></li>
+    </ol>
+
+    <h3>앱 초기화 시퀀스</h3>
+    <ol class="steps">
+      <li><span class="st">엔트리 렌더</span><span class="sd"><code>index.jsx</code>에서 i18n Provider를 구성하고 <code>window.innerHeight / 1480</code> 비율로 body zoom을 설정한 뒤 App을 렌더합니다.</span></li>
+      <li><span class="st">매니저/스토어 초기화</span><span class="sd"><code>App.jsx</code>의 onMount에서 VolumeStore·STTStore·AzureTTSManager·LLMManager를 차례로 initialize합니다.</span></li>
+      <li><span class="st">라우터 진입</span><span class="sd">HashRouter가 <code>/</code>(Home)부터 라우트를 매칭해 화면을 띄우고 음성 주문 대기 상태로 들어갑니다.</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>의존성 설치 후 <code>package.json</code> 스크립트로 빌드/프리뷰합니다. 루트의 기본 <code>README.md</code>는 SolidJS 템플릿 문서로 <code>npm run dev</code>/<code>npm run build</code>를 안내하지만, 실제 <code>package.json</code>에는 해당 스크립트가 없으므로 아래의 <code>serve</code>/<code>preview</code>/<code>release</code>를 사용해야 합니다.</p>
+    <pre><code># 의존성 설치
+npm install
+
+# 개발 서버 (vite serve, 호스트 노출)
+npm run serve
+
+# 빌드 후 프리뷰 (개발용)
+npm run preview          # vite build → vite preview --host
+npm run preview-nolog    # 로그 레벨 INFO로 빌드 후 프리뷰
+
+# 릴리스 빌드 (mode=release, dist를 release 폴더에 zip 패킹)
+npm run release          # vite build --mode release -- log=false live=true
+
+# 린트
+npm run lint</code></pre>
+    <p>빌드 인자/모드별 동작은 <code>vite.config.js</code>에 정의됩니다. 커맨드라인 인자 <code>log=false|true</code>는 <code>APP_LOG_LEVEL</code>을 INFO/DEBUG로, <code>live=true|false</code>는 <code>APP_NETWORK</code>를 Prod/Stag로 설정합니다. <code>mode === "release"</code>이면 <code>cssCodeSplit:false</code>로 묶고 <code>vite-plugin-zip-pack</code>이 dist를 <code>release/</code> 아래 <code>YYYYMMDD_앱이름_버전_네트워크_로그레벨.zip</code> 형식으로 압축합니다. <code>mode === "production"</code>은 <code>minify:false</code> 비압축 빌드입니다.</p>
+    <p>환경변수 prefix는 <code>APP_</code>이며 <code>.env</code>에서 로드합니다(앱 이름 <code>AIKioskWebApp_SOLID</code>, 버전 <code>0.0.0</code>). 빌드 시점에 <code>APP_UPDATE_DATE</code>가 dayjs로 갱신됩니다. 산출물은 <code>dist/</code> 폴더이며, <code>base: "./"</code> 상대 경로 빌드라 별도 서버 없이 <code>file://</code>로도 열립니다.</p>
+    <div class="callout warn">
+      <div class="ct">보안 주의</div>
+      <code>.env</code>에 Azure Speech API 키, KT 클라이언트 ID/Key/Secret 등 시크릿이 평문으로 커밋되어 있습니다. 성능평가용 저장소 특성으로 보이나, 실 운영 전 키 분리·교체가 필요합니다.
+    </div>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>저장소는 2024년 5월 초기 커밋 이후 6월에 프로젝트 셋업이 이뤄졌고, 10월 말~11월 초에 에셋(메뉴 이미지·파형 애니메이션) 추가, 설정·유틸 정비, UI 업데이트, 주문 팝업 갱신이 집중적으로 진행되었습니다. 전체 9개 커밋으로 규모가 작은 성능평가용 산출물입니다.</p>
+    <ul class="commits">
+      <li><span class="date">2024-11-04</span><span class="msg">update order popup</span></li>
+      <li><span class="date">2024-10-31</span><span class="msg">update ui</span></li>
+      <li><span class="date">2024-10-31</span><span class="msg">add utils</span></li>
+      <li><span class="date">2024-10-31</span><span class="msg">update configs</span></li>
+      <li><span class="date">2024-10-31</span><span class="msg">add assets for animation</span></li>
+      <li><span class="date">2024-10-31</span><span class="msg">add assets</span></li>
+      <li><span class="date">2024-06-10</span><span class="msg">setup project</span></li>
+      <li><span class="date">2024-06-10</span><span class="msg">update gitignore</span></li>
+      <li><span class="date">2024-05-30</span><span class="msg">Initial commit</span></li>
+    </ul>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li>README_CLAUDE.md — 과제 개요·구조·빌드 정리 문서<span class="src">저장소 루트 · /tpi_prj_aikiosk_webapp_solid/README_CLAUDE.md</span></li>
+      <li>README.md — SolidJS 템플릿 기본 문서(실제 스크립트와 불일치 주의)<span class="src">저장소 루트 · /tpi_prj_aikiosk_webapp_solid/README.md</span></li>
+      <li>package.json · vite.config.js · .env — 빌드 스크립트·플러그인·환경변수<span class="src">저장소 루트 · 빌드 설정</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3701702674">AI Kiosk</a><span class="src">Confluence ORGAPPDEV · 과제 메인 페이지</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3701637243">Specification - AI Kiosk</a><span class="src">Confluence ORGAPPDEV · HW(Galaxy Tab S8) · Figma UI/GUI 링크</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3701702749">Environment - AI Kiosk</a><span class="src">Confluence ORGAPPDEV · F/E 환경(React 주, Solid 평가용) · 924x1480 고정</span></li>
+      <li>Repo: <code>git@bitbucket.org:altimedia/tpi_prj_aikiosk_webapp_solid.git</code> (브랜치 main)<span class="src">형상 정보 · Bitbucket</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

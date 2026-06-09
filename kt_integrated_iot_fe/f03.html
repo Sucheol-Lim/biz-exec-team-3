@@ -1,0 +1,202 @@
+<!doctype html>
+<!-- kt_integrated_iot_fe · 카드형 종합 현황(위젯 그리드) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>카드형 종합 현황 — kt_integrated_iot_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT 통합 IoT 관제 FE</a><span class="sep">›</span>
+      <span class="here">카드형 종합 현황</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관제 콘솔 (React SPA)</span>
+    </div>
+    <h1>카드형 종합 현황</h1>
+    <p class="one-liner"><code>react-grid-layout</code> 기반 위젯 그리드로 실시간 디바이스·시설물·이벤트 현황을 카드 형태로 구성하고, 편집 모드에서 드래그·리사이즈한 배치를 저장합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>home/DashboardMap.tsx</code> · <code>components/widget</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">위젯 그리드 · 배치 저장 API</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>DashboardMap</code>은 <code>react-grid-layout</code>의 <code>Responsive</code> + <code>WidthProvider</code>를 사용해 위젯 카드를 격자에 배치합니다. 컨테이너 크기에 맞춰 <code>cols</code>와 <code>maxRows</code>를 동적으로 계산하고, <code>config.ts</code>의 <code>GRID_LAYOUT_*</code> 상수로 격자 단위·여백을 정합니다. 저장된 위젯 목록은 <code>getSavedWidgets(site.code, 'map_' + serviceType, savedWidgets)</code>로 사이트·서비스타입별로 불러옵니다.</p>
+    <p>각 카드는 <code>WidgetComp</code>(<code>components/widget</code>)가 위젯 <code>type</code>에 따라 적절한 위젯 컴포넌트(예: <code>OverAllStatus</code>, <code>EventOccurrence</code>, <code>DeviceStatus</code>, <code>WeatherInfo</code>, AMI/SMART GREEN 위젯 등)를 골라 렌더링합니다. 위젯 목록과 배치는 <code>commonApi.widgetList()</code>로 조회하고 <code>registWidget</code>·<code>editWidget</code>·<code>deleteWidget</code>으로 영속화합니다.</p>
+    <p>편집 모드(<code>isEditMode</code>)에서만 드래그·리사이즈가 허용되며, <code>onLayoutChange</code>가 변경된 좌표·크기를 위젯 상태에 반영합니다. <code>limitBottom</code>이 카드가 격자 최대 행(<code>GRID_LAYOUT_MAX_ROWS</code>)을 넘지 않도록 보정합니다. 편집 종료 시 <code>WidgetControl</code>이 변경 배치를 저장합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      비편집 상태에서는 빈 격자 영역의 클릭이 아래 지도로 전달되도록 부모 <code>Stack</code>의 <code>pointerEvents</code>를 <code>none</code>으로 두고, 각 카드 <code>Box</code>만 <code>auto</code>로 두어 지도와 위젯이 한 화면에 공존합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant DM as DashboardMap
+    participant LS as getSavedWidgets / config
+    participant RGL as ResponsiveGridLayout
+    participant WC as WidgetComp
+    participant Ctrl as WidgetControl
+    participant API as commonApi (widgets)
+
+    DM-&gt;&gt;LS: getSavedWidgets(site.code, map_serviceType)
+    LS--&gt;&gt;DM: widgets 목록
+    DM-&gt;&gt;RGL: layouts(i,x,y,w,h,minW,minH)
+    RGL-&gt;&gt;WC: 각 위젯 type 렌더
+    WC--&gt;&gt;RGL: 현황 카드 UI
+    opt 편집 모드
+        RGL-&gt;&gt;DM: onLayoutChange(newLayout)
+        DM-&gt;&gt;DM: limitBottom (최대 행 보정)
+        Ctrl-&gt;&gt;API: registWidget / editWidget / deleteWidget
+        API--&gt;&gt;Ctrl: 저장 결과
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 저장된 위젯을 격자에 배치하고 각 카드를 <code>WidgetComp</code>로 렌더한 뒤, 편집 모드에서 변경한 배치를 위젯 API로 저장합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class DashboardMap {
+        -widgets List~Widget~
+        -isEditMode
+        -cols
+        -maxRows
+        +handleLayoutChange(newLayout)
+        +limitBottom(layout, item)
+    }
+    class Widget {
+        +type
+        +x
+        +y
+        +w
+        +h
+        +mW
+        +mH
+    }
+    class ResponsiveGridLayout {
+        +onLayoutChange()
+        +onDragStop()
+    }
+    class WidgetComp {
+        +getWidgetInfo(type) comp
+    }
+    class WidgetControl {
+        +saveLayout()
+    }
+    class commonApi {
+        +widgetList()
+        +registWidget()
+        +editWidget()
+        +deleteWidget()
+    }
+
+    DashboardMap o-- Widget : 보유
+    DashboardMap --&gt; ResponsiveGridLayout : 격자 렌더
+    ResponsiveGridLayout --&gt; WidgetComp : 카드별 렌더
+    DashboardMap --&gt; WidgetControl : 편집·저장
+    WidgetControl ..&gt; commonApi : 배치 영속화
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>DashboardMap</code>이 <code>Widget</code> 목록을 격자에 배치하고, <code>WidgetComp</code>가 타입별 카드를 그리며 <code>WidgetControl</code>이 <code>commonApi</code> 위젯 엔드포인트로 배치를 저장합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/home/DashboardMap.tsx</code> — 위젯 → 그리드 레이아웃 매핑</div>
+<pre><code>const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const layout: Layout[] = widgets.map((w) =&gt; ({
+  i: w.type, x: w.x, y: w.y, w: w.w, h: w.h,
+  minW: w.mW ? w.mW : w.w,
+  minH: w.mH ? w.mH : w.h,
+}));
+
+const handleLayoutChange = (newLayout: Layout[]) =&gt; {
+  if (isEditMode) {
+    const updated = widgets.map((w) =&gt; {
+      const item = newLayout.find((l) =&gt; l.i === w.type);
+      return item ? { ...w, x: item.x, y: item.y, w: item.w, h: item.h } : w;
+    });
+    setWidgets(updated);
+  }
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/api/common.ts</code> — 위젯 배치 저장 엔드포인트</div>
+<pre><code>widgetList: (serviceType?: string) =&gt;
+  apiClient.get('/bff/monitor/widgets', { params: { size: 100, page: 0, serviceType } })
+    .then((res) =&gt; res.data),
+registWidget: (params) =&gt;
+  apiClient.post('/bff/monitor/widgets', { ...params }).then((res) =&gt; res.data),
+editWidget: (id, params) =&gt;
+  apiClient.put(`/bff/monitor/widgets/${id}`, { ...params }).then((res) =&gt; res.data),
+deleteWidget: (id) =&gt;
+  apiClient.delete(`/bff/monitor/widgets/${id}`).then((res) =&gt; res.data),</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/DashboardMap.tsx" target="_blank" rel="noopener">src/pages/home/DashboardMap.tsx</a><span class="src">react-grid-layout 격자 배치 · 편집 모드 · limitBottom 보정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/widget/index.tsx" target="_blank" rel="noopener">src/components/widget/index.tsx</a><span class="src">위젯 type → 위젯 컴포넌트 매핑(getWidgetInfo)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/WidgetControl.tsx" target="_blank" rel="noopener">src/pages/home/WidgetControl.tsx</a><span class="src">편집 모드 토글 · 배치 저장 컨트롤</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/common.ts" target="_blank" rel="noopener">src/api/common.ts</a><span class="src">widgetList / registWidget / editWidget / deleteWidget</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">GRID_LAYOUT_COLS / GRID_LAYOUT_MAX_ROWS 등 격자 상수</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">지도형 대시보드</a>
+      <a href="f04.html">실시간 이벤트 수신 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_integrated_iot_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

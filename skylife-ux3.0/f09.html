@@ -1,0 +1,185 @@
+<!doctype html>
+<!-- skylife-ux3.0 · 콘텐츠 검색·재생 음성 명령 기능 상세 — ContentSearchHandler / ContentPlayHandler -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>콘텐츠 검색·재생 음성 명령 — Skylife ATV EPG 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Skylife ATV EPG (UX3.0)</a><span class="sep">›</span>
+      <span class="here">콘텐츠 검색·재생 음성 명령</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT SkyLife</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV(Leanback) STB · Java</span>
+    </div>
+    <h1>콘텐츠 검색·재생 음성 명령</h1>
+    <p class="one-liner"><code>ContentSearchHandler</code>·<code>ContentPlayHandler</code>가 음성으로 받은 검색어로 결과를 찾아 검색 화면 또는 VOD 상세·자동 재생으로 직행시킵니다. content_play는 첫 결과를 골라 권한이 되면 본편을 자동 재생합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skylife-ux3.0" target="_blank" rel="noopener"><code>skylife-ux3.0</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feat/lw-voice-api</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>handler/ContentPlayHandler</code> · <code>ContentSearchHandler</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">content_search · content_play payload</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>content_search</code>는 검색 화면 진입(콘텐츠 목록 탐색)을, <code>content_play</code>는 한 작품을 찾아 곧바로 재생까지 가는 명령입니다. <code>ContentSearchHandler</code>는 <code>body.query</code>로 <code>TTSearchFragment</code>를 자동 검색 상태로 띄웁니다(통합 검색 문서 참조). <code>ContentPlayHandler</code>는 <code>CMSApiManagerV3.searchVodV3()</code>로 1차 검색한 뒤 <code>pickFirstContent()</code>로 첫 결과를 고르고, 단편이면 <code>LINK_CD</code>, 시리즈면 <code>LINK_SD</code> 링크로 VOD 상세에 진입합니다.</p>
+    <p>결과 선택은 VOD 컬렉션 우선 + 본편 우선 규칙을 따릅니다. 즉 "[예고편]·[캐치온 커밍쑨]" 같은 prefix 항목보다 정확 제목 일치 본편을 우선합니다. 1차 검색이 0건이면 <code>extractKeywordFromPrompt()</code>로 발화에서 동사/조사를 제거한 핵심 키워드(예: "프로텍터 재생해 줘"→"프로텍터")로 재검색하고, 보정한 검색어를 응답 카드로 안내합니다. 둘 다 실패하면 "검색 결과가 없어요" 카드를 표시합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      detail 진입 직전 <code>PENDING_AUTO_PLAY</code>(AtomicBoolean)를 set 하면 <code>TTVodDetailFragment</code>가 데이터 로드 완료 후 이 신호를 1회 consume 해 권한 OK면 자동 재생, NG면 detail 화면 노출로 분기합니다. 핸들러는 검색·매칭만 책임지고 실제 재생 권한 판정은 detail fragment가 수행하는 역할 분리 구조입니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant DSP as AssistantResponseDispatcher
+    participant CPH as ContentPlayHandler
+    participant CMS as CMSApiManagerV3
+    participant LM as TTUILinkManager
+    participant DF as TTVodDetailFragment
+
+    DSP-&gt;&gt;CPH: handle(body, prompt) (content_play)
+    CPH-&gt;&gt;CMS: searchVodV3(query)
+    CMS--&gt;&gt;CPH: SearchResultV3
+    CPH-&gt;&gt;CPH: pickFirstContent (VOD/본편 우선)
+    alt 결과 없음
+        CPH-&gt;&gt;CMS: searchVodV3(promptKeyword) 재검색
+    end
+    CPH-&gt;&gt;CPH: PENDING_AUTO_PLAY.set(true)
+    CPH-&gt;&gt;LM: handleLink(LINK_CD / LINK_SD, param)
+    LM-&gt;&gt;DF: 상세 진입 → 권한 OK면 자동 재생
+      </div>
+      <p class="cap"><strong>흐름.</strong> 검색어로 첫 결과를 고른 뒤(없으면 prompt 키워드 재검색) detail에 진입하고, auto-play 신호로 권한이 되면 본편을 자동 재생합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ContentPlayHandler {
+        +AtomicBoolean PENDING_AUTO_PLAY
+        +handle(ctx, body, prompt)
+        -search(ctx, keyword, prompt, retried)
+        -pickFirstContent(data, query) Content
+        -openDetail(ctx, first)
+        +extractKeywordFromPrompt(prompt) String
+    }
+    class ContentSearchHandler {
+        +handle(ctx, body)
+    }
+    class CMSApiManagerV3 {
+        +searchVodV3(subscriber, keyword)
+    }
+    class SearchResultV3 {
+        +SearchResultData data
+    }
+    class TTUILinkManager {
+        +handleLink(type, param, ext, src)
+    }
+    class TTVodDetailFragment
+
+    ContentPlayHandler --&gt; CMSApiManagerV3 : 검색
+    CMSApiManagerV3 --&gt; SearchResultV3 : 결과
+    ContentPlayHandler --&gt; TTUILinkManager : detail 진입
+    TTUILinkManager --&gt; TTVodDetailFragment : 자동 재생 consume
+    ContentSearchHandler ..&gt; TTUILinkManager : 검색 화면
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>ContentPlayHandler</code>가 CMS 검색으로 첫 결과를 고르고 <code>TTUILinkManager</code>로 detail에 진입시키며, auto-play 신호는 detail fragment가 소비합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>assistant/handler/ContentPlayHandler.java</code> — 검색 → 첫 결과 → detail 진입(auto-play)</div>
+<pre><code>private static void openDetail(Context ctx, SearchResultV3.Content first) {
+    boolean isSeries = "S".equalsIgnoreCase(first.contentType);
+    String linkType = isSeries ? CMSDefV3.LINK_SD : CMSDefV3.LINK_CD;
+    String linkParam = buildLinkParam(first, isSeries);
+    if (TextUtils.isEmpty(linkParam)) return;
+
+    TTUILinkManager link = getLinkHandler(ctx);
+    if (link == null) return;
+    // detail 진입 직전 auto-play signal — TTVodDetailFragment 가 로드 완료 후 1회 consume.
+    PENDING_AUTO_PLAY.set(true);
+    new Handler(Looper.getMainLooper()).post(() -&gt;
+            link.handleLink(linkType, linkParam, null, "lwvoice-content-play"));
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>assistant/handler/ContentPlayHandler.java</code> — 0건 시 prompt 키워드 재검색</div>
+<pre><code>if (first == null) {
+    if (!retried) {
+        String fromPrompt = extractKeywordFromPrompt(prompt);   // 동사/조사 제거
+        if (!TextUtils.isEmpty(fromPrompt) &amp;&amp; !fromPrompt.equals(keyword)) {
+            showAdjustedQueryNotice(ctx, fromPrompt, prompt);   // "‘X’로 검색했어요"
+            search(ctx, fromPrompt, prompt, true);              // 재검색
+            return;
+        }
+    }
+    showNoResultCard(ctx, "“" + keyword + "” 검색 결과가 없어요.", prompt);
+    return;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/handler/ContentPlayHandler.java" target="_blank" rel="noopener">assistant/handler/ContentPlayHandler.java</a><span class="src">content_play — 검색/첫 결과 선택/재검색/detail 자동 재생 진입</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/handler/ContentSearchHandler.java" target="_blank" rel="noopener">assistant/handler/ContentSearchHandler.java</a><span class="src">content_search — 검색 화면 자동 입력/검색</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/vod/TTVodDetailFragment.java" target="_blank" rel="noopener">ui/vod/TTVodDetailFragment.java</a><span class="src">PENDING_AUTO_PLAY consume — 권한 판정 후 자동 재생</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/AssistantResponseDispatcher.java" target="_blank" rel="noopener">assistant/AssistantResponseDispatcher.java</a><span class="src">content_search / content_play payload 분기</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f08.html">← STB 제어 명령</a>
+      <a href="index.html#features">목록</a>
+      <a href="f10.html">시청예약 · 타이머 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feat/lw-voice-api</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">Skylife ATV EPG 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

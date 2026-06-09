@@ -1,0 +1,222 @@
+<!doctype html>
+<!-- skb_cloud_local_android · 라이브 채널 시청 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>라이브 채널 시청 — skb_cloud_local_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local EPG (Android)</a><span class="sep">›</span>
+      <span class="here">라이브 채널 시청</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>라이브 채널 시청</h1>
+    <p class="one-liner"><code>ChannelController</code>가 튠을 결정하고 <code>PlaybackFragment</code>/<code>TvViewer</code>가 <code>TvView</code> 세션으로 라이브 채널을 재생하며, <code>FCC</code>(Fast Channel Change)가 인접 채널을 미리 프라임하여 빠른 채널 전환을 지원합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_android" target="_blank" rel="noopener"><code>skb_cloud_local_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>UC500_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>PlaybackFragment</code> · <code>TvViewer</code> · <code>ChannelController</code> · <code>FCC</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">라이브 방송 재생 · 채널 UP/DOWN 전환</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>라이브 시청은 재생 레이어(<code>LAYER_TV_VIEW</code>)의 <code>PlaybackFragment</code>가 담당합니다. 내부 뷰 <code>TvViewer</code>(<code>RelativeLayout</code>)가 <code>SurfaceHolder</code> 기반의 <code>TvView</code> 세션을 들고 있으며, <code>tune()</code> 호출 시 <code>tvViewSession.tune(TAURUS_TV_INPUT_ID, Uri, bundle)</code>로 셋톱 TV 인풋에 실제 튠을 요청해 방송 스트림을 재생합니다.</p>
+    <p>채널 결정은 <code>ChannelController</code>가 주관합니다. UP/DOWN·번호 입력·EPG 선택·3rd party 요청을 받아 대상 <code>ExChannel</code>을 정하고, <code>PlaybackFragment.tune()</code>에 URI를 넘깁니다. 튠 직전 SDV 상태면 기존 SDV 세션을 정리하고, 8VSB 채널이면 1초 후 <code>CoqpManager.msg8VSB()</code>로 품질계측 메시지를 보냅니다.</p>
+    <p>빠른 채널 전환(FCC)은 <code>module/fcc/FCC</code>가 담당합니다. <code>primeChannels()</code>가 현재 채널 기준 다음/이전 채널을 미리 튜너 프라이머(<code>ChannelPrimerProxy</code>)에 prime 해 두어, 사용자가 채널을 넘길 때 이미 준비된 스트림으로 즉시 전환되도록 합니다. 8VSB 양쪽 채널이고 직전 prime 대상과 동일하면 중복 prime을 건너뛰고, 스탠바이 상태(<code>!isRunningMode()</code>)에서는 prime/튠을 막습니다.</p>
+    <div class="callout">
+      <div class="ct">8VSB 중복 튠 방지</div>
+      <code>primeChannels()</code>는 up/down 채널이 모두 8VSB(<code>getModulationFormat() == 4</code>)이고 직전 prime 채널(<code>oldUp</code>/<code>oldDown</code>)과 같으면 즉시 return 하여, 동일 8VSB 채널에서 FCC를 여러 번 시도할 때 불필요한 반복 prime을 차단합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant USR as 사용자 (CH UP/DOWN)
+    participant CC as ChannelController
+    participant PMM as PowerModeManager
+    participant FCC as FCC
+    participant PF as PlaybackFragment
+    participant TV as TvViewer (TvView 세션)
+    participant COQP as CoqpManager
+
+    USR-&gt;&gt;CC: 채널 UP/DOWN 입력
+    CC-&gt;&gt;CC: 대상 ExChannel 결정 / setLatestUri
+    CC-&gt;&gt;PF: tune(uri, fromEPG, bundle)
+    PF-&gt;&gt;TV: tvViewSession.tune(TAURUS_TV_INPUT_ID, Uri)
+    TV--&gt;&gt;PF: 스트림 재생 시작
+    alt is8VSB
+        PF-&gt;&gt;COQP: msg8VSB() (1초 지연)
+    end
+    CC-&gt;&gt;FCC: primeChannels(cur, navNextCh)
+    FCC-&gt;&gt;PMM: isRunningMode()?
+    alt standby
+        PMM--&gt;&gt;FCC: false → prime 중단
+    else 양쪽 8VSB & 직전과 동일
+        FCC-&gt;&gt;FCC: 중복 prime 무시
+    else
+        FCC-&gt;&gt;FCC: primers[].primeChannel(up/down)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>ChannelController</code>가 튠을 결정해 <code>PlaybackFragment</code>로 재생하고, <code>FCC.primeChannels()</code>가 인접 채널을 미리 prime 하되 스탠바이·8VSB 중복 조건에서는 건너뜁니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ChannelController {
+        +tune(ExChannel, Bundle)
+        +getNextChannel() ExChannel
+        +getPrevChannel() ExChannel
+        +getCurrentChannel() ExChannel
+        +setLatestUri(uri)
+        +set3rdPartyTuneCh(reqCh)
+    }
+    class PlaybackFragment {
+        -TvViewer tvViewer
+        +newInstance() PlaybackFragment
+        +tune(String uri)
+        +tune(uri, fromEPG, Bundle)
+        +stopChannel()
+        +resizeScreen(Rect)
+    }
+    class TvViewer {
+        -SurfaceHolder holder
+        +init()
+    }
+    class FCC {
+        +init()
+        +primeChannels(ExChannel, boolean)
+        +stop()
+    }
+    class ChannelPrimerProxy {
+        +primeChannel(ExChannel, int)
+        +stopPrime()
+    }
+    class PowerModeManager {
+        +isRunningMode() boolean
+    }
+    class ExChannel {
+        +getNumber() int
+        +getModulationFormat() int
+        +getUri() String
+    }
+
+    PlaybackFragment *-- TvViewer : 소유
+    ChannelController --&gt; PlaybackFragment : tune 위임
+    ChannelController --&gt; FCC : primeChannels
+    FCC --&gt; ChannelPrimerProxy : prime 위임
+    FCC ..&gt; PowerModeManager : standby 확인
+    ChannelController ..&gt; ExChannel
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>PlaybackFragment</code>가 <code>TvViewer</code>를 소유하고, <code>ChannelController</code>가 튠과 FCC prime을 지휘하며, <code>FCC</code>는 <code>ChannelPrimerProxy</code>로 인접 채널을 미리 준비합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/main/fragment/PlaybackFragment.java</code> — TvView 세션 튠과 8VSB 품질계측</div>
+<pre><code>public void tune(String uri, boolean fromEPG, Bundle bundle) {
+    if (uri == null) return;
+    boolean is8VSB = false;
+    if (bundle != null) {
+        is8VSB = bundle.getBoolean(ExChannelParam.KEY_BOOLEAN_TUNE_BY_8VSB);
+    }
+    // SDV 상태면 기존 SDV 정리
+    if (bundle == null || !bundle.getBoolean(ExChannelParam.KEY_BOOLEAN_IS_TUNE_BY_SDV)) {
+        if (SdvManager.getInstance().getSDVState() &amp;&amp; !SdvManager.getInstance().isDefaultChannelUri(uri)) {
+            SdvManager.getInstance().stopSDV();
+        }
+    }
+    ChannelController.getInstance().setLatestUri(uri);
+    ChannelController.getInstance().setIs8VSB(is8VSB);
+    tvViewSession.tune(TAURUS_TV_INPUT_ID, Uri.parse(uri), b);
+    if (is8VSB) {
+        // 1초 후 8VSB 품질계측 메시지 전송
+        CoqpManager.getInstance().msg8VSB();
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>module/fcc/FCC.java</code> — 스탠바이 차단 및 8VSB 중복 prime 방지</div>
+<pre><code>public static void primeChannels(ExChannel cur, boolean navNextCh) {
+    if (!PowerModeManager.getInstance().isRunningMode()) {
+        Log.i(TAG, "primeChannels: it's standby, so return");   // 스탠바이 → prime 금지
+        return;
+    }
+    ExChannel up = ChannelController.getInstance().getNextChannel();
+    ExChannel down = ChannelController.getInstance().getPrevChannel();
+    boolean both8Vsb = up.getModulationFormat() == 4 &amp;&amp; up.getModulationFormat() == 4;
+    if (both8Vsb) {
+        if (up.equals(oldUp) || down.equals(oldDown)) {
+            return;                                              // 직전과 동일 → 중복 prime 무시
+        }
+        // ... primers[0].primeChannel(up/down, 999)
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/ui/main/fragment/PlaybackFragment.java" target="_blank" rel="noopener">ui/main/fragment/PlaybackFragment.java</a><span class="src">TvView 세션 튠 · 8VSB 품질계측 · 화면 리사이즈</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/ui/main/fragment/TvViewer.java" target="_blank" rel="noopener">ui/main/fragment/TvViewer.java</a><span class="src">SurfaceHolder 기반 TvView 컨테이너</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/si/ChannelController.java" target="_blank" rel="noopener">module/si/ChannelController.java</a><span class="src">채널 결정 · 튠 위임 · 다음/이전 채널 조회</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/fcc/FCC.java" target="_blank" rel="noopener">module/fcc/FCC.java</a><span class="src">FCC 빠른 채널 전환 · 인접 채널 prime · 8VSB 중복 방지</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f01.html">← First Screen / 런처</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f03.html">미니 EPG / 채널 리스트 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>UC500_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!doctype html>
+<!-- kt_integrated_iot_fe · 과천 관제센터 특화 화면 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>과천 관제센터 특화 화면 — kt_integrated_iot_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT 통합 IoT 관제 FE</a><span class="sep">›</span>
+      <span class="here">과천 관제센터 특화 화면</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관제 콘솔 (React SPA)</span>
+    </div>
+    <h1>과천 관제센터 특화 화면</h1>
+    <p class="one-liner">Air Map 하위 과천(<code>GWACHEON</code>) 진입점에 통신 상태·미수신·센싱 오류·전송 실패 등 측정망 운영에 특화된 관제 화면을 별도로 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/overview/gwacheon</code> · <code>api/gwacheon.ts</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">realcode 001ENV301 공유, 화면만 분리</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>과천 관제센터는 <code>config.ts</code>의 <code>SITE_LIST</code>에서 별도 <code>code: 'GWACHEON'</code>으로 정의되지만 <code>realcode</code>는 Air Map과 동일한 <code>001ENV301</code>입니다. 즉 데이터 출처(단위서비스코드)는 Air Map과 같으면서 측정망 운영용 화면만 분리한 진입점입니다. 경로는 <code>/gwacheon/...</code>으로 시작합니다.</p>
+    <p>특화 화면은 <code>pages/overview/gwacheon</code> 아래에 모여 있습니다. 통신 상태(<code>CommunicationStatus</code>/<code>CommunicationStatusDetail</code>), 미수신(<code>NoReception</code>/<code>NoReceptionDetail</code>), 센싱 오류(<code>SensingError</code>), 전송 실패(<code>TransmissionFailure</code>)가 라우트로 등록되어 있습니다. 각 화면은 디바이스 유형(실내·실외·청정기·악취/소음 등)·사업 유형(BIZ/CSV) 필터와 지역 검색을 제공합니다.</p>
+    <p>데이터는 <code>gwacheonApi</code>의 측정망 전용 엔드포인트(<code>gwacheon/summary</code>, <code>gwacheon/collection-status</code>, <code>gwacheon/reception-fault</code>, <code>gwacheon/sensing-error</code>, <code>gwacheon/transmission-error</code>)에서 조회합니다. 각 목록은 <code>download</code> 플래그로 같은 경로에 <code>.csv</code>를 붙여 CSV 다운로드를 겸하며, 미수신 화면은 조치 처리(<code>reception-fault/action</code>)를 함께 지원합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      과천을 별도 사이트 코드로 두어 권한 전환 제어(기능 11)에서 Air Map ↔ 과천 전환을 명시적으로 허용하면서, 실제 데이터는 같은 <code>realcode</code>로 일관되게 조회합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant CS as CommunicationStatus
+    participant RQ as React Query
+    participant API as gwacheonApi
+    participant DL as downloadFileFromResponse
+    participant Detail as CommunicationStatusDetail
+
+    CS-&gt;&gt;RQ: useQuery(필터: 디바이스/사업유형/지역)
+    RQ-&gt;&gt;API: collectionStatusList(params)
+    API--&gt;&gt;CS: 통신 상태 목록
+    CS-&gt;&gt;Detail: 행 클릭 → detail/:id
+    Detail-&gt;&gt;API: collection-status/{targetId}/{deviceId}
+    API--&gt;&gt;Detail: 디바이스 상세
+    opt CSV 다운로드
+        CS-&gt;&gt;API: list(download=true) → gwacheon/...csv
+        API--&gt;&gt;DL: AxiosResponse(Blob)
+        DL--&gt;&gt;CS: 파일 저장
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 측정망 특화 화면이 <code>gwacheonApi</code>로 통신 상태·오류 목록을 조회하고, 상세·CSV 다운로드·조치 처리를 제공합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class GwacheonPages {
+        +CommunicationStatus
+        +NoReception
+        +SensingError
+        +TransmissionFailure
+    }
+    class gwacheonApi {
+        +summary(download)
+        +collectionStatus(targetId, deviceId)
+        +receptionFault(download)
+        +sensingError(download)
+        +transmissionError(download)
+        +receptionFaultAction(params)
+    }
+    class ApiClient {
+        +downloadFileFromResponse()
+    }
+    class config {
+        +SITE_CODES.GWACHEON
+    }
+
+    GwacheonPages ..&gt; gwacheonApi : 측정망 데이터 조회
+    GwacheonPages ..&gt; ApiClient : CSV 다운로드
+    GwacheonPages ..&gt; config : GWACHEON 진입 판별
+      </div>
+      <p class="cap"><strong>관계.</strong> 과천 특화 화면들이 <code>gwacheonApi</code> 측정망 엔드포인트를 사용하며, 다운로드는 공통 <code>ApiClient</code>를 거칩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/config.ts</code> — 과천 진입점(화면 분리, realcode 공유)</div>
+<pre><code>{
+  code: 'GWACHEON',
+  realcode: '001ENV301',   // Air Map 과 동일한 단위서비스코드
+  title: 'Air Map',
+  subTitle: '과천 관제센터',
+  path: 'gwacheon',
+},</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/api/gwacheon.ts</code> — 측정망 전용 목록 + CSV 겸용</div>
+<pre><code>export const gwacheonApi = {
+  summary: (params, download?) =&gt;
+    apiClient.get(`/bff/monitor/gwacheon/summary${download ? '.csv' : ''}`, { /* responseType blob */ }),
+  sensingError: (params, download?) =&gt;
+    apiClient.get(`/bff/monitor/gwacheon/sensing-error${download ? '.csv' : ''}`, { /* ... */ }),
+  transmissionError: (params, download?) =&gt;
+    apiClient.get(`/bff/monitor/gwacheon/transmission-error${download ? '.csv' : ''}`, { /* ... */ }),
+  // POST /bff/monitor/gwacheon/reception-fault/action — 미수신 조치
+};</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/overview/gwacheon/CommunicationStatus.tsx" target="_blank" rel="noopener">src/pages/overview/gwacheon/CommunicationStatus.tsx</a><span class="src">통신 상태 목록 · 디바이스/사업유형/지역 필터 · CSV</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/overview/gwacheon/NoReception.tsx" target="_blank" rel="noopener">src/pages/overview/gwacheon/NoReception.tsx</a><span class="src">미수신 현황 · 조치 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/gwacheon.ts" target="_blank" rel="noopener">src/api/gwacheon.ts</a><span class="src">summary/collection-status/reception-fault/sensing-error/transmission-error</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">GWACHEON 진입점 정의(realcode 001ENV301 공유)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">communication-status / no-reception / sensing-error / transmission-failure 라우트</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f12.html">보안 로그인·마스킹</a>
+      <a href="f14.html">테마·레이아웃 커스터마이징 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_integrated_iot_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

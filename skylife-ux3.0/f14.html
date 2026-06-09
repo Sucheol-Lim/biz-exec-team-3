@@ -1,0 +1,285 @@
+<!doctype html>
+<!-- skylife-ux3.0 · FCM 푸시·TTS 기능 상세 — FCMService 원격 제어 + TtsEngine 추상화(Android/Qwen) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FCM 푸시 · TTS — Skylife ATV EPG 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Skylife ATV EPG (UX3.0)</a><span class="sep">›</span>
+      <span class="here">FCM 푸시 · TTS</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT SkyLife</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV(Leanback) STB · Java</span>
+    </div>
+    <h1>FCM 푸시 · TTS</h1>
+    <p class="one-liner"><code>FCMService</code>가 Firebase Cloud Messaging 데이터 메시지로 원격 STB 제어 명령(채널·전원·업그레이드·리부트·RCK 키 등)을 받아 실행하고 결과를 CEMS로 회신합니다. 음성 응답 발화는 <code>TtsEngine</code> 추상화 아래 시스템 <code>AndroidTtsEngine</code>과 원격 <code>RemoteQwenTtsEngine</code> 두 구현을 두고, <code>SpeechManager</code>가 SharedPreference 설정대로 선택합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skylife-ux3.0" target="_blank" rel="noopener"><code>skylife-ux3.0</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feat/lw-voice-api</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>FCMService</code> · <code>SpeechManager</code> · <code>AndroidTtsEngine</code> · <code>RemoteQwenTtsEngine</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">원격 푸시 제어 + 음성 응답 발화</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>이 페이지는 성격이 다른 두 기능을 함께 다룹니다. 하나는 <strong>FCM 원격 제어</strong>입니다. <code>FCMService</code>는 <code>FirebaseMessagingService</code>를 상속하고 매니페스트(<code>app/src/fifth/AndroidManifest.xml</code>, <code>app/src/second/AndroidManifest.xml</code>)에 <code>com.google.firebase.MESSAGING_EVENT</code> 인텐트 필터로 등록되어 있어 flavor별로 동일하게 동작합니다. <code>onMessageReceived()</code>가 데이터 메시지의 <code>controlKey</code>를 읽어 채널 변경·부팅 채널 설정·전원/대기·해상도 변경·리부트·공장 초기화·앱 실행·OTA·STB 정보 조회·RCK(원격 키 입력) 등으로 분기하고, 처리 결과를 <code>notifyResult()</code>로 <code>CemsManager.sendRCResult()</code>를 통해 헤드엔드(CEMS)에 회신합니다. <code>onNewToken()</code>은 갱신된 FCM 토큰을 <code>FileHandler</code>에 저장합니다.</p>
+    <p>다른 하나는 <strong>TTS(음성 응답 발화)</strong>입니다. 음성 어시스턴트의 답변·확인 멘트는 <code>SpeechManager</code>를 통해 발화됩니다. <code>SpeechManager</code>는 <code>TtsEngine</code> 인터페이스(<code>init</code>/<code>speak</code>/<code>stop</code>/<code>shutdown</code>) 아래 두 구현을 둡니다. <code>AndroidTtsEngine</code>은 시스템 <code>TextToSpeech</code> 기반으로 인터넷 없이 동작하며 ko-KR voice를 명시 고정합니다. <code>RemoteQwenTtsEngine</code>은 GB10 단말의 Qwen3-TTS REST API로 더 자연스러운 음성을 받아 <code>AudioTrack</code>(<code>USAGE_ASSISTANT</code>)으로 재생합니다. 기본 엔진은 SharedPreferences <code>"lwvoice"."tts_engine"</code>에 저장된 값이고 미설정이면 <code>ANDROID</code>이며, <code>setEngine()</code>으로 런타임 전환됩니다.</p>
+    <p><code>SpeechManager.speak()</code>는 발화 시작 시 <code>SpeechStateListener</code>로 UI에 알리고 <code>LiveTvMuter</code>로 본방송을 음소거한 뒤, 엔진의 <code>onDone</code> 콜백에서 음소거를 해제합니다. 발화 시작/종료 이벤트만 노출하고 실제 화면 전환은 UI(<code>VoiceListeningOverlay</code>) 쪽 리스너가 담당해, util 계층이 ui 계층을 직접 참조하지 않도록 결합을 끊습니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      <code>RemoteQwenTtsEngine</code>은 기본이 스트리밍 모드(<code>/api/tts/stream</code>)입니다. 4바이트 길이 prefix가 붙은 PCM chunk를 받는 즉시 <code>AudioTrack</code>(<code>MODE_STREAM</code>)으로 재생을 시작해 첫 음성까지의 지연을 줄이고, 비스트리밍(<code>/api/tts</code>)은 전체 WAV를 받아 <code>MODE_STATIC</code>으로 한 번에 재생합니다. 두 경로 모두 PCM 길이로 재생 시간을 계산해 종료 시점에 <code>onDone</code>을 정확히 한 번 fire 하고 <code>AudioTrack</code>을 release 합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant FB as Firebase / CEMS
+    participant FCM as FCMService
+    participant CTRL as MainController / SettingHandler
+    participant CEMS as CemsManager
+
+    FB-&gt;&gt;FCM: onMessageReceived(RemoteMessage)
+    FCM-&gt;&gt;FCM: dataMap.get("controlKey") 분기
+    alt controlKey == "channel"
+        FCM-&gt;&gt;CTRL: MainController.changeChannel(epgChannel)
+    else controlKey == "stbReboot"
+        FCM-&gt;&gt;CTRL: SettingHandler.reboot()
+    else controlKey == "RCK"
+        FCM-&gt;&gt;CTRL: dispatchKeyEvent(keyCode) (postDelayed)
+    end
+    FCM-&gt;&gt;CEMS: notifyResult(sessionId, command, "success"/"failure")
+    CEMS-&gt;&gt;FB: sendRCResult
+
+    Note over FCM: ── 음성 응답 발화(TTS) ──
+    participant SM as SpeechManager
+    participant TE as TtsEngine (Android / Qwen)
+    participant LTM as LiveTvMuter
+    SM-&gt;&gt;LTM: acquire("tts")  (본방송 mute)
+    SM-&gt;&gt;TE: speak(text, onDone)
+    TE--&gt;&gt;SM: onDone (재생 완료)
+    SM-&gt;&gt;LTM: release("tts")  (mute 해제)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 위쪽은 FCM 데이터 메시지가 <code>controlKey</code>로 분기되어 STB를 제어하고 결과를 CEMS로 회신하는 경로, 아래쪽은 <code>SpeechManager</code>가 본방송을 음소거하고 선택된 <code>TtsEngine</code>으로 발화한 뒤 종료 콜백에서 음소거를 해제하는 경로입니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class FirebaseMessagingService
+    class FCMService {
+        -String sessionId
+        -int rckKeyCode
+        +onNewToken(String) void
+        +onMessageReceived(RemoteMessage) void
+        +notifyResult(sessionId, command, result, message, data)$ void
+        -isHotKey(int) boolean
+    }
+    class TtsEngine {
+        &lt;&lt;interface&gt;&gt;
+        +init(Context) void
+        +speak(String text, Runnable onDone) void
+        +stop() void
+        +shutdown() void
+    }
+    class AndroidTtsEngine {
+        -TextToSpeech tts
+        -AtomicBoolean ready
+        -pickAndSetVoice() void
+    }
+    class RemoteQwenTtsEngine {
+        -OkHttpClient client
+        -AudioTrack currentTrack
+        -boolean streaming
+        +setVoiceId(String) void
+        +setStreaming(boolean) void
+        -doSpeakStream(String) void
+        -doSpeak(String) void
+    }
+    class SpeechManager {
+        -TtsEngine engine
+        -Engine engineType
+        +get()$ SpeechManager
+        +init(Context) void
+        +setEngine(Engine) void
+        +speak(String, Runnable) void
+        +stop() void
+    }
+    class Engine {
+        &lt;&lt;enumeration&gt;&gt;
+        ANDROID
+        REMOTE_QWEN
+    }
+    class LiveTvMuter
+
+    FCMService --|&gt; FirebaseMessagingService
+    AndroidTtsEngine ..|&gt; TtsEngine
+    RemoteQwenTtsEngine ..|&gt; TtsEngine
+    SpeechManager --&gt; TtsEngine : 선택·소유
+    SpeechManager ..&gt; Engine
+    SpeechManager --&gt; LiveTvMuter : acquire/release
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>FCMService</code>는 Firebase의 <code>FirebaseMessagingService</code>를 상속한 독립 서비스이고, TTS 쪽은 <code>SpeechManager</code>가 <code>TtsEngine</code>의 두 구현 중 하나를 <code>Engine</code> 설정대로 보유하며 발화 동안 <code>LiveTvMuter</code>로 본방송을 음소거합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>FCMService.java</code> — controlKey 기반 원격 제어 분기 + 결과 회신</div>
+<pre><code>@Override
+public void onMessageReceived(@NonNull RemoteMessage remoteMessage) {
+    super.onMessageReceived(remoteMessage);
+    Map&lt;String, String&gt; dataMap = remoteMessage.getData();
+    if (dataMap == null) { return; }
+    String command = dataMap.get("controlKey");
+    if (command == null) { return; }
+    sessionId = dataMap.get("sessionId");
+
+    switch (command) {
+        case "stbReboot":
+            notifyResult(sessionId, command, "success", null, dataMap.get("value"));
+            SettingHandler.reboot();
+            return;
+        case "channel":
+            String chNum = dataMap.get("value");
+            EpgChannel epgChannel = EpgChannelManager.getInstance()
+                    .getValidChannel(EpgChannelRing.RING_ACCESSIBLE, Integer.parseInt(chNum));
+            if (epgChannel != null) MainController.changeChannel(true, epgChannel);
+            else { notifyResult(sessionId, command, "failure", "No such channel " + chNum, chNum); return; }
+            break;
+        // ... bootCh / stbPowerMode / screenRatio / appName / RCK / stbInfo ...
+        default:
+            return;
+    }
+    notifyResult(sessionId, command, "success", null, msg);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>assistant/util/SpeechManager.java</code> — 엔진 선택 + 발화 동안 본방송 mute</div>
+<pre><code>public void speak(String text, Runnable onDone) {
+    if (engine == null || text == null || text.isEmpty()) {
+        if (onDone != null) onDone.run();
+        return;
+    }
+    final long token = nextSpeechToken();
+    notifySpeechStarted(text);          // VoiceListeningOverlay 등 UI 리스너 통보
+    LiveTvMuter.acquire(MUTE_REASON);   // TTS 동안 라이브 TV mute
+    final Runnable userCb = onDone;
+    engine.speak(text, () -&gt; {
+        try {
+            LiveTvMuter.release(MUTE_REASON);
+            notifySpeechFinished(token);
+        } finally { if (userCb != null) userCb.run(); }
+    });
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>assistant/util/RemoteQwenTtsEngine.java</code> — 스트리밍 PCM chunk를 받아 AudioTrack 재생</div>
+<pre><code>private void doSpeakStream(String text) {
+    AudioTrack track = null;
+    String json = "{\"text\":" + jsonString(text) + ",\"voice_id\":\"" + voiceId + "\"}";
+    Request req = new Request.Builder().url(BASE_URL + TTS_STREAM_PATH)
+            .post(RequestBody.create(json, MediaType.get("application/json"))).build();
+    try (Response resp = client.newCall(req).execute()) {
+        BufferedSource source = resp.body().source();
+        while (true) {
+            if (!source.request(4)) break;
+            int length = source.readIntLe();          // 4-byte uint32 LE 길이 prefix
+            if (length == 0) break;                   // end marker
+            if (!source.request(length)) break;
+            byte[] chunk = source.readByteArray(length);
+            if (track == null) {                      // 첫 chunk 도착 → 즉시 재생 시작
+                track = createStreamTrack();          // USAGE_ASSISTANT, MODE_STREAM
+                track.play();
+                currentTrack = track;
+            }
+            track.write(chunk, 0, chunk.length);
+        }
+        // PCM 길이로 잔여 재생시간 계산 → 그 후 onDone fire + release
+        mainHandler.postDelayed(scheduledDone, remainMs + DONE_GRACE_MS);
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>assistant/util/AndroidTtsEngine.java</code> — 시스템 TextToSpeech 초기화 + ko 음성 고정</div>
+<pre><code>tts = new TextToSpeech(context.getApplicationContext(), status -&gt; {
+    if (status != TextToSpeech.SUCCESS) return;
+    tts.setLanguage(Locale.KOREAN);
+    pickAndSetVoice();          // default 가 발화마다 남/여 swap 되는 문제 fix — ko voice 명시
+    tts.setSpeechRate(1.05f);
+    tts.setPitch(1.0f);
+    tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+        @Override public void onStart(String id) { }
+        @Override public void onDone(String id) { fireDone(id); }
+        @Override public void onError(String id) { fireDone(id); }
+        @Override public void onStop(String id, boolean i) { fireDone(id); }
+    });
+    ready.set(true);
+});</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/fifth/java/com/alticast/androidtv/epg/FCMService.java" target="_blank" rel="noopener">app/src/fifth/.../FCMService.java</a><span class="src">fifth flavor FCM 서비스 — controlKey 분기(channel/reboot/powerMode/screenRatio/appName/RCK/stbInfo 등) + notifyResult CEMS 회신</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/second/java/com/alticast/androidtv/epg/FCMService.java" target="_blank" rel="noopener">app/src/second/.../FCMService.java</a><span class="src">second flavor FCM 서비스 — fifth와 동일 역할의 flavor별 구현</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/fifth/AndroidManifest.xml" target="_blank" rel="noopener">app/src/fifth/AndroidManifest.xml</a><span class="src">FCMService 서비스 선언 — com.google.firebase.MESSAGING_EVENT 인텐트 필터</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/util/TtsEngine.java" target="_blank" rel="noopener">assistant/util/TtsEngine.java</a><span class="src">TTS 엔진 추상화 인터페이스 — init / speak(text, onDone) / stop / shutdown</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/util/SpeechManager.java" target="_blank" rel="noopener">assistant/util/SpeechManager.java</a><span class="src">엔진 선택(SharedPreference) + 발화 시 LiveTvMuter mute + SpeechStateListener 통보</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/util/AndroidTtsEngine.java" target="_blank" rel="noopener">assistant/util/AndroidTtsEngine.java</a><span class="src">시스템 TextToSpeech 구현 — ko voice 명시 고정, UtteranceProgressListener로 onDone 라우팅</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/assistant/util/RemoteQwenTtsEngine.java" target="_blank" rel="noopener">assistant/util/RemoteQwenTtsEngine.java</a><span class="src">원격 Qwen3-TTS REST 구현 — 스트리밍/비스트리밍 모드, AudioTrack(USAGE_ASSISTANT) 재생</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f13.html">오버레이 UI</a>
+      <a href="index.html#features">목록 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feat/lw-voice-api</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">Skylife ATV EPG 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

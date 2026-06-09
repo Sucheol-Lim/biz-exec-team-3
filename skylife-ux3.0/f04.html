@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- skylife-ux3.0 · 채널·편성표(EPG) 기능 상세 — ui/channel + EpgChannelController + EpgChannelRing -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>채널·편성표(EPG) — Skylife ATV EPG 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Skylife ATV EPG (UX3.0)</a><span class="sep">›</span>
+      <span class="here">채널·편성표(EPG)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT SkyLife</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV(Leanback) STB · Java</span>
+    </div>
+    <h1>채널·편성표(EPG)</h1>
+    <p class="one-liner"><code>ui/channel</code>과 <code>controller/nav</code>의 <code>EpgChannelController</code>·<code>EpgChannelManager</code>가 채널 링·편성표·프로그램 정보를 구성합니다. 채널 링(<code>EpgChannelRing</code>)으로 용도별 채널 집합을 구분하고, <code>EpgChannel.getPrograms()</code>로 시간대별 편성 정보를 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skylife-ux3.0" target="_blank" rel="noopener"><code>skylife-ux3.0</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feat/lw-voice-api</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>EpgChannelManager</code> · <code>TTCCChannelGuideFragment</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">채널 링 · 편성표 · 프로그램 정보</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>채널 데이터는 <code>EpgChannelManager</code>가 보유·관리합니다. 채널은 용도별 "링(ring)"으로 분류되어 <code>EpgChannelRing</code>에 상수로 정의됩니다. 예를 들어 <code>RING_ACCESSIBLE</code>(DCA·시청 가능 채널), <code>RING_SURFABLE</code>(채널 업/다운·미니 가이드), <code>RING_SURFABLE_ALL</code>(채널 가이드), <code>RING_BLOCKED</code>/<code>RING_SKIPPED</code> 등이 있습니다. <code>getChannels(ringType)</code>·<code>getValidChannel(ringType, channelNum)</code>로 링별 채널 목록과 특정 번호 채널을 조회합니다.</p>
+    <p>편성표 화면은 <code>ui/channel</code>의 <code>TTCCChannelGuideFragment</code>가 구성하며, 각 <code>EpgChannel</code>은 <code>getPrograms(since, until)</code>로 시간 구간의 <code>af.epg.Program</code> 배열을 제공합니다. 음성 어시스턴트의 <code>program_schedule</code> 명령(lookup/next/list)도 이 API를 그대로 재사용해 특정 시각·채널의 방송을 조회하거나 편성표 화면(<code>UI_GUIDE</code>)으로 진입시킵니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      음성 명령이 채널명을 부정확하게 전달해도(LLM hallucination 번호 등) <code>RING_ACCESSIBLE</code> 목록을 STT prompt로 fuzzy 매치해 실제 채널 번호로 교정합니다. 즉 채널 링은 시청 UI뿐 아니라 음성 라우팅의 신뢰 가능한 ground truth로도 쓰입니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자 / program_schedule
+    participant GF as TTCCChannelGuideFragment
+    participant ECC as EpgChannelController
+    participant ECM as EpgChannelManager
+    participant CH as EpgChannel
+    participant P as Program (af.epg)
+
+    U-&gt;&gt;GF: 편성표 진입 (UI_GUIDE)
+    GF-&gt;&gt;ECM: getChannelsForGuide(RING_SURFABLE_ALL)
+    ECM--&gt;&gt;GF: List~EpgChannel~
+    GF-&gt;&gt;CH: getPrograms(since, until)
+    CH--&gt;&gt;GF: Program[] (편성 정보)
+    GF--&gt;&gt;U: 채널 x 시간 그리드 렌더링
+    Note over ECC,ECM: 현재 채널 / 링별 집합 제공
+      </div>
+      <p class="cap"><strong>흐름.</strong> 편성표 fragment가 <code>EpgChannelManager</code>에서 가이드용 채널 링을 받아 각 채널의 프로그램을 조회해 그리드로 렌더링합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class EpgChannelRing {
+        +String RING_ALL
+        +String RING_ACCESSIBLE
+        +String RING_SURFABLE
+        +String RING_SURFABLE_ALL
+        +String RING_BLOCKED
+    }
+    class EpgChannelManager {
+        +getInstance() EpgChannelManager
+        +getChannels(ringType) List~EpgChannel~
+        +getChannelsForGuide(ringType) List~EpgChannel~
+        +getValidChannel(ringType, num) EpgChannel
+    }
+    class EpgChannel {
+        +getName() String
+        +getNumber() int
+        +getPrograms(since, until) Program
+    }
+    class Program {
+        +getTitle() String
+        +getStartTime() long
+        +getEndTime() long
+    }
+    class TTCCChannelGuideFragment {
+        &lt;&lt;abstract&gt;&gt;
+    }
+    class EpgChannelController {
+        +getCurrentChannel() EpgChannel
+    }
+
+    EpgChannelManager --&gt; EpgChannel : 보유/조회
+    EpgChannel --&gt; Program : getPrograms
+    EpgChannelManager ..&gt; EpgChannelRing : ringType 사용
+    TTCCChannelGuideFragment --&gt; EpgChannelManager : 가이드 데이터
+    EpgChannelController --&gt; EpgChannelManager : currentChannel
+      </div>
+      <p class="cap"><strong>관계.</strong> 싱글턴 <code>EpgChannelManager</code>가 링 상수(<code>EpgChannelRing</code>)로 채널 집합을 구분해 <code>EpgChannel</code>을 제공하고, 각 채널이 <code>Program</code> 편성을 반환합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>controller/nav/channel/EpgChannelRing.java</code> — 용도별 채널 링 상수</div>
+<pre><code>public static final String RING_ALL = "ALL";
+public static final String RING_ACCESSIBLE = "ACCESSABLE";       // dca
+public static final String RING_SURFABLE = "SURFABLE";           // ch up/down, miniguide
+public static final String RING_SURFABLE_ALL = "SURFABLE_ALL";   // ch guide
+public static final String RING_SURFABLE_SETTING = "SURFABLE_SETTING"; // ch setting
+public static final String RING_BLOCKED = "BLOCKED";
+public static final String RING_SKIPPED = "SKIPPED";</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>assistant/handler/ProgramScheduleHandler.java</code> — 편성 lookup이 EPG API 재사용</div>
+<pre><code>EpgChannel ch = resolveChannel(body);                  // 번호/이름/현재 채널 해석
+long t = parseWhen(optStr(body, "when"), optStr(body, "query"));
+Program[] progs = ch.getPrograms(t, t + 1L);           // EpgChannel.getPrograms 그대로 사용
+if (progs == null || progs.length == 0) {
+    showAnswer(appContext, body, ch.getName() + " 채널의 그 시간 편성 정보가 없어요");
+    return;
+}
+Program p = progs[0];
+String answer = String.format("%s 채널 %s '%s' 가 %s",
+        ch.getName(), formatWindow(p.getStartTime(), p.getEndTime()), p.getTitle(), verb);</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/fifth/java/com/alticast/androidtv/epg/controller/nav/channel/EpgChannelManager.java" target="_blank" rel="noopener">controller/nav/channel/EpgChannelManager.java</a><span class="src">채널 목록 보유·링별 조회 (getChannels / getValidChannel / getChannelsForGuide)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/controller/nav/channel/EpgChannelRing.java" target="_blank" rel="noopener">controller/nav/channel/EpgChannelRing.java</a><span class="src">용도별 채널 링 상수(ACCESSIBLE/SURFABLE/BLOCKED 등)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/fifth/java/com/alticast/androidtv/epg/controller/nav/channel/EpgChannel.java" target="_blank" rel="noopener">controller/nav/channel/EpgChannel.java</a><span class="src">채널 단위 — getName/getNumber/getPrograms(시간 구간 편성)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/channel/TTCCChannelGuideFragment.java" target="_blank" rel="noopener">ui/channel/TTCCChannelGuideFragment.java</a><span class="src">편성표 화면 — 채널 x 시간 그리드 구성</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/controller/nav/channel/EpgChannelControllerI.java" target="_blank" rel="noopener">controller/nav/channel/EpgChannelControllerI.java</a><span class="src">채널 컨트롤러 인터페이스 — 채널 변경 상태/모드 상수</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f03.html">← VOD 재생</a>
+      <a href="index.html#features">목록</a>
+      <a href="f05.html">통합 검색 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feat/lw-voice-api</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">Skylife ATV EPG 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

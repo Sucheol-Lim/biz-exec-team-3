@@ -1,0 +1,191 @@
+<!doctype html>
+<!-- skb_cloud_local_android · CAS 수신제한 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CAS (수신제한) — skb_cloud_local_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local EPG (Android)</a><span class="sep">›</span>
+      <span class="here">CAS (수신제한)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>CAS (수신제한)</h1>
+    <p class="one-liner"><code>module/cas</code>의 <code>CaManagerImpl</code>이 <code>CaManager</code> 인터페이스를 구현해 유료/제한 채널 시청 제어를 담당하고, <code>CaHandler</code>/<code>CaRequester</code>가 CAS 시스템에 채널·구매 요청을 보내 결과를 <code>CaResultListener</code>로 통지합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_android" target="_blank" rel="noopener"><code>skb_cloud_local_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>UC500_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>CaManagerImpl</code> · <code>CaManager</code> · <code>CaHandler</code> · <code>CaResultListener</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">유료/제한 채널 시청 제어 · 스마트카드</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>CAS(Conditional Access System, 수신제한)는 유료·제한 채널의 시청 권한을 통제합니다. <code>CaManagerImpl</code>이 <code>CaManager</code> 인터페이스의 단일 구현체(싱글턴)로 동작하며, 부팅 시 <code>BootingFragment</code>가 <code>CaManagerImpl.getInstance()</code>를 호출해 CAS 서비스를 초기화합니다. 내부적으로 <code>createCaHandler()</code>로 추상 <code>CaHandler</code>의 구현(<code>AltiCaHandler</code>)을 만들고 <code>CaResultListener</code>를 등록합니다.</p>
+    <p>채널을 튠할 때 <code>requestCaChannel(ExChannel)</code>이 호출되어 <code>CaHandler</code>를 거쳐 <code>CaRequester</code>가 CAS 시스템에 권한을 조회합니다. 결과는 <code>CaResult</code>로 돌아와 <code>CaResultListener.notifyCaEvent(channel, result)</code>로 통지되며, 차단·미가입 상태면 미니 EPG/OSD가 <code>PERM_CA_BLOCKED</code>·<code>isRestricted</code> 분기로 차단 화면을 띄웁니다. 유료 구매는 <code>requestCaPurchase()</code>·<code>requestCaPurchaseWithPrdId()</code>로 처리합니다.</p>
+    <p>CAS는 스마트카드 상태(<code>getSmartCardID()</code>·<code>isValidSmartCardStatus()</code>), CAS 시스템 ID(<code>getCasSystemId()</code>), 만료 여부(<code>getIsExpired()</code>), 미리보기(<code>PreviewInfo</code>/<code>previewStop()</code>)도 다룹니다. 저장소에는 별도 <code>cas-module</code>이 존재하나 <code>settings.gradle</code>에 포함되지 않아 현재 빌드에는 참여하지 않습니다.</p>
+    <div class="callout">
+      <div class="ct">cas-module 빌드 미참여</div>
+      루트의 <code>cas-module/</code>은 <code>settings.gradle</code> 활성 모듈(<code>:app</code>, <code>:wind3Lib-1.1.6</code>)에 포함되지 않습니다. 실제 동작하는 CAS 로직은 앱 본체의 <code>module/cas/CaManagerImpl</code>입니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant BF as BootingFragment
+    participant CMI as CaManagerImpl
+    participant CH as CaHandler (AltiCaHandler)
+    participant CR as CaRequester
+    participant CAS as CAS 시스템
+    participant LSN as CaResultListener (UI)
+
+    BF-&gt;&gt;CMI: getInstance() / createCaHandler()
+    CMI-&gt;&gt;CH: addCaResultListener(listener)
+    Note over CMI: 채널 튠 시
+    CMI-&gt;&gt;CH: requestCaChannel(ExChannel)
+    CH-&gt;&gt;CR: requestCaChannel(channel)
+    CR-&gt;&gt;CAS: 시청 권한 조회
+    CAS--&gt;&gt;CR: CaResult
+    CR--&gt;&gt;CH: 결과 전달
+    CH-&gt;&gt;LSN: notifyCaEvent(channel, result)
+    alt 차단/미가입
+        LSN-&gt;&gt;LSN: 차단 화면 / PERM_CA_BLOCKED
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>CaManagerImpl</code>이 <code>CaHandler</code>를 생성·리스너 등록하고, 채널 튠 시 <code>CaRequester</code>가 CAS 시스템에 권한을 조회해 결과를 UI 리스너로 통지합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class CaManager {
+        &lt;&lt;interface&gt;&gt;
+        +createCaHandler()
+        +requestCaChannel(ExChannel)
+        +requestCaPurchase(ExChannel, ExProgram)
+        +getSmartCardID() String
+        +isValidSmartCardStatus() boolean
+        +getCasSystemId() int
+        +stop()
+    }
+    class CaManagerImpl {
+        -CaResultListener listener
+        +getInstance() CaManagerImpl
+        +getIsExpired() boolean
+        +previewStop(ExChannel)
+    }
+    class CaHandler {
+        &lt;&lt;abstract&gt;&gt;
+        +getIsExpired() boolean
+        #requestCaChannel(ExChannel)
+        #addCaResultListener(listener)
+    }
+    class AltiCaHandler
+    class CaRequester {
+        +requestCaChannel(ExChannel)
+        +requestCaPurchase(ExChannel, ExProgram)
+        +requestCasInformation()
+    }
+    class CaResultListener {
+        &lt;&lt;interface&gt;&gt;
+        +notifyCaEvent(ExChannel, CaResult)
+    }
+    class CaResult
+
+    CaManagerImpl ..|&gt; CaManager
+    AltiCaHandler --|&gt; CaHandler
+    CaManagerImpl o-- CaHandler : 생성/소유
+    CaHandler --&gt; CaRequester : 요청 위임
+    CaHandler --&gt; CaResultListener : 결과 통지
+    CaResultListener ..&gt; CaResult
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>CaManagerImpl</code>이 <code>CaManager</code>를 구현하고, 추상 <code>CaHandler</code>(구현 <code>AltiCaHandler</code>)를 소유하며, <code>CaRequester</code>로 요청을 위임하고 <code>CaResultListener</code>로 결과를 통지합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>module/cas/CaManagerImpl.java</code> — CaManager 구현 · 채널/구매 요청 위임</div>
+<pre><code>public class CaManagerImpl implements CaManager {
+    private CaResultListener listener = null;
+
+    public void requestCaChannel(ExChannel channel) {
+        // caHandler.requestCaChannel(channel)
+    }
+    public void requestCaPurchase(ExChannel channel, ExProgram event) { ... }
+    public void requestCaPurchaseWithPrdId(ExChannel channel, String prdId) { ... }
+    public boolean isValidSmartCardStatus() { ... }
+    public String getSmartCardID() { ... }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>module/cas/CaResultListener.java</code> — CAS 결과 콜백 인터페이스</div>
+<pre><code>public interface CaResultListener {
+    void notifyCaEvent(ExChannel channel, CaResult result);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/cas/CaManagerImpl.java" target="_blank" rel="noopener">module/cas/CaManagerImpl.java</a><span class="src">CaManager 단일 구현체 · 채널/구매 요청 · 스마트카드/CAS ID</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/cas/CaManager.java" target="_blank" rel="noopener">module/cas/CaManager.java</a><span class="src">CAS 매니저 인터페이스 정의</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/cas/CaHandler.java" target="_blank" rel="noopener">module/cas/CaHandler.java</a><span class="src">추상 CAS 핸들러 · 요청 위임 · 리스너 관리 · 재시도</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/cas/CaResultListener.java" target="_blank" rel="noopener">module/cas/CaResultListener.java</a><span class="src">CAS 결과 통지 콜백</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f05.html">← SDV (Switched Digital Video)</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f07.html">품질계측 · 로그 수집 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>UC500_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

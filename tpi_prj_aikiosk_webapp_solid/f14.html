@@ -1,0 +1,178 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp_solid · 레벨별 로깅 기능 상세 — CommonLog 태그 로거 + 빌드 인자 레벨 전환 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>레벨별 로깅 — tpi_prj_aikiosk_webapp_solid 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp (SolidJS)</a><span class="sep">›</span>
+      <span class="here">레벨별 로깅</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹앱 · Android WebView 키오스크 (Galaxy Tab S8)</span>
+    </div>
+    <h1>레벨별 로깅</h1>
+    <p class="one-liner"><code>CommonLog.getLog(name)</code>로 모듈별 태그 로그를 남기며, 빌드 인자(<code>log=false/true</code>)로 INFO/DEBUG 레벨을 전환합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp_solid</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>CommonLog.js</code> · <code>vite.config.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">모듈 태그 로거 · 레벨 제어</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>로깅은 경량 유틸 <code>CommonLog</code>가 전담합니다. <code>ERROR</code>·<code>WARN</code>·<code>INFO</code>·<code>DEBUG</code> 4단계 레벨을 두고, <code>getLog(name)</code>이 모듈 이름을 태그로 박은 로거 객체(<code>debug</code>/<code>info</code>/<code>warn</code>/<code>error</code>)를 반환합니다. 거의 모든 매니저·스토어·컴포넌트가 <code>const log = CommonLog.getLog("모듈명")</code> 패턴으로 자기 로거를 만들어, 출력에 시각·레벨·모듈 태그가 함께 찍히도록 합니다.</p>
+    <p>각 로그 메서드는 현재 레벨(<code>this.level</code>)이 자기 레벨 이상일 때만 출력합니다. 즉 레벨이 INFO면 DEBUG 로그는 무시되고, DEBUG면 모두 출력됩니다. 출력 형식은 레벨별로 콘솔 색상 스타일을 달리 적용하고, 객체 인자는 JSON 문자열로, 에러는 스택을 우선 표시합니다. 레벨 자체는 앱 시작 시 <code>index.jsx</code>가 <code>CommonLog.setLevel(import.meta.env.APP_LOG_LEVEL)</code>로 환경변수에서 읽어 설정합니다. 이 환경변수는 빌드 인자가 결정합니다. <code>vite.config.js</code>가 커맨드라인 인자 <code>log=false</code>면 <code>APP_LOG_LEVEL</code>을 INFO로, <code>log=true</code>면 DEBUG로 세팅하므로, 릴리스(<code>log=false</code>)는 조용히, 개발(<code>log=true</code>)은 상세히 동작합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      로거 인스턴스를 모듈마다 만들어 태그를 고정하면, 콘솔에서 어느 매니저/스토어가 찍은 로그인지 한눈에 구분됩니다. 레벨 게이트가 메서드 진입부에 있어, 비활성 레벨의 로그는 문자열 포매팅 비용 없이 건너뜁니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant BUILD as vite.config.js (빌드)
+    participant IDX as index.jsx
+    participant CL as CommonLog
+    participant MOD as 모듈 (Manager/Store)
+
+    BUILD->>BUILD: argv.log == "false" ? INFO : DEBUG
+    BUILD->>BUILD: process.env.APP_LOG_LEVEL 설정
+    IDX->>CL: setLevel(APP_LOG_LEVEL)
+    MOD->>CL: getLog("모듈명")
+    CL-->>MOD: { debug, info, warn, error }
+    MOD->>CL: log.debug("...")
+    alt level >= DEBUG
+        CL->>CL: print(DEBUG, name, obj) (콘솔 출력)
+    else 레벨 미달
+        CL->>CL: 무시
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 빌드 인자가 레벨 환경변수를 정하고, 앱 시작 시 <code>setLevel</code>로 반영되며, 각 모듈 로거는 현재 레벨 이상일 때만 콘솔에 출력합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class CommonLog {
+        +ERROR
+        +WARN
+        +INFO
+        +DEBUG
+        +level
+        +setLevel(lvlStr)
+        +getLog(name)
+        +print(type, name, obj)
+    }
+    class Logger {
+        +debug(...obj)
+        +info(...obj)
+        +warn(...obj)
+        +error(...obj)
+    }
+    class viteConfig {
+        +argv log = true / false
+        +APP_LOG_LEVEL
+    }
+    class indexJsx {
+        +setLevel(APP_LOG_LEVEL)
+    }
+
+    CommonLog --> Logger : getLog 반환
+    viteConfig ..> CommonLog : APP_LOG_LEVEL 결정
+    indexJsx --> CommonLog : setLevel
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>CommonLog</code>가 모듈별 <code>Logger</code>를 발급하고, 빌드 설정(<code>vite.config.js</code>)이 정한 레벨을 <code>index.jsx</code>가 <code>setLevel</code>로 적용합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/utils/CommonLog.js</code> — 레벨 게이트 + 태그 로거</div>
+<pre><code>const CommonLog = {
+  ERROR: 0, WARN: 1, INFO: 2, DEBUG: 3, level: 3,
+  setLevel(lvlStr) { this.level = this[lvlStr.toUpperCase()] || this.level; },
+  getLog(name) {
+    return {
+      debug: (...obj) =&gt; { if (this.level &gt;= this.DEBUG) this.print(this.DEBUG, name, obj); },
+      info:  (...obj) =&gt; { if (this.level &gt;= this.INFO)  this.print(this.INFO,  name, obj); },
+      warn:  (...obj) =&gt; { if (this.level &gt;= this.WARN)  this.print(this.WARN,  name, obj); },
+      error: (...obj) =&gt; { if (this.level &gt;= this.ERROR) this.print(this.ERROR, name, obj); },
+    };
+  },
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>vite.config.js</code> + <code>src/index.jsx</code> — 빌드 인자로 레벨 결정 후 적용</div>
+<pre><code>// vite.config.js — 커맨드라인 인자로 레벨 세팅
+if (argv["log"] == "false")      process.env.APP_LOG_LEVEL = "INFO";
+else if (argv["log"] == "true")  process.env.APP_LOG_LEVEL = "DEBUG";
+
+// index.jsx — 시작 시 환경변수에서 레벨 적용
+CommonLog.setLevel(import.meta.env.APP_LOG_LEVEL);
+const log = CommonLog.getLog("index.jsx");</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/utils/CommonLog.js" target="_blank" rel="noopener">utils/CommonLog.js</a><span class="src">4단계 레벨 게이트 · getLog(name) 태그 로거 · 레벨별 콘솔 스타일</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/src/index.jsx" target="_blank" rel="noopener">index.jsx</a><span class="src">setLevel(APP_LOG_LEVEL) · 앱 정보 INFO 로그 출력</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp_solid/src/main/vite.config.js" target="_blank" rel="noopener">vite.config.js</a><span class="src">log=false/true 인자 → APP_LOG_LEVEL INFO/DEBUG</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f13.html">← file:// 단독 실행</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="index.html#features">주요 기능 목록 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tpi_prj_aikiosk_webapp_solid 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

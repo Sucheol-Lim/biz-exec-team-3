@@ -1,0 +1,196 @@
+<!doctype html>
+<!-- skb_cloud_local_android · 단말 안정화/전원 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>단말 안정화 / 전원 — skb_cloud_local_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local EPG (Android)</a><span class="sep">›</span>
+      <span class="here">단말 안정화 / 전원</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>단말 안정화 / 전원</h1>
+    <p class="one-liner"><code>StabilizerService</code>가 <code>StabilizerMain</code>·<code>StabilizerTimer</code>로 스탠바이·시청 모드·자가진단 타이머를 관리해 조건 충족 시 재부팅(<code>rebootSTB</code>)하고, <code>PowerModeManager</code>가 전원(화면 on/off) 상태를 제어합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_android" target="_blank" rel="noopener"><code>skb_cloud_local_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>UC500_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>StabilizerService</code> · <code>StabilizerMain</code> · <code>StabilizerAlarmReceiver</code> · <code>PowerModeManager</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">셋톱 안정화 재부팅 · 전원 모드</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>장시간 동작하는 셋톱박스의 안정성을 위해 주기적 자가 재부팅과 자가진단을 수행합니다. 부팅이 끝나면 <code>BootReceiver</code>(<code>ACTION_BOOT_COMPLETED</code>)가 <code>StabilizerService</code>를 띄우고, 서비스의 <code>onStartCommand()</code>가 <code>StabilizerMain</code>을 생성합니다. <code>StabilizerMain</code>은 전원·사용자 설정·채널·컬러키 이벤트를 듣는 리스너로서 안정화 조건을 추적합니다.</p>
+    <p>재부팅 타이밍은 <code>StabilizerTimer</code>가 알람으로 관리합니다. 시청 모드(<code>TIMER_WATCH_MODE</code>), 키 입력(<code>TIMER_KEY_INPUT</code>), 스탠바이(<code>TIMER_STAND_BY</code>/<code>TIMER_STAND_BY_REBOOT</code>), 전원 ON 지속시간(<code>TIMER_POWER_ON_DURATION</code>) 타이머가 정의되어 있습니다. 알람이 발화하면 <code>StabilizerAlarmReceiver.onReceive()</code>가 해당 액션을 받아 <code>StabilizerMain.timerWentOff()</code> 또는 다음 타이머 요청으로 연결합니다.</p>
+    <p>안정화 조건이 충족되면 <code>StabilizerMain.rebootSTB(reason)</code>가 사유 로그를 남기고 <code>MainHandler</code>에 <code>WHAT_REBOOT</code> 메시지를 보내 재부팅을 트리거합니다. 시청 중에는 재부팅 안내 팝업(<code>STABILIZER_REBOOT</code>)을 띄워 사용자 확인/취소를 받습니다. 전원 제어는 <code>PowerModeManager</code>가 담당하여 <code>setScreenOn()</code>으로 화면 on/off 상태를 바꾸고 <code>PowerModeChangeListener</code>들에 전파하며, <code>isRunningMode()</code>가 스탠바이 여부 판단의 기준이 됩니다.</p>
+    <div class="callout">
+      <div class="ct">리부팅·자가진단 제어</div>
+      분석 기준 브랜치에서 리부팅·자가진단 제어 기능이 추가되었습니다. 스탠바이 재부팅(<code>TIMER_STAND_BY_REBOOT</code>) 경로가 <code>StabilizerAlarmReceiver</code>를 통해 동작하며, SDK 31 라이프사이클에서 부팅 단계 초기화 타이밍이 함께 보정되었습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SYS as Android 시스템
+    participant BR as BootReceiver
+    participant SVC as StabilizerService
+    participant SM as StabilizerMain
+    participant ST as StabilizerTimer
+    participant AR as StabilizerAlarmReceiver
+    participant MH as MainHandler
+
+    SYS-&gt;&gt;BR: ACTION_BOOT_COMPLETED
+    BR-&gt;&gt;SVC: startService
+    SVC-&gt;&gt;SM: new StabilizerMain() / init
+    SM-&gt;&gt;ST: requestStartTimer(TIMER_WATCH_MODE ...)
+    ST-&gt;&gt;AR: AlarmManager 알람 등록
+    Note over AR: 알람 발화
+    AR-&gt;&gt;SM: timerWentOff(TIMER_STAND_BY_REBOOT)
+    SM-&gt;&gt;SM: rebootSTB(reason)
+    SM-&gt;&gt;MH: WHAT_REBOOT 메시지
+    MH-&gt;&gt;SYS: 단말 재부팅
+      </div>
+      <p class="cap"><strong>흐름.</strong> 부팅 완료 시 서비스가 뜨고 <code>StabilizerMain</code>이 타이머를 등록하며, 알람이 발화하면 <code>StabilizerAlarmReceiver</code>가 받아 조건 충족 시 <code>rebootSTB()</code>로 재부팅을 트리거합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class StabilizerService {
+        +onCreate()
+        +onStartCommand(intent, flags, id) int
+    }
+    class StabilizerMain {
+        -StabilizerTimer stabilizerTimer
+        +init(Context)
+        +timerWentOff(int)
+        -rebootSTB(String reason)
+    }
+    class StabilizerTimer {
+        +TIMER_WATCH_MODE int
+        +TIMER_STAND_BY_REBOOT int
+        +REBOOT_REASON
+        +requestStartTimer(int)
+    }
+    class StabilizerAlarmReceiver {
+        +onReceive(Context, Intent)
+    }
+    class BootReceiver {
+        +onReceive(Context, Intent)
+    }
+    class PowerModeChangeListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class PowerModeManager {
+        +isRunningMode() boolean
+        +setScreenOn(boolean)
+        +toggleScreenOnOff()
+    }
+
+    StabilizerService --&gt; StabilizerMain : 생성
+    StabilizerMain o-- StabilizerTimer : 소유
+    StabilizerMain ..|&gt; PowerModeChangeListener
+    StabilizerAlarmReceiver --&gt; StabilizerMain : timerWentOff
+    BootReceiver --&gt; StabilizerService : startService
+    PowerModeManager --&gt; PowerModeChangeListener : 전원 변화 통지
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>StabilizerService</code>가 <code>StabilizerMain</code>을 띄우고, <code>StabilizerMain</code>은 <code>StabilizerTimer</code>를 소유하며 <code>PowerModeChangeListener</code>로 전원 변화를 받습니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>module/stabilizer/main/StabilizerAlarmReceiver.java</code> — 스탠바이 재부팅 알람 처리</div>
+<pre><code>public void onReceive(Context context, Intent intent) {
+    String action = intent.getAction();
+    switch (action) {
+        case ACTION_TIMER_STAND_BY:
+            StabilizerMain.getInstance().rebootReason =
+                StabilizerTimer.REBOOT_REASON[StabilizerTimer.TIMER_STAND_BY];
+            StabilizerTimer.getInstance().requestStartTimer(TIMER_STAND_BY_REBOOT);
+            break;
+        case ACTION_TIMER_STAND_BY_REBOOT:
+            StabilizerMain.getInstance().timerWentOff(TIMER_STAND_BY_REBOOT);
+            break;
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>module/stabilizer/main/StabilizerMain.java</code> — 재부팅 트리거</div>
+<pre><code>public void timerWentOff(int timer) {
+    if (timer == StabilizerTimer.TIMER_STAND_BY_REBOOT) {
+        rebootSTB(null);
+    }
+}
+private void rebootSTB(String reason) {
+    Message rebootMessage = Message.obtain(MainHandler.getInstance(),
+            MainHandlerMessage.WHAT_REBOOT, ...);   // 단말 재부팅 요청
+    MainHandler.getInstance().sendMessage(rebootMessage);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/stabilizer/StabilizerService.java" target="_blank" rel="noopener">module/stabilizer/StabilizerService.java</a><span class="src">안정화 서비스 · StabilizerMain 생성</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/stabilizer/main/StabilizerMain.java" target="_blank" rel="noopener">module/stabilizer/main/StabilizerMain.java</a><span class="src">안정화 조건 추적 · timerWentOff · rebootSTB · 재부팅 팝업</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/stabilizer/main/StabilizerAlarmReceiver.java" target="_blank" rel="noopener">module/stabilizer/main/StabilizerAlarmReceiver.java</a><span class="src">스탠바이/시청/키입력 타이머 알람 수신</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/powermode/PowerModeManager.java" target="_blank" rel="noopener">module/powermode/PowerModeManager.java</a><span class="src">전원 모드(화면 on/off) 제어 · isRunningMode · 변화 통지</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f07.html">← 품질계측 · 로그 수집</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f09.html">클라우드 홈 / CAPPL →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>UC500_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

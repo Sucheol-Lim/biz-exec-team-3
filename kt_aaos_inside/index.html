@@ -1,0 +1,441 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KT AAOS Demokit P1 음성인식 앱 (car-custom-voice-app) — 과제 설명</title>
+<style>
+:root{
+  --accent:#d6001c;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">Android Automotive OS (차량 인포테인먼트)</span>
+      <span class="badge gray">Java</span>
+    </div>
+    <h1>KT AAOS Demokit P1 음성인식 앱 (car-custom-voice-app)</h1>
+    <p class="one-liner">Android Automotive OS 차량 단말에서 KT GiGA Genie(Inside) 기반으로 호출어 감지·음성 인식·자연어 명령 처리·TTS 안내를 수행하는 AVIS 음성비서 데모 애플리케이션입니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_aaos_inside" target="_blank" rel="noopener"><code>kt_aaos_inside</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feature/support_stt</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2025-12-22 · 66e6e1f7 Service Agent Library 업데이트 및 version up</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>com.kt.avis.voice</code> / v0.02.01 (code 201)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>이 저장소는 Android Automotive OS(AAOS) 차량 인포테인먼트 환경에서 동작하는 KT GiGA Genie 기반 음성비서(AVIS, Altimedia Voice Interaction Service) 데모 애플리케이션입니다. AOSP의 <code>packages/apps/Car</code>, <code>frameworks/opt/car</code>, <code>prebuilts/sdk</code> 등 AAOS 빌드에 필요한 일부 소스 트리를 함께 담고 있으며, 실제 과제 산출물인 음성비서 앱은 <code>packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app</code> 모듈입니다.</p>
+    <p>앱은 Android 표준 음성 인터랙션 프레임워크(<code>VoiceInteractionService</code>, <code>VoiceInteractionSessionService</code>, <code>RecognitionService</code>)를 구현해 AAOS 시스템의 기본 음성비서(디지털 어시스턴트)로 등록됩니다. 호출어(KWS, Keyword Spotting)는 단말 내장 <code>kwsrnet</code> 엔진과 KT GiGA Genie Inside SDK로 감지하고, 발화 인식·자연어 처리(DialogKit)·TTS 안내·미디어/차량 제어를 Inside 서버와 gRPC/REST로 연동해 수행합니다.</p>
+    <p>대상 단말은 <code>android.hardware.type.automotive</code> 피처를 필수로 요구하는 AAOS(Android 12, API 31 기반) 차량 헤드유닛입니다. 패키지명은 <code>com.kt.avis.voice</code> 이며 compileSdk 32 / targetSdk 32 / minSdk 31 로 빌드됩니다. 분석 기준 브랜치인 <code>feature/support_stt</code> 에서는 기존 음성비서 기능에 더해 외부 앱이 받아쓰기(STT)를 요청해 인식 결과를 돌려받는 STT 서비스 경로가 추가되었습니다.</p>
+    <div class="callout">
+      <div class="ct">사업 맥락</div>
+      AVIS는 KT의 차량용 음성비서 플랫폼 과제로, 사내 위키 매핑상 "KT AAOS Demokit P1 음성인식 앱"에 해당합니다. 본 데모는 KT GiGA Genie Inside(대화형 AI) 백엔드를 AAOS 차량 환경에 연동해 음성 명령으로 앱 실행·미디어 재생·차량 공조 제어 등을 시연하는 것을 목표로 합니다.
+    </div>
+    <div class="callout warn">
+      <div class="ct">보안 유의</div>
+      <code>config/*.properties</code>(APP_KEY·CLIENT_SECRET 등)와 <code>keystore/*.jks</code>(서명 키), <code>build.gradle</code>의 키스토어 비밀번호가 평문으로 포함되어 있습니다. 데모용 자산이며 외부 노출에 유의해야 합니다.
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">시스템 음성비서 등록</div><div class="d"><code>VoiceInteractionService</code>를 구현하고 <code>@xml/interaction_service</code> 메타데이터(<code>supportsAssist</code>, <code>supportsLocalInteraction</code>)로 AAOS 기본 디지털 어시스턴트로 등록됩니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">호출어(KWS) 감지</div><div class="d"><code>KwsDetector</code>가 단말 내장 <code>kwsrnet</code> 엔진과 <code>assets/kwsrnet/*.cnsi</code> 모델로 마이크 입력에서 호출어를 상시 감지해 음성 세션을 띄웁니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">발화 음성 인식</div><div class="d"><code>VoiceRecorder</code>가 <code>AudioRecord</code>로 PCM 오디오를 캡처하고 <code>InsideVoiceManager</code>가 Inside SDK 음성 세션으로 발화를 서버에 전달해 인식합니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">자연어 명령 처리(DialogKit)</div><div class="d"><code>InsideDialogKitManager</code>가 Inside gRPC <code>Payload</code>의 의도(intent)/명령(command)을 분류해 앱·미디어·차량 매니저로 라우팅합니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">앱 실행/제어</div><div class="d"><code>GVoiceAppManager</code>가 <code>assets/AppInfoList.json</code>·<code>IntentInfoList.json</code>을 참조해 음성으로 차량 내 앱(내비게이션·미디어 등)을 실행·제어합니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">미디어 재생 제어</div><div class="d"><code>GVoiceMediaManager</code>/<code>Client</code>/<code>Controller</code>가 AAOS <code>car-media-common</code> 기반으로 재생·일시정지·곡 정보 안내 등 미디어 명령을 처리합니다.</div></a>
+      <a class="card" href="f07.html"><div class="t">차량 공조 제어</div><div class="d"><code>GVoiceVehicleManager</code>가 <code>android.car.permission.CONTROL_CAR_CLIMATE</code> 권한으로 공조 등 차량 제어 명령을 수행합니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">TTS·사운드 안내</div><div class="d"><code>ViaGuidancePlayer</code>·<code>ViaMediaPlayer</code>·<code>ViaSoundPlayer</code>가 TTS 응답과 시작/종료 사운드(<code>ding.mp3</code>, <code>Sound2_Marimba.mp3</code>)를 재생합니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">표준 STT 서비스 경로</div><div class="d"><code>feature/support_stt</code>에서 추가된 기능으로, 외부 앱이 <code>START_STT</code>/<code>STOP_STT</code> 액션과 <code>targetAppId</code>로 받아쓰기를 요청하면 인식 결과/오류를 돌려줍니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">RecognitionService 등록</div><div class="d"><code>GRecognitionService</code>가 <code>android.speech.RecognitionService</code> 인텐트와 <code>@xml/recognition_service</code> 메타데이터로 시스템 음성 인식 공급자로 등록됩니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">SP 미수신 재연동 로직</div><div class="d">SP(서비스 플랫폼)에서 데이터를 받지 못한 상태로 발화 요청이 오면 TTS 안내를 제공한 뒤 SP 연동을 재시도합니다(커밋 3904ef6b).</div></a>
+      <a class="card" href="f12.html"><div class="t">네트워크 상태 모니터링</div><div class="d"><code>NetworkStateManager</code>/<code>NetworkStateHandler</code>가 연결 상태를 감시해 음성 세션 동작과 오류 안내를 제어합니다.</div></a>
+      <a class="card" href="f13.html"><div class="t">사용 로그 수집</div><div class="d"><code>UsageCollectionManager</code>가 음성 사용 로그를 수집하고 <code>GVoiceApiClient</code>(Retrofit)로 BO 서버에 전송합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">코드 난독화(Allatori)</div><div class="d">빌드 시 <code>allatori.xml</code>·<code>runAllatori</code> 태스크로 컴파일 결과에 Allatori 난독화를 적용합니다(커밋 6c315d77).</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>저장소 최상위는 AAOS 빌드를 위한 부분 소스 트리이며, Gradle 빌드 진입점은 <code>packages/apps/Car/libs/aaos-apps-gradle-project</code> 입니다. 이 Gradle 프로젝트는 <code>car-ui-lib</code>, <code>car-apps-common</code>, <code>car-media-common</code>, <code>car-uxr-client-lib</code>, <code>car-assist-lib</code> 등 AAOS Car 공용 라이브러리와 함께 과제 산출물 모듈 <code>car-custom-voice-app</code>을 포함합니다.</p>
+    <pre class="tree">kt_aaos_inside/
+├── external/ukey2/                     # Companion Device 인증용 ukey2 (AOSP 원본)
+├── frameworks/opt/car/setupwizard/     # AAOS Car SetupWizard 라이브러리 (AOSP 원본)
+├── prebuilts/                          # Android SDK prebuilts, checkstyle/ktlint
+├── tools/repohooks/                    # repo pre-upload 훅
+└── packages/apps/Car/                  # AAOS Car 앱/라이브러리
+    ├── Dialer / Messenger / Media / Templates / CompanionDeviceSupport   # AOSP 참조 앱
+    └── libs/                           # Car 공용 라이브러리 + Gradle 프로젝트 루트
+        └── aaos-apps-gradle-project/   # ★ Gradle 빌드 진입점
+            ├── settings.gradle         # 모듈 구성 (car-custom-voice-app 포함)
+            ├── build.gradle            # 공통 buildscript / 사내 Maven / buildDir
+            ├── allatori.xml            # Allatori 난독화 설정
+            ├── gradlew / gradlew.bat   # Gradle Wrapper
+            └── car-custom-voice-app/   # ★★ 음성비서 앱 모듈 (과제 산출물)
+                ├── build.gradle        # applicationId com.kt.avis.voice, flavor dev/tb/production
+                ├── version.properties  # 0.2.1
+                ├── config/             # avis.{dev,tb,production}.properties, {dev,live}_inside.properties
+                ├── keystore/           # 릴리스 서명 키 (aaos.inside.via.keystore.jks)
+                ├── libs/               # g-sdk-android_1.6.1.aar, kwsrnet-release.aar
+                └── src/main/
+                    ├── AndroidManifest.xml
+                    ├── assets/         # AppInfoList.json, IntentInfoList.json, kwsrnet/*.cnsi, 사운드
+                    ├── res/xml/        # interaction_service.xml, recognition_service.xml
+                    └── java/com/kt/avis/voice/
+                        ├── ViaApplication / ViaMainActivity / BaseActivity / Constants ...
+                        ├── service/    # GVoiceInteractionService / *SessionService / GRecognitionService
+                        ├── ui/         # GVoiceInteractionSession, GuideActivity, GSettingsActivity
+                        ├── inside/     # InsideVoiceManager, KwsDetector, VoiceRecorder, GVoiceDeviceController
+                        ├── dialogkit/  # InsideDialogKitManager + app/ media/ vehicle/
+                        ├── manager/    # GVoiceDataManager, NetworkState*, UsageCollectionManager, model/
+                        ├── network/    # GVoiceApiClient(Retrofit), VoiceApiService, 요청/콜백
+                        └── player/     # ViaGuidancePlayer, ViaMediaPlayer, ViaSoundPlayer, GVoiceMediaDataSource</pre>
+
+    <h3>주요 모듈 · 클래스</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>계층</th><th>클래스 / 위치</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td>음성 인터랙션 서비스</td><td><code>service/GVoiceInteractionService</code></td><td><code>VoiceInteractionService</code> 본체. <code>:interactor</code> 별도 프로세스로 상시 동작하며 호출어 감지·Inside 인식 결과·데이터 콜백을 처리하고 RECORD_AUDIO 권한·네트워크·사운드 안내를 담당합니다.</td></tr>
+          <tr><td>세션 서비스</td><td><code>service/GVoiceInteractionSessionService</code> · <code>ui/GVoiceInteractionSession</code></td><td><code>:session</code> 프로세스에서 발화 세션의 UI/라이프사이클을 생성·관리합니다. 세션 단위로 음성 인식·명령·UI 한 사이클이 처리됩니다.</td></tr>
+          <tr><td>인식 서비스</td><td><code>service/GRecognitionService</code></td><td>Android 표준 <code>RecognitionService</code> 구현으로 시스템 STT 공급자로 등록됩니다. <code>onStartListening</code>에서 <code>readyForSpeech</code>를 콜백하는 형태입니다.</td></tr>
+          <tr><td>Inside 연동 · 호출어</td><td><code>inside/InsideVoiceManager</code> · <code>KwsDetector</code> · <code>VoiceRecorder</code></td><td>Inside SDK 음성 세션(인식·응답·TTS)을 조율하고, <code>kwsrnet</code> 호출어 감지와 <code>AudioRecord</code> 오디오 캡처를 담당합니다. STT 상태(<code>REQ_STT</code> 등)도 여기서 관리합니다.</td></tr>
+          <tr><td>명령 라우팅(DialogKit)</td><td><code>dialogkit/InsideDialogKitManager</code></td><td>Inside gRPC <code>Payload</code>의 의도/명령을 분류해 앱·미디어·차량 매니저로 분배합니다.</td></tr>
+          <tr><td>앱 제어 · STT</td><td><code>dialogkit/app/GVoiceAppManager</code> · <code>AppConstants</code></td><td>앱 실행/제어와 받아쓰기(STT) 경로(<code>startSpeechToText</code>/<code>stopSpeechToText</code>, <code>START_STT</code>/<code>STOP_STT</code> 액션, <code>targetAppId</code> 전달)를 처리합니다.</td></tr>
+          <tr><td>미디어 · 차량</td><td><code>dialogkit/media/*</code> · <code>dialogkit/vehicle/*</code></td><td>미디어 재생 제어(<code>GVoiceMediaManager</code> 외)와 차량 공조 등 제어(<code>GVoiceVehicleManager</code>)를 수행합니다.</td></tr>
+          <tr><td>데이터 · 네트워크</td><td><code>manager/*</code> · <code>network/GVoiceApiClient</code></td><td>앱/명령/의도 데이터(<code>GVoiceDataManager</code>), 연결 상태, 사용 로그 수집, SharedPreference와 Retrofit REST 클라이언트를 제공합니다.</td></tr>
+          <tr><td>플레이어</td><td><code>player/*</code></td><td>TTS 안내·미디어 스트림·시작/종료 사운드 재생을 담당합니다.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>계층 · 외부 연동</h3>
+    <p>앱은 매니페스트에 <code>:interactor</code>(VoiceInteractionService), <code>:session</code>(SessionService), 그리고 기본 프로세스의 RecognitionService 등 다중 프로세스 구조로 정의됩니다. 프레임워크는 부팅 후 기본 어시스턴트로 설정된 앱의 <code>VoiceInteractionService</code>를 상시 구동하고, 호출어 감지 시 <code>showSession()</code>으로 세션을 띄웁니다. 외부 백엔드 연동은 두 갈래입니다. KT GiGA Genie Inside 서버에는 gRPC(<code>grpc-okhttp/protobuf-lite/stub 1.38.0</code>, live 기준 <code>inside-dev.gigagenie.ai:50109</code>)로 음성 인식·NLU를 연동하고, AVIS SP/BO 서버에는 Retrofit REST(<code>SP_BASE_URL</code>/<code>BO_BASE_URL</code>)로 데이터·사용 로그를 주고받습니다. 시스템 권한(<code>MEDIA_CONTENT_CONTROL</code>, <code>BIND_VOICE_INTERACTION</code>, 차량 공조 권한)을 사용하므로 시스템/플랫폼 서명 환경(AAOS 단말)에서의 설치가 전제입니다(일부 추정).</p>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>언어</td><td>Java</td><td>소스 호환성 1.8</td><td>Kotlin Gradle Plugin은 루트 buildscript에 등록(1.6.10)</td></tr>
+          <tr><td>플랫폼</td><td>Android Automotive OS (Android 12 기반)</td><td>compileSdk 32 / targetSdk 32 / minSdk 31</td><td><code>android.hardware.type.automotive</code> 필수</td></tr>
+          <tr><td>빌드</td><td>Gradle + Android Gradle Plugin</td><td>AGP 7.1.3, Gradle Wrapper</td><td>flavor dev/tb/production, viewBinding 사용</td></tr>
+          <tr><td>난독화</td><td>Allatori</td><td>—</td><td><code>allatori.xml</code> + <code>runAllatori</code> 태스크</td></tr>
+          <tr><td>음성 SDK</td><td>KT GiGA Genie Inside SDK</td><td><code>g-sdk-android_1.6.1.aar</code></td><td>발화 인식·NLU·TTS 세션 (<code>com.kt.gigagenie.inside</code>)</td></tr>
+          <tr><td>시스템 앱 SDK</td><td><code>com.kt.avis.lib:avis-system-sdk</code></td><td>0.00.14</td><td>사내 Maven에서 참조 (Service Agent Library)</td></tr>
+          <tr><td>호출어 엔진</td><td>kwsrnet (KWS)</td><td><code>kwsrnet-release.aar</code></td><td>모델 자산 <code>assets/kwsrnet/*.cnsi</code></td></tr>
+          <tr><td>RPC</td><td>gRPC (okhttp / protobuf-lite / stub)</td><td>1.38.0</td><td>Inside 서버 연동</td></tr>
+          <tr><td>REST</td><td>Retrofit (+ converter-gson, converter-simplexml)</td><td>2.9.0 / 2.3.0</td><td>OkHttp logging-interceptor 4.9.3, SP/BO 서버</td></tr>
+          <tr><td>직렬화</td><td>Gson</td><td>2.8.9</td><td>JSON 데이터(AppInfoList 등)</td></tr>
+          <tr><td>리액티브</td><td>RxJava2 / RxAndroid</td><td>2.1.14 / 2.0.2</td><td>비동기 처리</td></tr>
+          <tr><td>AndroidX</td><td>media / constraintlayout / Material</td><td>1.6.0 / 2.1.4 / 1.6.1</td><td>미디어 제어·UI</td></tr>
+          <tr><td>AAOS Car 라이브러리</td><td>car-ui-lib, car-apps-common, car-media-common, car-uxr-client-lib, car-assist-lib</td><td>동일 Gradle 프로젝트 모듈</td><td>UI·미디어·주의분산 제한(UXR)·어시스트</td></tr>
+          <tr><td>시스템 stub</td><td><code>android.jar</code>, <code>android.car-system-stubs.jar</code></td><td>prebuilts/sdk/31/system</td><td>부트클래스패스 주입(시스템 권한·차량 API)</td></tr>
+          <tr><td>사내 저장소</td><td>Maven (Altimedia)</td><td>—</td><td><code>http://mvn.altimedia.com/repository/maven-releases</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+    <h3>1) 호출어 발화부터 명령 수행까지</h3>
+    <ol class="steps">
+      <li><span class="st">호출어 감지</span><span class="sd"><code>GVoiceInteractionService</code>(:interactor)가 상시 동작하며 <code>KwsDetector</code>(kwsrnet)가 마이크 입력에서 호출어를 감지합니다.</span></li>
+      <li><span class="st">세션 시작</span><span class="sd"><code>showSession()</code>으로 <code>GVoiceInteractionSessionService</code>(:session)가 세션을 생성하고 시작 사운드와 음성 플레이트 UI를 노출합니다.</span></li>
+      <li><span class="st">오디오 캡처 · 인식</span><span class="sd"><code>VoiceRecorder</code>가 PCM 오디오를 캡처하고 <code>InsideVoiceManager</code>가 Inside SDK 세션으로 발화를 서버에 전달해 인식·NLU 결과를 받습니다.</span></li>
+      <li><span class="st">의도 분류</span><span class="sd"><code>InsideDialogKitManager</code>가 gRPC <code>Payload</code>의 의도(intent)/명령(command)을 분류해 적절한 매니저로 라우팅합니다.</span></li>
+      <li><span class="st">명령 수행</span><span class="sd"><code>GVoiceAppManager</code>(앱 실행)·<code>GVoiceMediaManager</code>(미디어)·<code>GVoiceVehicleManager</code>(공조) 중 해당 매니저가 명령을 실행합니다.</span></li>
+      <li><span class="st">TTS · 사운드 안내</span><span class="sd"><code>ViaGuidancePlayer</code>/<code>ViaSoundPlayer</code>가 TTS 응답과 종료 사운드를 재생하고 세션을 정리합니다. 이후 다시 호출어 대기 상태로 돌아갑니다.</span></li>
+    </ol>
+
+    <h3>2) STT(받아쓰기) 서비스 흐름 — feature/support_stt</h3>
+    <ol class="steps">
+      <li><span class="st">STT 요청 수신</span><span class="sd">외부 앱이 <code>com.kt.avis.action.START_STT</code> 액션과 대상 앱 식별자(<code>targetAppId</code>)를 담아 받아쓰기를 요청합니다.</span></li>
+      <li><span class="st">인식 시작</span><span class="sd"><code>InsideVoiceManager.startSTT(target)</code>가 상태를 <code>REQ_STT</code>로 전환하고 오디오 포커스를 확보한 뒤 <code>voiceToTextStart()</code>로 인식을 시작합니다.</span></li>
+      <li><span class="st">결과 전달</span><span class="sd">인식이 완료되면 <code>GVoiceAppManager.stopSpeechToText(userWord)</code>가 결과를 <code>RECOGNITION_RESULT</code>로 대상 앱에 전달합니다(오류 시 <code>RECOGNITION_ERROR</code>/<code>RECOGNITION_UNAVAILABLE</code>).</span></li>
+      <li><span class="st">종료</span><span class="sd"><code>STOP_STT</code> 액션 또는 <code>stopSTT()</code> 호출로 세션을 정리하고 오디오 포커스를 해제한 뒤 <code>READY</code> 상태로 복귀합니다.</span></li>
+    </ol>
+
+    <h3>3) SP 미수신 시 재연동</h3>
+    <ol class="steps">
+      <li><span class="st">데이터 미수신 상태 발화</span><span class="sd">SP(서비스 플랫폼)에서 앱/명령 데이터를 받지 못한 상태에서 발화 요청이 들어옵니다.</span></li>
+      <li><span class="st">TTS 안내</span><span class="sd">즉시 명령을 수행하지 않고 안내 TTS를 제공합니다.</span></li>
+      <li><span class="st">SP 재연동 시도</span><span class="sd">SP 연동을 재시도해 데이터를 갱신한 뒤 정상 흐름으로 복귀합니다(커밋 3904ef6b 기준).</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>빌드 진입점은 <code>packages/apps/Car/libs/aaos-apps-gradle-project</code> 디렉터리의 Gradle Wrapper입니다. 제품 flavor는 <code>dev</code>·<code>tb</code>·<code>production</code> 3종이며, 각 flavor는 <code>config/avis.&lt;flavor&gt;.properties</code>의 서버 URL/키를 <code>BuildConfig</code> 필드로 주입받습니다. 빌드 타입(debug/release)에는 공통으로 <code>config/live_inside.properties</code>가 적용됩니다.</p>
+    <pre><code>cd packages/apps/Car/libs/aaos-apps-gradle-project
+
+# 음성비서 앱 디버그 빌드 (dev flavor 예시)
+./gradlew :car-custom-voice-app:assembleDevDebug
+
+# 릴리스 빌드 (production flavor 예시, 서명 + Allatori 난독화 적용)
+./gradlew :car-custom-voice-app:assembleProductionRelease
+
+# 클린
+./gradlew clean</code></pre>
+    <p>버전은 <code>version.properties</code>(MAJOR·MINOR·PATCH)에서 계산되며, 현재 값 기준 versionCode 201 / versionName <code>v0.02.01</code> 입니다. APK 파일명은 <code>avis_voice_&lt;flavor&gt;_&lt;version&gt;&lt;-debug|-release&gt;_&lt;빌드일자&gt;.apk</code> 형식으로 생성됩니다. debug/release 모두 <code>signingConfigs.release</code>(<code>keystore/aaos.inside.via.keystore.jks</code>)로 서명합니다.</p>
+    <div class="callout">
+      <div class="ct">빌드 전제</div>
+      compileSdk 32 SDK 플랫폼이 설치되어 있어야 하며, 컴파일에는 <code>prebuilts/sdk/31/system</code>의 시스템 stub(<code>android.jar</code>, <code>android.car-system-stubs.jar</code>)이 부트클래스패스로 주입됩니다. 시스템 권한(<code>MEDIA_CONTENT_CONTROL</code>, <code>BIND_VOICE_INTERACTION</code>, 차량 공조 권한)을 사용하므로 일반 사이드로드 설치만으로는 동작이 제한될 수 있고, 시스템/플랫폼 서명 환경(AAOS 단말)에서의 설치가 전제입니다(일부 추정).
+    </div>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>초기 개발(2023년)에는 AVIS 음성비서의 핵심 기능 정비와 빌드/버전 체계 정리, production 서버 URL 전환, SP 미수신 재연동 로직 추가 등이 이루어졌습니다. 이후 2024년에 service SDK 적용과 Allatori 난독화 도입이 진행되었고, 2025년에는 STT(받아쓰기) 서비스 경로가 추가되었으며, 가장 최근(2025-12)에는 Service Agent Library(<code>avis-system-sdk 0.00.14</code>) 업데이트와 버전 업이 반영되었습니다.</p>
+    <ul class="commits">
+      <li><span class="date">2025-12-22</span><span class="msg"><code>66e6e1f7</code> update. Service Agent Library 업데이트 및 version up</span></li>
+      <li><span class="date">2025-04-22</span><span class="msg"><code>aec6f689</code> update. STT 기능 추가 및 version up</span></li>
+      <li><span class="date">2024-04-19</span><span class="msg"><code>637a3181</code> Merge branch 'obfuscation'</span></li>
+      <li><span class="date">2024-04-19</span><span class="msg"><code>ee85fdb6</code> update. service sdk 0.00.10 적용 및 version up</span></li>
+      <li><span class="date">2024-04-16</span><span class="msg"><code>6c315d77</code> add. apply allatori for obfuscation</span></li>
+      <li><span class="date">2023-07-14</span><span class="msg"><code>dcaa987e</code> update. production version 용 base url 변경 및 version up</span></li>
+      <li><span class="date">2023-07-10</span><span class="msg"><code>056619d0</code> update. production version 용 base url 변경</span></li>
+      <li><span class="date">2023-06-27</span><span class="msg"><code>9e7d068d</code> fix. 코드 정리</span></li>
+      <li><span class="date">2023-06-27</span><span class="msg"><code>634aaa52</code> fix. 코드 정리</span></li>
+      <li><span class="date">2023-06-27</span><span class="msg"><code>40f4a358</code> update. 안내 문구 변경 및 value xml 현행화</span></li>
+      <li><span class="date">2023-06-23</span><span class="msg"><code>b2d2b685</code> update. version up</span></li>
+      <li><span class="date">2023-06-23</span><span class="msg"><code>3904ef6b</code> add. SP로부터 데이터 수신이 되지 않은 상황에서 발화 요청이 들어오는 경우 TTS 제공 후 SP 연동 재시도하는 로직 추가</span></li>
+      <li><span class="date">2023-06-09</span><span class="msg"><code>0abcd0bc</code> update. minor version up</span></li>
+      <li><span class="date">2023-06-09</span><span class="msg"><code>7bdde0b0</code> fix. version file 갱신 로직 제거</span></li>
+      <li><span class="date">2023-05-30</span><span class="msg"><code>f7a64bf1</code> update. version up</span></li>
+      <li><span class="date">2023-05-30</span><span class="msg"><code>9e4f99c7</code> fix. KTAVISPLTF-346 (touch에 의해 voice plate UI dismiss 시 gain_focus 상태면 release)</span></li>
+    </ul>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li>저장소 README — <code>kt_aaos_inside/README.md</code><span class="src">저장소 문서 (과제 개요·구조 1차 근거)</span></li>
+      <li>음성비서 앱 모듈 — <code>packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app</code><span class="src">소스 경로 (과제 산출물 모듈)</span></li>
+      <li>매니페스트 — <code>car-custom-voice-app/src/main/AndroidManifest.xml</code> · 서비스 메타 <code>res/xml/interaction_service.xml</code>, <code>recognition_service.xml</code><span class="src">소스 경로 (서비스 등록 검증)</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3269132289">AAOS Voice Interaction Application</a><span class="src">Confluence ORGAPPDEV / pageId 3269132289 (VoiceInteraction·Session·Recognition 3프로세스 구조)</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3460038660">KT_TRUCK_PoC_Voice_Application</a><span class="src">Confluence ORGAPPDEV / pageId 3460038660 (PoC 단계 단말 검증 이력)</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/KTAVISBOP/pages/3254780590/KT+AVIS+Platform">KT AVIS Platform</a><span class="src">Confluence (KT_AVIS_Applications 페이지가 안내하는 프로젝트 스페이스 이동 대상)</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feature/support_stt</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

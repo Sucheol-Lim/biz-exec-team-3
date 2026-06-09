@@ -1,0 +1,211 @@
+<!doctype html>
+<!-- kt_aaos_inside · 시스템 음성비서 등록 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시스템 음성비서 등록 — kt_aaos_inside 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT AAOS Demokit P1 음성인식 앱</a><span class="sep">›</span>
+      <span class="here">시스템 음성비서 등록</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive OS · Java</span>
+    </div>
+    <h1>시스템 음성비서 등록</h1>
+    <p class="one-liner"><code>GVoiceInteractionService</code>가 AAOS 표준 <code>VoiceInteractionService</code>를 구현하고, <code>@xml/interaction_service</code> 메타데이터(<code>supportsAssist</code>, <code>supportsLocalInteraction</code>)를 통해 단말의 기본 디지털 어시스턴트로 등록되어 부팅 후 상시 구동됩니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_aaos_inside" target="_blank" rel="noopener"><code>kt_aaos_inside</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feature/support_stt</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>service/GVoiceInteractionService.java</code></div></div>
+      <div class="item"><div class="k">등록 메타데이터</div><div class="v"><code>res/xml/interaction_service.xml</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>AAOS 단말이 음성비서를 인식하려면 앱이 Android 음성 인터랙션 프레임워크에 정식으로 등록되어야 합니다. 이 앱은 <code>service/GVoiceInteractionService</code>를 <code>android.service.voice.VoiceInteractionService</code> 인텐트 필터와 <code>android.permission.BIND_VOICE_INTERACTION</code> 권한으로 매니페스트에 선언하고, <code>android:process=":interactor"</code> 별도 프로세스에서 상시 동작하도록 구성합니다.</p>
+    <p>서비스 노드의 <code>&lt;meta-data android:name="android.voice_interaction"&gt;</code>는 <code>@xml/interaction_service</code>를 가리키며, 이 XML이 <code>sessionService</code>(<code>GVoiceInteractionSessionService</code>), <code>recognitionService</code>(<code>GRecognitionService</code>), <code>settingsActivity</code>(<code>GSettingsActivity</code>)를 함께 지정합니다. <code>supportsAssist="true"</code>·<code>supportsLocalInteraction="true"</code> 속성으로 어시스트와 로컬 인터랙션을 지원함을 선언해, 사용자가 이 앱을 기본 어시스턴트로 설정하면 시스템이 부팅 시 서비스의 <code>onReady()</code>를 호출합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      서비스는 3개의 협력 컴포넌트를 한 XML로 묶습니다. <code>VoiceInteractionService</code>(:interactor)는 호출어 대기·세션 트리거를, <code>SessionService</code>(:session)는 발화 세션 UI를, <code>RecognitionService</code>는 표준 STT 공급자 역할을 분담합니다. <code>onReady()</code>에서 권한 확인 후 네트워크 매니저를 초기화해, 네트워크가 준비되면 Inside SDK·호출어 감지로 이어집니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant FW as AAOS VoiceInteraction 프레임워크
+    participant MF as AndroidManifest + interaction_service.xml
+    participant SVC as GVoiceInteractionService (:interactor)
+    participant NSM as NetworkStateManager
+    participant IVM as InsideVoiceManager
+
+    Note over FW,MF: 부팅 후 기본 어시스턴트로 설정된 앱 탐색
+    FW-&gt;&gt;MF: voice_interaction 메타데이터 조회
+    MF--&gt;&gt;FW: sessionService / recognitionService / supportsAssist
+    FW-&gt;&gt;SVC: bindService (BIND_VOICE_INTERACTION)
+    FW-&gt;&gt;SVC: onReady()
+    SVC-&gt;&gt;SVC: registerPermissionReceiver()
+    SVC-&gt;&gt;SVC: checkRequiredPermission() (RECORD_AUDIO)
+    alt 권한 보유
+        SVC-&gt;&gt;NSM: init(context, handler)
+        NSM--&gt;&gt;SVC: NETWORK_EVENT_AVAILABLE
+        SVC-&gt;&gt;IVM: initInsideVoiceManager()
+    else 권한 없음
+        SVC-&gt;&gt;SVC: startActivity(ViaMainActivity, PERM_ERROR)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 프레임워크가 메타데이터로 서비스를 식별·바인딩한 뒤 <code>onReady()</code>를 호출하고, 서비스는 권한·네트워크 확인을 거쳐 Inside SDK 초기화로 진입합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class VoiceInteractionService {
+        &lt;&lt;abstract&gt;&gt;
+        +onReady()
+        +onGetSupportedVoiceActions(actions) Set~String~
+    }
+    class GVoiceInteractionService {
+        -boolean isStarted
+        +onReady()
+        +onDestroy()
+        +onKwsDetect(DetectType type)
+        +onCompleteInit()
+        +onReady(boolean ready)
+        +onUpdate(boolean success)
+        -checkRequiredPermission() boolean
+        -initInsideVoiceManager()
+    }
+    class OnKwsDetectListener {
+        &lt;&lt;interface&gt;&gt;
+        +onKwsDetect(DetectType type)
+    }
+    class OnInsideVoiceCallback {
+        &lt;&lt;interface&gt;&gt;
+        +onCompleteInit()
+        +onFailureInit()
+    }
+    class GVoiceDataCallback {
+        &lt;&lt;interface&gt;&gt;
+        +onReady(boolean ready)
+        +onUpdate(boolean success)
+    }
+    class NetworkStateManager {
+        +init(context, handler)
+        +destroy()
+    }
+    class InsideVoiceManager {
+        +init(context, callback)
+    }
+
+    VoiceInteractionService &lt;|-- GVoiceInteractionService
+    GVoiceInteractionService ..|&gt; OnKwsDetectListener
+    GVoiceInteractionService ..|&gt; OnInsideVoiceCallback
+    GVoiceInteractionService ..|&gt; GVoiceDataCallback
+    GVoiceInteractionService --&gt; NetworkStateManager : 네트워크 감시
+    GVoiceInteractionService --&gt; InsideVoiceManager : 초기화 위임
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>GVoiceInteractionService</code>는 AAOS <code>VoiceInteractionService</code>를 상속하면서 호출어·Inside·데이터 3개 콜백 인터페이스를 동시에 구현해, 등록 이후의 전체 음성 파이프라인 진입점을 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/main/AndroidManifest.xml</code> — 서비스 선언과 메타데이터 등록</div>
+<pre><code>&lt;service
+    android:name=".service.GVoiceInteractionService"
+    android:enabled="true"
+    android:exported="true"
+    android:permission="android.permission.BIND_VOICE_INTERACTION"
+    android:process=":interactor"&gt;
+    &lt;meta-data
+        android:name="android.voice_interaction"
+        android:resource="@xml/interaction_service" /&gt;
+    &lt;intent-filter&gt;
+        &lt;action android:name="android.service.voice.VoiceInteractionService" /&gt;
+    &lt;/intent-filter&gt;
+&lt;/service&gt;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>res/xml/interaction_service.xml</code> — 협력 컴포넌트와 지원 속성 선언</div>
+<pre><code>&lt;voice-interaction-service
+    android:sessionService="com.kt.avis.voice.service.GVoiceInteractionSessionService"
+    android:recognitionService="com.kt.avis.voice.service.GRecognitionService"
+    android:settingsActivity="com.kt.avis.voice.ui.GSettingsActivity"
+    android:supportsAssist="true"
+    android:supportsLaunchVoiceAssistFromKeyguard="false"
+    android:supportsLocalInteraction="true" /&gt;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>service/GVoiceInteractionService.java</code> — onReady 진입과 권한·네트워크 초기화</div>
+<pre><code>@Override
+public void onReady() {
+    super.onReady();
+    registerPermissionReceiver();
+    if (!checkRequiredPermission()) {           // RECORD_AUDIO 보유 시
+        NetworkStateManager.getInstance().init(getApplicationContext(), mNetworkStateHandler);
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/AndroidManifest.xml" target="_blank" rel="noopener">AndroidManifest.xml</a><span class="src">VoiceInteractionService·SessionService·RecognitionService 선언 (:interactor / :session 프로세스, BIND_VOICE_INTERACTION)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/res/xml/interaction_service.xml" target="_blank" rel="noopener">res/xml/interaction_service.xml</a><span class="src">sessionService / recognitionService / supportsAssist / supportsLocalInteraction 메타데이터</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/service/GVoiceInteractionService.java" target="_blank" rel="noopener">service/GVoiceInteractionService.java</a><span class="src">onReady / checkRequiredPermission / 네트워크·Inside 초기화 진입점</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="index.html#features">목록</a>
+      <a href="f02.html">호출어(KWS) 감지 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feature/support_stt</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_aaos_inside 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

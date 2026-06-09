@@ -1,0 +1,200 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap · SDV(스위치드 디지털 비디오) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SDV 스위치드 디지털 비디오 — skb_cloud_local_ocap 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local App OCAP</a><span class="sep">›</span>
+      <span class="here">SDV 스위치드 디지털 비디오</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP / MHP STB · Java</span>
+    </div>
+    <h1>SDV 스위치드 디지털 비디오</h1>
+    <p class="one-liner"><code>SDVInit</code>이 MC(Mini Carousel) 디스크립터를 튜닝·수신해 SDV를 초기화하고, <code>CCPService</code>(CCP 프로토콜)와 <code>SDVManager</code>가 시청 요청 시 대역폭을 효율적으로 할당하는 케이블 채널 스위칭을 처리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap" target="_blank" rel="noopener"><code>skb_cloud_local_ocap</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>OCAP_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>sdv/SDVInit.java</code> · <code>sdv/manager/SDVManager.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">케이블 대역폭 효율화 (요청 시 채널 할당)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>SDV(Switched Digital Video)는 케이블망 대역폭을 절약하기 위해, 시청자가 없는 채널은 전송하지 않다가 누군가 채널을 요청하면 그때 해당 채널을 특정 주파수에 스위칭해 할당하는 기술입니다. 본 앱은 부팅 시 <code>SDVInit.init()</code>으로 SDV 서브시스템을 초기화합니다(<code>HomeMain.start()</code>에서 <code>(new SDVInit()).init(true)</code> 호출).</p>
+    <p><code>SDVInit.init()</code>은 (1) <code>readDefaultDescriptor()</code>로 MC(Mini Carousel) 주/백업 주파수·프로그램 번호를 읽고, (2) <code>MCReader</code>로 MC 섹션 수신을 시작한 뒤, (3) main 주파수로 튜닝해 MC 섹션을 기다리고(<code>waitMCRead()</code>, 최대 5회 재시도·2초 지연), 실패하면 backup 주파수로 재시도합니다. 수신한 <code>MCSection</code>에는 SDV 채널 매핑·SG(Service Group) 정보가 담겨 있습니다.</p>
+    <p>실제 SDV 채널 시청 요청은 <code>SDVManager</code>가 처리합니다. <code>SDVManager.isSdvAvailable()</code>로 가용성을 확인하고, <code>CCPService.requestCCPSelect(channel, listener)</code>로 CCP(Channel Change Protocol) 서버에 채널 선택을 요청합니다. CCP 서버가 할당한 주소(<code>getAccessPointAddress(sgId)</code>)로 keep-alive(<code>KeepAliveMessage</code>)를 보내 세션을 유지하고, 결과(<code>CCPSelectResult</code>)에 따라 튜닝 정보가 결정됩니다. CCP 응답 코드는 200(성공)·412(SG 코드 재획득 필요)·400(소켓 오류) 등으로 구분됩니다.</p>
+    <div class="callout">
+      <div class="ct">FCC와의 관계</div>
+      SDV 채널은 FCC priming 대상에서 제외됩니다(<code>FastChannelChangeManager.findUsablePrimerProxy()</code>의 <code>isSDV()</code> 체크). SDV는 요청 시점에 동적으로 주파수가 할당되므로 인접 채널을 미리 튜닝해 두는 FCC 방식과 맞지 않기 때문입니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant HM as HomeMain
+    participant INIT as SDVInit
+    participant MCR as MCReader
+    participant SM as SDVManager
+    participant CCP as CCPService
+    participant SRV as CCP/SM 서버
+
+    HM-&gt;&gt;INIT: init(true)
+    INIT-&gt;&gt;INIT: readDefaultDescriptor() (main/backup freq)
+    INIT-&gt;&gt;MCR: startMCReady()
+    INIT-&gt;&gt;INIT: tune(mainFreq, mainProgNo)
+    INIT-&gt;&gt;MCR: waitMCRead() (최대 5회 재시도)
+    MCR--&gt;&gt;INIT: MCSection (SG/채널 매핑)
+    Note over INIT,SRV: SDV 채널 시청 요청 시
+    SM-&gt;&gt;CCP: requestCCPSelect(channel, listener)
+    CCP-&gt;&gt;SRV: CCP Select 요청
+    SRV--&gt;&gt;CCP: CCPSelectResult (200/412/400)
+    CCP-&gt;&gt;SM: 할당된 튜닝 정보
+    SM-&gt;&gt;SRV: sendKeepAlive(KeepAliveMessage)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 부팅 시 <code>SDVInit</code>이 MC 섹션을 수신해 SG/채널 매핑을 확보하고, SDV 채널 요청 시 <code>SDVManager</code>가 <code>CCPService</code>로 채널 할당을 받아 keep-alive로 세션을 유지합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class SDVInit {
+        -int mainFreq
+        -int backupFreq
+        +init(isInit)
+        -readDefaultDescriptor() boolean
+        -tune(freq, progNo)
+        -waitMCRead() MCSection
+    }
+    class MCReader {
+        +getInstance() MCReader
+        +startMCReady()
+        +getSection() MCSection
+        +setTuneInfo(freq, progNo, x)
+    }
+    class MCSection {
+        +getSgId() int
+    }
+    class SDVManager {
+        +getInstance() SDVManager
+        +isSdvAvailable() boolean
+        +sendKeepAlive(message)
+        +getSection() MCSection
+        +getMCChInfo(sourceId) MCChannelInfo
+    }
+    class CCPService {
+        +SUCCESS_CODE
+        +getAccessPointAddress(sgCode)$ String
+        +requestCCPSelect(channel, listener)$
+    }
+    class CCPSelectResult
+    class KeepAliveMessage
+    class SelectionProviderManager {
+        +getInstance() SelectionProviderManager
+    }
+
+    SDVInit ..&gt; MCReader : MC 섹션 수신
+    SDVInit ..&gt; SelectionProviderManager : 초기화
+    MCReader o-- MCSection : 보유
+    SDVManager ..&gt; MCReader : 섹션 조회
+    SDVManager ..&gt; CCPService : 채널 선택 요청
+    CCPService ..&gt; CCPSelectResult : 결과
+    SDVManager ..&gt; KeepAliveMessage : 세션 유지
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>SDVInit</code>이 <code>MCReader</code>로 MC 섹션을 수신하고, <code>SDVManager</code>가 <code>CCPService</code>로 SDV 채널 할당을 요청합니다. keep-alive로 세션을 유지합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>sdv/SDVInit.java</code> — MC 디스크립터 튜닝과 섹션 수신 재시도</div>
+<pre><code>public void init(boolean isInit) {
+    this.isInit = isInit;
+    boolean readDes = readDefaultDescriptor();   // main/backup freq·progNo 획득
+    MCReader.getInstance().resetSection();
+    SelectionProviderManager.getInstance();
+    MCReader.getInstance().startMCReady();
+
+    boolean triedWithBackup = false;
+    if (mainFreq &gt; 0 &amp;&amp; mainProgNo &gt; 0) {
+        OcapLocator[] result = tune(mainFreq, mainProgNo);
+        if (result == null &amp;&amp; backupFreq &gt; 0 &amp;&amp; backupProgNo &gt; 0) {
+            triedWithBackup = true;
+            result = tune(backupFreq, backupProgNo);   // main 실패 시 backup
+        }
+    }
+    MCSection mcSection = waitMCRead();           // 최대 5회 재시도, 2초 지연
+    if (mcSection == null &amp;&amp; !triedWithBackup &amp;&amp; backupFreq &gt; 0 &amp;&amp; backupProgNo &gt; 0) {
+        MCReader.getInstance().startMCReady();
+        tune(backupFreq, backupProgNo);
+        mcSection = waitMCRead();
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/sdv/SDVInit.java" target="_blank" rel="noopener">sdv/SDVInit.java</a><span class="src">SDV 초기화 — MC 디스크립터 튜닝·MCSection 수신 재시도</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/sdv/mc/MCReader.java" target="_blank" rel="noopener">sdv/mc/MCReader.java</a><span class="src">MC(Mini Carousel) 섹션 수신·파싱 (startMCReady / getSection)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/sdv/manager/SDVManager.java" target="_blank" rel="noopener">sdv/manager/SDVManager.java</a><span class="src">SDV 가용성·채널 정보·keep-alive (isSdvAvailable / sendKeepAlive)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/sdv/ccp/CCPService.java" target="_blank" rel="noopener">sdv/ccp/CCPService.java</a><span class="src">CCP 프로토콜 — 채널 선택 요청·AP 주소 조회 (requestCCPSelect)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/sdv/ccp/data/CCPSelectResult.java" target="_blank" rel="noopener">sdv/ccp/data/CCPSelectResult.java</a><span class="src">CCP 채널 선택 결과 데이터</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/sdv/intf/KeepAliveMessage.java" target="_blank" rel="noopener">sdv/intf/KeepAliveMessage.java</a><span class="src">SDV 세션 유지 keep-alive 메시지</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f07.html">← CAS 수신제한 연동</a>
+      <a href="f09.html">Mini EPG · 채널 예약 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>OCAP_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

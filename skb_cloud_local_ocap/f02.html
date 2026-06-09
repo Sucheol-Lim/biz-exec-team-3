@@ -1,0 +1,208 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap · FCC 고속 채널 전환 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FCC 고속 채널 전환 — skb_cloud_local_ocap 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local App OCAP</a><span class="sep">›</span>
+      <span class="here">FCC 고속 채널 전환</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP / MHP STB · Java</span>
+    </div>
+    <h1>FCC 고속 채널 전환</h1>
+    <p class="one-liner"><code>FastChannelChangeManager</code>가 현재 채널의 인접 채널을 여분 튜너에 미리 튜닝(<code>ChannelPrimer</code>)해 두어, 가입자가 채널을 바꿀 때 영상 표시 지연을 줄입니다. standby(대기) 상태에서는 priming을 수행하지 않습니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap" target="_blank" rel="noopener"><code>skb_cloud_local_ocap</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>OCAP_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>navigator/channel/fcc/FastChannelChangeManager.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">채널 전환 지연 최소화 (인접 채널 사전 튜닝)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>케이블 STB에서 채널을 바꾸면 튜너 재동기·SI 수신·디스크램블 과정 때문에 영상이 뜨기까지 지연이 생깁니다. FCC(Fast Channel Change)는 이 지연을 줄이기 위해, 가입자가 현재 보고 있는 채널을 기준으로 다음/이전 채널을 여분 튜너에 미리 튜닝(priming)해 둡니다. <code>FastChannelChangeManager.primeChannels(to)</code>가 호출되면 현재 채널을 <code>LEVEL_CURRENT</code>로, 사용자가 다음에 누를 확률이 높은 인접 채널을 <code>LEVEL_FCC</code>로 지정해 <code>ChannelPrimerProxy</code>(내부적으로 Alticast <code>ChannelPrimer</code>를 감쌈)에 준비시킵니다.</p>
+    <p>채널 방향(<code>FORWARD</code>/<code>BACKWARD</code>)은 직전 채널과 대상 채널의 <code>ChannelRing</code> 인덱스를 비교해 결정합니다. 채널 UP 흐름이면 상위 채널(up1)을, DOWN 흐름이면 하위 채널(down1)을 prime 대상으로 잡습니다. 8VSB 채널은 VSB 튜너 자원이 제한적이므로 <code>findUsablePrimerProxy()</code>에서 튜너 사용 현황(<code>getTunerId()</code>)을 보고 가장 적합한 primer를 재활용합니다.</p>
+    <div class="callout">
+      <div class="ct">standby에서 FCC tune 차단</div>
+      <code>primeChannels()</code> 진입부에서 <code>Host.getInstance().getPowerMode()</code>가 <code>FULL_POWER</code>가 아니면(=대기 모드) 즉시 return 하여 priming을 건너뜁니다. 최근 커밋(2025-12-11 "standby에서 fcc tune 막음")에서 강화된 동작으로, 대기 상태에서 불필요한 튜너 점유와 전력 소모를 막습니다. SDV 채널은 prime 대상에서 제외됩니다(<code>findUsablePrimerProxy()</code>의 <code>isSDV()</code> 체크).
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant CC as ChannelController
+    participant FCC as FastChannelChangeManager
+    participant HOST as Host (PowerMode)
+    participant RING as ChannelRing
+    participant PROXY as ChannelPrimerProxy
+    participant PRIMER as Alticast ChannelPrimer
+
+    CC-&gt;&gt;FCC: primeChannels(to)
+    FCC-&gt;&gt;HOST: getPowerMode()
+    alt 대기 모드 (not FULL_POWER)
+        HOST--&gt;&gt;FCC: STANDBY
+        FCC--&gt;&gt;CC: return (priming 생략)
+    else FULL_POWER
+        FCC-&gt;&gt;FCC: initCache()
+        FCC-&gt;&gt;RING: indexOf(to) / getNext / getPrevious
+        RING--&gt;&gt;FCC: 방향(FORWARD/BACKWARD) 판정
+        FCC-&gt;&gt;FCC: setPrimerProxy(LEVEL_CURRENT, to)
+        FCC-&gt;&gt;FCC: setPrimerProxy(LEVEL_FCC, fcc)
+        FCC-&gt;&gt;FCC: stopUnusedPrimerProxies()
+        FCC-&gt;&gt;PROXY: primeChannel(fcc, LEVEL_FCC)
+        PROXY-&gt;&gt;PRIMER: prime (여분 튜너에 미리 튜닝)
+        Note over PROXY,PRIMER: 다음 채널 전환 시 즉시 표시
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 채널 전환 시 <code>primeChannels()</code>가 호출되면, 대기 모드면 즉시 빠지고, FULL_POWER이면 방향을 판정해 인접 채널을 여분 튜너에 미리 prime 합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class FastChannelChangeManager {
+        -ChannelController channelController
+        -ChannelDatabase channelDatabase
+        -ChannelRing channelRing
+        -ChannelPrimerProxy[] primers
+        -int channelDirection
+        +primeChannels(to)
+        +isPrimedChannel(ch) boolean
+        +getPrimersSourceId() int
+        +stopUnusedPrimerProxies()
+        +stopAllPrimerProxies()
+        -setPrimerProxy(level, ch)
+        -findUsablePrimerProxy(ch, level) ChannelPrimerProxy
+    }
+    class ChannelPrimerProxy {
+        +int level
+        +ChannelPrimer channelPrimer
+        +stopPrime()
+        +initLevel()
+        +isHit(ch, level) boolean
+    }
+    class ChannelPrimer {
+        &lt;&lt;Alticast SDK&gt;&gt;
+        +getTunerId() int
+    }
+    class FccManager {
+        &lt;&lt;Alticast SDK&gt;&gt;
+    }
+    class Host {
+        +getPowerMode() int
+        +FULL_POWER
+    }
+    class TbroadChannel {
+        +isSDV() boolean
+        +getService()
+    }
+
+    FastChannelChangeManager o-- ChannelPrimerProxy : 소유(여분 튜너)
+    ChannelPrimerProxy o-- ChannelPrimer : 래핑
+    FastChannelChangeManager ..&gt; Host : PowerMode 확인
+    FastChannelChangeManager ..&gt; TbroadChannel : SDV 여부 확인
+    FastChannelChangeManager ..&gt; FccManager : FCC 이벤트
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>FastChannelChangeManager</code>가 여러 <code>ChannelPrimerProxy</code>를 소유하며 각 proxy는 Alticast <code>ChannelPrimer</code>를 감쌉니다. priming 전 <code>Host</code> 전원 모드와 채널의 SDV 여부를 확인합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>navigator/channel/fcc/FastChannelChangeManager.java</code> — standby 차단 · 방향 판정 · prime</div>
+<pre><code>public synchronized void primeChannels(Channel to) {
+    Host host = Host.getInstance();
+    if (host.getPowerMode() != Host.FULL_POWER) {
+        if (Log.INCLUDE) {
+            Log.message("[FastChannelChangeManager] primeChannels() it's standby, so return");
+        }
+        return;                                  // 대기 모드 → FCC tune 차단
+    }
+    initCache();
+    if (to == null || channels.length == 0) return;
+
+    int idxTo = channelRing.indexOf(to.getNumber(), to.getMinorNumber());
+    if (idxTo &lt; 0) return;
+
+    Channel fcc = channels[(idxTo + 1) % channels.length];   // up1 (기본 방향)
+    if (curChannel != null) {
+        // 직전 채널과 대상 채널 인덱스로 FORWARD/BACKWARD 판정
+        if (channelDirection == BACKWARD) {
+            fcc = channels[(idxTo - 1 + channels.length) % channels.length]; // down1
+        }
+    }
+    setPrimerProxy(LEVEL_CURRENT, to);
+    setPrimerProxy(LEVEL_FCC, fcc);
+    stopUnusedPrimerProxies();
+    curChannel = to;
+    if (cacheMap[LEVEL_FCC] == null) {
+        primeChannel(fcc, LEVEL_FCC);            // 인접 채널을 여분 튜너에 미리 튜닝
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/navigator/channel/fcc/FastChannelChangeManager.java" target="_blank" rel="noopener">navigator/channel/fcc/FastChannelChangeManager.java</a><span class="src">FCC 핵심 — primeChannels / 방향 판정 / standby 차단 / 8VSB 튜너 재활용</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/navigator/channel/ChannelController.java" target="_blank" rel="noopener">navigator/channel/ChannelController.java</a><span class="src">채널 전환 시 primeChannels 호출 주체</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/navigator/channel/ChannelRing.java" target="_blank" rel="noopener">navigator/channel/ChannelRing.java</a><span class="src">인접 채널·인덱스 조회로 prime 대상 결정 (indexOf / getNext / getPrevious)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/com/tb/navigator/channel/tbroad/TbroadChannel.java" target="_blank" rel="noopener">navigator/channel/tbroad/TbroadChannel.java</a><span class="src">SDV 여부·변조 모드(8VSB) 판정에 사용 (isSDV / getService)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f01.html">← 채널 탐색·전환 (Navigator)</a>
+      <a href="f03.html">홈 화면 · 팝업 UI →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>OCAP_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

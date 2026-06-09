@@ -1,0 +1,190 @@
+<!doctype html>
+<!-- kt_ford_aosp_radio_app · 차량 런처 연동(브로드캐스트) 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>차량 런처 연동(브로드캐스트) — kt_ford_aosp_radio_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford AOSP 라디오 앱</a><span class="sep">›</span>
+      <span class="here">차량 런처 연동 (브로드캐스트)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive (AOSP/AAOS) · Java</span>
+    </div>
+    <h1>차량 런처 연동 (브로드캐스트)</h1>
+    <p class="one-liner"><code>RadioReceiver</code>와 서비스 내부 리시버가 <code>radio.play</code>·<code>kas.action.app.*</code> 브로드캐스트를 수신해 서비스를 기동·정지·뒤로·종료·셧다운으로 제어합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app" target="_blank" rel="noopener"><code>kt_ford_aosp_radio_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>receiver/RadioReceiver.java</code> · <code>Constants.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">KT 런처 인터페이스(kas.action.app.*)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>이 앱은 KT 차량 런처(<code>com.kt.automotive.service.launcher</code>)와 브로드캐스트 인텐트로 느슨하게 결합됩니다. 수신 경로는 두 곳입니다. 매니페스트에 등록된 <code>RadioReceiver</code>는 앱이 떠 있지 않아도 받을 수 있는 진입용 액션(<code>radio.play</code>, <code>kas.action.app.start</code>, <code>kas.action.app.clear</code>)을 처리하고, <code>RadioBrowserService</code>가 동적 등록한 내부 리시버는 서비스가 살아 있는 동안의 제어 액션(다음/이전 채널, 정지·셧다운·clear, nowPlaying)을 처리합니다.</p>
+    <p><code>radio.play</code>로 들어오면 <code>RadioReceiver</code>가 extras의 <code>metadata</code>(예 <code>{"Channel":"SBS 파워 FM"}</code>)를 파싱해 특정 채널 재생 의도를 인텐트에 담은 뒤 <code>startForegroundService()</code>로 서비스를 띄웁니다. 정지 계열 액션(<code>radio.stop</code>, <code>kas.action.app.stop/shutdown/clear</code>)은 서비스 내부 리시버가 받아 세션 콜백의 <code>onStop()</code>으로 위임합니다. 한편 <code>MainActivity</code>도 별도 리시버로 <code>kas.action.app.back</code>(→ <code>moveTaskToBack</code>)과 정지·종료(→ <code>finish</code>)를 처리해 화면 수준 동작을 담당합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      모든 런처 액션 문자열과 키는 <code>Constants</code>에 한곳으로 모여 있습니다. 보안성 검사(8950324) 대응으로 매니페스트의 <code>exported</code> 속성을 명시 제거해 기본값을 사용하도록 정리했습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant LCH as KT Launcher
+    participant RR as RadioReceiver (manifest)
+    participant SVC as RadioBrowserService
+    participant IBR as 서비스 내부 BroadcastReceiver
+    participant CB as RadioSessionCallback
+
+    LCH->>RR: radio.play (metadata Channel)
+    RR->>RR: getJsonElementToString(metadata, "Channel")
+    RR->>SVC: startForegroundService(INTENT_KEY_CHANNEL)
+    SVC->>CB: prepareFromUri() → onPlay()
+    Note over LCH,SVC: --- 서비스 가동 중 ---
+    LCH->>IBR: kas.action.app.stop / shutdown / clear
+    IBR->>CB: onStop() (release + stopSelf)
+    LCH->>IBR: radio.playNextChannel / playPrevChannel
+    IBR->>CB: onSkipToNext() / onSkipToPrevious()
+      </div>
+      <p class="cap"><strong>흐름.</strong> 진입 액션은 매니페스트 리시버가, 가동 중 제어 액션은 서비스 내부 리시버가 받아 세션 콜백으로 위임합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class BroadcastReceiver {
+        &lt;&lt;abstract&gt;&gt;
+        +onReceive(context, intent)
+    }
+    class RadioReceiver {
+        +onReceive(context, intent)
+    }
+    class RadioBrowserService {
+        -broadcastReceiver
+        +getRadioSessionCallback()
+    }
+    class Constants {
+        +ACTION_START_RADIO = "radio.play"$
+        +KAS_ACTION_APP_START$
+        +KAS_ACTION_APP_STOP$
+        +KAS_ACTION_APP_SHUTDOWN$
+        +KAS_ACTION_APP_CLEAR$
+        +ACTION_NEXT_CHANNEL$
+        +ACTION_PREV_CHANNEL$
+    }
+    class RadioSessionCallback {
+        +onStop()
+        +onSkipToNext()
+        +onSkipToPrevious()
+    }
+
+    RadioReceiver --|> BroadcastReceiver : extends
+    RadioReceiver ..> RadioBrowserService : startForegroundService
+    RadioReceiver ..> Constants : 액션/키
+    RadioBrowserService *-- RadioSessionCallback : 위임 대상
+      </div>
+      <p class="cap"><strong>관계.</strong> 매니페스트 리시버와 서비스 내부 리시버가 <code>Constants</code> 액션을 받아 세션 콜백으로 명령을 위임합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>receiver/RadioReceiver.java</code> — radio.play 진입 처리</div>
+<pre><code>if (action.equals(Constants.ACTION_START_RADIO)) {        // "radio.play"
+    Intent startIntent = new Intent(context, RadioBrowserService.class);
+    startIntent.putExtra(Constants.KEY_PLAY_WITH_START_SERVICE, true);
+    Bundle bundle = intent.getExtras();
+    if (bundle != null) {
+        String metaData = bundle.getString("metadata");  // {"Channel":"SBS 라디오"}
+        if (metaData != null) {
+            String channel = Utils.getJsonElementToString(
+                    Utils.getStringToJsonObject(metaData), Constants.INTENT_KEY_CHANNEL);
+            if (channel != null) {
+                startIntent.putExtra(Constants.INTENT_KEY_CHANNEL, channel);
+                startIntent.putExtra(Constants.KEY_PLAY_WITH_START_SERVICE, false);
+            }
+        }
+    }
+    context.startForegroundService(startIntent);
+} else if (action.equals(Constants.KAS_ACTION_APP_CLEAR)) {
+    RadioPreferenceManager.getInstance().resetData();
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>media/RadioBrowserService.java</code> — 가동 중 제어 액션 분기</div>
+<pre><code>switch (action) {
+    case Constants.ACTION_NEXT_CHANNEL:  getRadioSessionCallback().onSkipToNext();     break;
+    case Constants.ACTION_PREV_CHANNEL:  getRadioSessionCallback().onSkipToPrevious(); break;
+    case Constants.ACTION_STOP_RADIO:
+    case Constants.KAS_ACTION_APP_STOP:
+    case Constants.KAS_ACTION_APP_SHUTDOWN:
+    case Constants.KAS_ACTION_APP_CLEAR: getRadioSessionCallback().onStop();           break;
+    case Constants.ACTION_NOW_PLAYING:   new Handler().post(() -&gt; sendCurrentPlayInfo()); break;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/receiver/RadioReceiver.java" target="_blank" rel="noopener">receiver/RadioReceiver.java</a><span class="src">radio.play / kas.action.app.start / clear 진입 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/media/RadioBrowserService.java" target="_blank" rel="noopener">media/RadioBrowserService.java</a><span class="src">서비스 내부 broadcastReceiver · 세션 콜백 위임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/Constants.java" target="_blank" rel="noopener">Constants.java</a><span class="src">런처 액션/키·런처 패키지 상수 집합</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/AndroidManifest.xml" target="_blank" rel="noopener">AndroidManifest.xml</a><span class="src">RadioReceiver intent-filter 등록(exported 기본값 사용)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f05.html">← HLS 직접 재생</a>
+      <a href="f07.html">음성(TTS) 응답 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_radio_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

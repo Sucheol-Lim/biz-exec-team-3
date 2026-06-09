@@ -1,0 +1,176 @@
+<!doctype html>
+<!-- rms_fe · 배치 리포트 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>배치 리포트 — rms_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">RMS FrontEnd 과제</a><span class="sep">›</span>
+      <span class="here">배치 리포트</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Altimedia RMS</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
+    </div>
+    <h1>배치 리포트</h1>
+    <p class="one-liner"><code>batchReport</code>가 Log/Report/Failure 탭으로 배치 집계 결과를 나누어 보여주고, <code>batchReportDetail</code>로 상세를 조회합니다. 각 행의 파일은 <code>/api/v1/files/download</code>로 내려받고, 테이블 데이터는 react-csv(<code>CSVLink</code>)로 내보냅니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>batchReport.tsx</code> · <code>tabs/Log.tsx</code> · <code>tabs/Etc.tsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">배치 집계 리포트 조회·다운로드</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>배치 리포트 화면(<code>batchReport.tsx</code>)은 MUI <code>Tabs</code>로 LOG·DEVICE(report)·FAIL(failure) 세 탭을 제공합니다. LOG 탭은 <code>tabs/Log.tsx</code>(<code>LogReport</code>), 나머지 두 탭은 <code>tabs/Etc.tsx</code>(<code>EtcReport</code>)가 렌더링합니다. 데이터는 <code>ParameterApiManager</code>를 통해 조회하는데, LOG 탭은 <code>getFileMetaLast</code>(<code>/api/v1/file-metas</code>), Report/Failure 탭은 <code>getReportHistory</code>(<code>/api/v1/report-historys</code>)를 호출합니다.</p>
+    <p>각 리포트 행에는 결과 파일이 첨부되어 있어, 운영자가 다운로드를 누르면 <code>downloadFile()</code>이 <code>REACT_APP_RMS_BE_SERVER_URL</code> + <code>/api/v1/files/download?objectName=...</code> URL을 <code>fetch</code>로 받아 Blob으로 저장합니다. 화면에 표시된 테이블 자체는 공용 <code>ReactTable</code>의 react-csv <code>CSVLink</code>로 CSV 내보내기가 가능합니다. 상세 보기는 <code>batchReportDetail</code>이 <code>getBatchReport</code>(<code>/api/v1/batch-reports</code>)로 단건 데이터를 받아 표시하고, 뒤로가기 시 <code>navigate('/monitoring/batch')</code>로 목록으로 복귀합니다.</p>
+    <div class="callout">
+      <div class="ct">조회와 다운로드의 분리</div>
+      목록 조회는 콜백 스타일 <code>request</code> 헬퍼(axios)로, 파일 다운로드는 인증 토큰을 붙이지 않는 직접 <code>fetch</code> + Blob 방식으로 처리됩니다. 둘의 책임이 분리되어 있어 대용량 리포트 파일도 테이블 렌더와 무관하게 받아집니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant OP as 운영자 (Browser)
+    participant BR as batchReport.tsx
+    participant LOG as LogReport / EtcReport
+    participant PM as ParameterApiManager
+    participant BE as RMS BE 서버
+
+    OP-&gt;&gt;BR: 배치 리포트 진입
+    OP-&gt;&gt;BR: 탭 선택 (LOG / DEVICE / FAIL)
+    alt LOG 탭
+        BR-&gt;&gt;LOG: LogReport 렌더
+        LOG-&gt;&gt;PM: getFileMetaLast()
+        PM-&gt;&gt;BE: GET /file-metas
+    else DEVICE / FAIL 탭
+        BR-&gt;&gt;LOG: EtcReport 렌더
+        LOG-&gt;&gt;PM: getReportHistory()
+        PM-&gt;&gt;BE: GET /report-historys
+    end
+    BE--&gt;&gt;LOG: 리포트 목록
+    OP-&gt;&gt;LOG: 다운로드 클릭
+    LOG-&gt;&gt;BE: fetch /files/download?objectName=...
+    BE--&gt;&gt;LOG: 파일 Blob → 저장
+    OP-&gt;&gt;LOG: CSV 내보내기
+    LOG-&gt;&gt;LOG: CSVLink (react-csv)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 탭에 따라 <code>file-metas</code> 또는 <code>report-historys</code>를 조회하고, 행 단위 파일은 <code>files/download</code>를 fetch해 Blob으로 저장합니다. 테이블 데이터는 react-csv <code>CSVLink</code>로 내보냅니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class BatchReport {
+        -tabState
+        +handleTabChange(e, value)
+    }
+    class LogReport {
+        +downloadFile(url, name)
+    }
+    class EtcReport {
+        +downloadFile(url, name)
+    }
+    class BatchReportDetail {
+        +navigate()
+    }
+    class ParameterApiManager {
+        +getFileMetaLast(cb, data)
+        +getReportHistory(cb, data)
+        +getBatchReport(cb, data)
+    }
+    class ReactTable {
+        +CSVLink(data, headers, filename)
+    }
+
+    BatchReport o-- LogReport : LOG 탭
+    BatchReport o-- EtcReport : DEVICE/FAIL 탭
+    LogReport --&gt; ParameterApiManager : getFileMetaLast
+    EtcReport --&gt; ParameterApiManager : getReportHistory
+    BatchReportDetail --&gt; ParameterApiManager : getBatchReport
+    LogReport ..&gt; ReactTable : CSV 내보내기
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>BatchReport</code>가 탭에 따라 <code>LogReport</code>/<code>EtcReport</code>를 소유하고, 각각 <code>ParameterApiManager</code>의 서로 다른 엔드포인트를 호출합니다. 상세는 <code>BatchReportDetail</code>이 <code>getBatchReport</code>로 처리합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>pages/monitoring/batchReport.tsx</code> — 탭에 따라 LogReport/EtcReport 분기</div>
+<pre><code>{tabState === 'LOG' &amp;&amp; &lt;LogReport tabState={tabState} /&gt;}
+{tabState !== 'LOG' &amp;&amp; &lt;EtcReport tabState={tabState} /&gt;}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>pages/monitoring/tabs/Log.tsx</code> — 리포트 파일 다운로드 URL 구성 후 fetch</div>
+<pre><code>const donwloadUrl =
+  `${process.env.REACT_APP_RMS_BE_SERVER_URL}/api/v1/files/download?objectName=${row.filePath}`;
+// downloadFile(): fetch(url) → Blob → a.download = fileName 으로 저장
+ParameterApiManager.getFileMetaLast((result, data) =&gt; { /* 목록 렌더 */ });</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/batchReport.tsx" target="_blank" rel="noopener">pages/monitoring/batchReport.tsx</a><span class="src">배치 리포트 본체 — LOG/DEVICE/FAIL 탭 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/tabs/Log.tsx" target="_blank" rel="noopener">pages/monitoring/tabs/Log.tsx</a><span class="src">LOG 탭 — getFileMetaLast 조회·파일 다운로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/tabs/Etc.tsx" target="_blank" rel="noopener">pages/monitoring/tabs/Etc.tsx</a><span class="src">Report/Failure 탭 — getReportHistory 조회·파일 다운로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/batchReportDetail.tsx" target="_blank" rel="noopener">pages/monitoring/batchReportDetail.tsx</a><span class="src">상세 화면 — getBatchReport 단건 조회·목록 복귀</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Parameter.tsx" target="_blank" rel="noopener">_api/Parameter.tsx</a><span class="src">getFileMetaLast / getReportHistory / getBatchReport 엔드포인트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/third-party/ReactTable.tsx" target="_blank" rel="noopener">components/third-party/ReactTable.tsx</a><span class="src">CSVLink(react-csv) — 테이블 CSV 내보내기</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">← 시스템 모니터링 · Quick Operation</a>
+      <a href="f04.html">VoC 고객 응대 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">rms_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

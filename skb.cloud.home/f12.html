@@ -1,0 +1,178 @@
+<!doctype html>
+<!-- skb.cloud.home · TV 청구서/고객만족도 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV 청구서 / 고객만족도 — skb.cloud.home 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Cloud Home</a><span class="sep">›</span>
+      <span class="here">TV 청구서 / 고객만족도</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">STB 클라우드 UI · JavaScript</span>
+    </div>
+    <h1>TV 청구서 / 고객만족도</h1>
+    <p class="one-liner">TV 청구서 조회·미납요금 결제(<code>TvCsManager</code>)와 고객만족도 조사(<code>scene/customerSatisfaction</code>, <code>CustomerSurveyManager</code>)를 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb.cloud.home" target="_blank" rel="noopener"><code>skb.cloud.home</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>TvCsManager</code> · <code>CustomerSurveyManager</code></div></div>
+      <div class="item"><div class="k">화면</div><div class="v"><code>scene/customerSatisfaction</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>이 기능은 성격이 다른 두 서버 연동을 묶습니다. <strong>TV 청구서</strong>는 <code>TvCsManager</code>가 담당합니다. 납부자 정보(<code>getPayerInfo</code>), 가입 상품(<code>getCustProdInfo</code>), 청구 내역(<code>getBillInfo(monthCnt)</code>), 청구 상세(<code>getBillDetailInfo(yyyymm)</code>), 기본 정보(<code>getDefaultInfo</code>)를 조회하고, 본인 확인이 필요할 때 휴대폰 인증(<code>postMobileCert(hpNumber)</code>)을 거칩니다. 미납 요금 결제는 청구 내역을 바탕으로 진행됩니다.</p>
+    <p><strong>고객만족도 조사</strong>는 <code>CustomerSatisfactionScene</code>이 화면을, <code>CustomerSurveyManager</code>가 서버 연동을 담당합니다. <code>getSurvey(surveyNo)</code>로 설문을 받아 표시하고(고객/서비스/STB MAC 식별자를 포함해 요청), 사용자가 답하면 <code>postAnswer(surveyNo, answerArray)</code>로 답변을 전송합니다. 설문조사 서버는 <code>Content-type: application/json</code> 헤더와 stringify 된 본문을 요구하는 점이 코드에 명시돼 있습니다. 화면은 질문(<code>QuestionCtrl</code>), 우측 박스(<code>RightBoxCtrl</code>), 완료 팝업(<code>Popup</code>)으로 구성됩니다.</p>
+    <div class="callout">
+      <div class="ct">식별자 구성</div>
+      설문 요청에는 <code>id_cust</code>(<code>W.User.CUST_ID</code>), <code>id_cust_svc</code>(<code>W.User.SSPT_ID</code>), <code>stb_mac</code>(<code>HOST_MAC</code>에서 콜론 제거)이 포함됩니다. 동일 단말/가입자의 응답을 식별하기 위한 키입니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as 청구서/만족도 화면
+    participant TCS as TvCsManager
+    participant BILL as 청구 서버
+    participant CSS as CustomerSatisfactionScene
+    participant CSM as CustomerSurveyManager
+    participant SVR as 설문 서버
+
+    Note over UI,BILL: TV 청구서
+    UI-&gt;&gt;TCS: getBillInfo(monthCnt)
+    TCS-&gt;&gt;BILL: 청구 내역 요청
+    BILL--&gt;&gt;TCS: 청구 내역
+    UI-&gt;&gt;TCS: getBillDetailInfo(yyyymm)
+    opt 본인확인
+        UI-&gt;&gt;TCS: postMobileCert(hpNumber)
+    end
+
+    Note over CSS,SVR: 고객만족도 조사
+    CSS-&gt;&gt;CSM: getSurvey(surveyNo)
+    CSM-&gt;&gt;SVR: searchSurvey.do (json)
+    SVR--&gt;&gt;CSM: 설문 문항
+    CSS-&gt;&gt;CSM: postAnswer(surveyNo, answerArray)
+    CSM-&gt;&gt;SVR: 답변 전송
+      </div>
+      <p class="cap"><strong>흐름.</strong> 청구서는 <code>TvCsManager</code>가 내역/상세/본인확인을, 만족도 조사는 <code>CustomerSurveyManager</code>가 설문 조회·답변 전송을 처리합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class TvCsManager {
+        +getPayerInfo(callback)
+        +getCustProdInfo(callback)
+        +getBillInfo(monthCnt, callback)
+        +getBillDetailInfo(yyyymm, callback)
+        +postMobileCert(hpNumber, callback)
+    }
+    class CustomerSatisfactionScene {
+        +onCreate(ctx)
+        +onKeyPressed(evt)
+    }
+    class QuestionCtrl {
+        +render(question)
+    }
+    class CustomerSurveyManager {
+        +getSurvey(surveyNo, callback)
+        +postAnswer(surveyNo, answerArray, callback)
+    }
+
+    CustomerSatisfactionScene o-- QuestionCtrl
+    CustomerSatisfactionScene ..&gt; CustomerSurveyManager : 설문/답변
+      </div>
+      <p class="cap"><strong>관계.</strong> 청구서는 <code>TvCsManager</code>가, 만족도 조사 화면(<code>CustomerSatisfactionScene</code> + <code>QuestionCtrl</code>)은 <code>CustomerSurveyManager</code>가 서버 연동을 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>common/interface/CustomerSurveyManager.js</code> — 설문 조회(식별자 + json 헤더)</div>
+<pre><code>function getSurvey (surveyNo, callback, isGetUrl) {
+    let requestData = {
+        survey: {
+            id_cust:     W.User.CUST_ID,
+            id_cust_svc: W.User.SSPT_ID,
+            stb_mac:     W.User.HOST_MAC.replace(/:/g, ''),
+            sno:         surveyNo,
+        }
+    };
+    // 설문 서버는 'application/json' 헤더 + stringify 된 본문을 요구
+    return d.ajax.call2(W, 'post', true,
+        W.HE.CUSTOMER_SURVEY_SERVER + "searchSurvey.do", 'json',
+        JSON.stringify(requestData), callback, undefined, undefined, undefined, undefined,
+        "application/json");
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>common/interface/TvCsManager.js</code> — 청구 내역/상세 조회</div>
+<pre><code>function getBillInfo(monthCnt, callback, ...)       { /* 최근 N개월 청구 내역 */ }
+function getBillDetailInfo(yyyymm, callback, ...)   { /* 특정 월 청구 상세 */ }
+function postMobileCert(hpNumber, callback, ...)    { /* 본인확인용 휴대폰 인증 */ }</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/common/interface/TvCsManager.js" target="_blank" rel="noopener">common/interface/TvCsManager.js</a><span class="src">TV 청구서 납부자/상품/청구 내역·상세·휴대폰 인증</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/customerSatisfaction/CustomerSatisfactionScene.js" target="_blank" rel="noopener">scene/customerSatisfaction/CustomerSatisfactionScene.js</a><span class="src">고객만족도 조사 화면 라이프사이클·입력</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/scene/customerSatisfaction/controller/QuestionCtrl.js" target="_blank" rel="noopener">scene/customerSatisfaction/controller/QuestionCtrl.js</a><span class="src">설문 문항 렌더링</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb.cloud.home/src/master/src/common/interface/CustomerSurveyManager.js" target="_blank" rel="noopener">common/interface/CustomerSurveyManager.js</a><span class="src">설문 조회(getSurvey) · 답변 전송(postAnswer)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f11.html">이전: 스마트 리모콘 페어링</a>
+      <a href="f13.html">PIN · 시청제한 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb.cloud.home 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

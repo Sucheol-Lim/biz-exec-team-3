@@ -1,0 +1,175 @@
+<!doctype html>
+<!-- kt_aaos_inside · RecognitionService 등록 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RecognitionService 등록 — kt_aaos_inside 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT AAOS Demokit P1 음성인식 앱</a><span class="sep">›</span>
+      <span class="here">RecognitionService 등록</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive OS · Java</span>
+    </div>
+    <h1>RecognitionService 등록</h1>
+    <p class="one-liner"><code>GRecognitionService</code>가 <code>android.speech.RecognitionService</code> 인텐트 필터와 <code>@xml/recognition_service</code> 메타데이터로 시스템 음성 인식 공급자(STT provider)로 등록되어, 표준 <code>SpeechRecognizer</code> 요청에 응답할 수 있습니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_aaos_inside" target="_blank" rel="noopener"><code>kt_aaos_inside</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feature/support_stt</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>service/GRecognitionService.java</code></div></div>
+      <div class="item"><div class="k">등록 메타데이터</div><div class="v"><code>res/xml/recognition_service.xml</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>음성비서 등록(<code>interaction_service.xml</code>)이 <code>recognitionService</code>로 <code>GRecognitionService</code>를 지정하므로, 이 앱은 음성 인터랙션의 인식 공급자 역할도 함께 맡습니다. 매니페스트에서 <code>GRecognitionService</code>는 <code>android.speech.RecognitionService</code> 액션·<code>DEFAULT</code> 카테고리 인텐트 필터와 <code>&lt;meta-data android:name="android.speech"&gt;</code>(<code>@xml/recognition_service</code>)로 선언되어, 시스템이 인식 공급자 목록에 노출합니다.</p>
+    <p><code>GRecognitionService</code>는 Android 표준 <code>android.speech.RecognitionService</code>를 상속하며, <code>onStartListening()</code>·<code>onCancel()</code>·<code>onStopListening()</code> 콜백을 구현합니다. 현재 구현은 <code>onStartListening()</code>에서 <code>callback.readyForSpeech(null)</code>을 통보하는 기본 형태로, 실제 인식 본체는 Inside SDK 경로(<code>InsideVoiceManager</code>)가 담당하고 이 서비스는 표준 프레임워크와의 등록·연결 지점 역할을 합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      <code>recognition_service.xml</code>은 <code>settingsActivity</code>만 지정하는 최소 메타데이터입니다. 인식 공급자로 "등록"되는 것이 핵심이며, 실제 발화→텍스트 변환은 GiGA Genie Inside 음성 세션이 수행합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SYS as Android Speech 프레임워크
+    participant MF as AndroidManifest + recognition_service.xml
+    participant RS as GRecognitionService
+    participant CB as RecognitionService.Callback
+
+    Note over SYS,MF: 인식 공급자 목록 조회
+    SYS-&gt;&gt;MF: android.speech 메타데이터 조회
+    MF--&gt;&gt;SYS: settingsActivity 등 등록 정보
+    SYS-&gt;&gt;RS: bindService (RecognitionService)
+    SYS-&gt;&gt;RS: onStartListening(intent, callback)
+    RS-&gt;&gt;CB: getCallingUid()
+    RS-&gt;&gt;CB: readyForSpeech(null)
+    Note over RS: onStopListening / onCancel 로 종료
+      </div>
+      <p class="cap"><strong>흐름.</strong> 프레임워크가 메타데이터로 인식 공급자를 식별·바인딩한 뒤 <code>onStartListening()</code>을 호출하면, 서비스가 <code>readyForSpeech</code>를 콜백해 인식 준비 완료를 통보합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class RecognitionService {
+        &lt;&lt;abstract&gt;&gt;
+        +onStartListening(intent, callback)
+        +onStopListening(callback)
+        +onCancel(callback)
+    }
+    class GRecognitionService {
+        -Callback listener
+        +onCreate()
+        +onStartListening(intent, callback)
+        +onStopListening(callback)
+        +onCancel(callback)
+        +createContext(params) Context
+    }
+    class Callback {
+        +readyForSpeech(bundle)
+        +getCallingUid() int
+        +results(bundle)
+        +error(code)
+    }
+
+    RecognitionService &lt;|-- GRecognitionService
+    GRecognitionService ..&gt; Callback : readyForSpeech 통보
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>GRecognitionService</code>는 Android 표준 <code>RecognitionService</code>를 상속하고, 프레임워크가 전달하는 <code>Callback</code>으로 인식 준비 상태를 통보합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/main/AndroidManifest.xml</code> — RecognitionService 인텐트·메타데이터 선언</div>
+<pre><code>&lt;service
+    android:name=".service.GRecognitionService"
+    android:enabled="true"
+    android:exported="true"&gt;
+    &lt;intent-filter&gt;
+        &lt;action android:name="android.speech.RecognitionService" /&gt;
+        &lt;category android:name="android.intent.category.DEFAULT" /&gt;
+    &lt;/intent-filter&gt;
+    &lt;meta-data
+        android:name="android.speech"
+        android:resource="@xml/recognition_service" /&gt;
+&lt;/service&gt;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>service/GRecognitionService.java</code> — onStartListening 콜백</div>
+<pre><code>@Override
+protected void onStartListening(Intent intent, Callback callback) {
+    if (callback != null) {
+        callback.getCallingUid();
+        try {
+            callback.readyForSpeech(null);     // 인식 준비 완료 통보
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/service/GRecognitionService.java" target="_blank" rel="noopener">service/GRecognitionService.java</a><span class="src">RecognitionService 구현·onStartListening에서 readyForSpeech 콜백</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/res/xml/recognition_service.xml" target="_blank" rel="noopener">res/xml/recognition_service.xml</a><span class="src">android.speech 메타데이터(settingsActivity 지정)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/AndroidManifest.xml" target="_blank" rel="noopener">AndroidManifest.xml</a><span class="src">android.speech.RecognitionService 인텐트 필터·DEFAULT 카테고리 선언</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f09.html">표준 STT 서비스 경로</a>
+      <a href="f11.html">SP 미수신 재연동 로직 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feature/support_stt</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_aaos_inside 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!doctype html>
+<!-- kt_aaos_inside · 사용 로그 수집 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사용 로그 수집 — kt_aaos_inside 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT AAOS Demokit P1 음성인식 앱</a><span class="sep">›</span>
+      <span class="here">사용 로그 수집</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive OS · Java</span>
+    </div>
+    <h1>사용 로그 수집</h1>
+    <p class="one-liner"><code>UsageCollectionManager</code>가 사용자 발화(<code>uword</code>)와 처리된 의도(intent)를 묶어 음성 사용 로그를 수집하고, 사내 <code>AVISSystemLibrary.voiceLog()</code>(Service Agent Library)를 통해 BO 서버로 전송합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_aaos_inside" target="_blank" rel="noopener"><code>kt_aaos_inside</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feature/support_stt</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>manager/UsageCollectionManager.java</code></div></div>
+      <div class="item"><div class="k">전송 경로</div><div class="v"><code>AVISSystemLibrary</code> · <code>GVoiceApiClient</code>(Retrofit)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>사용 로그는 두 시점의 데이터를 결합합니다. 발화 인식이 끝나 <code>InsideVoiceManager.agent_onCommand(ACTION_TYPE_STOP_VOICE)</code>로 사용자 발화 텍스트(<code>uword</code>)가 오면 <code>UsageCollectionManager.set(uword)</code>로 보관하고, 이어서 DialogKit 명령 처리 시 <code>write(intent)</code>로 그때의 의도 문자열과 함께 로그를 확정·전송합니다.</p>
+    <p>실제 전송은 사내 Service Agent Library인 <code>AVISSystemLibrary.voiceLog(ContentLogType.VOICE_RECOGNITION, userWord, intent)</code>로 수행됩니다. <code>init()</code>에서 앱 패키지명·버전·<code>APP_KEY</code>·최대 로그 수(<code>LOG_MAX_COUNT</code>)로 로거를 초기화합니다. 한편 저장소에는 Retrofit 기반 REST 클라이언트 <code>GVoiceApiClient</code>도 함께 제공되어, SP/BO 서버와의 REST 데이터 송수신(앱·의도 데이터 조회 등) 기반으로 쓰입니다.</p>
+    <div class="callout">
+      <div class="ct">근거 메모</div>
+      과제 카드는 사용 로그가 <code>GVoiceApiClient</code>(Retrofit)로 BO에 전송된다고 안내하지만, 실제 <code>UsageCollectionManager</code> 구현은 사내 <code>AVISSystemLibrary.voiceLog()</code>(avis-system-sdk)를 사용합니다. <code>GVoiceApiClient</code>는 동일 BO/SP 백엔드 연동의 REST 계층으로 코드베이스에 존재하므로, 본 페이지는 실제 코드 기준(<code>AVISSystemLibrary</code>)으로 흐름을 기술하고 REST 클라이언트도 함께 표기합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant IVM as InsideVoiceManager
+    participant UCM as UsageCollectionManager
+    participant DK as InsideDialogKitManager
+    participant LIB as AVISSystemLibrary
+    participant BO as BO 서버
+
+    IVM-&gt;&gt;UCM: set(uword)  (STOP_VOICE 결과)
+    Note over UCM: userWord 보관
+    IVM-&gt;&gt;DK: processDialogKit(payload)
+    IVM-&gt;&gt;UCM: write(insideIntent)  (EXEC_DIALOGKIT 시)
+    UCM-&gt;&gt;LIB: voiceLog(VOICE_RECOGNITION, userWord, intent)
+    LIB-&gt;&gt;BO: 사용 로그 업로드
+    UCM-&gt;&gt;UCM: clear()
+      </div>
+      <p class="cap"><strong>흐름.</strong> 발화 텍스트 보관(<code>set</code>) → 의도와 함께 확정(<code>write</code>) → <code>AVISSystemLibrary.voiceLog</code>로 BO 전송 → 버퍼 초기화 순으로 진행됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class UsageCollectionManager {
+        -String userWord
+        +init(context)
+        +set(userWord)
+        +write(intent)
+        +clear()
+        +writeException(t)
+    }
+    class AVISSystemLibrary {
+        +initAvisLogger(ctx, appKey, pkg, ver, max)
+        +voiceLog(type, userWord, intent)
+    }
+    class ContentLogType {
+        &lt;&lt;enumeration&gt;&gt;
+        VOICE_RECOGNITION
+    }
+    class InsideVoiceManager {
+        +agent_onCommand(actionType, json)
+    }
+    class GVoiceApiClient {
+        +getClient(baseUrl, tag) Retrofit
+    }
+
+    InsideVoiceManager --&gt; UsageCollectionManager : set / write
+    UsageCollectionManager --&gt; AVISSystemLibrary : voiceLog
+    AVISSystemLibrary ..&gt; ContentLogType
+    UsageCollectionManager ..&gt; GVoiceApiClient : REST 백엔드 연동(코드베이스)
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>InsideVoiceManager</code>가 발화·의도를 <code>UsageCollectionManager</code>에 공급하고, 실제 업로드는 <code>AVISSystemLibrary.voiceLog</code>가 수행합니다. <code>GVoiceApiClient</code>는 동일 백엔드와의 REST 연동 계층입니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>manager/UsageCollectionManager.java</code> — 발화·의도 결합 후 로그 전송</div>
+<pre><code>public void write(@Nullable String intent) {
+    if (this.userWord == null) {
+        Log.d(TAG, "write(), userWord is null. return");
+    } else {
+        avisSystemLibrary.voiceLog(
+                AVISSystemLibrary.ContentLogType.VOICE_RECOGNITION,
+                this.userWord,
+                intent);                      // BO 서버로 사용 로그 전송
+        clear();
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>inside/InsideVoiceManager.java</code> — 인식 결과·의도 수집 트리거</div>
+<pre><code>case Inside.ACTION_TYPE_STOP_VOICE:
+    String userWord = payload.cmdOpt.uword;
+    if (userWord != null) UsageCollectionManager.getInstance().set(userWord);
+    break;
+case Inside.ACTION_TYPE_EXEC_DIALOGKIT:
+    UsageCollectionManager.getInstance()
+        .write(InsideDialogKitManager.getInstance().getInsideIntentFromPayload(payload));
+    break;</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/manager/UsageCollectionManager.java" target="_blank" rel="noopener">manager/UsageCollectionManager.java</a><span class="src">set/write/clear·AVISSystemLibrary.voiceLog 사용 로그 전송·로거 초기화</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/inside/InsideVoiceManager.java" target="_blank" rel="noopener">inside/InsideVoiceManager.java</a><span class="src">STOP_VOICE(uword) set·EXEC_DIALOGKIT(intent) write 호출 지점</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/network/GVoiceApiClient.java" target="_blank" rel="noopener">network/GVoiceApiClient.java</a><span class="src">Retrofit + OkHttp logging-interceptor REST 클라이언트(SP/BO 백엔드 연동)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/network/VoiceApiService.java" target="_blank" rel="noopener">network/VoiceApiService.java</a><span class="src">Retrofit API 인터페이스 정의</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f12.html">네트워크 상태 모니터링</a>
+      <a href="f14.html">코드 난독화(Allatori) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feature/support_stt</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_aaos_inside 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

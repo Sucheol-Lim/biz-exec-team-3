@@ -1,0 +1,195 @@
+<!doctype html>
+<!-- skb_cloud_local_ocap · Windmill 데이터 연동(cappl.dm) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Windmill 데이터 연동 (cappl.dm) — skb_cloud_local_ocap 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local App OCAP</a><span class="sep">›</span>
+      <span class="here">Windmill 데이터 연동 (cappl.dm)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">OCAP / MHP STB · Java</span>
+    </div>
+    <h1>Windmill 데이터 연동 (cappl.dm)</h1>
+    <p class="one-liner"><code>cappl.dm</code>이 Windmill 플랫폼의 UPMS/ACMS 등 서비스 API(<code>cappl/dm/api</code>)를 <code>HttpClient</code>로 호출하고, <code>TbroadAuthorization</code>이 STB 인증·액세스 토큰을 관리해 사용자 프로파일·광고·추천 데이터를 환경별 URL로 가져옵니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap" target="_blank" rel="noopener"><code>skb_cloud_local_ocap</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>OCAP_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>cappl/dm/WindmillService.java</code> · <code>cappl/dm/TbroadAuthorization.java</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">SKB Windmill 플랫폼 데이터 연동</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>cappl.dm</code>은 SK브로드밴드의 부가 서비스 플랫폼인 Windmill과 연동하는 데이터 매니저 계층입니다. Windmill은 UPMS(사용자/프로파일), ACMS(콘텐츠/메타), Search, RCMD(추천), OneAd(광고) 등 여러 서비스 도메인으로 나뉘며, 본 앱은 이를 REST API로 호출해 사용자 프로파일·광고·추천·예약 데이터를 받아옵니다. API 엔드포인트 템플릿은 <code>cappl/dm/api/ServiceAPI.java</code>에 상수로 정의되어 있고(<code>categories/menu</code>, <code>accounts</code>, <code>auth/authenticate</code> 등), <code>UPMSMethods</code>·<code>ACMSMethods</code> 인터페이스가 도메인별 메서드 시그니처를 제공합니다.</p>
+    <p>통합 서비스 진입점은 <code>WindmillService</code> 인터페이스로, 여러 메서드 인터페이스(UPMS/ACMS 등)를 상속하고 <code>getConfiguration()</code>으로 환경 설정(<code>WindmillConfiguration</code>)을 제공합니다. 실제 HTTP 통신은 <code>cappl/dm/http</code>의 <code>HttpClient.request(HttpRequest)</code>가 수행하며, 요청 메서드(<code>RequestMethod</code>)·파라미터(<code>HttpParameter</code>)·응답(<code>HttpResponse</code>)·재시도·오류(<code>processError</code> → <code>WindmillException</code>)를 처리합니다. 비동기 호출은 <code>WindmillAsyncDispatcher</code>/<code>WindmillServiceAsync</code>가 담당합니다.</p>
+    <p>인증은 <code>TbroadAuthorization</code>이 일원화합니다. <code>reAuth()</code>가 <code>postStbAuthentication()</code>으로 STB를 인증하고 계정별 <code>windmillAccessToken</code>(<code>AccessToken</code>)을 확보합니다. 개인/그룹 사용자 구분(<code>PERSONAL_USER</code>/<code>GROUP_USER</code>)에 따라 admin·family 계정 토큰을 관리하며, 이후 모든 API 호출에 이 토큰을 실어 보냅니다. 서버 URL은 라이브(LIVE)/위성(SAT)/개발(DEV) 환경별로 <code>windmill.properties</code>에 분리되어 있습니다.</p>
+    <div class="callout">
+      <div class="ct">리소스 모델 풍부</div>
+      <code>cappl/dm/resource</code>에는 <code>User</code>·<code>Accounts</code>·<code>Channel</code>·<code>Product</code>·<code>Campaign</code>·<code>ReservedProgram</code>·<code>AccessToken</code> 등 40여 개의 응답 리소스 모델이 정의되어 있어, Windmill JSON 응답을 타입 있는 객체로 역직렬화합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant APP as 앱 (홈/추천/광고)
+    participant WS as WindmillService
+    participant AUTH as TbroadAuthorization
+    participant HC as HttpClient
+    participant SRV as Windmill 서버 (UPMS/ACMS)
+
+    APP-&gt;&gt;AUTH: reAuth() (필요 시)
+    AUTH-&gt;&gt;HC: postStbAuthentication 요청
+    HC-&gt;&gt;SRV: POST auth/authenticate
+    SRV--&gt;&gt;HC: Accounts (windmillAccessToken)
+    HC--&gt;&gt;AUTH: AccessToken 보관
+    APP-&gt;&gt;WS: getUserAccount() / getCampaign() ...
+    WS-&gt;&gt;HC: request(HttpRequest + 토큰)
+    HC-&gt;&gt;SRV: GET categories/menu, accounts ...
+    SRV--&gt;&gt;HC: JSON 응답
+    HC-&gt;&gt;HC: processError (오류면 WindmillException)
+    HC--&gt;&gt;WS: HttpResponse → resource 모델
+    WS--&gt;&gt;APP: User / Campaign / Channel ...
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>TbroadAuthorization</code>이 STB 인증으로 액세스 토큰을 확보한 뒤, <code>WindmillService</code> 호출이 <code>HttpClient.request()</code>를 통해 토큰을 실어 API를 호출하고 응답을 리소스 모델로 변환합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class WindmillService {
+        &lt;&lt;interface&gt;&gt;
+        +getConfiguration() WindmillConfiguration
+    }
+    class UPMSMethods {
+        &lt;&lt;interface&gt;&gt;
+        +getCurrentUser() User
+        +postAuthenticate(clientId, udid, pin) Accounts
+        +postAccessToken(...) AccessToken
+        +getUserAccount(withSTB, withHH) User
+    }
+    class ACMSMethods {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class ServiceAPI {
+        +FUNC_GET_CATEGORY
+        +FUNC_POST_STB_AUTH
+        +FUNC_POST_AUTH_ACCESSTOKEN
+    }
+    class HttpClient {
+        +request(req) HttpResponse
+        -processError(res, req)
+    }
+    class HttpRequest
+    class HttpResponse
+    class TbroadAuthorization {
+        +getInstance() TbroadAuthorization
+        +reAuth()
+        -postStbAuthentication()
+    }
+    class AccessToken
+    class WindmillException
+
+    WindmillService --|&gt; UPMSMethods : extends
+    WindmillService --|&gt; ACMSMethods : extends
+    WindmillService ..&gt; HttpClient : HTTP 호출
+    HttpClient ..&gt; HttpRequest : 요청
+    HttpClient ..&gt; HttpResponse : 응답
+    HttpClient ..&gt; WindmillException : 오류 throw
+    UPMSMethods ..&gt; ServiceAPI : 엔드포인트
+    TbroadAuthorization ..&gt; AccessToken : 토큰 관리
+    TbroadAuthorization ..&gt; HttpClient : 인증 요청
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>WindmillService</code>가 UPMS/ACMS 메서드 인터페이스를 상속하고 <code>HttpClient</code>로 HTTP를 수행합니다. 인증·토큰은 <code>TbroadAuthorization</code>이, 엔드포인트 템플릿은 <code>ServiceAPI</code>가 제공합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>cappl/dm/api/UPMSMethods.java</code> — UPMS 인증·계정 API 시그니처</div>
+<pre><code>public interface UPMSMethods {
+    public User getCurrentUser() throws WindmillException;
+    public Accounts postAuthenticate(String clientId, String deviceUdid, String pinCode) throws WindmillException;
+    public AccessToken postAccessToken(String loginId, String password, String clientId, String deviceId)
+            throws WindmillException;
+    public boolean postDestroyToken() throws WindmillException;
+    public User getUserAccount(boolean withSTB, boolean withHH) throws WindmillException;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>cappl/dm/TbroadAuthorization.java</code> — STB 재인증으로 토큰 확보</div>
+<pre><code>public synchronized void reAuth() throws WindmillException {
+    if (Log.INCLUDE) {
+        Log.message("[TbroadAuthorization] reAuth, ");
+    }
+    postStbAuthentication();                 // STB 인증 → Accounts/AccessToken 확보
+    // admin/family 계정의 windmillAccessToken을 보관해 이후 API 호출에 사용
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/cappl/dm/WindmillService.java" target="_blank" rel="noopener">cappl/dm/WindmillService.java</a><span class="src">Windmill 통합 서비스 인터페이스 (UPMS/ACMS 상속 · getConfiguration)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/cappl/dm/api/UPMSMethods.java" target="_blank" rel="noopener">cappl/dm/api/UPMSMethods.java</a><span class="src">UPMS 사용자/인증/계정 API 시그니처</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/cappl/dm/api/ServiceAPI.java" target="_blank" rel="noopener">cappl/dm/api/ServiceAPI.java</a><span class="src">REST 엔드포인트 템플릿 상수 (categories / auth / accounts ...)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/cappl/dm/http/HttpClient.java" target="_blank" rel="noopener">cappl/dm/http/HttpClient.java</a><span class="src">HTTP 요청·재시도·오류 처리 (request / processError)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/cappl/dm/TbroadAuthorization.java" target="_blank" rel="noopener">cappl/dm/TbroadAuthorization.java</a><span class="src">STB 인증·액세스 토큰 관리 (reAuth / postStbAuthentication)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_ocap/src/OCAP_log_2025/java/cappl/dm/resource/" target="_blank" rel="noopener">cappl/dm/resource/ (40+종)</a><span class="src">User·Accounts·Channel·Product·Campaign 등 응답 리소스 모델</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f10.html">← VOD 재생 제어</a>
+      <a href="f12.html">쿠폰 · 부가 서비스 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>OCAP_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_ocap 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

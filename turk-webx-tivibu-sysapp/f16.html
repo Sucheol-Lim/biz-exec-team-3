@@ -1,0 +1,203 @@
+<!doctype html>
+<!-- turk-webx-tivibu-sysapp · 하트비트 / 로그 업로드 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>하트비트 · 로그 업로드 — turk-webx-tivibu-sysapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Türk Telekom Tivibu STB 시스템 앱 (EPG SYSAPP)</a><span class="sep">›</span>
+      <span class="here">하트비트 · 로그 업로드</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">WebX STB · JavaScript (ES6/AMD)</span>
+    </div>
+    <h1>하트비트 · 로그 업로드</h1>
+    <p class="one-liner"><code>HeartbeatController</code>가 주기적 하트비트로 서버 연결과 채널/편성 변경(stamp)을 감지하고, <code>LogUploadController</code>가 로그 수집·업로드를, <code>MobileAccessController</code>가 모바일 접속을 관리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp" target="_blank" rel="noopener"><code>turk-webx-tivibu-sysapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>controller/HeartbeatController.js</code> · <code>LogUploadController.js</code> · <code>MobileAccessController.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">하트비트 · stamp 동기화 · 로그 업로드</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>하트비트는 STB이 서버와 정상 연결되어 있는지 주기적으로 확인하고, 그 응답으로 채널·편성 데이터의 변경 여부를 함께 파악하는 운영 기능입니다. <code>HeartbeatController</code>는 초기화 시 한 번 하트비트를 보내 기준 타임스탬프를 잡은 뒤 <code>AppConfig.HEARTBEAT_INTERVAL_TIME</code> 간격으로 <code>setInterval</code> 폴링을 시작합니다. 각 하트비트(<code>QueryManager.sendHeartbeat</code>)의 응답에는 <code>channelstamp</code>·<code>programstamp</code>·<code>clientip</code>가 담겨 있어, 값이 바뀌면 채널 목록 재구성(<code>startChannelRebuild</code>)이나 편성 정보 갱신(<code>ProgramCacheManager.getInfobarProgram</code>)을 트리거합니다. 단, 채널 재구성은 활성 모드(<code>PowerController.isActiveMode()</code>)일 때만 즉시 수행하고, 대기 모드면 stamp만 기록해 다음 로그인 때 반영합니다.</p>
+    <p><code>LogUploadController</code>는 진단을 위한 로그 수집을 켜고(<code>ExtensionInterface.logOn()</code>), 15분 자동 종료 타이머를 걸어 일정 시간 후 로그를 끄고 업로드(<code>logUpload()</code>)합니다. <code>MobileAccessController</code>는 모바일 단말 연동(DIAL/SSDP)을 제어하며, <code>ServerManager.requestQueue()</code>로 명령을 보내고 연결 상태를 관리합니다. 이 모든 API 요청은 <code>ServerManager</code>가 큐로 직렬화·재시도·에러 처리합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      하트비트는 단순 keep-alive를 넘어 서버 측 변경(stamp)을 클라이언트에 푸시하는 역폴링 채널로 활용됩니다. 비싼 채널 재구성은 활성 모드에서만 즉시 수행하고 대기 모드에서는 미뤄, 불필요한 부하를 피합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant HB as HeartbeatController
+    participant QM as QueryManager
+    participant SRV as 서버
+    participant PWR as PowerController
+    participant PCM as ProgramCacheManager
+
+    HB-&gt;&gt;HB: startHeartbeat() (setInterval)
+    loop HEARTBEAT_INTERVAL_TIME
+        HB-&gt;&gt;QM: sendHeartbeat()
+        QM-&gt;&gt;SRV: 하트비트 요청
+        SRV--&gt;&gt;HB: { channelstamp, programstamp, clientip }
+        alt channelstamp 변경
+            HB-&gt;&gt;PWR: isActiveMode()
+            alt 활성 모드
+                HB-&gt;&gt;HB: startChannelRebuild()
+            else 대기 모드
+                HB-&gt;&gt;HB: stamp만 기록(다음 로그인 반영)
+            end
+        end
+        alt programstamp 변경
+            HB-&gt;&gt;PCM: getInfobarProgram()
+        end
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 하트비트 응답의 stamp 변경을 감지해, 활성 모드에서는 채널 재구성·편성 갱신을 즉시 트리거하고 대기 모드에서는 다음 로그인까지 미룹니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class HeartbeatController {
+        -connectedStatus bool
+        -channelstamp
+        -programstamp
+        +initialize()
+        +startHeartbeat()
+        +sendHeartbeat()
+        +checkChannelStamp(stamp)
+        +checkProgramStamp(stamp)
+    }
+    class LogUploadController {
+        +logOn()
+        +logOff()
+        +scheduleTimer()
+    }
+    class MobileAccessController {
+        -mobileConnected bool
+        +_doAction(command, cb)
+    }
+    class ServerManager {
+        +requestQueue(req)
+    }
+    class QueryManager {
+        +sendHeartbeat(cb)
+    }
+
+    HeartbeatController --&gt; QueryManager : 하트비트 요청
+    MobileAccessController --&gt; ServerManager : 명령 큐
+    LogUploadController ..&gt; ServerManager : 로그 업로드
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>HeartbeatController</code>가 연결·stamp를 관리하고, 로그 업로드·모바일 접속은 각각 전용 컨트롤러가 <code>ServerManager</code> 큐를 통해 수행합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>controller/HeartbeatController.js</code> — 하트비트 폴링과 stamp 점검</div>
+<pre><code>startHeartbeat: function() {
+    this.heartbeatInterval = setInterval(() =&gt; {
+        self.sendHeartbeat();
+    }, AppConfig.HEARTBEAT_INTERVAL_TIME);
+},
+
+sendHeartbeat: function() {
+    SYSAPP.QueryManager.sendHeartbeat(function(result) {
+        self.connectedStatus = !!result.success;
+        if (result.success &amp;&amp; result.response.returncode == '0') {
+            if (!self.channelstamp) {                 // 최초엔 기준값만 보관
+                self.channelstamp = result.response.channelstamp;
+                self.programstamp = result.response.programstamp;
+            } else {
+                self.checkChannelStamp(result.response.channelstamp);
+                self.checkProgramStamp(result.response.programstamp);
+            }
+        }
+    });
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>controller/HeartbeatController.js</code> — 활성 모드에서만 채널 재구성</div>
+<pre><code>checkChannelStamp: function(newChannelStamp) {
+    if (self.channelstamp != newChannelStamp) {
+        self.stopRebuildChannelTimer();
+        if (SYSAPP.PowerController.isActiveMode()) {
+            self.rebuildChannelTimer = setTimeout(() =&gt; {
+                self.startChannelRebuild();           // 채널 목록 재구성
+                self.channelstamp = newChannelStamp;
+            }, self.getIntervalTime());
+        } else {
+            self.channelstamp = newChannelStamp;      // 대기 모드: 다음 로그인 반영
+        }
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/HeartbeatController.js" target="_blank" rel="noopener">controller/HeartbeatController.js</a><span class="src">하트비트 폴링 · stamp 변경 감지 · 채널 재구성</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/LogUploadController.js" target="_blank" rel="noopener">controller/LogUploadController.js</a><span class="src">로그 수집 on/off · 15분 자동 종료 · 업로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/MobileAccessController.js" target="_blank" rel="noopener">controller/MobileAccessController.js</a><span class="src">모바일 접속(DIAL/SSDP) 제어</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/http/ServerManager.js" target="_blank" rel="noopener">http/ServerManager.js</a><span class="src">API 요청 큐 · 연결 상태 · 에러 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/data/QueryManager.js" target="_blank" rel="noopener">data/QueryManager.js</a><span class="src">sendHeartbeat 등 서버 API</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f15.html">← CAS · 핑거프린트 · 보안</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="index.html#features">주요 기능 목록 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">turk-webx-tivibu-sysapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

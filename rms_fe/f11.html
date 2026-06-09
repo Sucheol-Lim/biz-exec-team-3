@@ -1,0 +1,181 @@
+<!doctype html>
+<!-- rms_fe · 웹 터미널 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>웹 터미널 — rms_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">RMS FrontEnd 과제</a><span class="sep">›</span>
+      <span class="here">웹 터미널</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Altimedia RMS</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
+    </div>
+    <h1>웹 터미널</h1>
+    <p class="one-liner">단말에 원격 셸을 연결하는 두 경로를 제공합니다. <code>pages/terminal</code>은 wetty(<code>REACT_APP_WEB_TERMINAL</code>)를 iframe으로 임베드하고, 디바이스 모달의 <code>terminalModal</code>은 <code>@xterm/xterm</code>으로 명령을 입력받아 <code>specialCommands('TERMINAL_COMMAND')</code>로 전송하고 결과를 SSE로 받습니다. OBE·TTG 타깃에서만 활성화됩니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/terminal/terminal.tsx</code> · <code>pages/device/modal/terminalModal.tsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">원격 셸 (OBE·TTG 전용)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>웹 터미널은 운영자가 브라우저에서 단말에 원격 셸을 붙이는 기능으로, <code>utils/env.ts</code>의 <code>modulePermissions.terminal</code>이 OBE 또는 TTG 타깃일 때만 활성화됩니다. 구현은 두 갈래입니다. 첫째, 독립 페이지 <code>pages/terminal/terminal.tsx</code>는 URL 쿼리의 <code>address</code>를 읽어 <code>REACT_APP_WEB_TERMINAL</code>(wetty) 주소를 <code>iframe</code>으로 임베드합니다. 즉 셸 세션 자체는 wetty 서버가 제공하고 RMS UI는 그 화면을 감싸기만 합니다.</p>
+    <p>둘째, 디바이스 상세 모달 안의 <code>terminalModal.tsx</code>는 <code>@xterm/xterm</code> + <code>@xterm/addon-fit</code>으로 터미널 에뮬레이터를 직접 그립니다. 사용자가 한 줄을 입력해 엔터를 치면 <code>sendTerminal()</code>이 <code>DevicesApiManager.specialCommands(..., 'TERMINAL_COMMAND', { terminalCommand })</code>로 명령을 전송하고 <code>transactionId</code>를 받습니다. 명령 실행 결과는 <code>useSSEController</code>가 구독한 <code>/api/v1/notifications/subscribe</code> SSE의 <code>NOTIFICATION</code> 이벤트로 도착해 xterm에 출력됩니다. 응답이 지연되면 로딩 애니메이션을 돌리고, <code>REACT_APP_RMS_SSE_TIMEOUT</code> 초가 지나면 타임아웃 메시지를 표시합니다.</p>
+    <div class="callout">
+      <div class="ct">명령 전송과 결과 수신의 분리</div>
+      xterm 터미널은 입력을 <code>specialCommands</code>(REST)로 보내고, 출력은 SSE(<code>NOTIFICATION</code>)로 비동기 수신하는 요청/이벤트 분리 구조입니다. 단말이 결과를 올릴 때까지 모달은 SSE 구독을 유지하며(<code>connect(true)</code>), 입력은 로컬 에코로 즉시 화면에 반영합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant OP as 운영자 (Browser)
+    participant TM as terminalModal.tsx (xterm)
+    participant SSE as useSSEController
+    participant DM as DevicesApiManager
+    participant BE as RMS BE 서버
+    participant STB as 단말
+
+    OP-&gt;&gt;TM: 터미널 모달 열기
+    TM-&gt;&gt;SSE: connect(keepAlive=true)
+    SSE-&gt;&gt;BE: SSE /notifications/subscribe
+    OP-&gt;&gt;TM: 명령 입력 + Enter
+    TM-&gt;&gt;DM: specialCommands(id, 'TERMINAL_COMMAND', {terminalCommand})
+    DM-&gt;&gt;BE: POST 명령
+    BE-&gt;&gt;STB: 셸 명령 실행
+    BE--&gt;&gt;TM: transactionId → startSafeTimer()
+    STB--&gt;&gt;BE: 실행 결과
+    BE--&gt;&gt;SSE: NOTIFICATION (결과)
+    SSE--&gt;&gt;TM: message
+    TM-&gt;&gt;TM: xterm.write(결과)
+    Note over TM: SSE_TIMEOUT 초과 시 타임아웃 표시
+      </div>
+      <p class="cap"><strong>흐름(xterm 모달).</strong> 모달이 SSE를 구독한 뒤, 입력한 명령을 <code>specialCommands</code>로 보내고 실행 결과를 <code>NOTIFICATION</code> SSE로 받아 xterm에 출력합니다. 독립 페이지 경로는 wetty iframe 임베드로 별도 처리합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class TerminalPage {
+        -address
+        +render() iframe(WEB_TERMINAL)
+    }
+    class TerminalModal {
+        -termRef Terminal
+        -fitAddonRef FitAddon
+        -transactionId
+        +sendTerminal(request)
+        +handleInput(data)
+        +startSafeTimer()
+    }
+    class useSSEController {
+        +connect(keepAlive)
+        +disconnect(force)
+        +message
+    }
+    class DevicesApiManager {
+        +specialCommands(cb, id, type, params)
+    }
+    class modulePermissions {
+        +terminal (OBE || TTG)
+    }
+
+    TerminalModal --&gt; useSSEController : 결과 수신
+    TerminalModal --&gt; DevicesApiManager : TERMINAL_COMMAND 전송
+    TerminalModal ..&gt; modulePermissions : 노출 분기
+    TerminalPage ..&gt; modulePermissions : 노출 분기
+      </div>
+      <p class="cap"><strong>관계.</strong> xterm 기반 <code>TerminalModal</code>이 <code>specialCommands</code>로 명령을 보내고 <code>useSSEController</code>로 결과를 받습니다. 독립 <code>TerminalPage</code>는 wetty iframe을 임베드하며, 두 경로 모두 <code>modulePermissions.terminal</code>로 노출이 분기됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>pages/device/modal/terminalModal.tsx</code> — xterm 입력을 명령으로 전송</div>
+<pre><code>import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+
+const sendTerminal = (request: string) =&gt; {
+  DevicesApiManager.specialCommands((result, data, code, message) =&gt; {
+    if (result &amp;&amp; message === 'OK' &amp;&amp; data?.transactionId) {
+      setTransactionId(data?.transactionId);
+      startSafeTimer();   // SSE_TIMEOUT 까지 결과 대기
+    }
+  }, connectionId, 'TERMINAL_COMMAND', { terminalCommand: request });
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>pages/terminal/terminal.tsx</code> — wetty 웹 터미널 iframe 임베드</div>
+<pre><code>&lt;iframe
+  src={`${process.env.REACT_APP_WEB_TERMINAL}`}
+  title="WEB_TERMINAL"
+  width="100%" height="600" allowFullScreen
+&gt;Unable to load&lt;/iframe&gt;</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/device/modal/terminalModal.tsx" target="_blank" rel="noopener">pages/device/modal/terminalModal.tsx</a><span class="src">xterm 터미널 — 명령 전송(TERMINAL_COMMAND)·SSE 결과 수신·로딩/타임아웃</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/terminal/terminal.tsx" target="_blank" rel="noopener">pages/terminal/terminal.tsx</a><span class="src">독립 터미널 페이지 — wetty(WEB_TERMINAL) iframe 임베드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/hooks/useSSEController.ts" target="_blank" rel="noopener">hooks/useSSEController.ts</a><span class="src">SSE 컨트롤러 — 터미널 결과(NOTIFICATION) 수신</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/utils/env.ts" target="_blank" rel="noopener">utils/env.ts</a><span class="src">modulePermissions.terminal — OBE/TTG 타깃 노출 분기</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f10.html">← 실시간 원격 제어 · 화면 공유</a>
+      <a href="f12.html">AI 챗봇 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">rms_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

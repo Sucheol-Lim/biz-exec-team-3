@@ -1,0 +1,185 @@
+<!doctype html>
+<!-- kt_ford_aosp_radio_app · 다음/이전 채널 전환 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>다음/이전 채널 전환 — kt_ford_aosp_radio_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford AOSP 라디오 앱</a><span class="sep">›</span>
+      <span class="here">다음/이전 채널 전환</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive (AOSP/AAOS) · Java</span>
+    </div>
+    <h1>다음/이전 채널 전환</h1>
+    <p class="one-liner"><code>skipToNext</code>/<code>skipToPrevious</code> 세션 콜백과 <code>radio.playNextChannel</code>/<code>radio.playPrevChannel</code> 브로드캐스트로 12개 채널을 순환 전환합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app" target="_blank" rel="noopener"><code>kt_ford_aosp_radio_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>RadioBrowserService</code> · <code>ui/RadioFragment</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">버튼·스와이프·알림·런처 통합 전환</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>채널 전환은 진입 경로가 여럿이지만 모두 세션 콜백 한 곳으로 모입니다. 화면에서는 <code>RadioFragment</code>의 이전/다음 버튼 클릭과 좌우 스와이프(<code>OnSwipeTouchListener</code>)가 <code>transportControls.skipToNext()</code>/<code>skipToPrevious()</code>를 호출하고, 알림의 prev/next 액션은 <code>radio.playPrevChannel</code>/<code>radio.playNextChannel</code> 브로드캐스트를, 런처도 동일 브로드캐스트를 보냅니다. 서비스 내부 리시버가 이 브로드캐스트를 받아 다시 세션 콜백으로 위임합니다.</p>
+    <p>세션 콜백의 <code>onSkipToNext()</code>/<code>onSkipToPrevious()</code>는 <code>updatePosition()</code>으로 현재 인덱스를 한 칸 이동시킵니다. 마지막에서 다음으로 가면 0번으로, 0번에서 이전으로 가면 마지막으로 감싸는 순환 구조입니다. 이동한 위치의 <code>MediaMetadata</code>로 <code>onPrepareFromUri()</code> → <code>onPlay()</code>가 이어져 새 채널이 재생되고, 전환 중에는 <code>STATE_SKIPPING_TO_NEXT/PREVIOUS</code> 상태를 세션에 반영해 UI가 로딩 표시를 띄울 수 있게 합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      재생 위치는 서비스의 <code>nowPlayPos</code>와 <code>RadioViewModel</code>의 <code>nowPlayPos</code> 양쪽에서 관리됩니다. 서비스가 권위 있는 위치를 잡고, 메타데이터 변경 콜백(<code>onMetadataChanged</code>)으로 ViewModel 인덱스가 동기화되어 목록·재생 화면의 선택 상태가 맞춰집니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as RadioFragment (버튼/스와이프)
+    participant MC as MediaController
+    participant CB as RadioSessionCallback
+    participant SVC as RadioBrowserService
+    participant PH as RadioPlayerHelper
+
+    UI->>MC: transportControls.skipToNext()
+    MC->>CB: onSkipToNext()
+    CB->>SVC: updatePosition(TARGET_NEXT) (순환)
+    CB->>CB: setPlaybackState(STATE_SKIPPING_TO_NEXT)
+    CB->>CB: onPrepareFromUri(nextUri, position)
+    CB->>CB: onPlay()
+    CB->>PH: prepareChannel(nextMetadata)
+    Note over SVC,PH: 새 채널 재생 + onMetadataChanged 로 인덱스 동기화
+      </div>
+      <p class="cap"><strong>흐름.</strong> 버튼/스와이프/알림/런처 어느 경로든 세션 콜백 <code>onSkipToNext()</code>로 수렴해 위치를 순환 이동하고 새 채널을 재생합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class RadioFragment {
+        -onPrevNextButtonClicked(Direction)
+        +Direction
+    }
+    class OnSwipeTouchListener {
+        +onSwipeLeft()
+        +onSwipeRight()
+    }
+    class RadioSessionCallback {
+        +onSkipToNext()
+        +onSkipToPrevious()
+        +onPrepareFromUri()
+    }
+    class RadioBrowserService {
+        -nowPlayPos
+        -updatePosition(Target, pos)
+    }
+    class Target {
+        &lt;&lt;enumeration&gt;&gt;
+        TARGET_NEXT
+        TARGET_PREV
+        TARGET_SPECIFIC
+    }
+
+    RadioFragment o-- OnSwipeTouchListener : 스와이프
+    RadioFragment ..> RadioSessionCallback : transportControls
+    RadioBrowserService *-- RadioSessionCallback : inner
+    RadioBrowserService ..> Target : 순환 인덱스
+      </div>
+      <p class="cap"><strong>관계.</strong> 화면 입력은 transport control 로, 위치 이동은 <code>Target</code> 기반 <code>updatePosition()</code>으로 순환 처리됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>media/RadioBrowserService.java</code> — 순환 인덱스 + skipToNext 콜백</div>
+<pre><code>private void updatePosition(Target target, Integer targetPosition) {
+    int pos = 0;
+    if (target == Target.TARGET_NEXT) {
+        pos = nowPlayPos + 1;
+        if (pos &gt; mediaItems.size() - 1) pos = 0;          // 끝 → 처음
+    } else if (target == Target.TARGET_PREV) {
+        pos = nowPlayPos - 1;
+        if (pos &lt; 0) pos = mediaItems.size() - 1;           // 처음 → 끝
+    } else if (target == Target.TARGET_SPECIFIC) {
+        pos = targetPosition;
+    }
+    nowPlayPos = pos;
+}
+
+public void onSkipToNext() {
+    updatePosition(Target.TARGET_NEXT, 0);
+    MediaMetadataCompat metadataItem = mediaItems.getMetadata(getNowPlayPos());
+    radioSession.setPlaybackState(buildPlaybackState(PlaybackStateCompat.STATE_SKIPPING_TO_NEXT));
+    onPrepareFromUri(metadataItem.getDescription().getMediaUri(), bundle);  // → onPlay()
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/RadioFragment.java</code> — 버튼·스와이프 → transport control</div>
+<pre><code>void onPrevNextButtonClicked(Direction direction) {
+    if (direction == Direction.DIRECTION_NEXT)
+        requireActivity().getMediaController().getTransportControls().skipToNext();
+    else if (direction == Direction.DIRECTION_PREV)
+        requireActivity().getMediaController().getTransportControls().skipToPrevious();
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/media/RadioBrowserService.java" target="_blank" rel="noopener">media/RadioBrowserService.java</a><span class="src">onSkipToNext/Previous · updatePosition() 순환 로직</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/ui/RadioFragment.java" target="_blank" rel="noopener">ui/RadioFragment.java</a><span class="src">이전/다음 버튼·스와이프 → skipToNext/Previous</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/util/OnSwipeTouchListener.java" target="_blank" rel="noopener">util/OnSwipeTouchListener.java</a><span class="src">좌우 스와이프 제스처 감지</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/media/RadioNotification.java" target="_blank" rel="noopener">media/RadioNotification.java</a><span class="src">알림 prev/next 액션 → playPrev/NextChannel 브로드캐스트</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f07.html">← 음성(TTS) 응답</a>
+      <a href="f09.html">오디오 포커스 관리 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_radio_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

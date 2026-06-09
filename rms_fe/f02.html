@@ -1,0 +1,185 @@
+<!doctype html>
+<!-- rms_fe · 시스템 모니터링 / Quick Operation 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시스템 모니터링 · Quick Operation — rms_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">RMS FrontEnd 과제</a><span class="sep">›</span>
+      <span class="here">시스템 모니터링 · Quick Operation</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Altimedia RMS</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
+    </div>
+    <h1>시스템 모니터링 · Quick Operation</h1>
+    <p class="one-liner"><code>dashboardSystem</code>이 Grafana(node-exporter) 대시보드를 iframe으로 임베드해 RMS 서버 메트릭을 보여주고, <code>quickOperation</code>은 여러 단말을 선택해 <code>commandDevices</code>로 명령을 일괄 적용합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>dashboardSystem.tsx</code> · <code>quickOperation.tsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">시스템 메트릭 · 다수 단말 일괄 제어</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>이 기능은 두 화면으로 구성됩니다. 하나는 시스템 상태 화면(<code>dashboardSystem</code>)으로, RMS 서버 인프라 메트릭을 자체 차트로 그리는 대신 <code>REACT_APP_RMS_GRAFANA_URL</code>이 가리키는 Grafana(node-exporter) 대시보드를 <code>iframe</code>으로 임베드합니다. 컴포넌트 자체는 매우 얇아서, 메트릭 수집·시각화 책임을 Grafana에 위임하고 RMS UI는 메뉴 안에서 그 화면을 보여주는 역할만 합니다.</p>
+    <p>다른 하나는 Quick Operation 화면(<code>quickOperation</code>)입니다. 운영자가 단말 목록에서 여러 행을 체크해 선택(<code>selectedRows</code>)한 뒤 전원/제어 명령을 내리면, <code>DevicesApiManager.commandDevices()</code>가 선택 단말 ID 배열과 명령 코드를 묶어 <code>/api/v1/multi-device-commands/devices</code>로 POST 합니다. 명령 진행 상태와 배포 현황은 <code>getQuickOperationStatus</code>·<code>getQuickOperationDistribution</code>로 폴링하며, 내가 보낸 명령 이력은 <code>MyCommandHistoryModal</code>로 확인합니다. 모달 관리(최소화·복원)는 <code>useTask</code> 컨텍스트가 담당합니다.</p>
+    <div class="callout">
+      <div class="ct">단말 연결 선행 조건</div>
+      Quick Operation에서 일부 명령은 단말이 <code>CONNECTED</code> 상태일 때만 의미가 있습니다. 화면은 단말 섹션 상태를 확인해 연결되지 않은 경우 <code>createDeviceConnection</code>으로 connection을 먼저 시도한 뒤 명령을 전송하는 흐름을 가집니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant OP as 운영자 (Browser)
+    participant QO as quickOperation.tsx
+    participant DM as DevicesApiManager (_api/Devices)
+    participant BE as RMS BE 서버
+    participant DEV as 대상 단말들
+
+    OP-&gt;&gt;QO: 단말 목록 조회
+    QO-&gt;&gt;DM: getQuickOperationList(page, size, search)
+    DM-&gt;&gt;BE: GET /devices (Quick Operation)
+    BE--&gt;&gt;QO: 단말 목록
+    OP-&gt;&gt;QO: 여러 단말 체크 (selectedRows)
+    OP-&gt;&gt;QO: 명령 실행 (예: REBOOT)
+    QO-&gt;&gt;DM: commandDevices(ids, command)
+    DM-&gt;&gt;BE: POST /multi-device-commands/devices
+    BE-&gt;&gt;DEV: 명령 전파
+    loop 진행 상태 폴링
+        QO-&gt;&gt;DM: getQuickOperationStatus()
+        DM-&gt;&gt;BE: GET 상태
+        BE--&gt;&gt;QO: currSectionStatus / 진행률
+    end
+    OP-&gt;&gt;QO: My Command History 열기
+    QO-&gt;&gt;QO: MyCommandHistoryModal 표시
+      </div>
+      <p class="cap"><strong>흐름.</strong> 단말 목록을 받아 여러 행을 선택하고 명령을 실행하면 <code>commandDevices</code>가 ID 배열·명령을 묶어 일괄 POST 합니다. 진행 상태는 주기적으로 폴링하고 이력은 모달로 확인합니다. (시스템 모니터링은 Grafana iframe 임베드로 별도 호출 없음.)</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class MonitoringDashboardSystem {
+        +render() iframe(GRAFANA_URL)
+    }
+    class QuickOperation {
+        -selectedRows
+        -openMyCommandHistory
+        +updateQuickOperationHeader()
+        +handleSort(id, sort)
+        +handleFilter(id, list)
+    }
+    class DevicesApiManager {
+        +getQuickOperationList(cb, page, size, search)
+        +getQuickOperationStatus(cb)
+        +getQuickOperationDistribution(cb)
+        +commandDevices(CommandType)
+        +createDeviceConnection(cb, id)
+    }
+    class TaskContext {
+        +openModal(ModalProps)
+        +minimize(ModalProps)
+        +handleRestore(idx)
+    }
+    class MyCommandHistoryModal {
+        +open
+        +setOpen()
+    }
+
+    QuickOperation --&gt; DevicesApiManager : 명령/상태 호출
+    QuickOperation --&gt; TaskContext : useTask 모달 관리
+    QuickOperation o-- MyCommandHistoryModal : 이력 모달
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>QuickOperation</code>이 <code>DevicesApiManager</code>로 일괄 명령과 상태 폴링을 수행하고, <code>useTask</code>(TaskContext)로 모달 생명주기를 관리합니다. 시스템 화면은 Grafana iframe만 렌더하는 독립 컴포넌트입니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>pages/monitoring/dashboardSystem.tsx</code> — Grafana 대시보드 iframe 임베드</div>
+<pre><code>&lt;iframe
+  title="dashboard-system"
+  src={process.env.REACT_APP_RMS_GRAFANA_URL}
+  style={{ display: 'block', border: 'none', width: '100%', height: '80vh' }}
+  frameBorder={0}
+/&gt;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>_api/Devices.tsx</code> — 선택 단말에 명령을 묶어 일괄 전송</div>
+<pre><code>commandDevices: ({ callback, ids, command, packageIds, subject, message, ... }: CommandType) =&gt; {
+  const data = {
+    ids,
+    command,
+    ...(packageIds &amp;&amp; packageIds.length &gt; 0 ? { packageIds } : {}),
+    ...(message != null &amp;&amp; message !== '' ? { message } : {})
+    // ...firmwareId / imageUrl / url 등 조건부 병합
+  };
+  request('post', `/api/v1/multi-device-commands/devices`, callback, data);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/dashboardSystem.tsx" target="_blank" rel="noopener">pages/monitoring/dashboardSystem.tsx</a><span class="src">시스템 상태 — Grafana(node-exporter) 대시보드 iframe 임베드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/quickOperation.tsx" target="_blank" rel="noopener">pages/monitoring/quickOperation.tsx</a><span class="src">Quick Operation 화면 — 단말 선택·일괄 명령·상태 폴링·명령 이력</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Devices.tsx" target="_blank" rel="noopener">_api/Devices.tsx</a><span class="src">commandDevices / getQuickOperationList / getQuickOperationStatus / createDeviceConnection</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/contexts/TaskContext.tsx" target="_blank" rel="noopener">contexts/TaskContext.tsx</a><span class="src">useTask — 명령 모달 열기/최소화/복원 관리</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f01.html">← 모니터링 대시보드</a>
+      <a href="f03.html">배치 리포트 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">rms_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

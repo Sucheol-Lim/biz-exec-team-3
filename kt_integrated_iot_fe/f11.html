@@ -1,0 +1,185 @@
+<!doctype html>
+<!-- kt_integrated_iot_fe · 권한 기반 사이트 전환 제어 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>권한 기반 사이트 전환 제어 — kt_integrated_iot_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT 통합 IoT 관제 FE</a><span class="sep">›</span>
+      <span class="here">권한 기반 사이트 전환 제어</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관제 콘솔 (React SPA)</span>
+    </div>
+    <h1>권한 기반 사이트 전환 제어</h1>
+    <p class="one-liner"><code>SiteGuard</code>·<code>checkPermission</code>이 사용자 권한 레벨(<code>hasRole</code>)에 따라 사이트 간 전환을 판정합니다. 부적합 접근 시 WebSocket을 해제하고 세션을 정리한 뒤 로그인으로 이동합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 함수</div><div class="v"><code>SiteGuard</code> · <code>checkPermission</code> · <code>hasRole</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">USER_ROLES 5단계 · 라우팅 가드</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>사용자 권한은 <code>USER_ROLES</code> 5단계입니다. 인덱스 0(서비스 고객)부터 4(플랫폼 관리자)까지이며, <code>hasRole(targetLevel)</code>이 세션 사용자(<code>user.userRoleId</code>)의 권한 인덱스가 목표 레벨 이상인지 판정합니다. 즉 <code>hasRole(4)</code>는 플랫폼 관리자, <code>hasRole(3)</code>은 서비스 관리자 이상을 의미합니다.</p>
+    <p><code>SiteGuard</code>는 라우팅 최상위(<code>/:site</code>)에서 먼저 URL의 <code>site</code>가 <code>ALLOWED_SITE_PATHS</code>에 있는지 확인합니다. 다음으로 현재 세션 사이트(<code>currentSite</code>)와 이동 대상 사이트(<code>target</code>)를 <code>checkPermission</code>에 넘겨 전환 가능 여부를 판정합니다. 같은 사이트로의 이동이거나 대상이 없으면 항상 허용합니다.</p>
+    <p><code>checkPermission</code> 규칙은 다음과 같습니다. 플랫폼 관리자(<code>hasRole(4)</code>)는 모든 전환을 허용합니다. 서비스 관리자(<code>hasRole(3)</code>)는 Air Map ↔ 과천, SafeMate 4종 상호 간 전환만 허용하고 그 외는 거부합니다. 나머지 권한은 다른 사이트로의 전환을 허용하지 않습니다. 판정이 부적합(<code>!isValidAccess</code>)이면 <code>useEffect</code>에서 WebSocket을 <code>disconnect()</code>하고 <code>sessionStorage.clear()</code>한 뒤 <code>/:urlSite/login</code>으로 리다이렉트합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      세션 정리와 WebSocket 해제를 부적합 접근 시 즉시 수행해, 권한 없는 다른 사이트의 실시간 채널·토큰이 남지 않도록 합니다. 보호 진입 자체는 별도로 <code>ProtectedRoute</code>가 세션 <code>site.code</code> 유무로 한 번 더 가립니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant Guard as SiteGuard
+    participant CP as checkPermission
+    participant Role as hasRole
+    participant WS as WebSocketProvider
+    participant SS as sessionStorage
+
+    U-&gt;&gt;Guard: /:site 경로로 전환
+    Guard-&gt;&gt;Guard: ALLOWED_SITE_PATHS.includes(site)?
+    Guard-&gt;&gt;CP: checkPermission(target, currentSite)
+    CP-&gt;&gt;Role: hasRole(4) / hasRole(3)
+    Role--&gt;&gt;CP: 권한 충족 여부
+    CP--&gt;&gt;Guard: isValidAccess
+    alt 부적합
+        Guard-&gt;&gt;WS: disconnect()
+        Guard-&gt;&gt;SS: sessionStorage.clear()
+        Guard--&gt;&gt;U: Navigate(/:urlSite/login)
+    else 적합
+        Guard--&gt;&gt;U: children 렌더 허용
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 전환 시 <code>SiteGuard</code>가 권한을 판정하고, 부적합하면 WebSocket·세션을 정리한 뒤 로그인으로 보냅니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class SiteGuard {
+        +useParams() site
+        +render() Element
+    }
+    class checkPermission {
+        +판정(prevSite, nextSite) bool
+    }
+    class hasRole {
+        +판정(targetLevel) bool
+    }
+    class USER_ROLES {
+        +serviceClient
+        +serviceMonitor
+        +serviceOperator
+        +serviceManager
+        +platformManager
+    }
+    class useWebSocket {
+        +disconnect()
+    }
+    class ProtectedRoute {
+        +site.code 유무 판정
+    }
+
+    SiteGuard --&gt; checkPermission : 전환 판정
+    checkPermission --&gt; hasRole : 권한 레벨
+    hasRole ..&gt; USER_ROLES : 인덱스 비교
+    SiteGuard ..&gt; useWebSocket : 부적합 시 해제
+    SiteGuard --&gt; ProtectedRoute : 통과 시 보호 진입
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>SiteGuard</code>가 <code>checkPermission</code>·<code>hasRole</code>로 전환을 판정하고, 부적합 시 WebSocket을 끊으며, 적합하면 <code>ProtectedRoute</code> 보호 진입으로 넘깁니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/routes/route.tsx</code> — 권한 기반 전환 판정</div>
+<pre><code>const checkPermission = (prevSite, nextSite) =&gt; {
+  if (!nextSite || prevSite.code === nextSite.code) return true;
+  if (hasRole(4)) return true;                       // 플랫폼 관리자: 모두 허용
+  if (hasRole(3)) {                                  // 서비스 관리자: 제한 허용
+    if (prevSite.code === SITE_CODES.AIRMAP &amp;&amp; nextSite.code === SITE_CODES.GWACHEON) return true;
+    if (prevSite.code === SITE_CODES.GWACHEON &amp;&amp; nextSite.code === SITE_CODES.AIRMAP) return true;
+    // SafeMate 4종 상호 전환 허용 ...
+  }
+  return false;
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/routes/route.tsx</code> — 부적합 시 세션·WebSocket 정리</div>
+<pre><code>const isValidAccess = checkPermission(target, currentSite);
+useEffect(() =&gt; {
+  if (!isValidAccess) {
+    disconnect();              // STOMP 연결 해제
+    sessionStorage.clear();    // 토큰/사이트/사용자 세션 정리
+  }
+}, [isValidAccess]);
+if (!isValidAccess) return &lt;Navigate to={`/${urlSite}/login`} replace /&gt;;</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">SiteGuard · checkPermission · 부적합 시 disconnect/세션 정리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/util.ts" target="_blank" rel="noopener">src/utils/util.ts</a><span class="src">hasRole(targetLevel) · USER_ROLES 인덱스 비교</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">USER_ROLES 5단계 · SITE_CODES</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/ProtectedRoute.tsx" target="_blank" rel="noopener">src/routes/ProtectedRoute.tsx</a><span class="src">세션 site.code 유무로 보호 화면 진입 판정</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f10.html">게시판·자료실·문의</a>
+      <a href="f12.html">보안 로그인·마스킹 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_integrated_iot_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

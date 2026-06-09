@@ -1,0 +1,197 @@
+<!doctype html>
+<!-- kt_ford_aosp_podcast_app · 마이팟 구독 관리 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마이팟 구독 관리 — kt_ford_aosp_podcast_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford 차량용 팟캐스트 앱</a><span class="sep">›</span>
+      <span class="here">마이팟 구독 관리</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive · Java</span>
+    </div>
+    <h1>마이팟 구독 관리</h1>
+    <p class="one-liner">팟을 마이팟(보관함)으로 등록/해제하고 보관함에서 삭제합니다. 구독 목록은 단말 SharedPreferences에 콤마 구분 문자열로 저장되며 최대 20개(<code>MAX_MYPOD_NUM = 20</code>)까지 관리됩니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app" target="_blank" rel="noopener"><code>kt_ford_aosp_podcast_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop-exoplayer</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>PodcastPreferenceManager</code> · custom action</div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">MYPOD.ON/OFF/GET/DELETE 커스텀 액션</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>마이팟 등록/해제는 UI가 직접 저장소를 만지지 않고 <strong>미디어 브라우저 커스텀 액션</strong>으로 서비스에 위임하는 구조입니다. 재생 화면·재생 목록의 마이팟 버튼을 누르면 <code>PodcastData.PodcastCustomAction</code>(<code>MYPOD.ON</code> 또는 <code>MYPOD.OFF</code>, extra에 <code>pid</code>)을 LiveData로 발행하고, <code>PodcastMediaClient</code>가 이를 관찰해 <code>mediaBrowser.sendCustomAction()</code>으로 서비스에 전달합니다.</p>
+    <p>서비스의 <code>onCustomAction()</code>은 <code>PodcastPreferenceManager.addSync()/deleteSync()/deleteListSync()</code>를 호출해 보관함을 동기 갱신합니다. 저장 형식은 <code>key.mypod</code> 키에 <code>pid1,pid2,...</code> 콤마 구분 문자열이며, <code>addSync()</code>는 중복을 건너뛰고 목록 크기가 <code>MAX_MYPOD_NUM(20)</code>에 도달하면 추가를 거부합니다. UI에서는 추가 전에도 목록 크기를 검사해 20개 초과면 <code>PodcastDialog(TYPE_MYPOD_MAX_NOTICE)</code>로 안내합니다. 변경 결과는 갱신된 pid 리스트(<code>CUSTOM_KEY_MYPOD_PID_LIST</code>) 번들로 반환되어 <code>setMyPodList()</code>로 ViewModel에 반영되고, 동시에 <code>SharedPreferences.OnSharedPreferenceChangeListener</code>가 <code>notifyChildrenChanged(MYPOD_ROOT_ID)</code>를 호출해 마이팟 화면 목록을 다시 그립니다.</p>
+    <div class="callout">
+      <div class="ct">상한 처리 위치</div>
+      20개 상한은 두 군데에서 방어합니다. UI(<code>PlayControlFragment</code>/<code>PlayListFragment</code>)가 클릭 시점에 크기를 검사하고, 저장소(<code>PodcastPreferenceManager.addSync()</code>)도 동일 상한에서 false를 반환합니다. 보관함 다중 삭제는 <code>MYPOD.DELETE</code> + pid 리스트로 한 번에 처리합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as PlayControlFragment / PlayListFragment
+    participant VM as PodcastViewModel (PodcastData)
+    participant MC as PodcastMediaClient
+    participant SVC as PodcastBrowserService
+    participant PM as PodcastPreferenceManager (SharedPreferences)
+
+    UI-&gt;&gt;UI: 마이팟 버튼 클릭 (등록/해제 판단)
+    alt 등록이고 20개 미만
+        UI-&gt;&gt;VM: setCustomAction(MYPOD.ON, pid)
+    else 이미 20개
+        UI-&gt;&gt;UI: PodcastDialog(TYPE_MYPOD_MAX_NOTICE)
+    else 해제
+        UI-&gt;&gt;VM: setCustomAction(MYPOD.OFF, pid)
+    end
+    VM--&gt;&gt;MC: podcastCustomAction.observe()
+    MC-&gt;&gt;SVC: sendCustomAction(action, extra)
+    SVC-&gt;&gt;PM: addSync / deleteSync (key.mypod)
+    PM--&gt;&gt;SVC: 결과(true/false)
+    SVC--&gt;&gt;MC: result.sendResult(MYPOD_PID_LIST)
+    MC-&gt;&gt;VM: setMyPodList(list)
+    PM--&gt;&gt;SVC: onSharedPreferenceChanged → notifyChildrenChanged(MYPOD_ROOT_ID)
+      </div>
+      <p class="cap"><strong>흐름.</strong> UI 버튼 → 커스텀 액션 발행 → 서비스가 SharedPreferences 동기 갱신 → pid 리스트 회신 및 마이팟 목록 통지.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class PodcastPreferenceManager {
+        +KEY_MY_POD
+        +addSync(key, value) boolean
+        +deleteSync(key, value) boolean
+        +deleteListSync(key, list) boolean
+        +getMyPodList(key) ArrayList~String~
+        +resetData()
+    }
+    class PodcastBrowserService {
+        +onCustomAction(action, extras, result)
+        +onSharedPreferenceChanged(prefs, key)
+        -getMyPodListBundle() Bundle
+    }
+    class PodcastMediaClient {
+        +sendCustomAction(action, extra, cb)
+        -customActionCallback
+    }
+    class PodcastData {
+        +setCustomAction(action)
+        +getPodcastCustomAction() LiveData
+    }
+    class Constants {
+        +CUSTOM_ACTION_MYPOD_ON
+        +CUSTOM_ACTION_MYPOD_OFF
+        +CUSTOM_ACTION_MYPOD_GET
+        +CUSTOM_ACTION_MYPOD_DELETE
+        +MAX_MYPOD_NUM
+    }
+
+    PodcastBrowserService --&gt; PodcastPreferenceManager : 보관함 읽기/쓰기
+    PodcastMediaClient --&gt; PodcastBrowserService : sendCustomAction
+    PodcastData --&gt; PodcastMediaClient : 커스텀 액션 발행
+    PodcastBrowserService ..&gt; Constants : 액션 키 참조
+      </div>
+      <p class="cap"><strong>관계.</strong> 커스텀 액션 키(<code>Constants</code>)를 통해 UI(<code>PodcastData</code>) → 클라이언트 → 서비스 → 저장소(<code>PodcastPreferenceManager</code>)로 이어집니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>media/PodcastBrowserService.java</code> — MYPOD.ON 커스텀 액션 처리</div>
+<pre><code>if (TextUtils.equals(Constants.CUSTOM_ACTION_MYPOD_ON, action)) {
+    if (extras != null) {
+        String pid = extras.getString(Constants.CUSTOM_KEY_MYPOD_PID);
+        if (pid != null &amp;&amp; pid.length() &gt; 0) {
+            if (PodcastPreferenceManager.getInstance().addSync(PodcastPreferenceManager.KEY_MY_POD, pid)) {
+                result.sendResult(getMyPodListBundle());
+                return;
+            }
+        }
+    }
+    result.sendError(null);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>common/manager/PodcastPreferenceManager.java</code> — 20개 상한·중복 방지 저장</div>
+<pre><code>public boolean addSync(@NonNull String key, @NonNull String value) {
+    String local = servicePreferences.getString(key, "");
+    if (local.equals("")) {
+        return setSync(key, value);
+    } else {
+        StringTokenizer st = new StringTokenizer(local, ",");
+        while (st.hasMoreTokens()) {
+            if (value.equals(st.nextToken())) return false;   // 중복
+        }
+        ArrayList&lt;String&gt; list = makeListFromCommaSeparatorSequence(local);
+        if (list.size() == Constants.MAX_MYPOD_NUM) return false;  // 상한 20
+        return setSync(key, local + "," + value);
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/manager/PodcastPreferenceManager.java" target="_blank" rel="noopener">manager/PodcastPreferenceManager.java</a><span class="src">마이팟 콤마 저장 · 20개 상한 · 다중 삭제</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/media/PodcastBrowserService.java" target="_blank" rel="noopener">media/PodcastBrowserService.java</a><span class="src">onCustomAction(MYPOD.ON/OFF/GET/DELETE) · notifyChildrenChanged</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/app/src/main/java/com/altimedia/automotive/kt/service/podcast/media/PodcastMediaClient.java" target="_blank" rel="noopener">media/PodcastMediaClient.java</a><span class="src">커스텀 액션 송신 · 결과 pid 리스트 ViewModel 반영</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_podcast_app/src/develop-exoplayer/common/src/main/java/com/altimedia/automotive/kt/service/common/util/Constants.java" target="_blank" rel="noopener">util/Constants.java</a><span class="src">CUSTOM_ACTION_MYPOD_* · MAX_MYPOD_NUM=20</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f05.html">← 검색</a>
+      <a href="f07.html">이전 시청 정보 복원 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop-exoplayer</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_podcast_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

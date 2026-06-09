@@ -1,0 +1,194 @@
+<!doctype html>
+<!-- kt-bom-qrator-web · qDaemon 백그라운드 매니저 기능 상세 — chTrigger/storageData/liveAgent 매니저 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>qDaemon 백그라운드 매니저 — kt-bom-qrator-web 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT BOM Qrator Web (언바운드 위젯 앱)</a><span class="sep">›</span>
+      <span class="here">qDaemon 백그라운드 매니저</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">olleh tv 웹 미들웨어 STB · JavaScript</span>
+    </div>
+    <h1>qDaemon 백그라운드 매니저</h1>
+    <p class="one-liner">위젯 UI와 별개로 백그라운드 시나리오를 관리하는 매니저 묶음입니다. 채널 트리거 스케줄(<code>chTriggerManager</code>), 사용자/스토리지 데이터(<code>storageDataManager</code>), 라이브 에이전트 로그(<code>liveAgentManager</code>)를 담당합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web" target="_blank" rel="noopener"><code>kt-bom-qrator-web</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>apps/qDaemon/</code> 3개 매니저</div></div>
+      <div class="item"><div class="k">초기화 시점</div><div class="v"><code>qrator.init()</code> (STB 모드)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>qDaemon은 단일 앱이 아니라 전역으로 노출되는 세 매니저의 묶음입니다. <code>qrator.init()</code>이 STB 모드일 때 <code>storageDataManager.init()</code> → <code>chTriggerManager.init()</code> → <code>storageDataManager.checkIpAddress()</code> 순으로 기동합니다. 위젯이 보이지 않아도 이들은 백그라운드에서 계속 동작해 트리거 노출 조건을 평가하고 로그를 남깁니다.</p>
+    <p><code>chTriggerManager</code>는 채널 트리거(f04)·CMP 트리거(f06)의 두뇌입니다. 부팅 시 캐시 서버에서 편성 파일(<code>CMP_CAMP_CH_WEB.json</code>)을 받아 만료시각(<code>newChExpDate</code>)과 함께 <code>localStorage</code>에 저장하고, 만료 시각에 맞춰 갱신 타이머(<code>setUpdateTimer</code>)를 겁니다. 단말 채널 이벤트(<code>onPlayStateChange</code>/<code>onChannelChangeSucceeded</code> 등)를 받아 채널별 유효 캠페인을 골라 적절한 트리거에 전달합니다.</p>
+    <p><code>storageDataManager</code>는 가입 상품 코드·마케팅 동의·관심지수·리워드 이력·IP 변경 등 사용자 컨텍스트와 트리거 갱신 시각(<code>getUpdateTime</code>/<code>getUpdateTimeByRandom</code>)을 관리하며, <code>chTriggerManager.checkCampaignCondition</code>이 캠페인 조건 검사에 직접 참조합니다. <code>liveAgentManager</code>는 라이브 에이전트 서버로 노출/이동/결제 로그를 전송합니다. 세션 ID를 <code>/getsessionid</code>로 받아오고, 파이프(<code>|</code>) 구분 문자열로 로그를 직렬화해 <code>StpLogSaveController.do</code>에 POST합니다.</p>
+    <div class="callout">
+      <div class="ct">로그 타입 (liveAgentManager)</div>
+      <code>pushTriggerStartLog</code>(logType 14, 푸시 트리거 노출), <code>microSiteStartLog</code>(15, 마이크로사이트 노출), <code>tvpayModuleStartLog</code>(16, 결제 모듈 노출)이 정의되어 있습니다. 모두 세션 ID·SAID·시작 시각·콘텐츠 ID를 필수로 담습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Q as qrator.init()
+    participant SDM as storageDataManager
+    participant CTM as chTriggerManager
+    participant CACHE as 캐시 서버 (img.bom.kt.com)
+    participant STB as 방송 객체
+    participant LAM as liveAgentManager
+
+    Q-&gt;&gt;SDM: init()
+    Q-&gt;&gt;CTM: init() → startScheduling()
+    CTM-&gt;&gt;CACHE: fileLoad(CMP_CAMP_CH_WEB.json)
+    CACHE--&gt;&gt;CTM: 편성 목록
+    CTM-&gt;&gt;CTM: setLocalCampaignData / setUpdateTimer
+    Q-&gt;&gt;SDM: checkIpAddress()
+
+    STB-&gt;&gt;CTM: onChannelChangeSucceeded(ch)
+    CTM-&gt;&gt;CTM: runCampaign → getValidCampaign
+    CTM-&gt;&gt;SDM: checkCampaignCondition 참조
+    CTM-&gt;&gt;LAM: (트리거 노출 시) pushTriggerStartLog
+    LAM-&gt;&gt;LAM: getSessionId → sendLog (|구분 직렬화)
+      </div>
+      <p class="cap"><strong>흐름.</strong> init 시 세 매니저가 기동해 편성 파일을 받아 캐싱하고, 채널 이벤트마다 유효 캠페인을 평가합니다. 노출 조건은 <code>storageDataManager</code>를 참조하고, 노출 시 <code>liveAgentManager</code>가 세션을 받아 로그를 전송합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class chTriggerManager {
+        -campaignList
+        -inactiveChannelList
+        -updateTimer
+        +init()
+        +startScheduling()
+        +runCampaign(ch)
+        +checkCampaignCondition(camp)
+        +setInacitveTrigger(channelType, sid)
+        +removeCampaign(camp)
+        +channelEventListener
+    }
+    class storageDataManager {
+        +init()
+        +checkIpAddress()
+        +getUpdateTime()
+        +getUpdateTimeByRandom()
+        +getBaseProductCode()
+        +getMarketingAgreeYn()
+        +getInterestIndex()
+        +getRewardedCampaign()
+    }
+    class liveAgentManager {
+        -currentSessionId
+        +pushTriggerStartLog(bomSaId, contentId)
+        +microSiteStartLog(bomSaId, contentId)
+        +tvpayModuleStartLog(bomSaId, contentId)
+        +getCurrentSessionId()
+    }
+
+    chTriggerManager --&gt; storageDataManager : 조건/갱신시각 참조
+    chTriggerManager --&gt; liveAgentManager : 노출 로그
+      </div>
+      <p class="cap"><strong>관계.</strong> 세 매니저는 모두 전역 객체로, <code>chTriggerManager</code>가 캠페인 조건 검사에 <code>storageDataManager</code>를, 노출 로그에 <code>liveAgentManager</code>를 사용합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>qrator/js/main.js</code> — STB 모드 init 시 매니저 기동</div>
+<pre><code>if (stbInfo.isSTB) {
+    stbInfo.config.configuration.setText("version.appstore", version);
+    _handleKeyWhileHidden();
+    postMessage.sendAppReady();
+
+    storageDataManager.init();      // 사용자 정보 데이터 관리 초기화
+    chTriggerManager.init();        // 채널 트리거 관리 프로세스 초기화
+    storageDataManager.checkIpAddress();   // IP 변경여부 체크
+    ...
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>apps/qDaemon/liveAgentManager.js</code> — sendLog: 파이프 구분 직렬화 후 전송</div>
+<pre><code>function sendLog(data, sucFn, errorFn) {
+    var StringData = '';
+    for (var i = 0; i &lt; keyList.length; i++) {
+        StringData += data[keyList[i]] + "|";       // logType|sessionId|saId|...
+    }
+    var url = commonProperty.BRK_liveAgent_serverIp + '/bat/StpLogSaveController.do';
+    $.ajax({
+        type: "POST", url: url, dataType: "json",
+        data: { "parameter": StringData },
+        contentType: 'application/x-www-form-urlencoded',
+        timeout: 5000,
+        success: function (msg) { if (msg.result_cd == 1 &amp;&amp; sucFn) sucFn(msg); },
+        error: function (msg) { if (errorFn) errorFn(msg); }
+    });
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/qDaemon/chTriggerManager.js" target="_blank" rel="noopener">apps/qDaemon/chTriggerManager.js</a><span class="src">채널 캠페인 스케줄·채널 이벤트 리스너·유효 캠페인/조건 평가</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/qDaemon/storageDataManager.js" target="_blank" rel="noopener">apps/qDaemon/storageDataManager.js</a><span class="src">사용자 컨텍스트(상품/동의/관심지수/리워드)·갱신 시각·IP 체크</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/apps/qDaemon/liveAgentManager.js" target="_blank" rel="noopener">apps/qDaemon/liveAgentManager.js</a><span class="src">라이브 에이전트 로그 전송(세션 발급·파이프 직렬화)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/qrator/js/main.js" target="_blank" rel="noopener">qrator/js/main.js</a><span class="src"><code>init</code>에서 매니저 기동·채널 이벤트 리스너 연결(setChannelEventListener)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f09.html">← 요청-응답 메시지 라우터</a>
+      <a href="f11.html">동적 서브앱 로딩(부트스트랩) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt-bom-qrator-web 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

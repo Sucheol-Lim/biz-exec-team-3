@@ -1,0 +1,197 @@
+<!doctype html>
+<!-- hcn_android · USB 재생/외부 저장소 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>USB 재생 · 외부 저장소 — hcn_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">HCN Android EPG · 런처</a><span class="sep">›</span>
+      <span class="here">USB 재생 · 외부 저장소</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">HCN (현대HCN)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) STB · Java</span>
+    </div>
+    <h1>USB 재생 · 외부 저장소</h1>
+    <p class="one-liner"><code>UsbPlayActivity</code>가 USB 미디어를 비디오/오디오/이미지 타입에 따라 전용 플레이어 프래그먼트로 재생하고, <code>exteranlStorage/</code> 유틸이 외부 저장소 검색·미디어 목록 구성을 담당하며, 마운트 해제/화면 오프 시 안전하게 종료합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/hcn_android" target="_blank" rel="noopener"><code>hcn_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>UsbPlayActivity</code> · <code>ExternalMediaItem</code> · <code>ExternalStorageUtils</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">USB 미디어 검색·재생</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>USB 재생은 사용자가 꽂은 외부 저장소(USB 메모리/HDD)의 미디어 파일을 STB에서 재생하는 기능입니다. <code>exteranlStorage/</code> 패키지의 유틸(<code>ExternalStorageUtils</code>·<code>ExternalStorageFileSearchUtils</code>)이 마운트된 볼륨을 탐색해 파일을 검색하고, 각 파일을 <code>ExternalMediaItem</code>(Parcelable)으로 모델링합니다. 재생 화면은 <code>UsbPlayActivity</code>가 담당하며, 파일 탐색 콜백(<code>OnFileExplorerListener</code>)과 프래그먼트 상호작용(<code>UsbFragmentInteractionCallback</code>)을 구현합니다.</p>
+    <p>재생 요청은 인텐트의 <code>KEY_ITEM</code>(<code>ExternalMediaItem</code>)과 <code>KEY_PLAYER_TYPE</code>(<code>Type.Video/Audio/Image</code>)을 담아 들어오고, <code>initMediaPlayer(type, item)</code>이 타입에 따라 전용 프래그먼트(<code>VideoMediaPlayerFragment</code>·<code>AudioMediaPlayerFragment</code>·<code>ImageMediaPlayerFragment</code>)를 <code>mediaPlayLayout</code> 컨테이너에 <code>replace</code>합니다. 액티비티는 재생 중 화면이 꺼지지 않도록 <code>FLAG_KEEP_SCREEN_ON</code>을 걸고, <code>ACTION_MEDIA_UNMOUNTED</code>(USB 분리)·<code>ACTION_SCREEN_OFF</code>·EPG의 <code>ACTION_KILL_OTHERS</code>(다른 화면 진입)를 수신하면 <code>finishAction()</code>으로 안전하게 종료합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      재생을 단일 액티비티 + 타입별 프래그먼트로 분리해, 비디오/오디오/이미지의 서로 다른 재생 UI와 컨트롤을 각 프래그먼트가 캡슐화합니다. USB 분리·화면 오프 같은 외부 상태 변화는 브로드캐스트로 받아 즉시 종료하므로, 매체가 사라진 뒤에도 재생 화면이 남는 문제를 막습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant ESU as ExternalStorageUtils
+    participant UPA as UsbPlayActivity
+    participant MF as 미디어 플레이어 Fragment
+    participant SYS as Android System
+
+    U-&gt;&gt;ESU: USB 마운트 / 파일 탐색
+    ESU--&gt;&gt;U: ExternalMediaItem 목록
+    U-&gt;&gt;UPA: 파일 선택 (KEY_ITEM, KEY_PLAYER_TYPE)
+    UPA-&gt;&gt;UPA: onCreate (FLAG_KEEP_SCREEN_ON)
+    UPA-&gt;&gt;UPA: initMediaPlayer(type, item)
+    alt Video / Audio / Image
+        UPA-&gt;&gt;MF: 전용 Fragment replace
+        MF--&gt;&gt;U: 재생
+    end
+    SYS-&gt;&gt;UPA: ACTION_MEDIA_UNMOUNTED / SCREEN_OFF
+    UPA-&gt;&gt;UPA: finishAction() (안전 종료)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 외부 저장소 유틸이 파일을 검색해 <code>ExternalMediaItem</code> 목록을 만들고, 선택 시 <code>UsbPlayActivity</code>가 타입별 플레이어 프래그먼트로 재생하며, USB 분리·화면 오프 시 즉시 종료합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class UsbPlayActivity {
+        Type Video / Audio / Image
+        +onCreate(Bundle)
+        -initMediaPlayer(type, item)
+        -finishAction()
+    }
+    class SurfaceHolderCallback2 {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class OnFileExplorerListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class ExternalMediaItem {
+        &lt;&lt;Parcelable&gt;&gt;
+    }
+    class ExternalStorageUtils {
+        +마운트 볼륨 탐색
+    }
+    class ExternalStorageFileSearchUtils {
+        +파일 검색
+    }
+    class VideoMediaPlayerFragment
+    class AudioMediaPlayerFragment
+    class ImageMediaPlayerFragment
+
+    UsbPlayActivity ..|&gt; SurfaceHolderCallback2
+    UsbPlayActivity ..|&gt; OnFileExplorerListener
+    UsbPlayActivity ..&gt; ExternalMediaItem : 재생 대상
+    UsbPlayActivity --&gt; VideoMediaPlayerFragment : 타입별 표시
+    UsbPlayActivity --&gt; AudioMediaPlayerFragment
+    UsbPlayActivity --&gt; ImageMediaPlayerFragment
+    ExternalStorageUtils ..&gt; ExternalMediaItem
+    ExternalStorageFileSearchUtils ..&gt; ExternalMediaItem
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>UsbPlayActivity</code>는 외부 저장소 유틸이 만든 <code>ExternalMediaItem</code>을 타입별 플레이어 프래그먼트로 재생하며, 파일 탐색·서피스 콜백 인터페이스를 구현합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/activity/UsbPlayActivity.java</code> — 타입별 플레이어 프래그먼트 분기와 안전 종료</div>
+<pre><code>private void initMediaPlayer(Type mediaType, ExternalMediaItem mediaItem) {
+    FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+    switch (mediaType) {
+        case Video:
+            ft.replace(R.id.mediaPlayLayout,
+                       VideoMediaPlayerFragment.newInstance(mediaItem),
+                       VideoMediaPlayerFragment.CLASS_NAME);
+            break;
+        case Audio:
+            ft.replace(R.id.mediaPlayLayout,
+                       AudioMediaPlayerFragment.newInstance(mediaItem),
+                       AudioMediaPlayerFragment.CLASS_NAME);
+            break;
+        case Image:
+            ft.replace(R.id.mediaPlayLayout,
+                       ImageMediaPlayerFragment.newInstance(mediaItem),
+                       ImageMediaPlayerFragment.CLASS_NAME);
+            break;
+    }
+    ft.commitAllowingStateLoss();
+}
+
+// USB 분리 / 화면 오프 시 즉시 종료
+private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+    @Override public void onReceive(Context context, Intent intent) {
+        switch (intent.getAction()) {
+            case Intent.ACTION_MEDIA_UNMOUNTED:
+            case Intent.ACTION_SCREEN_OFF:
+                finishAction();
+                break;
+        }
+    }
+};</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/app/src/main/java/com/altimedia/android/tv/epg/ui/activity/UsbPlayActivity.java" target="_blank" rel="noopener">ui/activity/UsbPlayActivity.java</a><span class="src">USB 재생 화면 · 타입별 프래그먼트 분기 · 마운트 해제/화면 오프 종료</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/app/src/main/java/com/altimedia/android/tv/epg/exteranlStorage/obj/ExternalMediaItem.java" target="_blank" rel="noopener">exteranlStorage/obj/ExternalMediaItem.java</a><span class="src">외부 저장소 미디어 항목 모델 (Parcelable)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/app/src/main/java/com/altimedia/android/tv/epg/exteranlStorage/utils/ExternalStorageUtils.java" target="_blank" rel="noopener">exteranlStorage/utils/ExternalStorageUtils.java</a><span class="src">마운트 볼륨 탐색 · 외부 저장소 상태</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/app/src/main/java/com/altimedia/android/tv/epg/exteranlStorage/utils/ExternalStorageFileSearchUtils.java" target="_blank" rel="noopener">exteranlStorage/utils/ExternalStorageFileSearchUtils.java</a><span class="src">USB 미디어 파일 검색</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f14.html">← 외부 연동 · AIDL 서비스</a>
+      <a href="index.html#features">주요 기능 목록 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">hcn_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

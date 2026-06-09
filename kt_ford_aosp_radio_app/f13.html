@@ -1,0 +1,163 @@
+<!doctype html>
+<!-- kt_ford_aosp_radio_app · 주·야간 테마 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>주·야간 테마 — kt_ford_aosp_radio_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford AOSP 라디오 앱</a><span class="sep">›</span>
+      <span class="here">주·야간 테마</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive (AOSP/AAOS) · Java</span>
+    </div>
+    <h1>주·야간 테마</h1>
+    <p class="one-liner"><code>drawable-night</code>/<code>values-night</code> 리소스 분기와 <code>AppCompatDelegate</code> 야간 모드 설정으로 단말 uiMode(주간·야간)에 따라 테마가 전환됩니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app" target="_blank" rel="noopener"><code>kt_ford_aosp_radio_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 리소스</div><div class="v"><code>values-night/</code> · <code>drawable-night*/</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">uiMode 기반 다크 모드</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>야간 주행 시 화면 눈부심을 줄이기 위해 주간·야간 테마를 분리합니다. 리소스 차원에서는 <code>values</code>/<code>values-night</code> 색상 세트와 <code>drawable-*</code>/<code>drawable-night-*</code> 드로어블 세트를 각각 두어, 단말이 night uiMode 일 때 자동으로 야간 리소스가 선택됩니다. 예를 들어 <code>radio_text_playing</code> 색상이 주간 <code>#3EBCFF</code>에서 야간 <code>#2CA6CF</code>로 바뀝니다.</p>
+    <p>런타임 분기는 두 곳에서 거듭니다. <code>MainActivity.onCreate()</code>가 <code>AppCompatDelegate.setDefaultNightMode(MODE_NIGHT_AUTO_BATTERY)</code>로 야간 모드 정책을 설정하고, <code>onConfigurationChanged()</code>에서 uiMode 변경을 감지하면 nav host Fragment 를 detach/attach 해 새 리소스로 다시 그립니다. 어댑터·프래그먼트는 <code>Utils.isNightMode(config)</code>로 현재 모드를 판별해, 예컨대 <code>ChannelListAdapter</code>가 야간이면 로고 투명도를 0.88로 낮추는 식의 미세 조정을 합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      테마 전환의 큰 줄기는 Android 리소스 한정자(<code>-night</code>)에 위임하고, 코드에서는 (1) 모드 정책 설정, (2) uiMode 변경 시 Fragment 재생성, (3) 투명도 같은 세부 보정만 담당합니다. 덕분에 색·이미지 교체는 리소스 파일 추가만으로 처리됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant SYS as 시스템(uiMode)
+    participant ACT as MainActivity
+    participant RES as Resource(values/-night)
+    participant ADP as ChannelListAdapter
+
+    ACT->>ACT: setDefaultNightMode(MODE_NIGHT_AUTO_BATTERY)
+    SYS->>ACT: onConfigurationChanged(uiMode=NIGHT)
+    ACT->>ACT: nav host Fragment detach → attach
+    ACT->>RES: 야간 리소스 재선택 (values-night / drawable-night)
+    ADP->>ADP: Utils.isNightMode(config)
+    ADP->>ADP: getOpacity() = 0.88f (야간)
+      </div>
+      <p class="cap"><strong>흐름.</strong> uiMode 가 야간으로 바뀌면 Fragment 가 재생성되며 <code>-night</code> 리소스가 선택되고, 어댑터는 야간 투명도로 미세 보정합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class MainActivity {
+        -int uiMode
+        +onConfigurationChanged(newConfig)
+    }
+    class AppCompatDelegate {
+        +setDefaultNightMode(mode)$
+    }
+    class Utils {
+        +isNightMode(config)$ boolean
+    }
+    class ChannelListAdapter {
+        -boolean isNight
+        -getOpacity() float
+    }
+    class NightResources {
+        values-night/colors.xml
+        drawable-night-*
+    }
+
+    MainActivity ..> AppCompatDelegate : night mode 정책
+    MainActivity ..> Utils : isNightMode
+    ChannelListAdapter ..> Utils : 모드 판별
+    MainActivity ..> NightResources : uiMode 별 선택
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>MainActivity</code>가 야간 모드 정책을 잡고, <code>Utils.isNightMode()</code> 판별을 어댑터가 활용하며, 색·이미지는 <code>-night</code> 리소스가 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>util/Utils.java</code> — uiMode 야간 여부 판별</div>
+<pre><code>public static boolean isNightMode(Configuration config) {
+    return (config.uiMode &amp; Configuration.UI_MODE_NIGHT_MASK)
+            == Configuration.UI_MODE_NIGHT_YES;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/ChannelListAdapter.java</code> — 야간 시 로고 투명도 조정</div>
+<pre><code>// 생성자: ChannelListFragment 에서 Utils.isNightMode(...) 결과 주입
+public ChannelListAdapter(RadioViewModel vm, RadioItemCallback listener, boolean isNight) {
+    this.isNight = isNight;
+}
+private float getOpacity() {
+    return isNight ? 0.88f : 1.0f;   // 야간엔 살짝 흐리게
+}
+// onBindViewHolder: holder.binding.imageChannelListItemLogo.setAlpha(getOpacity());</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/res/values-night/colors.xml" target="_blank" rel="noopener">res/values-night/colors.xml</a><span class="src">야간 색상 세트(radio_text_playing 등)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/util/Utils.java" target="_blank" rel="noopener">util/Utils.java</a><span class="src">isNightMode(Configuration) 판별</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/ui/MainActivity.java" target="_blank" rel="noopener">ui/MainActivity.java</a><span class="src">setDefaultNightMode · uiMode 변경 시 Fragment 재생성</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/ui/ChannelListAdapter.java" target="_blank" rel="noopener">ui/ChannelListAdapter.java</a><span class="src">isNight 기반 로고 투명도 보정</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f12.html">← 적응형 멀티윈도우 UI</a>
+      <a href="f14.html">다국어 리소스 (한/영) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_radio_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

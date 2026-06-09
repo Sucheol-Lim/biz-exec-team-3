@@ -1,0 +1,195 @@
+<!doctype html>
+<!-- remote_solution · Circle to Search(모션 캡처) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Circle to Search (모션 캡처) — remote_solution 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Remote Solution PoC App</a><span class="sep">›</span>
+      <span class="here">Circle to Search (모션 캡처)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Altimedia PoC</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Kotlin</span>
+    </div>
+    <h1>Circle to Search (모션 캡처)</h1>
+    <p class="one-liner">재생 화면 위에 원을 그리면 종횡비·반지름 안정성·경로 폐합·길이·크기 기준으로 원 여부를 판정하고, 비뚤어진 획을 정원(正圓)으로 모핑한 뒤 해당 영역을 캡처합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/remote_solution" target="_blank" rel="noopener"><code>remote_solution</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>CircleInkView</code> · <code>VodFragment</code></div></div>
+      <div class="item"><div class="k">획 수집</div><div class="v">ML Kit <code>Ink.Stroke</code> (도형 판정은 자체 기하)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>Circle to Search는 영상 위에 원을 그려 그 안의 영역을 검색하는 Motion Control 요구사항입니다. <code>VodFragment</code>가 <code>playerView</code>의 터치를 받아, 누른 채 슬롭(touchSlop)을 넘게 움직이면 <code>CircleInkView</code>를 노출하고 원래 DOWN 이벤트부터 InkView로 전달해 획을 시작시킵니다. <code>CircleInkView</code>는 <code>MotionEvent</code> 좌표를 ML Kit <code>Ink.Stroke</code>로 수집하는 동시에 자체 <code>currentPoints</code> 리스트에도 적재합니다.</p>
+    <p>획이 끝나면(<code>handleUp</code>) <code>maybeCommitCircle()</code>이 "원에 가까운지"를 자체 기하 로직으로 판정합니다. 판정 기준은 다섯 가지입니다. (1) 바운딩 박스 종횡비(<code>aspectOk</code>, 0.7~1.4), (2) 평균 반지름 대비 표준편차로 본 반지름 안정성(<code>radiusOk</code>, &lt; 0.50), (3) 시작점과 끝점의 거리로 본 경로 폐합(<code>closureOk</code>), (4) 둘레 대비 그린 길이(<code>lengthOk</code>, 60% 이상), (5) 최소 크기(<code>sizeOk</code>, 80px 초과).</p>
+    <p>다섯 기준을 모두 통과하면 평균 반지름을 정원의 반지름으로 삼아 <code>startMorphToCircleThenDraw()</code>가 비뚤어진 획의 각 점을 원주 위로 투영(<code>atan2</code>·<code>cos</code>·<code>sin</code>)하면서 450ms 모핑 애니메이션을 재생합니다. 모핑이 끝나면 1초간 정원을 보여 준 뒤 영역 캡처(다음 기능)로 넘어갑니다. 기준 미달이어도 시작/끝점이 매우 가깝고(<code>tightClosureOk</code>) 크기가 어느 정도면(<code>sizeOkLoose</code>) 관대하게 원으로 인정합니다.</p>
+    <div class="callout">
+      <div class="ct">ML Kit 역할 한정</div>
+      ML Kit Digital Ink는 <code>Ink</code>/<code>Ink.Stroke</code> 타입으로 획을 수집하는 데만 쓰이고, 원 여부 판정은 ML 인식이 아니라 <code>CircleInkView</code> 내부의 순수 기하 계산(<code>hypot</code>·표준편차·경로 길이)으로 수행합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자(포인터 드로잉)
+    participant VF as VodFragment (playerView)
+    participant CV as CircleInkView
+    participant GEO as maybeCommitCircle (기하 판정)
+    participant ANI as Morph/Draw 애니메이터
+
+    U-&gt;&gt;VF: ACTION_DOWN / ACTION_MOVE(슬롭 초과)
+    VF-&gt;&gt;CV: inkView VISIBLE + dispatchTouchEvent(down,move)
+    loop 획 진행
+        U-&gt;&gt;CV: ACTION_MOVE
+        CV-&gt;&gt;CV: Ink.Stroke + currentPoints 적재
+    end
+    U-&gt;&gt;CV: ACTION_UP
+    CV-&gt;&gt;GEO: maybeCommitCircle()
+    GEO--&gt;&gt;CV: aspect/radius/closure/length/size 판정
+    alt 원으로 인정
+        CV-&gt;&gt;ANI: startMorphToCircleThenDraw() 450ms
+        ANI-&gt;&gt;CV: showCircleThenCapture() (정원 1초 표시)
+        Note over CV: 영역 비트맵 캡처로 인계
+    else 미달
+        CV-&gt;&gt;VF: onCircleCaptured(ERROR)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 영상 위 드로잉 → 획 수집 → 기하 기준 다섯 가지 판정 → 통과 시 정원 모핑 후 캡처, 미달 시 ERROR 통보.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class CircleInkView {
+        -Ink.Builder inkBuilder
+        -List~Pair~ currentPoints
+        -onCircleCaptured callback
+        +setOnCircleCapturedListener(listener)
+        +onTouchEvent(MotionEvent)
+        -maybeCommitCircle() Boolean
+        -startMorphToCircleThenDraw(cx, cy, r, points)
+        -showCircleThenCapture(cx, cy, r)
+    }
+    class Circle {
+        +float cx
+        +float cy
+        +float r
+    }
+    class CaptureResult {
+        &lt;&lt;sealed&gt;&gt;
+    }
+    class SUCCESS {
+        +Bitmap thumb
+    }
+    class ERROR
+    class VodFragment {
+        +setOnCircleCapturedListener 등록
+    }
+    class Ink_Stroke {
+        +addPoint(Ink.Point)
+    }
+
+    CircleInkView ..&gt; Circle : 판정 결과 보관
+    CircleInkView ..&gt; Ink_Stroke : 획 수집(ML Kit)
+    CircleInkView --&gt; CaptureResult : 콜백
+    CaptureResult &lt;|-- SUCCESS
+    CaptureResult &lt;|-- ERROR
+    VodFragment --&gt; CircleInkView : 리스너 등록 / 터치 포워딩
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>CircleInkView</code>가 ML Kit <code>Ink.Stroke</code>로 획을 모으고 자체 기하로 판정한 뒤, 결과를 <code>CaptureResult</code>(SUCCESS/ERROR)로 <code>VodFragment</code>에 콜백합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/vod/CircleInkView.kt</code> — 원 판정 기준 (발췌)</div>
+<pre><code>val aspect = if (height == 0f) Float.MAX_VALUE else width / height
+val aspectOk = aspect in 0.7f..1.4f                   // 거의 정사각 바운딩 박스
+
+val radiusStability = if (meanR == 0.0) Double.MAX_VALUE else stdR / meanR
+val radiusOk = radiusStability &lt; 0.50                  // 반지름 분산이 작을수록 원
+
+val endGap = hypot((end.first - start.first).toDouble(), (end.second - start.second).toDouble())
+val closureOk = meanR &gt; 0 &amp;&amp; endGap / meanR &lt; 0.90      // 시작/끝점이 가까움(폐합)
+
+val length = pathLength(currentPoints)
+val lengthOk = length &gt; (2 * Math.PI * meanR) * 0.6    // 둘레의 60% 이상 그림
+val sizeOk = max(width, height) &gt; 80f                  // 너무 작지 않음
+
+if (aspectOk &amp;&amp; radiusOk &amp;&amp; closureOk &amp;&amp; lengthOk &amp;&amp; sizeOk) {
+    post { startMorphToCircleThenDraw(cx, cy, meanR.toFloat(), currentPoints.toList()) }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/vod/CircleInkView.kt</code> — 획을 정원 원주 위로 투영(모핑)</div>
+<pre><code>morphProj = points.map { (x, y) -&gt;
+    val ang = atan2((y - cy).toDouble(), (x - cx).toDouble())
+    val px = cx + r * cos(ang).toFloat()
+    val py = cy + r * sin(ang).toFloat()
+    px to py
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/ui/vod/CircleInkView.kt" target="_blank" rel="noopener">ui/vod/CircleInkView.kt</a><span class="src">획 수집 · 원 기하 판정 · 정원 모핑/드로잉 애니메이션 · CaptureResult 콜백</span></li>
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/ui/vod/VodFragment.kt" target="_blank" rel="noopener">ui/vod/VodFragment.kt</a><span class="src">playerView 터치 → InkView 포워딩 · setOnCircleCapturedListener 결과 처리</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f06.html">← 휠 스크럽 탐색 (REW/FF)</a>
+      <a href="f08.html">캡처 영역 비트맵 추출 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">remote_solution 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

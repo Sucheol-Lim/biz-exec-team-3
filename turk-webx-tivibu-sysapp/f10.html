@@ -1,0 +1,189 @@
+<!doctype html>
+<!-- turk-webx-tivibu-sysapp · 부모 잠금 / 핀 관리 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>부모 잠금 / 핀 관리 — turk-webx-tivibu-sysapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Türk Telekom Tivibu STB 시스템 앱 (EPG SYSAPP)</a><span class="sep">›</span>
+      <span class="here">부모 잠금 / 핀 관리</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">WebX STB · JavaScript (ES6/AMD)</span>
+    </div>
+    <h1>부모 잠금 / 핀 관리</h1>
+    <p class="one-liner"><code>LockManager</code>가 연령 등급(비트마스크)·채널 잠금을 판정하고, <code>PinController</code>가 PIN 입력을, <code>CreatePasswordController</code>가 PIN 생성을, <code>ParentalLockChController</code>가 채널 잠금 설정을 담당합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp" target="_blank" rel="noopener"><code>turk-webx-tivibu-sysapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>controller/LockManager.js</code> · <code>controller/PinController.js</code> · <code>controller/ParentalLockChController.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">연령 등급 잠금 · 채널 잠금 · PIN</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>부모 잠금은 두 축으로 구성됩니다. (1) 연령 등급 잠금은 콘텐츠 등급이 사용자 시청 등급 임계값을 넘으면 잠그는 것으로, <code>LockManager.isPRLock(contentLevel)</code>이 현재 프로필 등급(<code>ProfileManager.getCurrentProfileUserLevel()</code>)과 콘텐츠 등급을 비트 AND로 비교해 판정합니다. (2) 채널 잠금은 <code>LockManager.isChannelLock(channel)</code>이 채널의 <code>isLockChannel()</code> 플래그로 판정합니다. PC 브라우저 디버그 모드에서는 두 검사 모두 잠금 없음으로 우회합니다.</p>
+    <p>잠긴 콘텐츠·채널에 접근하면 PIN 입력 화면(<code>PinController</code> → <code>ui/pin/PinFrame</code>)이 떠 비밀번호를 요구합니다. PIN이 아직 설정되지 않았다면 <code>CreatePasswordController</code>(<code>ui/createPassword/CreatePasswordFrame</code>)로 새 PIN을 만들도록 유도합니다. 채널 단위 잠금 설정·해제는 <code>ParentalLockChController</code>(<code>ui/lock/ParentalLockChFrame</code>)에서 관리합니다. 현재 프로필의 시청 등급 임계값은 <code>UserPreference.getParentalRatingThreshold()</code>에 저장되며, 서버에서 <code>updateUserLevel()</code>로 동기화됩니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      등급 판정은 비트마스크 AND 연산(<code>(userLevel &amp; contentLevel) &gt; 0</code>)으로 이루어져, 등급 체계를 비트 플래그로 유연하게 표현합니다. 잠금 "판정"은 <code>LockManager</code>가 전담하고, PIN 입력·생성·채널 잠금 UI는 각각 별도 컨트롤러로 분리되어 있습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant LTV as LiveTVController
+    participant LM as LockManager
+    participant PM as ProfileManager
+    participant OSD as OSDController
+    participant PIN as PinController
+    participant CPW as CreatePasswordController
+
+    LTV-&gt;&gt;LM: isPRLock(ratingid) / isChannelLock(ch)
+    LM-&gt;&gt;PM: getCurrentProfileUserLevel()
+    PM--&gt;&gt;LM: userLevel
+    LM--&gt;&gt;LTV: (userLevel &amp; contentLevel) &gt; 0
+    alt 잠김
+        LTV-&gt;&gt;OSD: setOSD(PARENTAL_LOCK / CHANNEL_LOCK)
+        OSD-&gt;&gt;PIN: PIN 입력 요청
+        alt PIN 미설정
+            PIN-&gt;&gt;CPW: 새 PIN 생성 유도
+        end
+        PIN--&gt;&gt;LTV: PIN 검증 통과 → 시청 허용
+    else 통과
+        LTV-&gt;&gt;LTV: 정상 재생
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>LockManager</code>가 등급·채널 잠금을 판정하고, 잠긴 경우 PIN 입력(없으면 생성)을 거쳐야 시청이 허용됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class LockManager {
+        +isChannelLock(channel) bool
+        +isPRLock(contentLevel) bool
+    }
+    class ProfileManager {
+        +getCurrentProfileUserLevel() int
+        +updateUserLevel(cb)
+    }
+    class PinController {
+        -pinFrame PinFrame
+        +show(param)
+        +hide(param)
+    }
+    class CreatePasswordController {
+        -createPasswordFrame CreatePasswordFrame
+        +show(param)
+    }
+    class ParentalLockChController {
+        -parentalLockChFrame ParentalLockChFrame
+        +show(param)
+    }
+
+    LockManager --&gt; ProfileManager : 사용자 등급 조회
+    LockManager ..&gt; PinController : 잠금 시 PIN 요구
+    PinController ..&gt; CreatePasswordController : PIN 미설정 시 생성
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>LockManager</code>가 등급·채널 잠금을 판정하고, PIN 입력·생성·채널 잠금 설정은 각각 <code>PinController</code>·<code>CreatePasswordController</code>·<code>ParentalLockChController</code>가 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>controller/LockManager.js</code> — 등급/채널 잠금 판정</div>
+<pre><code>isChannelLock: function (channel) {
+    if (AppConfig.PC_BROWSER) return false;
+    return channel.isLockChannel();          // 채널 잠금 플래그
+},
+
+// contentLevel : ProgramDetail.ratingid 또는 VODDetail.ratingid
+isPRLock: function (contentLevel) {
+    if (AppConfig.PC_BROWSER) return false;
+    var userLevel = SYSAPP.ProfileManager.getCurrentProfileUserLevel();
+    var isLock = (userLevel &amp; contentLevel) &gt; 0;   // 비트마스크 AND
+    return isLock;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>data/ProfileManager.js</code> — 시청 등급 임계값 동기화</div>
+<pre><code>getCurrentProfileUserLevel: function() {
+    return SYSAPP.UserPreference.getParentalRatingThreshold();
+},
+
+updateUserLevel: function(callback, ignoreErrorPopup = false) {
+    SYSAPP.QueryManager.getInitialUserInfo(function(result) {
+        if (result &amp;&amp; result.success &amp;&amp; result.response.returncode == '0'
+            &amp;&amp; result.response.userlevel) {
+            SYSAPP.UserPreference.setParentalRatingThreshold(result.response.userlevel);
+        }
+        if (callback) callback(result.success);
+    }, ignoreErrorPopup);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/LockManager.js" target="_blank" rel="noopener">controller/LockManager.js</a><span class="src">연령 등급(비트마스크)·채널 잠금 판정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/PinController.js" target="_blank" rel="noopener">controller/PinController.js</a><span class="src">PIN 입력 프레임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/CreatePasswordController.js" target="_blank" rel="noopener">controller/CreatePasswordController.js</a><span class="src">새 PIN 생성 프레임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/ParentalLockChController.js" target="_blank" rel="noopener">controller/ParentalLockChController.js</a><span class="src">채널 잠금 설정 프레임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/data/ProfileManager.js" target="_blank" rel="noopener">data/ProfileManager.js</a><span class="src">프로필 시청 등급(userLevel) 동기화</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f09.html">← 결제 / PPV / 구매</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f11.html">프로필 / 사용자 설정 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">turk-webx-tivibu-sysapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

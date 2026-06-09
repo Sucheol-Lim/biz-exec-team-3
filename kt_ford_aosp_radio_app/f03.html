@@ -1,0 +1,195 @@
+<!doctype html>
+<!-- kt_ford_aosp_radio_app · 사업자 API 기반 스트림 URL 획득 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사업자 API 기반 스트림 URL 획득 — kt_ford_aosp_radio_app 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Ford AOSP 라디오 앱</a><span class="sep">›</span>
+      <span class="here">사업자 API 기반 스트림 URL 획득</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive (AOSP/AAOS) · Java</span>
+    </div>
+    <h1>사업자 API 기반 스트림 URL 획득</h1>
+    <p class="one-liner">MBC·SBS 채널은 채널의 API URL로 온에어 정보를 한 번 더 조회해 실제 재생 URL을 받아옵니다. SBS는 응답의 <code>mediaurl</code>이 암호화되어 있어 AES 복호화가 필요합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app" target="_blank" rel="noopener"><code>kt_ford_aosp_radio_app</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>media/RadioPlayerHelper</code> · <code>network/RadioApiService</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">재생 직전 2차 URL 조회</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>MBC·SBS는 채널 데이터에 들어 있는 URL이 곧바로 재생 가능한 스트림이 아니라 "온에어 정보를 알려주는 API 엔드포인트"입니다. 따라서 <code>RadioPlayerHelper.playChannel()</code>이 채널명을 보고 MBC면 <code>playMBCChannel()</code>, SBS면 <code>playSBSChannel()</code>로 분기해, 재생 직전에 Retrofit으로 해당 API를 한 번 더 호출합니다.</p>
+    <p>MBC는 <code>sminiplay.imbc.com</code>의 응답(<code>MbcChannel</code>)에서 <code>play_url</code> 필드를 그대로 받아 HLS 재생 URL로 사용합니다. SBS는 <code>apis.sbs.co.kr</code>의 응답(<code>SbsOnAir</code> → <code>onair.source.mediaurl</code>)을 파싱하지만 <code>mediaurl</code> 값이 암호화되어 있어, <code>Base64Decoder.Decrypt()</code>로 복호화한 뒤에야 재생 가능한 URL이 됩니다. 두 호출 모두 비동기(<code>enqueue</code>)로 처리되고, 응답이 도착하면 <code>playFromUri()</code>로 <code>MediaPlayer</code>에 전달됩니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      Retrofit 인터페이스 <code>RadioApiService</code>는 고정 path 없이 <code>@Url</code>로 호출 URL을 동적 지정합니다. 채널마다 baseUrl(MBC/SBS)만 다르고 실제 경로는 <code>MediaItem</code>의 <code>mediaUri</code>가 그대로 들어가므로, 채널 추가 시 인터페이스 변경이 필요 없습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant PH as RadioPlayerHelper
+    participant API as RadioApiService (Retrofit)
+    participant MBC as imbc 온에어 API
+    participant SBS as sbs 온에어 API
+    participant DEC as Base64Decoder
+    participant MP as MediaPlayer
+
+    PH->>PH: playChannel(metadata) (채널명 분기)
+    alt 채널명에 "MBC"
+        PH->>API: getMbcChannelSSL(mediaUri)
+        API->>MBC: GET (온에어)
+        MBC-->>API: MbcChannel { play_url }
+        API-->>PH: onResponse → channel.getPlayUrl()
+        PH->>MP: playFromUri(play_url)
+    else 채널명에 "SBS"
+        PH->>API: getSbsChannelSSL(mediaUri)
+        API->>SBS: GET (온에어)
+        SBS-->>API: SbsOnAir { onair.source.mediaurl(암호화) }
+        API-->>PH: onResponse → source.getMediaUrl()
+        PH->>DEC: Decrypt(context, mediaurl)
+        DEC-->>PH: 복호화 URL
+        PH->>MP: playFromUri(decrypted)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 채널명으로 MBC/SBS를 구분해 사업자 API를 호출하고, MBC는 <code>play_url</code>을 그대로, SBS는 복호화 후 <code>MediaPlayer</code>로 넘깁니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class RadioPlayerHelper {
+        +playChannel(metadata)
+        -playMBCChannel(metadata)
+        -playSBSChannel(metadata)
+        -playOtherChannel(metadata)
+        -playFromUri(metadata, uri)
+    }
+    class RadioApiService {
+        &lt;&lt;interface&gt;&gt;
+        +getMbcChannelSSL(url) Call~MbcChannel~
+        +getSbsChannelSSL(url) Call~SbsOnAir~
+    }
+    class MbcChannel {
+        -String castName
+        -String playUrl
+        +getPlayUrl() String
+    }
+    class SbsOnAir {
+        +getChannelData() SbsChannelData
+    }
+    class SbsChannelData {
+        +getSourceModel() SbsSourceModel
+    }
+    class SbsSourceModel {
+        -String mediaUrl
+        +getMediaUrl() String
+    }
+    class Base64Decoder {
+        +Decrypt(context, text) String
+    }
+
+    RadioPlayerHelper ..> RadioApiService : Retrofit 호출
+    RadioApiService ..> MbcChannel
+    RadioApiService ..> SbsOnAir
+    SbsOnAir o-- SbsChannelData
+    SbsChannelData o-- SbsSourceModel
+    RadioPlayerHelper ..> Base64Decoder : SBS 복호화
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>RadioPlayerHelper</code>가 Retrofit 인터페이스로 사업자 응답 모델을 받고, SBS는 <code>Base64Decoder</code>를 거쳐 재생 URL을 얻습니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>media/RadioPlayerHelper.java</code> — 채널명 기반 분기</div>
+<pre><code>public void playChannel(MediaMetadataCompat metadata) {
+    String name = metadata.getDescription().getMediaId();
+    if (name != null) {
+        if (name.contains("MBC"))      playMBCChannel(metadata);
+        else if (name.contains("SBS")) playSBSChannel(metadata);
+        else                           playOtherChannel(metadata);
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>media/RadioPlayerHelper.java</code> — MBC 온에어 API 호출</div>
+<pre><code>Call&lt;MbcChannel&gt; getData = service.getMbcChannelSSL(
+        metadata.getDescription().getMediaUri().toString());
+getData.enqueue(new Callback&lt;MbcChannel&gt;() {
+    public void onResponse(Call&lt;MbcChannel&gt; call, Response&lt;MbcChannel&gt; response) {
+        MbcChannel channel = response.body();
+        String url = channel.getPlayUrl();      // play_url 그대로 재생
+        playFromUri(metadata, Uri.parse(url));
+    }
+    public void onFailure(Call&lt;MbcChannel&gt; call, Throwable t) { }
+});</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/media/RadioPlayerHelper.java" target="_blank" rel="noopener">media/RadioPlayerHelper.java</a><span class="src">playMBCChannel / playSBSChannel · Retrofit enqueue · playFromUri</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/network/RadioApiService.java" target="_blank" rel="noopener">network/RadioApiService.java</a><span class="src">@Url 동적 GET 인터페이스(MBC/SBS 온에어)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/model/mbc/MbcChannel.java" target="_blank" rel="noopener">model/mbc/MbcChannel.java</a><span class="src">MBC 응답 모델(castname / play_url)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_ford_aosp_radio_app/src/develop/app/src/main/java/com/altimedia/automotive/kt/service/radio/model/sbs/SbsSourceModel.java" target="_blank" rel="noopener">model/sbs/SbsSourceModel.java</a><span class="src">SBS 응답 source 모델(mediaurl / auth_key / auth_interval)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">← 백그라운드 지속 재생</a>
+      <a href="f04.html">SBS 스트림 AES 복호화 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_ford_aosp_radio_app 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

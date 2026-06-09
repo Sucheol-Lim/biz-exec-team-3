@@ -1,0 +1,187 @@
+<!doctype html>
+<!-- skylife-ux3.0 · VOD 재생 기능 상세 — ui/vod 상세/재생 + Media3 ExoPlayer + OPPV 구매 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VOD 재생 — Skylife ATV EPG 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Skylife ATV EPG (UX3.0)</a><span class="sep">›</span>
+      <span class="here">VOD 재생</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT SkyLife</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV(Leanback) STB · Java</span>
+    </div>
+    <h1>VOD 재생</h1>
+    <p class="one-liner"><code>ui/vod</code>에서 VOD 상세·시리즈·본편/예고편 재생, 이어보기, 구매(OPPV) 연동을 제공합니다. <code>TTVodDetailFragment</code>가 상세 화면과 권한 분기를, <code>TTVodPlayFragment</code>가 Media3(ExoPlayer) 1.2.0 기반 재생을 담당합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skylife-ux3.0" target="_blank" rel="noopener"><code>skylife-ux3.0</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feat/lw-voice-api</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>vod/TTVodDetailFragment</code> · <code>TTVodViewModel</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">상세 · 이어보기 · OPPV 구매</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>VOD 흐름은 상세 화면(<code>TTVodDetailFragment</code>)에서 출발합니다. 단편은 <code>CMSDefV3.LINK_CD</code>, 시리즈는 <code>LINK_SD</code> 링크로 진입하며, <code>TTVodViewModel</code>이 <code>VodMasterContent</code>(본편·회차·구매 상태)를 로드합니다. 사용자가 재생 버튼을 누르면 권한(구매/월정액/무료)을 판정해 <code>readyToPlay()</code> 또는 이어보기 흐름으로 진입하고, 미구매면 OPPV(One-time Pay-Per-View) 구매 버튼을 노출합니다.</p>
+    <p>실제 재생은 <code>vod/play/TTVodPlayFragment</code>가 맡고 AndroidX Media3(ExoPlayer) 1.2.0을 사용합니다. 예고편은 <code>TTVodPreviewDialogFragment</code>, 광고는 <code>TTAdPlayer</code>, 등급 안내는 <code>TTRatingBoardPlayer</code>, 재생바는 <code>TTVodPlayBarComp</code>가 담당합니다. 음성 어시스턴트의 <code>content_play</code> 명령은 이 상세 화면을 재사용해 자동 재생을 트리거합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      음성 "content_play" 자동 재생은 <code>ContentPlayHandler.PENDING_AUTO_PLAY</code>(AtomicBoolean) 신호를 detail 진입 직전에 set 합니다. <code>TTVodDetailFragment</code>는 데이터 로드 완료 시점에 <code>tryLwVoiceAutoPlayHook()</code>으로 이 신호를 1회 consume 하고, 권한이 OK(<code>buyYN != "N"</code> 또는 price 0 또는 월정액 포함)면 <code>readyToPlayAuto()</code>로 자동 재생, NG면 detail 화면을 그대로 노출해 사용자 결정에 맡깁니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자 / content_play
+    participant LM as TTUILinkManager
+    participant DF as TTVodDetailFragment
+    participant VM as TTVodViewModel
+    participant CMS as CMSApiManagerV3 (OPPV/CMS)
+    participant PF as TTVodPlayFragment (Media3)
+
+    U-&gt;&gt;LM: handleLink(LINK_CD / LINK_SD, param)
+    LM-&gt;&gt;DF: 상세 화면 진입
+    DF-&gt;&gt;VM: VodMasterContent 로드 요청
+    VM-&gt;&gt;CMS: VOD 상세/구매상태 조회
+    CMS--&gt;&gt;VM: VodMasterContent (buyYN, price)
+    VM--&gt;&gt;DF: LiveData onChanged
+    DF-&gt;&gt;DF: tryLwVoiceAutoPlayHook() (PENDING_AUTO_PLAY)
+    alt 구매/무료/월정액
+        DF-&gt;&gt;VM: readyToPlayAuto()
+        VM-&gt;&gt;PF: 본편 재생 (이어보기 jumpingPoint)
+    else 미구매
+        DF--&gt;&gt;U: OPPV 구매 버튼 노출 (detail 유지)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 링크로 상세에 진입해 <code>VodMasterContent</code>를 로드하고, 권한 판정 후 자동/수동 재생 또는 구매 버튼 노출로 분기합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class TTListViewSupportFragment
+    class TTVodDetailFragment {
+        -String purchasedPcontentId
+        -tryLwVoiceAutoPlayHook()
+        -tryLwVoiceAutoPlay() boolean
+    }
+    class TTPaymentViewModel
+    class TTVodViewModel {
+        +getVodMasterContent() VodMasterContent
+        +setSelectedContent(content)
+        +readyToPlay()
+        +readyToPlayAuto()
+    }
+    class VodMasterContent {
+        +getMainContent() ContentV3
+        +String buySeries
+    }
+    class ContentV3 {
+        +String buyYN
+        +String contentPrice
+    }
+    class TTVodPlayFragment {
+        +endVodSilent()
+    }
+    class ContentPlayHandler {
+        +AtomicBoolean PENDING_AUTO_PLAY
+    }
+
+    TTVodDetailFragment --|&gt; TTListViewSupportFragment
+    TTVodViewModel --|&gt; TTPaymentViewModel
+    TTVodDetailFragment --&gt; TTVodViewModel : 소유
+    TTVodViewModel --&gt; VodMasterContent : 로드
+    VodMasterContent --&gt; ContentV3 : mainContent
+    TTVodDetailFragment ..&gt; ContentPlayHandler : PENDING_AUTO_PLAY consume
+    TTVodViewModel --&gt; TTVodPlayFragment : 재생 진입
+      </div>
+      <p class="cap"><strong>관계.</strong> 상세 fragment가 <code>TTVodViewModel</code>로 <code>VodMasterContent</code>를 로드하고, 권한 판정 후 Media3 기반 <code>TTVodPlayFragment</code>로 재생을 넘깁니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/vod/TTVodDetailFragment.java</code> — content_play 자동 재생 권한 판정</div>
+<pre><code>private boolean tryLwVoiceAutoPlay() {
+    VodMasterContent vmc = viewModel.getVodMasterContent();
+    if (vmc == null) return false;                 // 데이터 미로드 → 호출자가 retry
+    ContentV3 main = vmc.getMainContent();
+    if (main == null) return true;                 // 시리즈 등 — detail 노출
+
+    // 권한 판정 — 구매했거나 무료(price 0) 또는 월정액 포함일 때만 자동 재생.
+    String buyYN = main.buyYN == null ? "" : main.buyYN.toUpperCase();
+    boolean isPurchased = !buyYN.isEmpty() &amp;&amp; !"N".equals(buyYN);
+    boolean isFree = "0".equals(main.contentPrice);
+    boolean seriesBought = "Y".equalsIgnoreCase(vmc.buySeries)
+            || "P".equalsIgnoreCase(vmc.buySeries);
+    if (!(isPurchased || isFree || seriesBought)) return true;  // 미구매 → detail 노출
+
+    viewModel.setSelectedContent(main);
+    viewModel.readyToPlayAuto();                   // 이어보기 jumpingPoint 자동
+    return true;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/vod/TTVodDetailFragment.java" target="_blank" rel="noopener">ui/vod/TTVodDetailFragment.java</a><span class="src">VOD 상세 화면 — 본편/시리즈, 구매 버튼, content_play 자동 재생 hook</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/vod/TTVodViewModel.java" target="_blank" rel="noopener">ui/vod/TTVodViewModel.java</a><span class="src">VodMasterContent 로드, readyToPlay / readyToPlayAuto, 결제 상태</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/vod/play/TTVodPlayFragment.java" target="_blank" rel="noopener">ui/vod/play/TTVodPlayFragment.java</a><span class="src">Media3(ExoPlayer) 재생 — endVodSilent (음성 VOD 종료 연동)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skylife-ux3.0/src/feat/lw-voice-api/app/src/main/java/com/alticast/androidtv/epg/ui/vod/play/TTVodPlayBarComp.java" target="_blank" rel="noopener">ui/vod/play/TTVodPlayBarComp.java</a><span class="src">재생바 — 시크/이어보기/재생 컨트롤</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f02.html">← 실시간 방송(Live TV)</a>
+      <a href="index.html#features">목록</a>
+      <a href="f04.html">채널·편성표(EPG) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feat/lw-voice-api</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">Skylife ATV EPG 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

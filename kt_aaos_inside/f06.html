@@ -1,0 +1,195 @@
+<!doctype html>
+<!-- kt_aaos_inside · 미디어 재생 제어 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>미디어 재생 제어 — kt_aaos_inside 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT AAOS Demokit P1 음성인식 앱</a><span class="sep">›</span>
+      <span class="here">미디어 재생 제어</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android Automotive OS · Java</span>
+    </div>
+    <h1>미디어 재생 제어</h1>
+    <p class="one-liner"><code>GVoiceMediaManager</code>·<code>GVoiceMediaClient</code>·<code>GVoiceMediaController</code>가 AAOS <code>car-media-common</code>의 <code>MediaSource</code>/<code>MediaBrowserConnector</code>를 기반으로 재생·일시정지·다음 곡 등 음성 미디어 명령을 처리합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_aaos_inside" target="_blank" rel="noopener"><code>kt_aaos_inside</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feature/support_stt</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>dialogkit/media/GVoiceMediaManager.java</code> 외</div></div>
+      <div class="item"><div class="k">기반 라이브러리</div><div class="v"><code>car-media-common</code> · <code>CarMediaManager</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>GVoiceMediaManager</code>는 SP 데이터의 미디어 앱 목록과 단말의 <code>MediaBrowserService</code> 조회 결과를 결합해, 제어 가능한 미디어 앱마다 <code>GVoiceMediaClient</code>를 생성·보유합니다. <code>CarMediaManager</code>에 미디어 소스 변경 리스너를 등록해 현재 재생 중인 미디어 앱(<code>mCurrMediaApp</code>)으로만 <code>MediaBrowserConnector</code> 연결을 유지하고, 나머지는 disconnect 합니다.</p>
+    <p>DialogKit이 미디어 명령을 라우팅하면 <code>doMediaAction(commandInfo)</code>가 <code>GVoiceMediaController.controlMediaApps()</code>로 위임합니다. 컨트롤러는 service intent로 대상 <code>MediaSource</code>와 액션(<code>ACTION_PLAY</code>·<code>ACTION_PAUSE</code>·<code>ACTION_SKIP_TO_NEXT</code> 등)을 결정하고, <code>MediaControllerCompat</code> 트랜스포트 제어로 명령을 실행합니다. 재생 상태 변화(<code>PlaybackStateCompat</code>)는 <code>processPlaybackState()</code>에서 받아 대화 서버의 <code>dssStatus</code>를 set/clear 하고, 미디어 로그는 Inside SDK로 전송합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      여러 미디어 앱이 동시에 연결되면 자원·이벤트가 충돌하므로, 미디어 소스가 바뀔 때마다 <code>updateMediaClientConnectionStatus()</code>로 현재 앱을 제외한 클라이언트를 모두 끊어 단일 연결을 유지합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant DK as InsideDialogKitManager
+    participant MM as GVoiceMediaManager
+    participant CT as GVoiceMediaController
+    participant CL as GVoiceMediaClient
+    participant MC as MediaControllerCompat
+    participant IVM as InsideVoiceManager
+
+    DK-&gt;&gt;MM: doMediaAction(commandInfo)
+    MM-&gt;&gt;CT: controlMediaApps(commandInfo)
+    CT-&gt;&gt;CT: getTargetMediaSource(serviceIntent)
+    CT-&gt;&gt;MC: transportControls play/pause/skip
+    Note over CL,MC: 재생 상태 변화 콜백
+    CL-&gt;&gt;MM: onPlaybackStateChanged(state)
+    MM-&gt;&gt;MM: processPlaybackState()
+    MM-&gt;&gt;IVM: updateDssStatus(dss, set/clear)
+    CL-&gt;&gt;MM: onSendMediaLog(mediaLog)
+    MM-&gt;&gt;IVM: sendMediaLog(json)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 명령 → 대상 MediaSource 결정 → 트랜스포트 제어. 상태 변화·로그는 콜백으로 매니저에 올라와 dssStatus 갱신과 미디어 로그 전송으로 이어집니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class GVoiceMediaManager {
+        -Car mCar
+        -String mCurrMediaApp
+        -Map~String~ mMediaClientMap
+        +init(context)
+        +doMediaAction(commandInfo)
+        -updateServiceMaps()
+        -initialMediaSource()
+        -processPlaybackState(source, state, pos)
+    }
+    class GVoiceMediaClient {
+        -MediaSource mMediaSource
+        -MediaControllerCompat mMediaControllerCompat
+        +connectToMediaSource(actionItemInfo)
+        +disconnectBrowser(needNotify)
+        +isConnected() boolean
+    }
+    class GVoiceMediaController {
+        +controlMediaApps(commandInfo)
+        -doVoiceMediaAction(source, action)
+    }
+    class Callback {
+        &lt;&lt;interface&gt;&gt;
+        +onPlaybackStateChanged(source, state, pos)
+        +onMediaClientDisconnected(source)
+        +onSendMediaLog(mediaLog)
+    }
+    class CarMediaManager {
+        +addMediaSourceListener(listener, mode)
+        +getMediaSource(mode) ComponentName
+    }
+    class MediaSource {
+        +create(context, componentName) MediaSource
+    }
+
+    GVoiceMediaManager o-- GVoiceMediaClient : 앱별 보유
+    GVoiceMediaManager --&gt; GVoiceMediaController : 명령 위임
+    GVoiceMediaManager --&gt; CarMediaManager : 소스 변경 감시
+    GVoiceMediaClient --&gt; MediaSource : 브라우저 연결
+    GVoiceMediaClient ..&gt; Callback : 상태·로그 콜백
+      </div>
+      <p class="cap"><strong>관계.</strong> 매니저가 앱별 <code>GVoiceMediaClient</code>를 보유하며 <code>CarMediaManager</code>로 현재 소스를 추적하고, 명령 실행은 <code>GVoiceMediaController</code>가, 트랜스포트 제어는 <code>MediaControllerCompat</code>가 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>dialogkit/media/GVoiceMediaController.java</code> — 액션별 트랜스포트 제어 분기</div>
+<pre><code>String action = GVoiceDataManager.getInstance().getServiceIntentAction(serviceIntent);
+switch (action) {
+    case MediaConstants.ACTION_PLAY:
+        // 파라미터가 있으면 FROM_VOICE_EXTRAS 로 검색·재생, 없으면 단순 재생
+        doVoiceMediaAction(mediaSource, MediaConstants.V_MEDIA_PLAY);
+        break;
+    case MediaConstants.ACTION_PAUSE:
+        doVoiceMediaAction(mediaSource, MediaConstants.V_MEDIA_PAUSE);          break;
+    case MediaConstants.ACTION_SKIP_TO_NEXT:
+        doVoiceMediaAction(mediaSource, MediaConstants.V_MEDIA_SKIP_NEXT);      break;
+    case MediaConstants.ACTION_SKIP_TO_PREVIOUS:
+        doVoiceMediaAction(mediaSource, MediaConstants.V_MEDIA_SKIP_PREV);      break;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>dialogkit/media/GVoiceMediaManager.java</code> — 현재 소스만 연결 유지</div>
+<pre><code>for (String key : mMediaClientMap.keySet()) {
+    if (!key.equals(mCurrMediaApp)) {
+        GVoiceMediaClient mediaClient = mMediaClientMap.get(key);
+        if (mediaClient != null &amp;&amp; mediaClient.isConnected()) {
+            mediaClient.disconnectBrowser(true);     // 비활성 소스 disconnect
+        }
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/dialogkit/media/GVoiceMediaManager.java" target="_blank" rel="noopener">dialogkit/media/GVoiceMediaManager.java</a><span class="src">미디어 클라이언트 맵 관리·CarMediaManager 소스 추적·재생 상태→dssStatus 갱신</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/dialogkit/media/GVoiceMediaController.java" target="_blank" rel="noopener">dialogkit/media/GVoiceMediaController.java</a><span class="src">controlMediaApps·액션별 트랜스포트 제어(play/pause/skip/seek)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/dialogkit/media/GVoiceMediaClient.java" target="_blank" rel="noopener">dialogkit/media/GVoiceMediaClient.java</a><span class="src">MediaBrowserConnector 연결·MediaControllerCompat 등록·미디어 로그</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_aaos_inside/src/feature/support_stt/packages/apps/Car/libs/aaos-apps-gradle-project/car-custom-voice-app/src/main/java/com/kt/avis/voice/dialogkit/media/MediaConstants.java" target="_blank" rel="noopener">dialogkit/media/MediaConstants.java</a><span class="src">미디어 액션·extras 키 상수</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f05.html">앱 실행/제어</a>
+      <a href="f07.html">차량 공조 제어 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feature/support_stt</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_aaos_inside 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

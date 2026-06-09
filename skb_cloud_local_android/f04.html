@@ -1,0 +1,185 @@
+<!doctype html>
+<!-- skb_cloud_local_android · SI·채널맵 구성 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SI · 채널맵 구성 — skb_cloud_local_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local EPG (Android)</a><span class="sep">›</span>
+      <span class="here">SI · 채널맵 구성</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>SI · 채널맵 구성</h1>
+    <p class="one-liner"><code>module/oob</code>가 Out-Of-Band 채널맵·캠페인·플랫폼 정보를 수신하고, <code>module/si</code>가 Service Information을 파싱해 <code>ChannelDataManager</code>의 채널 DB를 구성하며, <code>module/inband</code>가 오디오·로고·I-frame 인밴드 데이터를 채웁니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_android" target="_blank" rel="noopener"><code>skb_cloud_local_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>UC500_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>OOBManager</code> · <code>ChannelMapManager</code> · <code>ChannelDataManager</code> · <code>InbandManager</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">채널 메타데이터·스트림 정보 수신/구성</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>채널맵 구성은 부팅 시퀀스의 핵심 단계입니다. <code>OOBManager</code>가 4개 섹션 필터(<code>OOB_MENU</code>·<code>OOB_CHANNEL_MAP</code>·<code>OOB_PLATFORM_INFO</code>·<code>OOB_CAMPAIGN</code>)와 티커 필터를 통해 Out-Of-Band 스트림에서 메뉴·채널맵·플랫폼 정보·캠페인 데이터를 수신합니다. 수신 데이터는 <code>DataCenter</code>를 통해 등록된 리스너에게 <code>DataUpdateListener</code>로 통지됩니다.</p>
+    <p>채널맵 데이터가 들어오면 <code>ChannelMapManager</code>가 <code>ChannelMapAsyncTask</code>로 파싱해 OOB 채널과 티브로드 채널(<code>ExChannel</code>)을 sourceId 기준으로 매핑합니다. <code>module/si</code>의 <code>ChannelDataManager</code>는 JavaTV/OCAP SI 스택(<code>CabChannelManager</code>)의 채널 리스트로 채널 DB를 초기화하고, 완료되면 <code>INITIALIZED</code>(<code>0x3001</code>) 메시지를 부팅 핸들러에 보냅니다.</p>
+    <p><code>module/inband</code>의 <code>InbandManager</code>는 인밴드 데이터(<code>OCManager</code>/<code>OCDataManager</code>)를 통해 부팅 I-frame, 채널 로고(<code>LogoManager</code>), 오디오 곡 정보(<code>AudioDataManager</code>), I-frame 캐러셀(<code>IframeManager</code>)을 로드합니다. 이렇게 모인 SI/OOB/Inband 메타가 라이브 시청·미니 EPG·OSD의 데이터 소스가 됩니다.</p>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant BF as BootingFragment
+    participant OOB as OOBManager
+    participant DC as DataCenter
+    participant CMM as ChannelMapManager
+    participant CDM as ChannelDataManager
+    participant SI as JavaTV/OCAP SI (CabChannelManager)
+    participant IB as InbandManager
+
+    BF-&gt;&gt;OOB: init() / startRetrieving()
+    OOB-&gt;&gt;DC: addDataUpdateListener(OOB_CHANNEL_MAP ...)
+    OOB--&gt;&gt;DC: 채널맵/플랫폼/캠페인 수신
+    DC-&gt;&gt;CMM: dataUpdated(OOB_CHANNEL_MAP)
+    CMM-&gt;&gt;CMM: ChannelMapAsyncTask 파싱 (sourceId 매핑)
+    BF-&gt;&gt;CDM: init(bootHandler)
+    CDM-&gt;&gt;SI: getChannelList()
+    SI--&gt;&gt;CDM: CabChannel[]
+    CDM--&gt;&gt;BF: INITIALIZED (0x3001)
+    BF-&gt;&gt;IB: init() (로고/오디오/I-frame)
+    Note over CDM,IB: 채널 DB + 인밴드 메타 구성 완료
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>OOBManager</code>가 OOB 데이터를 수신해 <code>ChannelMapManager</code>가 매핑하고, <code>ChannelDataManager</code>가 SI 스택으로 채널 DB를 초기화한 뒤 <code>InbandManager</code>가 인밴드 메타를 채웁니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class DataUpdateListener {
+        &lt;&lt;interface&gt;&gt;
+        +dataUpdated(key, old, value)
+        +dataRemoved(key)
+    }
+    class OOBManager {
+        -OOBTableSectionFilter masterFilter
+        +init(Context)
+        +startRetrieving()
+        +setEventHandler(Handler)
+    }
+    class ChannelMapManager {
+        +start()
+        +getChannelSourceIdByChannelId(id) int
+        +notifyChannelDatabaseChanged(type, version)
+    }
+    class ChannelDataManager {
+        +INITIALIZED int
+        +init(Handler)
+        +filterChannel()
+        +isPay(ExChannel) boolean
+    }
+    class InbandManager {
+        +init(Context)
+        +loadPlatform(source, id, hash)
+        +loadAudioInfo()
+    }
+    class ExChannel {
+        +getNumber() int
+        +getModulationFormat() int
+    }
+
+    OOBManager ..|&gt; DataUpdateListener
+    ChannelMapManager ..|&gt; DataUpdateListener
+    OOBManager --&gt; ChannelMapManager : 채널맵 데이터 공급
+    ChannelMapManager --&gt; ChannelDataManager : sourceId 매핑
+    ChannelDataManager o-- ExChannel : 채널 DB
+    InbandManager ..&gt; ChannelDataManager : 인밴드 메타 보강
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>OOBManager</code>·<code>ChannelMapManager</code>가 <code>DataUpdateListener</code>를 구현해 OOB 데이터 갱신을 받고, <code>ChannelDataManager</code>가 채널 DB(<code>ExChannel</code>)를 보유합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>module/oob/OOBManager.java</code> — OOB 섹션 데이터 업데이트 리스너 등록</div>
+<pre><code>DataCenter.getInstance().addDataUpdateListener(OOBConfiguration.OOB_META, this);
+DataCenter.getInstance().addDataUpdateListener(OOBConfiguration.OOB_MENU, this);
+DataCenter.getInstance().addDataUpdateListener(OOBConfiguration.OOB_CHANNEL_MAP, this);
+DataCenter.getInstance().addDataUpdateListener(OOBConfiguration.OOB_PLATFORM_INFO, this);
+DataCenter.getInstance().addDataUpdateListener(OOBConfiguration.OOB_CAMPAIGN, this);
+DataCenter.getInstance().addDataUpdateListener(OOBConfiguration.OOB_TICKER, this);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>module/si/ChannelDataManager.java</code> — 채널 DB 초기화 완료 통지</div>
+<pre><code>public void init(Handler handler) {
+    this.handler = handler;
+    hostVendorId = DeviceInfoManager.getInstance().getHardwareVendorId();
+    UserPreferenceManager.getInstance().addUserPreferenceChangeListener(this);
+    ProgramManager.getInstance().addProgramScheduleUpdateListener(this);
+    // ... initChannelData() : CabChannelManager.getInstance().getChannelList()
+    handler.sendEmptyMessage(INITIALIZED);   // 0x3001 → BootingFragment
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/oob/OOBManager.java" target="_blank" rel="noopener">module/oob/OOBManager.java</a><span class="src">OOB 섹션 필터 · 채널맵/플랫폼/캠페인 수신</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/oob/ChannelMapManager.java" target="_blank" rel="noopener">module/oob/ChannelMapManager.java</a><span class="src">OOB 채널맵 파싱 · sourceId ↔ channelId 매핑</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/si/ChannelDataManager.java" target="_blank" rel="noopener">module/si/ChannelDataManager.java</a><span class="src">SI 채널 DB 초기화 · 필터링 · INITIALIZED 통지</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/inband/InbandManager.java" target="_blank" rel="noopener">module/inband/InbandManager.java</a><span class="src">인밴드 로고·오디오·I-frame 로드</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f03.html">← 미니 EPG / 채널 리스트</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f05.html">SDV (Switched Digital Video) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>UC500_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

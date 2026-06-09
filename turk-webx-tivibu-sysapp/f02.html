@@ -1,0 +1,206 @@
+<!doctype html>
+<!-- turk-webx-tivibu-sysapp · EPG / TV 가이드 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EPG / TV 가이드 — turk-webx-tivibu-sysapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Türk Telekom Tivibu STB 시스템 앱 (EPG SYSAPP)</a><span class="sep">›</span>
+      <span class="here">EPG / TV 가이드</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">WebX STB · JavaScript (ES6/AMD)</span>
+    </div>
+    <h1>EPG / TV 가이드</h1>
+    <p class="one-liner"><code>GuideController</code>가 2022 리뉴얼 UI(<code>ui2022/guide/GuideFrame</code>)를 띄우고 키 입력을 위임하며, 채널·시간·요일·장르 캐러셀과 프로그램 데이터 피드가 전체 편성표를 렌더링합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp" target="_blank" rel="noopener"><code>turk-webx-tivibu-sysapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>controller/GuideController.js</code> · <code>ui2022/guide/GuideFrame.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">편성표 렌더링 · 프로그램 상세 연결</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>TV 가이드는 전체 채널을 세로로, 시간대를 가로로 배치한 격자형 편성표(EPG)입니다. <code>GuideController</code>는 컨트롤러 층의 얇은 래퍼로, 생성 시 2022 리뉴얼 UI 위젯인 <code>GuideFrame</code>(<code>app/ui2022/guide/GuideFrame</code>)을 만들어 <code>RootWindow</code>에 프레임으로 등록합니다. 화면 표시·갱신·숨김은 <code>RootWindow.showFrame/updateFrame/hideFrame</code>으로 처리하고, 리모컨 키 이벤트는 <code>KeyEventManager</code>에 자신을 리스너로 등록한 뒤 <code>guideFrame.dispatchKeyDown/Up/Press</code>로 위임합니다.</p>
+    <p>편성 데이터 렌더링은 <code>ui2022/guide</code> 디렉토리의 여러 위젯이 분담합니다. 채널은 <code>ChannelContainer</code>·<code>ChannelDataFeed</code>가, 프로그램은 <code>ProgramCarousel</code>·<code>ProgramDataFeed</code>·<code>ProgramDataManager</code>가, 시간/요일/장르 축은 각각 <code>TimeCarousel</code>·<code>DayCarousel</code>·<code>GenreCarousel</code>이 담당합니다. 현재 시각을 표시하는 <code>NowLine</code>과 선택 프로그램의 상세를 보여주는 <code>InfoPanel</code>도 포함됩니다.</p>
+    <p>가이드에서 프로그램을 선택하면 프로그램 상세(TVDetail)로 연결되고, <code>VK_EXIT</code> 키는 <code>OSDUtil.hideOSDRelatedWithMenu()</code>로 메뉴 관련 OSD를 닫습니다. 상하좌우 방향키는 1.5초 이상 길게 누르면 300ms 간격으로 반복 스크롤되도록 <code>getLongKeyInfo()</code>에 정의되어 있습니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      가이드 UI는 데이터 피드(DataFeed) + 포매터(Formatter) + 캐러셀(Carousel) 조합으로 구성되어, 대량의 편성 데이터를 지연 로딩·가상화하면서 채널·시간·요일·장르 축을 독립적으로 스크롤할 수 있게 합니다. 컨트롤러는 키 위임과 프레임 lifecycle만 책임집니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant KEM as KeyEventManager
+    participant GC as GuideController
+    participant GF as GuideFrame (ui2022)
+    participant PDF as ProgramDataFeed
+    participant PCM as ProgramCacheManager
+    participant RW as RootWindow
+
+    Note over GC: show(param) 진입
+    GC-&gt;&gt;KEM: addKeyListener(this)
+    GC-&gt;&gt;RW: showFrame('guideFrame2022')
+    RW-&gt;&gt;GF: 활성화
+    GF-&gt;&gt;PDF: 편성 데이터 요청
+    PDF-&gt;&gt;PCM: 채널/프로그램 캐시 조회
+    PCM--&gt;&gt;PDF: 편성 데이터
+    PDF--&gt;&gt;GF: 캐러셀 렌더링
+    loop 방향키 탐색
+        KEM-&gt;&gt;GC: onKeyDown(keyEvent)
+        GC-&gt;&gt;GF: dispatchKeyDown(keyEvent)
+        GF--&gt;&gt;GF: 채널/시간 셀 이동, InfoPanel 갱신
+    end
+    Note over GC,GF: VK_EXIT → OSDUtil.hideOSDRelatedWithMenu()
+      </div>
+      <p class="cap"><strong>흐름.</strong> <code>GuideController.show()</code>가 프레임을 띄우고 키 리스너를 등록하면, <code>GuideFrame</code>이 데이터 피드를 통해 편성표를 렌더링하고 방향키 입력에 따라 셀을 이동하며 정보 패널을 갱신합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class GuideController {
+        -guideFrame GuideFrame
+        -frameName string
+        +show(param, entrance)
+        +update(param)
+        +hide(param)
+        +onKeyDown(keyEvent)
+        +getLongKeyInfo()
+        +getPriority() int
+    }
+    class GuideFrame {
+        +initializeFilter(reset)
+        +dispatchKeyDown(keyEvent)
+        +focus()
+        +isVisible() bool
+    }
+    class ProgramDataFeed {
+        +requestPrograms()
+    }
+    class ProgramDataManager {
+        +getProgramsByTime()
+    }
+    class InfoPanel {
+        +update(program)
+    }
+    class RootWindow {
+        +addFrame(frame)
+        +showFrame(name, param, entrance)
+        +hideFrame(name, param)
+    }
+
+    GuideController --&gt; GuideFrame : 소유 · 키 위임
+    GuideController --&gt; RootWindow : 프레임 lifecycle
+    GuideFrame --&gt; ProgramDataFeed : 편성 데이터
+    ProgramDataFeed --&gt; ProgramDataManager : 캐시 조회
+    GuideFrame --&gt; InfoPanel : 선택 프로그램 표시
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>GuideController</code>는 <code>GuideFrame</code>을 소유하고 키 입력을 위임하며, 프레임은 <code>ProgramDataFeed</code>·<code>ProgramDataManager</code>로 편성 데이터를 받아 <code>InfoPanel</code>까지 렌더링합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>controller/GuideController.js</code> — 프레임 생성과 키 위임</div>
+<pre><code>init: function init(type) {
+    this.frameName = 'guideFrame2022';
+    this.guideFrame = new GuideFrame2022(this.frameName, Priority.GUIDE);
+    SYSAPP.RootWindow.addFrame(this.guideFrame);
+    SYSAPP.GuideController = this;
+},
+
+show: function show(param, entrance) {
+    this.addKeyEventListener();
+    SYSAPP.RootWindow.showFrame(this.frameName, param, entrance);
+},
+
+onKeyDown: function(keyEvent) {
+    switch(keyEvent.keyCode) {
+        case KeyEvent.VK_EXIT:
+            SYSAPP.OSDUtil.hideOSDRelatedWithMenu();
+            keyEvent.stopPropagation();
+            break;
+        default:
+            this.guideFrame.dispatchKeyDown(keyEvent);   // 프레임으로 위임
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>controller/GuideController.js</code> — 방향키 롱프레스 정의</div>
+<pre><code>getLongKeyInfo: function() {
+    return [
+        { keyCode: KeyEvent.VK_UP,    duration: 1500, interval: 300 },
+        { keyCode: KeyEvent.VK_DOWN,  duration: 1500, interval: 300 },
+        { keyCode: KeyEvent.VK_LEFT,  duration: 1500, interval: 300 },
+        { keyCode: KeyEvent.VK_RIGHT, duration: 1500, interval: 300 },
+    ];
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/GuideController.js" target="_blank" rel="noopener">controller/GuideController.js</a><span class="src">가이드 프레임 lifecycle · 키 위임 · 롱키 정의</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/ui2022/guide/GuideFrame.js" target="_blank" rel="noopener">ui2022/guide/GuideFrame.js</a><span class="src">2022 리뉴얼 가이드 화면 위젯</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/ui2022/guide/ProgramDataFeed.js" target="_blank" rel="noopener">ui2022/guide/ProgramDataFeed.js</a><span class="src">프로그램 편성 데이터 피드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/ui2022/guide/ProgramDataManager.js" target="_blank" rel="noopener">ui2022/guide/ProgramDataManager.js</a><span class="src">시간대별 프로그램 데이터 관리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/ui2022/guide/InfoPanel.js" target="_blank" rel="noopener">ui2022/guide/InfoPanel.js</a><span class="src">선택 프로그램 상세 정보 패널</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f01.html">← Live TV 시청</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f03.html">미니가이드 / 인포 배너 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">turk-webx-tivibu-sysapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

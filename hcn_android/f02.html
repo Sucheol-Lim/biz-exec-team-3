@@ -1,0 +1,196 @@
+<!doctype html>
+<!-- hcn_android · 라이브 EPG/채널 편성표 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>라이브 EPG · 채널 편성표 — hcn_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">HCN Android EPG · 런처</a><span class="sep">›</span>
+      <span class="here">라이브 EPG · 채널 편성표</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">HCN (현대HCN)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) STB · Java</span>
+    </div>
+    <h1>라이브 EPG · 채널 편성표</h1>
+    <p class="one-liner"><code>ExChannel</code>·<code>ExProgram</code> 데이터 모델과 TIF(TvInputFramework) 연동을 기반으로, 현재 채널의 현재/다음 프로그램을 보여주는 미니EPG(<code>MiniEpgFragment</code>)와 전체 편성표를 표시합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/hcn_android" target="_blank" rel="noopener"><code>hcn_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>MiniEpgFragment</code> · <code>ExChannel</code> · <code>ExProgram</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">라이브 채널 편성 안내</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>라이브 EPG는 케이블 방송 편성 데이터를 STB 사용자에게 보여주는 핵심 화면입니다. 채널은 <code>ExChannel</code>(소스 ID, 채널 번호, TS ID, 히든 여부 등 보유), 프로그램은 <code>ExProgram</code>(제목·시작/종료 시각·등급 등 보유)으로 모델링되며, 둘 다 직렬화 가능한 데이터 객체입니다. 채널·프로그램 데이터는 <code>epg-module</code>의 데이터 매니저가 보유하고, 화면이 필요할 때 이를 조회합니다.</p>
+    <p>채널을 전환하거나 INFO 키를 누르면 화면 하단에 미니EPG가 뜹니다. <code>MiniEpgFragment</code>는 <code>BaseMiniEpgFragment</code>를 상속하고 <code>ObservableProgramList.OnProgramObserverCallback</code>을 구현해, 뷰모델(<code>MiniEpgViewModel</code>)에 프로그램 콜백을 등록합니다. 현재 채널의 현재/다음 프로그램이 갱신되면 <code>updateProgram(ExProgram)</code>으로 통보받아 제목·시간·진행률 등을 다시 그립니다. 시청 상태에 따라 차단(<code>BlockedMiniEpgFragment</code>)·성인(<code>AdultMiniEpgFragment</code>)·미가입(<code>SubscriptionMiniEpgFragment</code>) 등 파생 화면으로 분기합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      미니EPG는 옵저버 패턴으로 동작합니다. 프래그먼트가 직접 데이터를 폴링하지 않고 <code>MiniEpgViewModel</code>의 <code>ObservableProgramList</code> 콜백을 구독하므로, 프로그램 경계(다음 회차 전환)나 채널 변경이 발생하면 자동으로 <code>updateProgram()</code>이 호출되어 표시가 동기화됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자 (리모컨)
+    participant PA as PlaybackActivity
+    participant ME as MiniEpgFragment
+    participant VM as MiniEpgViewModel
+    participant OPL as ObservableProgramList
+    participant DM as Channel/Program DataManager
+
+    U-&gt;&gt;PA: 채널 전환 / INFO 키
+    PA-&gt;&gt;ME: 미니EPG 표시 (현재 ExChannel)
+    ME-&gt;&gt;VM: setProgramCallback(this)
+    VM-&gt;&gt;OPL: 현재/다음 프로그램 구독
+    DM-&gt;&gt;OPL: 프로그램 갱신 통지
+    OPL--&gt;&gt;ME: onProgramObserver(ExProgram)
+    ME-&gt;&gt;ME: updateProgram(program)
+    Note over ME: 제목/시간/진행률 갱신
+    alt 시청 제한 상태
+        ME-&gt;&gt;PA: 차단/성인/미가입 미니EPG로 분기
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 채널 전환이나 INFO 키로 미니EPG가 뜨면 프래그먼트가 뷰모델에 콜백을 등록하고, 데이터 매니저가 프로그램을 갱신하면 옵저버를 통해 <code>updateProgram()</code>이 호출되어 편성 정보가 표시됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class BaseMiniEpgFragment {
+        +updateProgram(ExProgram program)
+    }
+    class MiniEpgFragment {
+        +onCreateView(...)
+        +onProgramObserver(ExProgram)
+    }
+    class OnProgramObserverCallback {
+        &lt;&lt;interface&gt;&gt;
+        +onProgramObserver(ExProgram)
+    }
+    class MiniEpgViewModel {
+        +setProgramCallback(cb)
+    }
+    class ExChannel {
+        -int frequency
+        -int programNumber
+        -byte hidden
+        -int mapId
+        +isAudioChannel() boolean
+    }
+    class ExProgram {
+        -String title
+        +getTitle() String
+        +getStartTime() long
+        +getEndTime() long
+        +getRating() int
+    }
+    class BlockedMiniEpgFragment
+    class AdultMiniEpgFragment
+    class SubscriptionMiniEpgFragment
+
+    MiniEpgFragment --|&gt; BaseMiniEpgFragment : 상속
+    MiniEpgFragment ..|&gt; OnProgramObserverCallback : 구현
+    MiniEpgFragment --&gt; MiniEpgViewModel : 콜백 등록
+    MiniEpgFragment ..&gt; ExProgram : 표시
+    MiniEpgFragment ..&gt; ExChannel : 현재 채널
+    BlockedMiniEpgFragment --|&gt; BaseMiniEpgFragment
+    AdultMiniEpgFragment --|&gt; BaseMiniEpgFragment
+    SubscriptionMiniEpgFragment --|&gt; BaseMiniEpgFragment
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>MiniEpgFragment</code>는 공통 베이스를 상속하고 옵저버 콜백을 구현해 <code>ExProgram</code>·<code>ExChannel</code>을 표시하며, 시청 상태별 파생 프래그먼트가 같은 베이스를 공유합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/fragment/miniepg/MiniEpgFragment.java</code> — 뷰모델 콜백 등록과 옵저버 구현</div>
+<pre><code>public class MiniEpgFragment extends BaseMiniEpgFragment
+        implements ObservableProgramList.OnProgramObserverCallback {
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle s) {
+        Log.d(TAG, "onCreateView : ");
+        // ...
+        mMiniEpgViewModel.setProgramCallback(this);   // 현재/다음 프로그램 구독
+        return view;
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>epg-module/.../program/data/ExProgram.java</code> — 프로그램 데이터 모델 접근자</div>
+<pre><code>public class ExProgram implements Serializable {
+    public int getRating()    { return ...; }   // 시청 등급
+    public long getStartTime(){ return ...; }
+    public long getEndTime()  { return ...; }
+    public String getTitle() {
+        Log.d(TAG, "getTitle : title:" + title);
+        return title;                            // 멀티오디오 등 표기 가공 포함
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/app/src/main/java/com/altimedia/android/tv/epg/ui/fragment/miniepg/MiniEpgFragment.java" target="_blank" rel="noopener">ui/fragment/miniepg/MiniEpgFragment.java</a><span class="src">미니EPG · 프로그램 옵저버 구독 / 표시</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/app/src/main/java/com/altimedia/android/tv/epg/ui/fragment/miniepg/BaseMiniEpgFragment.java" target="_blank" rel="noopener">ui/fragment/miniepg/BaseMiniEpgFragment.java</a><span class="src">미니EPG 공통 베이스 · updateProgram</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/epg-module/src/main/java/com/altimedia/module/epg/channel/data/ExChannel.java" target="_blank" rel="noopener">epg-module/.../channel/data/ExChannel.java</a><span class="src">채널 데이터 모델 (소스ID·채널번호·TSID·히든)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/epg-module/src/main/java/com/altimedia/module/epg/program/data/ExProgram.java" target="_blank" rel="noopener">epg-module/.../program/data/ExProgram.java</a><span class="src">프로그램 데이터 모델 (제목·시간·등급)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/epg-module/src/main/java/com/altimedia/module/epg/tif/ui/RichTvInputSetupActivity.java" target="_blank" rel="noopener">epg-module/.../tif/ui/RichTvInputSetupActivity.java</a><span class="src">TIF(TvInputFramework) 연동 진입</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f01.html">← 홈 런처 (HOME)</a>
+      <a href="f03.html">라이브 채널 재생 · 튜닝 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">hcn_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

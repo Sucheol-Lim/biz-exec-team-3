@@ -1,0 +1,173 @@
+<!doctype html>
+<!-- rms_fe · OTA(펌웨어) 관리 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OTA(펌웨어) 관리 — rms_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">RMS FrontEnd 과제</a><span class="sep">›</span>
+      <span class="here">OTA(펌웨어) 관리</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Altimedia RMS</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
+    </div>
+    <h1>OTA(펌웨어) 관리</h1>
+    <p class="one-liner"><code>fwList</code>가 펌웨어 이미지를 등록·관리하고, <code>fwInstall</code>이 <code>FirmwareApiManager.install()</code>로 대상 단말 그룹에 펌웨어 OTA 업데이트를 예약·전파합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/ota/fwList.tsx</code> · <code>pages/ota/fwInstall.tsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">펌웨어 등록·OTA 배포</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>OTA(펌웨어) 관리는 단말 펌웨어 이미지를 등록하고 무선으로(Over-The-Air) 업데이트를 배포합니다. <code>fwList</code>는 <code>FirmwareApiManager.getList()</code>(<code>/api/v1/firmwares</code>)로 등록된 펌웨어 목록을 보여주고, 등록은 <code>create</code>(<code>FormData</code> + <code>isForm</code>)로 펌웨어 이미지 파일을 <code>multipart/form-data</code> 전송합니다. 이름/버전 중복은 <code>checkName</code>으로 사전 검증합니다.</p>
+    <p>실제 OTA 배포는 <code>fwInstall</code> 화면이 담당합니다. 운영자가 펌웨어·대상 그룹·설치 시각·모드를 지정하면 <code>install()</code>(<code>/api/v1/firmware-installs</code>)에 <code>firmware</code>·<code>mode</code>·<code>installTime</code>·<code>deviceGroupIds</code>(필요 시 <code>rescueId</code>)를 묶어 POST 합니다. 배포 후에는 <code>getInstallList</code>로 설치 작업 목록을, <code>getInstallDetailHistroy</code>로 단말별 설치 진행/결과 이력을 추적합니다. 설치 작업 행에는 대상 그룹과 예약 시각이 사람이 읽기 쉬운 텍스트로 요약 표시됩니다.</p>
+    <div class="callout">
+      <div class="ct">그룹 단위 OTA</div>
+      펌웨어 OTA는 개별 단말이 아니라 단말 그룹(<code>deviceGroupIds</code>) 단위로 배포 대상을 지정합니다. 즉 단말 관리에서 만든 그룹이 펌웨어 배포의 단위가 되어, 모델·지역별 단계적 롤아웃이 가능합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant OP as 운영자 (Browser)
+    participant FL as fwList.tsx
+    participant FI as fwInstall.tsx
+    participant FM as FirmwareApiManager (_api/Firmware)
+    participant BE as RMS BE 서버
+    participant GRP as 대상 단말 그룹
+
+    OP-&gt;&gt;FL: 펌웨어 등록 (이미지 업로드)
+    FL-&gt;&gt;FM: checkName(name, version)
+    FL-&gt;&gt;FM: create(FormData)
+    FM-&gt;&gt;BE: POST /firmwares (multipart)
+    OP-&gt;&gt;FI: OTA 설치 예약
+    FI-&gt;&gt;FM: install(firmware, mode, installTime, groupIds)
+    FM-&gt;&gt;BE: POST /firmware-installs
+    BE-&gt;&gt;GRP: 펌웨어 OTA 전파
+    loop 설치 이력 추적
+        FI-&gt;&gt;FM: getInstallDetailHistroy(installId)
+        FM-&gt;&gt;BE: GET /firmware-install-historys
+        BE--&gt;&gt;FI: 단말별 진행/결과
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 펌웨어를 검증·등록한 뒤 대상 그룹·시각·모드로 <code>install</code>을 호출해 OTA를 배포하고, 설치 히스토리로 단말별 결과를 추적합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class FwList {
+        +getList()
+        +create()
+    }
+    class FwInstall {
+        +handleInstallMode(isInstall)
+        +getDeviceText(groups)
+    }
+    class FwInstallModal {
+        +submit()
+    }
+    class FirmwareApiManager {
+        +getList(cb, page, size, name)
+        +create(cb, FormData)
+        +checkName(cb, name, version)
+        +install(cb, firmware, mode, time, groupIds, rescueId?)
+        +getInstallList(cb, data)
+        +getInstallDetailHistroy(cb, installId, page, size)
+    }
+
+    FwList --&gt; FirmwareApiManager : 등록·목록
+    FwInstall --&gt; FirmwareApiManager : 설치·이력
+    FwInstall o-- FwInstallModal : 설치 폼
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>FwList</code>가 펌웨어 등록·목록을, <code>FwInstall</code>(+<code>FwInstallModal</code>)이 OTA 배포·이력을 처리하며 모두 <code>FirmwareApiManager</code>를 통합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>_api/Firmware.tsx</code> — 펌웨어 등록(FormData)과 그룹 단위 OTA 설치</div>
+<pre><code>create: (callback, data: FormData) =&gt; {
+  request('post', `/api/v1/firmwares`, callback, data, true);  // isForm = multipart
+},
+install: (callback, firmware, mode, installTime, deviceGroupIds, rescueId) =&gt; {
+  const data = { firmware, mode, installTime, deviceGroupIds,
+    ...(rescueId != null &amp;&amp; rescueId !== '' ? { rescueId } : {}) };
+  request('post', `/api/v1/firmware-installs`, callback, data);
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>pages/ota/fwInstall.tsx</code> — 설치 목록 조회 후 대상 그룹 텍스트 요약</div>
+<pre><code>FirmwareApiManager.getInstallList((result, data) =&gt; {
+  // installTime / 대상 그룹(targetDeviceGr) / status 를 행으로 매핑
+});
+const getDeviceText = (deviceGroups) =&gt;
+  deviceGroups[0].name + (deviceGroups.length &gt; 1 ? ` + ${deviceGroups.length - 1}` : '');</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/ota/fwList.tsx" target="_blank" rel="noopener">pages/ota/fwList.tsx</a><span class="src">펌웨어 목록·등록</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/ota/fwInstall.tsx" target="_blank" rel="noopener">pages/ota/fwInstall.tsx</a><span class="src">OTA 설치 — 설치 목록·대상 그룹 요약·설치 모드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/ota/FwInstallModal.tsx" target="_blank" rel="noopener">pages/ota/FwInstallModal.tsx</a><span class="src">설치 폼 모달 — 펌웨어/그룹/시각/모드 입력</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Firmware.tsx" target="_blank" rel="noopener">_api/Firmware.tsx</a><span class="src">FirmwareApiManager — firmwares / firmware-installs / install-historys</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f06.html">← 앱(App) 관리</a>
+      <a href="f08.html">관리자 · 역할(Role) 관리 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">rms_fe 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

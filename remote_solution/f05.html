@@ -1,0 +1,183 @@
+<!doctype html>
+<!-- remote_solution · VOD 로컬 재생 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VOD 로컬 재생 — remote_solution 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Remote Solution PoC App</a><span class="sep">›</span>
+      <span class="here">VOD 로컬 재생</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Altimedia PoC</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Kotlin</span>
+    </div>
+    <h1>VOD 로컬 재생</h1>
+    <p class="one-liner">Media3 ExoPlayer로 <code>asset:///&lt;title&gt;.mp4</code> 형태의 동봉 영상을 재생합니다. 콘텐츠 종류에 따라 휠 탐색 또는 Circle to Search 인터랙션으로 분기됩니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/remote_solution" target="_blank" rel="noopener"><code>remote_solution</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>VodFragment</code> · <code>getVodFileUrl</code></div></div>
+      <div class="item"><div class="k">재생 엔진</div><div class="v">AndroidX Media3 ExoPlayer 1.8.0</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>VodFragment</code>는 홈에서 전달받은 <code>title</code> 인자로 재생할 콘텐츠를 결정합니다. 재생 URL은 <code>getVodFileUrl(title)</code>이 <code>asset:///&lt;title&gt;.mp4</code> 형태로 만들어 APK에 동봉된 로컬 영상을 가리킵니다. ExoPlayer는 1초 단위 시킹(<code>setSeekBackIncrementMs</code>/<code>setSeekForwardIncrementMs</code> = 1000ms)과 고정 버퍼(<code>DefaultLoadControl</code>)로 구성됩니다.</p>
+    <p>전달된 title이 휠/Circle 대상 4편(<code>listAllVideos</code>)에 없으면 <code>isRandomPlay = true</code>로 표시하고 그중 하나를 무작위로 재생합니다. 이 경우 일반 포스터로 진입해도 데모용 인터랙션 영상이 자동 재생됩니다.</p>
+    <p>재생 화면은 <code>onResume()</code>에서 콘텐츠 종류에 따라 입력 모드를 분기합니다. <code>isVodForWheelPlay(title)</code>이면 포인터 아이콘을 숨기고 <code>ControlMode.WHEEL</code>을, <code>isVodForCircleToSearch(title)</code>이면 <code>ControlMode.CIRCLE_TO_SEARCH</code>를 송신합니다. <code>Smart Air Ring</code> 연결 시에는 별도의 더미 클릭 뷰로 재생/일시정지를 처리합니다.</p>
+    <div class="callout">
+      <div class="ct">분기 기준 (실제 코드)</div>
+      휠 대상은 <code>Good Fortune</code>·<code>One Battle After Another</code>(MN3 기준), Circle to Search 대상은 <code>Lilo &amp; Stitch</code>·<code>The Devil Wears Prada 2</code>입니다. Smart Air Ring 연결 시에는 4편 모두 휠 재생으로 취급하고 Circle to Search는 비활성화됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant HF as HomeFragment
+    participant VF as VodFragment
+    participant URL as getVodFileUrl
+    participant EP as ExoPlayer
+    participant VM as BluetoothViewModel
+
+    HF-&gt;&gt;VF: navigate(action_home_to_vod, title)
+    VF-&gt;&gt;VF: onCreate() title 결정 (목록 외면 random)
+    VF-&gt;&gt;EP: initPlayer() (seek 1초, 고정 버퍼)
+    VF-&gt;&gt;URL: getVodFileUrl(title)
+    URL--&gt;&gt;VF: asset:///title.mp4
+    VF-&gt;&gt;EP: addMediaItem(uri) / prepare()
+    VF-&gt;&gt;VF: onResume() 콘텐츠 종류 판별
+    alt 휠 대상
+        VF-&gt;&gt;VM: addWorkWrite(ControlMode.WHEEL)
+    else Circle to Search 대상
+        VF-&gt;&gt;VM: addWorkWrite(ControlMode.CIRCLE_TO_SEARCH)
+    end
+    EP--&gt;&gt;VF: onPlaybackStateChanged(STATE_READY)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 홈에서 title을 받아 로컬 asset URL로 ExoPlayer를 준비하고, 콘텐츠 종류에 따라 휠 또는 Circle to Search 제어 모드를 송신합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class VodFragment {
+        +ExoPlayer player
+        +String title
+        +boolean isRandomPlay
+        +initPlayer()
+        +initContents()
+        +isVodForWheelPlay(title) Boolean
+        +isVodForCircleToSearch(title) Boolean
+        +playOrPause(play, showIcons)
+    }
+    class TvFragment~VB~ {
+        &lt;&lt;abstract&gt;&gt;
+        +BluetoothViewModel bluetoothViewModel
+        +onKeyDown(KeyEvent)
+    }
+    class ExoPlayer {
+        +addMediaItem(MediaItem)
+        +prepare()
+        +seekForward()
+        +seekBack()
+    }
+    class MediaItem {
+        +setUri(uri)
+        +setMediaId(title)
+    }
+    class AssetExt {
+        +getVodFileUrl(title) String
+    }
+
+    VodFragment --|&gt; TvFragment~VB~
+    VodFragment --&gt; ExoPlayer : 로컬 재생
+    VodFragment ..&gt; MediaItem : asset URI 생성
+    VodFragment ..&gt; AssetExt : getVodFileUrl
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>VodFragment</code>는 공용 <code>TvFragment</code>를 상속해 <code>bluetoothViewModel</code>을 공유하며, <code>getVodFileUrl</code>로 만든 asset URI를 <code>MediaItem</code>으로 감싸 ExoPlayer에 넣습니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/util/AssetExt.kt</code> — 로컬 asset 재생 URL 생성</div>
+<pre><code>fun getVodFileUrl(title: String?): String {
+    return "asset:///${title}.mp4"
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/vod/VodFragment.kt</code> — 플레이어 준비와 모드 분기 (발췌)</div>
+<pre><code>mediaItem = MediaItem.Builder().setUri(getVodFileUrl(title)).setMediaId(title).build()
+player.addMediaItem(mediaItem)
+player.prepare()
+
+// onResume()
+if (bluetoothViewModel.getGattDeviceType() == Device.MN3) {
+    if (isVodForWheelPlay(title) || isRandomPlay) {
+        bluetoothViewModel.addWorkWrite(BluetoothViewModel.ControlMode.WHEEL)
+    } else if (isVodForCircleToSearch(title)) {
+        bluetoothViewModel.addWorkWrite(BluetoothViewModel.ControlMode.CIRCLE_TO_SEARCH)
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/ui/vod/VodFragment.kt" target="_blank" rel="noopener">ui/vod/VodFragment.kt</a><span class="src">ExoPlayer 초기화 · MediaItem 준비 · 콘텐츠 종류별 모드 분기 · 진행바/시킹</span></li>
+      <li><a href="https://bitbucket.org/altimedia/remote_solution/src/develop/app/src/main/java/com/altimedia/remotesolution/ui/util/AssetExt.kt" target="_blank" rel="noopener">ui/util/AssetExt.kt</a><span class="src">asset:/// 로컬 재생 URL 생성</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f04.html">← 드래그 즐겨찾기 (찜하기)</a>
+      <a href="f06.html">휠 스크럽 탐색 (REW/FF) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">remote_solution 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

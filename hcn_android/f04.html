@@ -1,0 +1,204 @@
+<!doctype html>
+<!-- hcn_android · CAS 수신제한 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CAS 수신제한 — hcn_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">HCN Android EPG · 런처</a><span class="sep">›</span>
+      <span class="here">CAS 수신제한</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">HCN (현대HCN)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) STB · Java</span>
+    </div>
+    <h1>CAS 수신제한</h1>
+    <p class="one-liner"><code>CaManager</code>가 NDS JCAS 서비스와 연동해 가입자 상품 정보를 수신하고, 채널별 시청 권한·스크램블 상태·OTP·핑거프린트(FingerPrint)를 제어하는 수신제한(Conditional Access) 처리를 담당합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/hcn_android" target="_blank" rel="noopener"><code>hcn_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>CaManager</code> · <code>CaChannelListener</code> · <code>NDSJcasBaseApiService</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">시청 권한·스크램블 제어</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>CAS(수신제한)는 가입자가 결제한 상품 범위 내에서만 채널을 시청하도록 제어하는 보안 기능으로, HCN은 NDS(현 Synamedia) JCAS를 사용합니다. <code>cas-module</code>의 <code>CaManager</code>가 진입점 싱글턴이며, 내부적으로 일반 CA 서비스(<code>NormalCaService</code>)와 미디어 CA 서비스(<code>MediaCaService</code>)를 추상화한 <code>curCaService</code>에 위임합니다. 부팅 시 <code>init(CasEventHandler)</code>로 초기화하고 <code>requestCaInformation()</code>으로 가입 상품/권한 정보를 요청합니다.</p>
+    <p>채널 튜닝이 일어나면 JCAS 엔진이 해당 소스의 시청 가능 여부를 판정해 <code>CaChannelListener.notifyCaChannel(...)</code>로 통보합니다. status 비트마스크에는 <code>STATUS_NOT_SCRAMBLED</code>(Clean), <code>STATUS_VIEWABLE</code>(시청 가능), <code>STATUS_BLACKOUT</code>, <code>STATUS_NOT_SUBSCRIBE_CHANNEL</code>(미가입), <code>STATUS_PURCHASABLE_PRODUCT</code>(구매 가능), <code>STATUS_PREVIEW</code> 등이 정의되어 있어, EPG는 이 상태에 따라 영상 출력·미가입 안내·미리보기 타이머를 분기합니다. OTP는 <code>requestOtp()</code>로 발급받아 <code>CaOtpListener.notifyCaOtp(...)</code>로 수신하고, 화면에는 가입자 식별용 핑거프린트(FingerPrint)가 오버레이됩니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      AIDL 기반 <code>NDSJcasBaseApiService</code>가 JCAS 베이스 API(<code>INdsJCasBaseApi</code>)와 OSD 메시지·PIN 리셋·리전 비트 리스너를 연결합니다. 채널 시청 가능 여부는 push 형태로 <code>CaChannelListener</code>에 통보되므로, EPG는 직접 폴링하지 않고 콜백으로 권한 상태를 받아 처리합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant BM as BootManager
+    participant CM as CaManager
+    participant SVC as curCaService (Normal/Media)
+    participant JCAS as NDS JCAS (NDSJcasBaseApiService)
+    participant CL as CaChannelListener
+    participant EPG as EPG / PlaybackActivity
+
+    BM-&gt;&gt;CM: init(CasEventHandler)
+    CM-&gt;&gt;SVC: init(casHandler)
+    CM-&gt;&gt;SVC: requestCaInformation()
+    SVC-&gt;&gt;JCAS: 가입 상품/권한 조회
+    Note over EPG,JCAS: 채널 튜닝 발생
+    JCAS--&gt;&gt;CL: notifyCaChannel(srcId, status, caProducts)
+    CL--&gt;&gt;EPG: status 비트마스크 전달
+    alt STATUS_VIEWABLE
+        EPG-&gt;&gt;EPG: 영상 출력 + FingerPrint 오버레이
+    else STATUS_NOT_SUBSCRIBE_CHANNEL
+        EPG-&gt;&gt;EPG: 미가입/구매 안내 표시
+    end
+    EPG-&gt;&gt;CM: requestOtp()
+    CM-&gt;&gt;SVC: requestOtp()
+    JCAS--&gt;&gt;EPG: notifyCaOtp(transactionId, otp)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 부팅 시 <code>CaManager</code>가 JCAS를 초기화·상품 조회하고, 튜닝 때마다 <code>CaChannelListener.notifyCaChannel()</code>로 시청 상태 비트마스크가 push 되어 EPG가 영상 출력/미가입 안내를 분기합니다. OTP는 요청-콜백 쌍으로 발급됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class CaManager {
+        +getInstance() CaManager
+        +init(CasEventHandler)
+        +requestCaInformation()
+        +requestOtp()
+        +addHandler(CasEventHandler)
+        -start()
+        +dispose()
+    }
+    class CaService {
+        &lt;&lt;abstract&gt;&gt;
+        +init(handler)
+        +requestCaInformation()
+        +requestOtp()
+    }
+    class NormalCaService
+    class MediaCaService
+    class CaChannelListener {
+        &lt;&lt;interface&gt;&gt;
+        STATUS_NOT_SCRAMBLED
+        STATUS_VIEWABLE
+        STATUS_NOT_SUBSCRIBE_CHANNEL
+        STATUS_PREVIEW
+        +notifyCaChannel(txId, srcId, status, products, preview)
+    }
+    class CaOtpListener {
+        &lt;&lt;interface&gt;&gt;
+        +notifyCaOtp(txId, otp)
+    }
+    class CaProduct
+    class NDSJcasBaseApiService {
+        +onBind(Intent) IBinder
+    }
+
+    CaManager o-- CaService : curCaService 위임
+    NormalCaService --|&gt; CaService
+    MediaCaService --|&gt; CaService
+    CaManager ..&gt; CaChannelListener : 채널 상태 통보
+    CaManager ..&gt; CaOtpListener : OTP 통보
+    CaChannelListener ..&gt; CaProduct : 상품 배열
+    CaService ..&gt; NDSJcasBaseApiService : JCAS AIDL
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>CaManager</code>는 일반/미디어 CA 서비스를 추상화해 위임하고, 시청 상태는 <code>CaChannelListener</code>, OTP는 <code>CaOtpListener</code>로 통보됩니다. JCAS 엔진과는 AIDL 서비스로 연결됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>cas-module/.../manager/CaManager.java</code> — 초기화·상품 조회·OTP 요청 위임</div>
+<pre><code>public void init(CasEventHandler casHandler) {
+    curCaService.init(casHandler);
+}
+
+public void requestCaInformation() {
+    curCaService.requestCaInformation();
+}
+
+public void requestOtp() {
+    if (LogUtil.DBG) Log.d(TAG, "called requestOtp()");
+    curCaService.requestOtp();      // OTP 발급 요청 → CaOtpListener.notifyCaOtp 로 수신
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>cas-module/.../listener/CaChannelListener.java</code> — 시청 상태 비트마스크 정의</div>
+<pre><code>public interface CaChannelListener {
+    long STATUS_NOT_SCRAMBLED          = 0x01;   // Clean 채널
+    long STATUS_VIEWABLE               = 0x02;   // 시청 가능
+    long STATUS_BLACKOUT               = 0x04;   // Black Out
+    long STATUS_NOT_SUBSCRIBE_CHANNEL  = 0x10;   // 미가입 채널
+    long STATUS_PURCHASABLE_PRODUCT    = 0x40;   // 구매 가능 상품
+    long STATUS_PREVIEW                = 0x8000; // 미리보기
+
+    void notifyCaChannel(short transactionId, int sourceId, long status,
+                         CaProduct[] caProducts, CaAttrPreviewInfoStructure preview);
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/cas-module/src/main/java/com/altimedia/module/cas/manager/CaManager.java" target="_blank" rel="noopener">cas-module/.../manager/CaManager.java</a><span class="src">CAS 진입 싱글턴 · init / requestCaInformation / requestOtp</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/cas-module/src/main/java/com/altimedia/module/cas/listener/CaChannelListener.java" target="_blank" rel="noopener">cas-module/.../listener/CaChannelListener.java</a><span class="src">채널 시청 상태 비트마스크 · notifyCaChannel</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/cas-module/src/main/java/com/altimedia/module/cas/listener/CaOtpListener.java" target="_blank" rel="noopener">cas-module/.../listener/CaOtpListener.java</a><span class="src">OTP 발급 콜백 · notifyCaOtp</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/app/src/main/java/com/altimedia/android/tv/epg/ui/controller/service/NDSJcasBaseApiService.java" target="_blank" rel="noopener">ui/controller/service/NDSJcasBaseApiService.java</a><span class="src">NDS JCAS 베이스 API AIDL 서비스 (INdsJCasBaseApi)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/hcn_android/src/master/app/src/main/java/com/altimedia/android/tv/epg/ui/dialog/CasFingerPrintDialogFragment.java" target="_blank" rel="noopener">ui/dialog/CasFingerPrintDialogFragment.java</a><span class="src">핑거프린트(FingerPrint) 오버레이 표시</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f03.html">← 라이브 채널 재생 · 튜닝</a>
+      <a href="f05.html">가입 상품별 채널 히든 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">hcn_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

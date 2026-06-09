@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_poster · 미리보기 확대/축소(Konva + 줌 래퍼) 기능 상세 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>미리보기 확대/축소 — kt_magic_platform_ai_poster 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 포스터 (지니 포스터 편집툴)</a><span class="sep">›</span>
+      <span class="here">미리보기 확대/축소</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">PC 웹 (Vue 3 SPA) · Konva 캔버스</span>
+    </div>
+    <h1>미리보기 확대/축소</h1>
+    <p class="one-liner">Konva 캔버스 기반 미리보기에 5%~200% 줌 레벨과 줌 팝업, 화면 맞춤 보정을 제공합니다. <code>Ctrl/Cmd + 휠</code> 스크롤 줌과 초기 이미지 크기 자동 맞춤(fit) 로직을 포함합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster" target="_blank" rel="noopener"><code>kt_magic_platform_ai_poster</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>PreviewZoomWrapper.vue</code> · <code>ZoomLevelPopup.vue</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">편집 캔버스 뷰포트 제어</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>미리보기 줌은 캔버스를 감싸는 <code>PreviewZoomWrapper.vue</code>가 담당합니다. 줌 값(<code>previewZoomLevel</code>)은 <code>EditArea.vue</code>가 보유하고, 래퍼는 콘텐츠 wrapper에 CSS <code>zoom</code> 속성을 적용해 0.05~2.0 범위로 캔버스를 확대/축소합니다. 헤더의 줌 버튼을 누르면 <code>ZoomLevelPopup.vue</code>가 열려 5%·25%·50%·75%·100%·150%·200% 프리셋과 "화면 맞춤"을 고를 수 있습니다.</p>
+    <p>스크롤 줌은 <code>useWheelHandler</code> 컴포저블로 등록한 휠 핸들러가 처리합니다. Mac은 <code>metaKey</code>, Windows는 <code>ctrlKey</code>가 눌린 상태에서만 줌으로 동작하며, <code>deltaY</code> 방향에 따라 0.01씩 증감하고 <code>Math.max(0.05, Math.min(2, ...))</code>로 범위를 제한합니다. 초기 진입과 이미지 로드 시에는 <code>setDefaultZoomLevel()</code>이 콘텐츠 대비 컨테이너 크기 비율(여백 1.2 배율 고려)을 계산해 화면에 꼭 맞는 줌으로 자동 설정합니다. 줌이 바뀌면 콘텐츠를 가로 가운데로 스크롤 보정합니다.</p>
+    <div class="callout">
+      <div class="ct">초기 크기 보정</div>
+      <code>setDefaultZoomLevel()</code>은 <code>ratio = min(containerH / (contentH × 1.2), containerW / (contentW × 1.2))</code>로 화면 맞춤 배율을 구하고 0.05~2.0으로 클램프합니다. <code>ResizeObserver</code>로 콘텐츠 크기 변화를 감지해 wrapper 크기를 다시 측정합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor U as 사용자
+    participant EA as EditArea.vue
+    participant ZW as PreviewZoomWrapper.vue
+    participant WH as useWheelHandler
+    participant ZP as ZoomLevelPopup.vue
+
+    Note over ZW: 이미지 로드 시 setDefaultZoomLevel() 화면 맞춤
+    U-&gt;&gt;WH: Ctrl/Cmd + 휠
+    WH-&gt;&gt;ZW: delta 계산 (±0.01)
+    ZW-&gt;&gt;EA: setPreviewZoomLevel(newLevel) (0.05~2 클램프)
+    EA-&gt;&gt;ZW: previewZoomLevel prop 갱신
+    ZW-&gt;&gt;ZW: watch → updateContentWrapperSize() + 가운데 스크롤
+    U-&gt;&gt;EA: 헤더 줌 버튼 클릭
+    EA-&gt;&gt;ZP: 줌 팝업 표시 (프리셋 5%~200%)
+    U-&gt;&gt;ZP: 레벨 선택 / "화면 맞춤"
+    ZP-&gt;&gt;EA: zoom-level / zoom-level-fit
+    EA-&gt;&gt;ZW: setDefaultZoomLevel() (fit 선택 시)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 휠 줌과 팝업 프리셋 모두 결국 <code>previewZoomLevel</code> 한 값을 바꾸고, 래퍼가 <code>watch</code>로 크기 재측정과 가운데 스크롤 보정을 수행합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class EditArea {
+        -previewZoomLevel
+        -previewZoomLevelItems
+        +setPreviewZoomLevel(level)
+        +handleZoomLevelFit()
+    }
+    class PreviewZoomWrapper {
+        -contentWrapperStyle
+        +updateContentWrapperSize()
+        +setDefaultZoomLevel()
+    }
+    class useWheelHandler {
+        +handler(e) bool
+    }
+    class ZoomLevelPopup {
+        +zoom-level emit
+        +zoom-level-fit emit
+    }
+
+    EditArea o-- PreviewZoomWrapper : ref 소유
+    PreviewZoomWrapper ..&gt; useWheelHandler : 휠 줌 등록
+    EditArea o-- ZoomLevelPopup : 프리셋 선택
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>EditArea</code>가 줌 상태를 보유하고, 래퍼는 휠/리사이즈를 처리하며, 팝업은 프리셋과 화면 맞춤을 이벤트로 돌려줍니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/components/PreviewZoomWrapper.vue</code> — Ctrl/Cmd + 휠 스크롤 줌</div>
+<pre><code>useWheelHandler('preview-zoom-wrapper', (e) =&gt; {
+    if (!e.target.closest('.preview-zoom-wrapper')) return false;
+    // Mac: metaKey(Cmd), Windows: ctrlKey(Ctrl)
+    if (e.metaKey || e.ctrlKey) {
+        e.preventDefault();
+        const delta = e.deltaY &gt; 0 ? -0.01 : 0.01;
+        const newZoomLevel = Math.max(0.05, Math.min(2, props.previewZoomLevel + delta));
+        props.setPreviewZoomLevel(newZoomLevel);
+        return true;
+    }
+    return false;
+});</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>posteredit/components/PreviewZoomWrapper.vue</code> — 초기 화면 맞춤 보정</div>
+<pre><code>const setDefaultZoomLevel = async () =&gt; {
+    await nextTick();
+    const containerHeight = wrapperContainerRef.value.clientHeight;
+    const containerWidth  = wrapperContainerRef.value.clientWidth;
+    const contentHeight   = contentContainerRef.value.clientHeight;
+    const contentWidth    = contentContainerRef.value.clientWidth;
+    if (!contentWidth || !contentHeight) return;
+
+    let ratio = Math.min(
+        containerHeight / (contentHeight * 1.2),
+        containerWidth  / (contentWidth  * 1.2)
+    );
+    ratio = Math.max(0.05, Math.min(2, ratio));   // 5%~200% 클램프
+    props.setPreviewZoomLevel(ratio);
+    await updateContentWrapperSize();
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/PreviewZoomWrapper.vue" target="_blank" rel="noopener">posteredit/components/PreviewZoomWrapper.vue</a><span class="src">CSS zoom 적용 · 휠 줌(useWheelHandler) · setDefaultZoomLevel 화면 맞춤 · ResizeObserver</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/popups/ZoomLevelPopup.vue" target="_blank" rel="noopener">posteredit/components/popups/ZoomLevelPopup.vue</a><span class="src">5%~200% 프리셋 · 화면 맞춤(zoom-level-fit) 팝업</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/composables/useShortCuts.js" target="_blank" rel="noopener">posteredit/composables/useShortCuts.js</a><span class="src">useWheelHandler — 휠 이벤트 등록 컴포저블</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_poster/src/main/user/src/views/common/api/posteredit/components/EditArea.vue" target="_blank" rel="noopener">posteredit/components/EditArea.vue</a><span class="src">previewZoomLevel 상태 · previewZoomLevelItems 프리셋 · 줌 버튼/팝업 토글</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f07.html">← 결과 조회·다운로드</a>
+      <a href="f09.html">원본 되돌리기 / 다시 편집 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_poster 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

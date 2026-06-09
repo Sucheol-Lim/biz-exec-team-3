@@ -1,0 +1,175 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_shortform · 스타일 템플릿 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스타일 템플릿 — kt_magic_platform_ai_shortform 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 지니숏츠 (AI 숏폼 플랫폼)</a><span class="sep">›</span>
+      <span class="here">스타일 템플릿</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">데스크톱 웹 (Vue 3 SPA) · JavaScript</span>
+    </div>
+    <h1>스타일 템플릿</h1>
+    <p class="one-liner">템플릿 탭(<code>TemplateTab.vue</code>)에서 로고·자막·팝업 스타일이 적용된 템플릿을 미리보기하고 적용합니다. 현재 편집 스타일을 사용자 My 템플릿으로 추가하는 기능도 지원합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform" target="_blank" rel="noopener"><code>kt_magic_platform_ai_shortform</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>tabs/TemplateTab.vue</code> · <code>popups/AddStyleTemplatePopup.vue</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">편집기 좌측 탭</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>템플릿 탭은 좌측 탭(<code>MainTabs</code>) 중 하나로, 스타일 템플릿을 "My 템플릿"과 "스타일 템플릿"으로 나누어 보여줍니다. 목록은 부모가 내려준 <code>templateStyleList</code>를 <code>contentType</code>·<code>shortformType</code>·<code>videoRatio</code> 조건으로 필터링하여 구성합니다. 사용자가 만든 것은 <code>!style.isDefault</code>(My 템플릿), 기본 제공은 <code>style.isDefault</code>로 구분합니다.</p>
+    <p>템플릿 카드는 <code>DraggableMenuItemComponent</code>로 감싸 미리보기 이미지(<code>styleImgPath</code>)를 드래그 가능하게 만들고, 클릭 시 <code>handleTemplateClick(templateStyle)</code>가 <code>{ type: 'template', data }</code> 드롭 데이터를 만들어 <code>editStateStore.processDataOperation(dropData, ..., OperateFrom.LEFT_PANEL)</code>로 적용합니다. 즉 템플릿 적용은 타임라인 드롭과 같은 단일 데이터 경로로 처리됩니다.</p>
+    <p>사용자 스타일 추가는 <code>AddStyleTemplatePopup.vue</code>가 담당합니다. 현재 미리보기 영역을 <code>html2canvas</code>로 캡처해 썸네일을 만들고, 스타일명과 함께 <code>FormData</code>로 묶어 <code>api.style.saveStyle(form)</code>로 저장한 뒤 <code>refresh-styles</code>를 emit해 목록을 갱신합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      새로 추가된 템플릿은 <code>sessionStorage</code>의 <code>new-template-ids</code>로 추적되어 카드에 NEW 배지를 표시합니다. 템플릿 적용·드롭은 좌측 패널 출처(<code>OperateFrom.LEFT_PANEL</code>)로 표시되어 편집 상태에 일관되게 반영됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant TT as TemplateTab.vue
+    participant ST as editStateStore
+    participant POP as AddStyleTemplatePopup.vue
+    participant STY as api.style
+
+    U-&gt;&gt;TT: 템플릿 카드 클릭/드롭
+    TT-&gt;&gt;ST: processDataOperation({type:'template', data}, OperateFrom.LEFT_PANEL)
+    ST--&gt;&gt;U: 로고·자막·팝업 스타일 적용된 미리보기
+    U-&gt;&gt;TT: "현재 스타일 템플릿으로 추가"
+    TT-&gt;&gt;POP: open-template-popup
+    POP-&gt;&gt;POP: html2canvas(previewRef) 썸네일 캡처
+    POP-&gt;&gt;STY: saveStyle(FormData{styleName, 썸네일, 스타일 파라미터})
+    STY--&gt;&gt;POP: 저장 성공
+    POP-&gt;&gt;TT: emit refresh-styles → 목록 갱신
+      </div>
+      <p class="cap"><strong>흐름.</strong> 템플릿 클릭은 드롭 데이터로 변환되어 적용되고, 추가는 미리보기를 캡처해 스타일로 저장한 뒤 목록을 새로고침합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class TemplateTab {
+        +templateStyleList
+        +myTemplateStyleList
+        +styleTemplateList
+        +handleTemplateClick(templateStyle)
+        +isNewTemplate(styleId)
+    }
+    class DraggableMenuItemComponent {
+        +elementType
+        +data
+    }
+    class AddStyleTemplatePopup {
+        +previewRef
+        +saveStyle()
+    }
+    class editStateStore {
+        +processDataOperation(dropData, OperateFrom)
+    }
+    class styleApi {
+        +saveStyle(form)
+        +getStylesByParams()
+    }
+
+    TemplateTab o-- DraggableMenuItemComponent : 카드 래핑
+    TemplateTab --&gt; editStateStore : 템플릿 적용
+    TemplateTab ..&gt; AddStyleTemplatePopup : 추가 팝업
+    AddStyleTemplatePopup --&gt; styleApi : saveStyle
+      </div>
+      <p class="cap"><strong>관계.</strong> 템플릿 탭이 카드를 드래그 가능하게 래핑하고, 적용은 <code>editStateStore</code>로, 추가는 <code>AddStyleTemplatePopup</code> → <code>api.style.saveStyle</code>로 흐릅니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>user/src/views/common/api/edit/components/tabs/TemplateTab.vue</code> — 템플릿 적용</div>
+<pre><code>function handleTemplateClick(templateStyle) {
+  const dropData = { type: 'template', data: templateStyle }
+  EditStateStore.processDataOperation(dropData, null, null, OperateFrom.LEFT_PANEL);
+}
+
+const myTemplateStyleList = computed(() =&gt;
+  props.templateStyleList.filter(style =&gt;
+    !style.isDefault &amp;&amp; style.contentType === props.contentType &amp;&amp;
+    style.shortformType === props.shortformType &amp;&amp;
+    style.videoRatio === EditStateStore.videoParam.videoRatio));</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>user/src/views/common/api/edit/components/popups/AddStyleTemplatePopup.vue</code> — 미리보기 캡처 후 스타일 저장</div>
+<pre><code>const captureCanvas = await html2canvas(previewRef.value, { backgroundColor: 'transparent', allowTaint: true });
+// ... FormData 구성 (styleName, 썸네일, 파라미터)
+const response = await api.style.saveStyle(form);
+emit('refresh-styles');
+emit('close');</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/components/tabs/TemplateTab.vue" target="_blank" rel="noopener">edit/components/tabs/TemplateTab.vue</a><span class="src">템플릿 목록 필터링·미리보기·적용</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/components/popups/AddStyleTemplatePopup.vue" target="_blank" rel="noopener">edit/components/popups/AddStyleTemplatePopup.vue</a><span class="src">html2canvas 캡처 · api.style.saveStyle 저장</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/components/DraggableMenuItemComponent.vue" target="_blank" rel="noopener">edit/components/DraggableMenuItemComponent.vue</a><span class="src">템플릿 카드 드래그 래퍼</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/api/style.js" target="_blank" rel="noopener">api/style.js</a><span class="src">스타일 저장·조회 API</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f07.html">← BGM·내레이션 사운드</a>
+      <a href="f09.html">실행 취소·자동 저장·세션 복구 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_shortform 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

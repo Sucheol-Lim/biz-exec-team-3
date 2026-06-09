@@ -1,0 +1,463 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skylife ATV EPG (UX3.0) — 과제 설명</title>
+<style>
+:root{
+  --accent:#0072ce;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">KT SkyLife</span>
+      <span class="badge gray">Android TV(Leanback) STB</span>
+      <span class="badge gray">Kotlin · Java</span>
+    </div>
+    <h1>Skylife ATV EPG (UX3.0)</h1>
+    <p class="one-liner">스카이라이프 Android TV 셋톱박스에 탑재되는 EPG 겸 홈 런처 애플리케이션입니다. 실시간 방송·VOD·편성표·검색·설정과 함께, 분석 기준 브랜치에는 모바일-STB 페어링 기반의 LW Voice 음성 어시스턴트가 추가되어 있습니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skylife-ux3.0" target="_blank" rel="noopener"><code>skylife-ux3.0</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>feat/lw-voice-api</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-05-20 · f9189d5f8 assistant/vod: content_play 화면 캡쳐 + 검색 통합</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>com.alticast.androidtv.epg</code> / 03.00.02.022</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>본 과제는 KT 스카이라이프(SKYLIFE) Android TV 셋톱박스(STB)에 탑재되는 <strong>EPG(전자 프로그램 가이드) 겸 홈 런처 애플리케이션</strong>입니다. 실시간 방송(Live TV), VOD, 채널 편성표, 통합 검색, 마이페이지, 설정, 결제 등 STB의 메인 UI 전반을 담당합니다. 패키지명과 애플리케이션 ID는 모두 <code>com.alticast.androidtv.epg</code>이며, AndroidX Leanback 기반의 Android TV 앱으로 구현되어 있습니다.</p>
+
+    <p>이 앱은 단순한 일반 앱이 아니라 STB의 <strong>홈/런처로 동작</strong>합니다. 메인 화면인 <code>MainActivity</code>가 <code>HOME</code>·<code>LAUNCHER</code> 카테고리와 <code>af.intent.action.KEY_TV_HOME</code> 인텐트 필터를 가지고 <code>singleInstance</code> 모드로 기동되어, 단말 부팅 후 첫 화면과 홈 키 입력의 진입점이 됩니다. 단말 세대에 따라 <code>second</code>와 <code>fifth</code> 두 가지 STB flavor로 빌드되며, flavor별로 별도의 <code>MainActivity</code>·매니페스트·네이티브 라이브러리(jniLibs)·CAS 스텁을 사용합니다.</p>
+
+    <p>분석 기준 브랜치 <code>feat/lw-voice-api</code>에는 <strong>LW Voice 모바일-STB 음성 어시스턴트</strong> 기능이 추가되어 있습니다. 모바일 앱과 STB를 페어링하여 음성 명령(채널/볼륨 제어, 콘텐츠 검색·재생, 시청예약, 타이머, 날씨·뉴스 응답, 화면 제어 등)을 STB에서 실행하고, "헤이 스카이" wake-word와 STT를 통한 로컬 음성 입력도 지원합니다. 이 기능은 두 개의 사양 문서(<code>newlwvoice-connect.pdf</code> v1.3, <code>stb_assistant_response_api_spec.pdf</code> v1.3)를 근거로 구현되어 있습니다.</p>
+
+    <div class="callout">
+      <div class="ct">사업 맥락</div>
+      LW Voice는 당초 터키 TurkCell 향 음성 제어 솔루션 PoC로 출발하였고, 이후 Altimedia(AX/DX Client Team)가 만드는 런처·앱의 차별화 수단으로 확장된 음성 어시스턴트입니다. 본 브랜치는 그 음성 어시스턴트를 스카이라이프 UX3.0 EPG 위에 통합한 작업 라인입니다. (배경은 Confluence "LWVoice 개요" 근거)
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">홈 런처</div><div class="d"><code>MainActivity</code>가 HOME·LAUNCHER·KEY_TV_HOME 인텐트로 동작하는 STB 메인 화면입니다. 부팅 후 첫 화면과 홈 키 진입점을 담당하며 <code>singleInstance</code>로 기동됩니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">실시간 방송(Live TV)</div><div class="d"><code>ui/livetv</code> 화면에서 실시간 채널 시청과 채널 전환, 미니 가이드, 플레이바 등을 제공합니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">VOD 재생</div><div class="d"><code>ui/vod</code>에서 VOD 상세·시리즈·본편/예고편 재생, 이어보기, 구매(OPPV) 연동을 제공합니다. Media3(ExoPlayer) 1.2.0 기반입니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">채널·편성표(EPG)</div><div class="d"><code>ui/channel</code>과 <code>controller/nav</code>의 <code>EpgChannelController</code>가 채널 링·편성표·프로그램 정보를 구성합니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">통합 검색</div><div class="d"><code>ui/search</code>에서 보유 콘텐츠 검색을 제공하며, 음성 어시스턴트의 콘텐츠 검색 결과가 <code>TTSearchFragment</code>로 자동 입력·실행되도록 통합되어 있습니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">설정 · 마이페이지</div><div class="d"><code>ui/setting</code>(<code>SettingMainActivity</code>)과 <code>ui/mypage</code>에서 환경 설정, 시청시간 제한, 잠금/비밀번호, 가입 정보 등을 관리합니다.</div></a>
+      <a class="card" href="f07.html"><div class="t">LW Voice 음성 어시스턴트</div><div class="d">모바일 앱과 STB를 페어링하여 음성 명령을 STB에서 실행합니다. NanoHTTPD WebSocket(8787 포트) 기반 릴레이 서버로 양방향 통신합니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">STB 제어 명령</div><div class="d"><code>StbControlHandler</code>가 채널(set/step)·볼륨(set/step/mute)·전원·미디어·녹화·내비게이션·앱 실행·자막·오디오 도메인의 음성 명령을 처리합니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">콘텐츠 검색·재생 음성 명령</div><div class="d"><code>ContentSearchHandler</code>·<code>ContentPlayHandler</code>가 음성으로 받은 검색어로 결과를 찾아 검색 화면 또는 VOD 상세·자동 재생으로 직행시킵니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">시청예약 · 타이머</div><div class="d"><code>ProgramScheduleHandler</code>가 편성 기반 시청예약을, <code>TimerHandler</code>·<code>TimerOverlay</code>가 "N분 뒤 끄기" 타이머와 알림음을 처리합니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">날씨 · 뉴스 · 일반 응답</div><div class="d"><code>AnswerHandler</code>가 weather/news/general 답변을 응답 카드로 표시합니다. <code>WeatherType</code>·<code>WeatherSceneView</code>로 날씨 유형별 애니메이션을 보여줍니다.</div></a>
+      <a class="card" href="f12.html"><div class="t">Hey Sky wake-word + STT</div><div class="d"><code>:wake-lib</code>(sky-claw) 엔진이 wake-word 감지와 STT를 같은 프로세스에서 처리하고, <code>SpeechManager</code>가 결과를 라우팅합니다. 발화 중에는 <code>LiveTvMuter</code>로 본방송을 음소거합니다.</div></a>
+      <a class="card" href="f13.html"><div class="t">오버레이 UI</div><div class="d"><code>AssistantOverlayCoordinator</code>가 외부 앱 위에 청취 오버레이·응답 카드·페어링·타이머·파형(<code>HeySkyWaveformView</code>) 등을 표시합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">FCM 푸시 · TTS</div><div class="d">Firebase Messaging 기반 푸시(<code>FCMService</code>)를 처리하고, <code>AndroidTtsEngine</code>/<code>RemoteQwenTtsEngine</code>(TtsEngine 추상화)로 음성 응답을 발화합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+
+    <p>멀티 모듈 Gradle 프로젝트입니다. <code>:app</code>(메인 애플리케이션), <code>:Releaseworks</code>(changelog/release note 생성), <code>:wake-lib</code>(외부 git repo <code>../stb-wake/wake-lib</code>의 sky-claw wake-word 엔진)로 구성됩니다. <code>:wake-lib</code>는 본 저장소에 포함되어 있지 않으며 동일 상위 디렉토리에 별도로 체크아웃되어 있어야 빌드됩니다.</p>
+
+    <pre class="tree">skylife-ux3.0/
+├── build.gradle               # 루트 빌드 (Kotlin 1.8.10 / AGP 7.4.2 정의)
+├── settings.gradle            # 모듈 포함: :app, :Releaseworks, :wake-lib
+├── gradle.properties          # 서명 키, AndroidX/Jetifier, JVM 옵션
+├── app/                       # 메인 애플리케이션 모듈
+│   ├── build.gradle           # flavor(stb/cas/server), 의존성, APK 네이밍
+│   ├── auto-version.gradle    # version.properties 기반 자동 버전 증가
+│   ├── version.properties     # VERSION=03.00.02.022
+│   ├── google-services.json   # Firebase 설정
+│   ├── keystore/              # 릴리즈 서명 키스토어
+│   ├── libs/{second,fifth}/   # flavor별 STB/CAS stub·라이브러리
+│   └── src/
+│       ├── main/java/com/alticast/androidtv/epg/
+│       │   ├── assistant/     # LW Voice 음성 어시스턴트 (약 42개 파일)
+│       │   ├── ui/            # 화면 계층 (tvhome/livetv/vod/channel/search/setting/mypage…)
+│       │   ├── controller/    # 비즈니스 로직 / 백엔드 연동 (약 254개 파일)
+│       │   ├── common/ util/ receiver/
+│       │   └── EpgApplication.java   # Application 엔트리
+│       ├── fifth/             # fifth 세대 STB flavor (MainActivity, Manifest, jniLibs, cpp, aidl)
+│       └── second/            # second 세대 STB flavor (MainActivity 등)
+├── Releaseworks/              # git-changelog 기반 changelog/release note 생성 모듈
+└── uml/                       # 화면별 UML (channel, home, vod, vod_detail, search, setting, common)</pre>
+
+    <h3>음성 어시스턴트(assistant/) 세부 구조</h3>
+    <pre class="tree">assistant/
+├── AssistantResponseDispatcher.java   # assistant_response envelope 파싱 + payload.type 분기 (Parser Guard 5종)
+├── AssistantProgressDispatcher.java   # 진행 상태 송신
+├── AssistantRequestPump.java          # 양방향 요청 펌프
+├── AssistantVodSnapshotSender.java    # VOD 재생 화면 스냅샷 전송
+├── server/      StbRelayServer · AssistantWebSocket   # NanoWSD 8787 포트 릴레이
+├── session/     MobileSession                          # 모바일 연결 세션
+├── discovery/   StbDiscoveryAdvertiser · StbDiscoveryResponder  # NSD/UDP 디스커버리
+├── handler/     StbControlHandler · ContentSearchHandler · ContentPlayHandler
+│                ProgramScheduleHandler · TimerHandler · ScreenControlHandler
+│                AnswerHandler · LocalEnvelopeHandler · WeatherType · mapping/
+├── intent/      LocalIntentMatcher                     # 로컬 명령 키워드 매칭
+├── ui/          AssistantOverlayCoordinator · VoiceListeningOverlay · AnswerCardOverlay
+│                MobileConnectionOverlay · PersonalizedPairingOverlay · TimerOverlay
+│                ScreenBrightnessOverlay · WeatherSceneView · 파형/테마 뷰
+└── util/        SpeechManager · AndroidTtsEngine · RemoteQwenTtsEngine · TtsEngine
+                 LiveTvMuter · SpeechSettingsReceiver</pre>
+
+    <h3>주요 모듈 · 클래스</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>모듈 / 클래스</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td>Application</td><td><code>EpgApplication</code></td><td>EPG 프로세스 기동, 포그라운드/백그라운드 상태(AppStatus) 관리, 부팅·FW 설치 체크, 전역 ViewModel(<code>TvHomeDataManager</code>) 보유, wake-word 서비스 연동. <code>Window.Callback</code>·<code>TvSingletons</code> 구현</td></tr>
+          <tr><td>홈 화면</td><td>flavor별 <code>ui.MainActivity</code></td><td>HOME/LAUNCHER/KEY_TV_HOME으로 동작하는 메인 화면. <code>EpgChannelController</code> 등 네비게이션과 연결</td></tr>
+          <tr><td>화면 계층</td><td><code>ui/</code> (약 479개 파일)</td><td>tvhome(홈)·livetv·vod·channel·search·setting·mypage·notice·popup·manager·comp·common</td></tr>
+          <tr><td>백엔드 연동</td><td><code>controller/communication/</code> (약 254개 파일 중 다수)</td><td>도메인별 서버 클라이언트: bms·cems·cms·ims·imscms·oppv(구매)·pi(프로그램 정보)·rpgateway·usage</td></tr>
+          <tr><td>네비게이션</td><td><code>controller/nav</code>·<code>tif</code></td><td><code>EpgChannelController</code> 채널 네비게이션, TV Input Framework 연동</td></tr>
+          <tr><td>음성 릴레이</td><td><code>StbRelayServer</code>·<code>AssistantWebSocket</code></td><td>NanoWSD 기반 8787 포트 단일 listen. <code>/health</code>, <code>POST /assistant-response</code>(legacy), WebSocket <code>/assistant-ws</code></td></tr>
+          <tr><td>응답 분기</td><td><code>AssistantResponseDispatcher</code></td><td>envelope 파싱 후 payload.type별 핸들러 분기. Parser Guard 5종(JSON 파싱 실패·미지원 타입·빈 답변·body 없음·domain/action 불일치) 방어</td></tr>
+          <tr><td>명령 핸들러</td><td><code>handler/*Handler</code></td><td>STB 제어·콘텐츠 검색·콘텐츠 재생·시청예약·타이머·화면 제어·답변·로컬 envelope 처리</td></tr>
+          <tr><td>외부 서비스</td><td><code>OperatorAuthService</code>·<code>PIAIDLService</code>·<code>FCMService</code></td><td>Google Assistant TV Operator 연동, PI AIDL 서비스, Firebase 푸시</td></tr>
+          <tr><td>리시버</td><td><code>SkyIntentReceiver</code>·<code>PartnerTokenReceiver</code></td><td>스카이라이프 전용 인텐트(<code>af.intent.action.*</code>, <code>com.skylife.intent.*</code>) 및 파트너 토큰 처리</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>계층 관점에서 <code>ui</code>(화면)는 <code>controller</code>(비즈니스 로직)를 통해 스카이라이프 헤드엔드 서버군과 Retrofit/OkHttp + RxJava3로 통신하며, 미디어 재생은 Media3(ExoPlayer)에 위임합니다. 음성 어시스턴트는 별도 레이어로, 모바일 앱이 보낸 envelope를 <code>StbRelayServer</code>로 수신하여 <code>AssistantResponseDispatcher</code> → 각 핸들러로 분기하고, 핸들러는 기존 <code>controller</code>/UI 진입점(예: <code>EpgChannelManager</code>, 검색 액티비티, VOD 상세)을 재사용해 실제 제어를 수행합니다. wake-word·STT는 <code>:wake-lib</code>에서 처리하고 콜백으로 결과를 라우팅합니다.</p>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>언어</td><td>Kotlin + Java</td><td>Kotlin 1.8.10 / Java 17</td><td>source/target 17, <code>jvmTarget=17</code></td></tr>
+          <tr><td>빌드</td><td>Gradle + Android Gradle Plugin</td><td>Gradle 8.5(추정) / AGP 7.4.2</td><td>멀티 모듈, kotlin-kapt, google-services 플러그인</td></tr>
+          <tr><td>SDK</td><td>compileSdk / targetSdk / minSdk</td><td>compile 34, target 31(fifth)·26(second), min 30(fifth)·26(second)</td><td>ABI <code>armeabi-v7a</code></td></tr>
+          <tr><td>UI</td><td>AndroidX Leanback / RecyclerView / ConstraintLayout</td><td>Leanback 1.1.0-rc02, RV 1.3.2, CL 2.1.4</td><td>ViewBinding + DataBinding, Paging 3.2.1, leanback-paging 1.1.0-alpha11</td></tr>
+          <tr><td>이미지</td><td>Glide</td><td>4.16.0</td><td>썸네일/포스터 로딩</td></tr>
+          <tr><td>미디어</td><td>AndroidX Media3 (ExoPlayer)</td><td>1.2.0</td><td>DASH/HLS/SmoothStreaming/IMA 광고(3.31.0)/Session, FFmpeg 디코더 확장 AAR(exo 1.2.0 페어링)</td></tr>
+          <tr><td>네트워크</td><td>Retrofit / OkHttp / RxJava3</td><td>Retrofit 2.9.0, OkHttp 4.12.0, RxJava3 3.1.8 / RxAndroid 3.0.2</td><td>Gson 2.10.1 converter, adapter-rxjava3</td></tr>
+          <tr><td>어시스턴트 전송</td><td>NanoHTTPD WebSocket</td><td>2.3.1</td><td>8787 포트 단일 listen (HTTP + WS)</td></tr>
+          <tr><td>음성</td><td>:wake-lib (sky-claw)</td><td>외부 git repo <code>../stb-wake/wake-lib</code></td><td>wake-word + Katniss STT 통합, 로컬 명령 처리</td></tr>
+          <tr><td>푸시</td><td>Firebase</td><td>firebase-core 16.0.1, firebase-messaging 17.3.4</td><td>google-services 4.3.10</td></tr>
+          <tr><td>기타</td><td>ZXing core / MultiDex / AIDL / CMake·NDK</td><td>ZXing 3.5.2, MultiDex 2.0.1, CMake 3.22.1, NDK 25.1.8937393</td><td>QR, AIDL(IEpgService 등), 네이티브 빌드</td></tr>
+          <tr><td>CAS/STB</td><td>벤더 스텁·라이브러리(JAR/AAR)</td><td>flavor별</td><td>skylife_oppv_stub, taurus, WebAppLibrary, altibrowser, apollo-cl/IntekPapi stub, ob1 SDK 등</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+
+    <h3>음성 명령 처리 흐름 (모바일 페어링 경로)</h3>
+    <ol class="steps">
+      <li><span class="st">디스커버리 · 페어링</span><span class="sd"><code>StbDiscoveryAdvertiser</code>가 NSD(<code>_lwcompanion._tcp.</code>)와 UDP(<code>LW_COMPANION_DISCOVER_V1</code>)로 STB를 노출하고, 모바일 앱이 8787 포트의 <code>/assistant-ws</code> WebSocket으로 연결하여 <code>MobileSession</code>을 수립합니다.</span></li>
+      <li><span class="st">음성 입력 · 서버 처리</span><span class="sd">사용자 발화가 모바일/서버에서 인식·해석되어 <code>assistant_response</code> envelope(payload.type + body)로 STB에 전달됩니다.</span></li>
+      <li><span class="st">envelope 파싱 · 분기</span><span class="sd"><code>AssistantResponseDispatcher</code>가 envelope.type을 검사하고 <code>assistantReply</code>를 JSON 파싱한 뒤 <code>payload.type</code>별 핸들러로 분기합니다. 파싱 실패·미지원 타입 등 5종 방어 케이스는 실행을 막고 자연어 fallback으로 처리합니다.</span></li>
+      <li><span class="st">명령 실행</span><span class="sd">예를 들어 <code>stb_control</code>은 <code>StbControlHandler</code>가 채널/볼륨 등을 <code>EpgChannelManager</code>·<code>AudioManager</code>로 실행하고, <code>content_play</code>는 검색어로 첫 결과를 찾아 VOD 상세 진입 후 자동 재생합니다.</span></li>
+      <li><span class="st">응답 표시 · 피드백</span><span class="sd"><code>AssistantOverlayCoordinator</code>가 응답 카드/오버레이를 외부 앱 위에 표시하고 TTS로 발화합니다. 발화 동안 <code>LiveTvMuter</code>가 본방송을 음소거하며, VOD 화면은 <code>AssistantVodSnapshotSender</code>가 모바일로 스냅샷을 전송합니다.</span></li>
+    </ol>
+
+    <h3>Hey Sky 로컬 음성 흐름 (On-device 경로)</h3>
+    <ol class="steps">
+      <li><span class="st">wake-word 감지</span><span class="sd"><code>:wake-lib</code>(sky-claw) 엔진이 "헤이 스카이" wake-word를 감지하면 청취 상태로 전환하고 <code>VoiceListeningOverlay</code>·파형 뷰(<code>HeySkyWaveformView</code>)를 표시합니다.</span></li>
+      <li><span class="st">STT 변환</span><span class="sd">동일 프로세스의 STT가 발화를 텍스트로 변환하고, <code>SpeechManager</code>가 결과를 라우팅합니다. 발화 화면에는 STT transcript가 그대로 노출됩니다.</span></li>
+      <li><span class="st">로컬 매칭 또는 라우팅</span><span class="sd"><code>LocalIntentMatcher</code>가 채널/볼륨 업·다운 등 로컬 키워드를 매칭해 즉시 실행하거나, 검색·콘텐츠 명령은 검색 화면(<code>TTSearchFragment</code> 자동 입력)·VOD 경로로 직행시킵니다.</span></li>
+      <li><span class="st">결과 표시</span><span class="sd">응답 카드 표시 시 발화 오버레이는 즉시 dismiss되고, 명령 결과가 화면에 반영됩니다.</span></li>
+    </ol>
+
+    <h3>홈 런처 부팅 · 진입 흐름</h3>
+    <ol class="steps">
+      <li><span class="st">Application 기동</span><span class="sd"><code>EpgApplication</code>이 EPG 프로세스를 초기화하고 부팅·FW 설치 상태를 점검하며 전역 데이터 매니저와 wake-word 서비스를 준비합니다.</span></li>
+      <li><span class="st">MainActivity 진입</span><span class="sd">HOME/LAUNCHER/KEY_TV_HOME 인텐트로 flavor별 <code>MainActivity</code>가 <code>singleInstance</code>로 표시되어 홈 화면(<code>ui/tvhome</code>)을 구성합니다.</span></li>
+      <li><span class="st">데이터 로딩 · 네비게이션</span><span class="sd"><code>controller/communication</code>의 서버 클라이언트로 편성·콘텐츠 데이터를 받아 채널 링·홈 행을 구성하고, 사용자 입력에 따라 Live TV·VOD·검색·설정 화면으로 전환합니다.</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>루트에 <code>gradlew</code> 래퍼 스크립트는 커밋되어 있지 않으므로 Android Studio에서 열거나 시스템에 설치된 Gradle을 사용합니다. flavor 차원은 <code>stb</code>(<code>second</code>/<code>fifth</code>), <code>cas</code>(<code>_nagra</code>/<code>_alti</code>), <code>server</code>(<code>_live</code> 기본 / <code>_test</code>) 세 가지이며, <code>deviceparam</code> 프로퍼티로 특정 STB 세대만 빌드하도록 variant를 필터링합니다.</p>
+
+    <div class="callout warn">
+      <div class="ct">빌드 전제 조건</div>
+      <code>:wake-lib</code> 모듈은 <code>settings.gradle</code>에서 <code>../stb-wake/wake-lib</code>(별도 git repo, sky-claw)를 참조합니다. 본 저장소에는 포함되어 있지 않으므로 동일 상위 디렉토리에 <code>stb-wake</code> 저장소를 먼저 체크아웃해야 합니다. 릴리즈 서명 정보는 <code>gradle.properties</code>의 <code>RELEASE_STORE_FILE</code>(<code>../app/keystore/skylife_lte_android.jks</code>) 등으로 지정됩니다.
+    </div>
+
+    <pre><code># 전체 디버그 빌드 (가능한 variant 조합 전부)
+./gradlew assembleDebug
+
+# fifth STB만 빌드하도록 device 파라미터 지정
+./gradlew assembleDebug -Pdeviceparam=fifth
+
+# 예: fifth + nagra + live 서버 릴리즈 빌드
+./gradlew assembleFifthNagra_liveRelease -Pdeviceparam=fifth
+
+# 클린
+./gradlew clean
+
+# Releaseworks: changelog / release note 생성
+./gradlew :Releaseworks:generateAll</code></pre>
+
+    <p>주요 환경 설정 파일은 다음과 같습니다. 버전은 <code>app/version.properties</code>의 <code>VERSION</code>(현재 <code>03.00.02.022</code>)을 기준으로 <code>auto-version.gradle</code>이 증가시키며, 형식은 <code>UX버전.송출버전.revision</code> 계열입니다. Firebase 설정은 <code>app/google-services.json</code>, 서명 키는 <code>app/keystore/</code>, flavor별 벤더 라이브러리는 <code>app/libs/{second,fifth}/</code>에 위치합니다.</p>
+
+    <p>산출물 APK 파일명은 <code>skylife_epg_&lt;versionName&gt;_&lt;flavor&gt;_&lt;buildType&gt;.apk</code> 규칙으로 생성됩니다.</p>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>최근 작업은 대부분 <code>feat/lw-voice-api</code> 브랜치의 LW Voice 음성 어시스턴트 통합에 집중되어 있습니다. wake-word 라이브러리(sky-claw) 의존과 음성 제어 popup·파형 시각화 추가로 시작해, LW Voice Assistant API 통합과 "Hey Sky" 음성 UI 디자인, 콘텐츠 검색/재생·시청예약·타이머·날씨 응답 같은 도메인 핸들러 정식화, TTS/STT 동안의 본방송 음소거(LiveTvMuter), VOD 종료 발화·content_play 화면 캡쳐 같은 안정화 작업으로 이어집니다. 그 이전(2026-01)에는 EPG 본체의 기능 검증 이슈(홈앱 강제 종료, VOD 포인트, 네트워크 에러 팝업 등) 수정 작업이 있었습니다.</p>
+    <ul class="commits">
+      <li><span class="date">2026-05-20</span><span class="msg">assistant/vod: content_play 화면 캡쳐 + 검색 통합 + robust surface capture</span></li>
+      <li><span class="date">2026-05-20</span><span class="msg">assistant: local envelope 처리 인프라 + 키즈 테마 + overlay 공통 토큰</span></li>
+      <li><span class="date">2026-05-20</span><span class="msg">assistant/overlay: 페어링·개인명령·키즈 v2 — Voki 마스코트 + source placeholder</span></li>
+      <li><span class="date">2026-05-07</span><span class="msg">assistant: AndroidTtsEngine voice 명시 set — 발화 간 톤 변동 fix</span></li>
+      <li><span class="date">2026-05-07</span><span class="msg">assistant: 마이크 metadata 진단 로그 (MicInfo) 추가</span></li>
+      <li><span class="date">2026-05-07</span><span class="msg">assistant: AndroidTtsEngine 한국어 locale 을 KOREAN 으로 통일</span></li>
+      <li><span class="date">2026-05-07</span><span class="msg">assistant/timer: LLM action 동의어 + 로컬 cancel 키워드 정합</span></li>
+      <li><span class="date">2026-05-06</span><span class="msg">assistant: VOD 종료 발화 시 player stop + fragment back 처리</span></li>
+      <li><span class="date">2026-05-06</span><span class="msg">assistant: content_play 자동 재생 강화 — 본편 우선 + hook robust + 이어보기 자동</span></li>
+      <li><span class="date">2026-05-06</span><span class="msg">assistant: 발화 화면 transcript STT 그대로 + 라우트 아이콘 위치 개선</span></li>
+      <li><span class="date">2026-05-06</span><span class="msg">assistant: program_schedule 정식 + content_play series 가드 + 라우트 인디케이터</span></li>
+      <li><span class="date">2026-05-05</span><span class="msg">assistant/epg: 음성 홈 발화 외부앱 위 표시 + EpgChannelController updateDebugInfo race fix</span></li>
+      <li><span class="date">2026-05-05</span><span class="msg">skylife: wake debug overlay 통합 — verifier 메타 표시 + WakeDebugConfigActivity 진입점</span></li>
+      <li><span class="date">2026-04-30</span><span class="msg">assistant: weather_type 별 카드 내 애니메이션 + 응답카드 표시 시 발화 overlay 즉시 dismiss</span></li>
+      <li><span class="date">2026-04-30</span><span class="msg">assistant: voice 변경 / weather_type 정합 / VOD 종료 발화 + 즉시 종료 path</span></li>
+      <li><span class="date">2026-04-30</span><span class="msg">assistant: TTS/STT 동안 라이브 TV mute (LiveTvMuter) + util 모듈 add</span></li>
+      <li><span class="date">2026-04-29</span><span class="msg">assistant/search: STT 중복 송신 dedupe + Set 기반 stale guard + 검색 결과 직행</span></li>
+      <li><span class="date">2026-04-29</span><span class="msg">assistant: content_search 정식 라우팅 — TTSearchFragment 자동 입력 + 검색</span></li>
+      <li><span class="date">2026-04-29</span><span class="msg">LW Voice Assistant API 통합 + Hey Sky 음성 UI 디자인</span></li>
+      <li><span class="date">2026-04-24</span><span class="msg">wake-word 통합: wake-lib (sky-claw) 의존 + EpgApplication 기동 + showDebugInfo 상태 표시</span></li>
+    </ul>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li><code>/Users/lim/Altimedia/workspace_biz_3rd/skylife-ux3.0/README.md</code><span class="src">저장소 README — 과제 개요·구조·빌드 1차 근거</span></li>
+      <li><code>app/build.gradle</code>, <code>build.gradle</code>, <code>settings.gradle</code>, <code>gradle.properties</code>, <code>app/version.properties</code><span class="src">빌드 스크립트 — flavor·의존성·버전 검증</span></li>
+      <li><code>app/src/fifth/AndroidManifest.xml</code> (MainActivity HOME/LAUNCHER/KEY_TV_HOME, SettingMainActivity)<span class="src">매니페스트 — 엔트리포인트·인텐트 필터</span></li>
+      <li><code>app/src/main/java/com/alticast/androidtv/epg/assistant/</code> (StbRelayServer, AssistantResponseDispatcher, handler/*)<span class="src">소스 — LW Voice 음성 어시스턴트 구현 검증</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3876880460">Confluence — LWVoice 개요 (3876880460)</a><span class="src">Confluence ORGAPPDEV — 음성 어시스턴트 배경·요구 기능·구현 방안</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3400433952">Confluence — 2023 Android UX3.0 (3400433952)</a><span class="src">Confluence ORGAPPDEV — 저장소 URL·개발 Scope</span></li>
+      <li>사양 문서 — <code>newlwvoice-connect.pdf</code> v1.3, <code>stb_assistant_response_api_spec.pdf</code> v1.3<span class="src">관련 규격 문서 (README 참조)</span></li>
+      <li>저장소 — <code>git@bitbucket.org:altimedia/skylife-ux3.0.git</code> · Jira 프로젝트 <code>C2001721</code> (SkylifeUX3.0)<span class="src">형상 정보 (README 참조)</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>feat/lw-voice-api</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

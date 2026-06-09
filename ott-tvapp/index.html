@@ -1,0 +1,475 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 공용 템플릿 — 20개 과제 문서가 동일한 외형을 갖도록 CSS는 수정 금지(--accent 변수만 교체 가능) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KCTV 제주 OTT Android TV 앱 (ott-tvapp) — 과제 설명</title>
+<style>
+:root{
+  --accent:#00897b;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">KCTV 제주</span>
+      <span class="badge gray">Android TV (Leanback)</span>
+      <span class="badge gray">Java</span>
+    </div>
+    <h1>KCTV 제주 OTT Android TV 앱 (ott-tvapp)</h1>
+    <p class="one-liner">마르시스(MARUSYS) 계열 Android 14 셋톱박스에 탑재되는 KCTV 제주의 OTT·라이브 방송 클라이언트입니다. 런처 겸 미디어 재생 앱으로, WebView 기반 웹 UI와 네이티브 재생·관리 로직을 결합한 하이브리드 구조로 동작합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/ott-tvapp" target="_blank" rel="noopener"><code>ott-tvapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>android14/marusys</code></div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-05-28 · f66203f1 [fixed] ACTION_LOGBUFFER_SIZE 변경</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>com.kctvjeju.tvapp</code> / 3.14.55</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>본 프로젝트는 KCTV 제주(<code>com.kctvjeju.tvapp</code>)의 Android TV 플랫폼용 OTT·라이브 방송 클라이언트 애플리케이션입니다. Android TV의 Leanback 환경에서 동작하는 런처 겸 미디어 재생 앱으로, 셋톱박스(STB) 단말에 프리빌트(prebuilt) 형태로 탑재되는 것을 전제로 설계되어 있습니다. <code>AndroidManifest.xml</code>에서 <code>android.software.leanback</code> 기능을 필수로 요구하고, 메인 액티비티가 <code>HOME</code>·<code>LEANBACK_LAUNCHER</code> 카테고리를 받도록 등록되어 있어 단말의 홈 런처 역할을 겸합니다.</p>
+
+    <p>대상 단말은 마르시스(MARUSYS) 계열 셋톱박스(모델 MAU9001D)이며, 운영체제는 Android 14입니다. 산출물 APK의 파일명 접두어가 <code>tvapp-MARUSYS</code>로 고정되어 있고, 단말 벤더별로 <code>android14/marusys</code>·<code>android14/innopia</code> 등의 브랜치가 분기되어 있습니다. 본 문서는 분석 기준 브랜치인 <code>android14/marusys</code>의 실제 소스와 빌드 설정을 근거로 작성되었습니다.</p>
+
+    <p>화면 UI는 서버에서 내려받은 iframe(웹 UI 패키지)을 WebView로 로딩하는 웹 애플리케이션과, 미니 EPG·CAS 팝업·푸시 티커 등 네이티브 다이얼로그/오버레이(<code>comp</code> 패키지)가 결합된 하이브리드 구조입니다. <code>WebServiceHandler</code>가 WebView와 네이티브 사이의 JavaScript 브릿지를 담당하여, 웹 UI에서 채널 전환·재생·단말 정보 조회 등의 네이티브 기능을 호출합니다. 미디어 재생은 사내 플레이어 라이브러리(SoorynPlayer/KctvPlayer)를 AAR로 직접 임베드하여 사용합니다.</p>
+
+    <div class="callout">
+      <div class="ct">사업 맥락</div>
+      이 앱은 KCTV 제주의 기존 Legacy OTT STB를 Android 11에서 Android 14로 업그레이드하고, 마르시스 단말에 맞춰 재정합한 결과물입니다. Legacy 대비 해상도는 1280x720에서 1920x1080으로, CAS는 Digicap 기반으로, VOD 전송은 RTSP에서 HLS로 전환되었으며, 채널 연동 서비스가 별도 APK에서 WebView 시나리오로 통합되었습니다.
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">홈 런처 겸용</div><div class="d"><code>PlaybackActivity</code>가 <code>singleInstance</code>로 동작하며 <code>HOME</code>·<code>LEANBACK_LAUNCHER</code> 인텐트를 받아 단말의 홈 화면 역할을 수행합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">실시간 채널 시청</div><div class="d">SoorynPlayer(라이브) 기반으로 멀티캐스트 라이브 채널을 재생하며, 채널 맵·프로그램 정보를 ContentProvider로 관리합니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">VOD / CH-VOD 재생</div><div class="d">KctvPlayer(OTT)와 HLS 기반으로 VOD/채널형 VOD를 재생합니다. (Legacy RTSP에서 HLS로 전환)</div></a>
+      <a class="card" href="f04.html"><div class="t">미니 EPG</div><div class="d"><code>MiniEpgBar</code>·<code>MiniEpgDialog</code>로 현재 채널과 주변 편성 정보를 오버레이로 제공합니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">WebView 하이브리드 UI</div><div class="d">서버에서 내려받은 iframe 웹 UI를 WebView로 로딩하고, <code>WebServiceHandler</code> JS 브릿지로 네이티브 기능을 연결합니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">CAS(수신제한)</div><div class="d"><code>ctrl/CAS</code>가 Digicap 계열 수신제한 시스템을 처리하고, <code>PKDialog</code> 등으로 사용자 인증·시청 제한을 안내합니다.</div></a>
+      <a class="card" href="f07.html"><div class="t">OOB / Inband SI 수신</div><div class="d"><code>OOBService</code>가 멀티캐스트 OOB 터널로 version.json·채널·앱 정보 등 서비스 정보(SI)를 수신하고, <code>Inband</code>로 인밴드 데이터를 처리합니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">클라우드 연동</div><div class="d">Alticast 클라우드 SDK(<code>cloud-sdk</code>)와 <code>mod/cloud</code> 어댑터/프록시(Apex 구현)로 북마크·파일 등 클라우드 서비스를 연동합니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">통합·음성 검색</div><div class="d"><code>LocalSearchProvider</code> ContentProvider와 <code>TvProviderSearch</code>로 통합 검색 및 음성 검색을 지원합니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">NMS 단말 관리</div><div class="d"><code>Agent</code>/<code>AgentController</code>와 <code>nms</code>·<code>qi</code> 패키지로 단말·서비스 상태를 조회하고 NMS 서버로 리포트합니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">푸시 티커</div><div class="d"><code>Push</code>와 <code>PushTickerView</code>/<code>TickerView</code>로 푸시 서버에서 전달된 공지·자막 티커를 화면에 표시합니다.</div></a>
+      <a class="card" href="f12.html"><div class="t">자동 재부팅 스케줄</div><div class="d"><code>reboot</code> 패키지의 <code>RebootScheduler</code>/<code>RebootCheckWorker</code>/<code>RebootWorker</code>가 WorkManager로 단말 자동 재부팅을 스케줄링합니다.</div></a>
+      <a class="card" href="f13.html"><div class="t">3rd Party 앱 모드 제어</div><div class="d"><code>app_packages.properties</code>로 normal/hotel/ott 모드별 허용 앱(YouTube, Netflix, TVING, wavve, Disney+ 등)을 정의합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">RCU·블루투스 연동</div><div class="d"><code>IETP</code>(JNI 기반 RCU 프로토콜)와 <code>Bluetooth</code>로 리모컨 페어링·블루투스 단말 연동을 처리합니다.</div></a>
+      <a class="card" href="f15.html"><div class="t">다국어 · 호텔 모드</div><div class="d">en/ja/zh 다국어 리소스와 호텔 welcome 화면, 키즈 모드 등 운영 시나리오를 지원합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>단일 <code>:app</code> 모듈로 구성된 Android 애플리케이션이며, 소스는 108개의 Java 파일(Kotlin 소스 없음)로 이루어져 있습니다. 진입점인 <code>OttApplication</code>이 라이프사이클 리스너를 등록하고, 모든 화면·재생·오버레이를 단일 액티비티 <code>PlaybackActivity</code>(약 5,500 라인)가 총괄합니다. 화면 표현은 WebView 웹 UI가, 미디어 재생·SI 수신·단말 관리는 네이티브 컨트롤러 계층(<code>ctrl</code>/<code>ott</code>)이 담당하는 하이브리드 계층 구조입니다.</p>
+
+    <pre class="tree">ott-tvapp/
+├── build.gradle              # 루트 빌드 스크립트 (AGP 8.8.0, 사내 Maven)
+├── settings.gradle           # rootProject.name = "ott", include ':app'
+├── gradle.properties         # AndroidX/Jetifier, parallel/daemon 설정
+├── gradlew / gradlew.bat     # Gradle Wrapper (8.10.2)
+└── app/
+    ├── build.gradle          # 앱 모듈 빌드 (flavor/buildType/의존성 정의)
+    ├── version.properties    # MAJOR=3 / MINOR=14 / POINT=55
+    ├── signkey/              # 플랫폼 서명 키 (default_platform.jks)
+    ├── libs/                 # 임베드 AAR/JAR (ott 플레이어, mgmt, nativewrapper, ietp)
+    └── src/main/
+        ├── AndroidManifest.xml
+        ├── assets/app_packages.properties   # normal/hotel/ott 모드별 허용 패키지
+        ├── jniLibs/          # armeabi(-v7a) 네이티브 라이브러리(.so)
+        ├── res/              # layout(다이얼로그/iframe/EPG), values(en/ja/zh)
+        └── java/com/kctvjeju/tvapp/
+            ├── PlaybackActivity.java     # 메인 액티비티 (런처/홈, 재생, WebView 호스트)
+            ├── ProgramViewActivity.java  # TV 프로그램 URI VIEW 인텐트 처리
+            ├── LauncherActivity.java
+            ├── Log.java                  # 빌드설정 연동 로깅 래퍼
+            ├── comp/    # 네이티브 UI 컴포넌트 (미니EPG, 다이얼로그, 티커 등 17개)
+            ├── ctrl/    # 핵심 제어 로직 (Player, CAS, Channels, SDP, OOB 등 24개)
+            ├── data/    # ChannelMap, Misc 등 데이터 모델
+            ├── osd/     # OSD 채널 표시
+            ├── reboot/  # 자동 재부팅 스케줄러/워커
+            ├── search/  # 로컬/TV Provider 검색 (ContentProvider)
+            ├── mod/cloud/  # 클라우드 어댑터/프록시 (apex 구현 포함)
+            └── ott/     # 애플리케이션 진입점 및 OTT/단말 연동
+                ├── OttApplication.java       # Application 진입점
+                ├── OOBService.java           # OOB(Out-Of-Band) 서비스
+                ├── WebServiceHandler.java    # WebView <-> 네이티브 JS 브릿지
+                ├── EPGChannel/Program*.java  # EPG 채널/프로그램 관리
+                ├── api/      # inband, pks, MCast 등 서비스 API
+                ├── network/  # NetworkStateManager 및 핸들러
+                ├── nms/       # NMS 데이터 전송/이벤트
+                ├── router/    # 메시지 라우팅 (RouterManager, Message 큐 등)
+                └── qi/        # QI(품질 정보) 핸들러</pre>
+
+    <h3>주요 모듈 · 클래스</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>모듈/클래스</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td>진입점</td><td><code>ott/OttApplication</code></td><td>Application 클래스. <code>ApplicationLifecycleListener</code>를 등록하는 진입점입니다.</td></tr>
+          <tr><td>메인 화면</td><td><code>PlaybackActivity</code></td><td>런처/홈 겸 메인 액티비티. 재생 화면, WebView 컨테이너, 네이티브 오버레이(미니 EPG, CAS, 티커, 재부팅 등)를 총괄하며 media3 <code>SubtitleView</code>로 자막을 표시합니다.</td></tr>
+          <tr><td>화면</td><td><code>ProgramViewActivity</code></td><td><code>content://android.media.tv/program</code> URI VIEW 인텐트를 받아 특정 프로그램으로 진입합니다.</td></tr>
+          <tr><td>재생</td><td><code>ctrl/Player</code></td><td>미디어 재생 컨트롤러. <code>SoorynPlayer</code>(라이브)와 <code>KctvPlayer</code>(OTT) API를 래핑하고 ExoPlayer 기반 트랙/자막을 다룹니다.</td></tr>
+          <tr><td>수신제한</td><td><code>ctrl/CAS</code></td><td>Digicap 계열 수신제한 시스템(CAS) 처리.</td></tr>
+          <tr><td>채널/편성</td><td><code>ctrl/Channels</code>·<code>Programs</code>·<code>data/ChannelMap</code></td><td>채널·프로그램 정보 모델 및 <code>com.alticast.kctv.provider</code> ContentProvider.</td></tr>
+          <tr><td>서비스 정보</td><td><code>ctrl/OOB</code>·<code>Inband</code>, <code>ott/OOBService</code></td><td>OOB/Inband 서비스 정보(SI) 수신. <code>OOBService</code>는 <code>MulticastOOBTunnel</code>로 멀티캐스트 OOB를 수신합니다.</td></tr>
+          <tr><td>JS 브릿지</td><td><code>ott/WebServiceHandler</code></td><td>WebView와 네이티브 사이의 JavaScript 인터페이스. <code>getStbModel</code>·<code>getMacAddress</code>·<code>getCustomerId</code> 등 단말/가입자 정보와 재생·SDP 기능을 웹에 노출합니다.</td></tr>
+          <tr><td>단말 관리</td><td><code>ott/Agent</code>·<code>AgentController</code>·<code>nms</code>·<code>qi</code>, <code>ott/mgmt/MgmtManager</code></td><td>NMS 에이전트 및 품질 정보(QI) 전송, mgmt 라이브러리 연동.</td></tr>
+          <tr><td>메시지 라우팅</td><td><code>ott/router/RouterManager</code> 외</td><td><code>Message</code>/<code>MessageQueue</code> 기반 내부 메시지 라우팅.</td></tr>
+          <tr><td>리소스 다운로드</td><td><code>ott/DownloadWorker</code></td><td>iframe(웹 UI) 등 리소스 다운로드 WorkManager 워커.</td></tr>
+          <tr><td>클라우드</td><td><code>mod/cloud/*</code> (Apex 구현)</td><td><code>CloudAdaptor</code>·<code>CloudProxy</code>·<code>CloudCommandWorker</code> 등 클라우드 서비스 어댑터/프록시.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>계층 · 외부 연동 관계</h3>
+    <p>웹 UI(WebView)는 <code>WebServiceHandler</code>의 JavaScript 인터페이스를 통해서만 네이티브 기능을 호출하고, 실제 재생은 <code>ctrl/Player</code>가 <code>app/libs/ott/</code>에 동봉된 SoorynPlayer/KctvPlayer AAR을 호출하여 수행합니다. 서비스 정보(SI)는 <code>OOBService</code>(멀티캐스트 OOB)와 <code>Inband</code>(인밴드)로 수신하고, SDP/UIM/PUSH/HLS/NMS 등 서버 주소는 <code>BuildConfig</code> 필드로 주입됩니다. 단말 측 외부 연동으로는 KCTV 업데이터 앱(<code>com.kctv.updater</code>, AIDL), 관리 앱(<code>com.kctvjeju.mgmt</code>), Alticast 클라우드 SDK, IETP/RCU JNI(<code>libtvcoietp.so</code> 등), SI 네이티브 래퍼(<code>nativewrapper-release.aar</code>)가 있습니다.</p>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>기술</th><th>버전</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>언어</td><td>Java</td><td>17 (소스/타깃 호환성)</td><td>소스 100%가 <code>.java</code>, Kotlin 소스 없음</td></tr>
+          <tr><td>빌드</td><td>Android Gradle Plugin</td><td>8.8.0</td><td>Gradle Wrapper 8.10.2, 단일 <code>:app</code> 모듈</td></tr>
+          <tr><td>SDK</td><td>compile / min / target</td><td>35 / 33 / 34</td><td><code>multiDexEnabled true</code>, namespace <code>com.kctvjeju.tvapp</code></td></tr>
+          <tr><td>플랫폼</td><td>Android TV (Leanback)</td><td>Android 14</td><td>마르시스 MAU9001D 단말</td></tr>
+          <tr><td>TV UI</td><td>androidx.leanback / leanback-preference</td><td>1.2.0-alpha01</td><td>TV용 Leanback UI</td></tr>
+          <tr><td>웹 UI</td><td>androidx.webkit</td><td>1.2.0</td><td>WebView 기반 iframe UI</td></tr>
+          <tr><td>AndroidX</td><td>core-ktx / appcompat / lifecycle-process</td><td>1.9.0 / 1.3.1 / 2.3.1</td><td>기반 라이브러리</td></tr>
+          <tr><td>백그라운드</td><td>androidx.work:work-runtime</td><td>2.10.5</td><td>재부팅/다운로드 워커</td></tr>
+          <tr><td>미디어 플레이어</td><td>SoorynPlayer / KctvPlayer (AAR 임베드)</td><td>3.03.15 / 2.01.14</td><td>라이브/OTT 재생, <code>app/libs/ott/</code></td></tr>
+          <tr><td>플레이어 엔진</td><td>커스텀 ExoPlayer 빌드 (lib-* 9종 AAR)</td><td>2.16.1.30</td><td>media3 클래스는 AAR 전이 의존</td></tr>
+          <tr><td>네트워크</td><td>Retrofit / converter-gson / scalars</td><td>2.9.0 / 2.6.4 / 2.9.0</td><td>REST 통신</td></tr>
+          <tr><td>직렬화</td><td>XmlToJson</td><td>1.5.1</td><td>XML → JSON 파싱</td></tr>
+          <tr><td>클라우드 SDK</td><td>com.alticast.cloud:cloud-sdk</td><td>1.10</td><td>Alticast 클라우드</td></tr>
+          <tr><td>업데이터</td><td>com.kctv.updater.aidl:tvappUpdater</td><td>1.4</td><td>KCTV 업데이터 AIDL 연동</td></tr>
+          <tr><td>사내/벤더 라이브러리</td><td>nativewrapper, mgmt-*, ietp_java + JNI(.so)</td><td>-</td><td>SI 래퍼, NMS 관리, RCU IETP</td></tr>
+          <tr><td>저장소</td><td>사내 Maven (mvn.altimedia.com) + JitPack</td><td>-</td><td>HTTP 비보안 프로토콜 허용</td></tr>
+          <tr><td>서명</td><td>default_platform.jks (platform 키)</td><td>v1/v2/v3</td><td>debug/release/staging 동일 키</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+
+    <h3>부팅 · 기동 시퀀스</h3>
+    <ol class="steps">
+      <li><span class="st">단말 부팅 → 런처 기동</span><span class="sd">단말 부팅 후 <code>HOME</code>/<code>LEANBACK_LAUNCHER</code> 인텐트로 <code>PlaybackActivity</code>가 홈 런처로 기동되고, <code>OttApplication</code>이 라이프사이클 리스너를 등록합니다.</span></li>
+      <li><span class="st">권한 · 네트워크 확인</span><span class="sd">위치·블루투스·미디어 등 런타임 권한을 체크하고, 네트워크 미연결 시 <code>BootingNetworkErrorDialog</code>로 안내합니다.</span></li>
+      <li><span class="st">서비스 정보(SI) 수신</span><span class="sd"><code>OOBService</code>가 멀티캐스트 OOB 터널로 version.json·channelInfo·appInfo·barking·avticker 등을 수신해 채널 맵과 단말 설정을 구성합니다.</span></li>
+      <li><span class="st">iframe(웹 UI) 다운로드 · 로딩</span><span class="sd"><code>DownloadWorker</code>가 <code>INBAND_BASE</code>의 <code>iframe.zip</code>을 내려받고, WebView 컨테이너가 다운로드된 웹 UI를 로딩합니다.</span></li>
+      <li><span class="st">기본 채널 재생</span><span class="sd">채널 맵 기반으로 기본/마지막 채널을 결정하고 <code>ctrl/Player</code>가 라이브 재생을 시작합니다.</span></li>
+    </ol>
+
+    <h3>채널 전환 · 재생 흐름</h3>
+    <ol class="steps">
+      <li><span class="st">사용자 입력</span><span class="sd">리모컨 숫자/방향키 또는 WebView UI에서 채널을 선택하면, 웹 UI는 <code>WebServiceHandler</code> JS 브릿지로 네이티브에 전환 요청을 전달합니다.</span></li>
+      <li><span class="st">CAS 검증</span><span class="sd"><code>ctrl/CAS</code>가 해당 채널의 수신제한 여부를 확인하고, 필요 시 <code>PKDialog</code> 등으로 인증·시청 제한을 처리합니다.</span></li>
+      <li><span class="st">플레이어 전환</span><span class="sd"><code>ctrl/Player</code>가 채널 유형에 따라 SoorynPlayer(라이브) 또는 KctvPlayer(OTT/HLS)를 선택하여 스트림을 준비·재생합니다.</span></li>
+      <li><span class="st">OSD · 미니 EPG 표시</span><span class="sd"><code>osd</code> 채널 표시와 <code>MiniEpgBar</code>가 현재 채널·편성 정보를 오버레이로 노출하고, 자막은 media3 <code>SubtitleView</code>로 그립니다.</span></li>
+      <li><span class="st">시청 이력 · QI 전송</span><span class="sd">시청 이력과 품질 정보(QI)를 <code>nms</code>/<code>qi</code> 핸들러가 NMS 서버로 전송합니다.</span></li>
+    </ol>
+
+    <h3>단말 관리 · 자동 재부팅 흐름</h3>
+    <ol class="steps">
+      <li><span class="st">관리 세션 연결</span><span class="sd"><code>Agent</code>/<code>AgentController</code>와 <code>MgmtManager</code>가 NMS/관리 서버와 세션을 맺고 단말 상태를 리포트합니다.</span></li>
+      <li><span class="st">재부팅 스케줄 등록</span><span class="sd"><code>RebootScheduler</code>가 WorkManager로 <code>RebootCheckWorker</code>를 예약하고, 조건 충족 시 <code>RebootWorker</code>를 실행합니다.</span></li>
+      <li><span class="st">사용자 안내 후 재부팅</span><span class="sd">시청 중이 아닐 때 <code>RebootDialog</code>로 안내한 뒤 단말을 재부팅하며, 관리 서버 연결이 끊기면 reboot 콜백으로 복구를 시도합니다.</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>빌드는 Gradle Wrapper로 수행하며, 사내 Maven 저장소(<code>mvn.altimedia.com</code>) 접근이 가능한 환경이 필요합니다. 플레이어·관리 라이브러리는 <code>app/libs/</code>에 동봉된 AAR을 직접 참조하므로 별도 외부 게시 저장소 없이 빌드됩니다.</p>
+
+    <h3>빌드 변형(Variants)</h3>
+    <ul>
+      <li><strong>Product Flavor (<code>serviceTarget</code> 차원)</strong> — <code>livePublish</code>(운영/상용 서버, <code>LIVE_SVR=true</code>, 실 서버 IP), <code>develop</code>(개발/테스트 서버, <code>LIVE_SVR=false</code>, 버전명 <code>-D</code> 접미어, <code>192.168.152.x</code> 대역).</li>
+      <li><strong>Build Type</strong> — <code>release</code>(비디버그, platform 키 서명, release 플레이어 AAR), <code>debug</code>(디버그 가능, debug 플레이어 AAR), <code>staging</code>(debug 기반 + <code>DEVELOP=true</code>).</li>
+    </ul>
+
+    <h3>주요 명령</h3>
+    <pre><code># 클린
+./gradlew clean
+
+# 개발 서버 + 디버그 빌드
+./gradlew assembleDevelopDebug
+
+# 상용 서버 + 릴리스 빌드
+./gradlew assembleLivePublishRelease
+
+# 전체 디버그/릴리스 빌드
+./gradlew assembleDebug
+./gradlew assembleRelease</code></pre>
+
+    <h3>환경 설정 · 산출물</h3>
+    <ul>
+      <li>서버 주소(SDP/UIM/PUSH/RESOLVER/HLS/NMS/INBAND 등)는 <code>app/build.gradle</code>의 <code>buildConfigField</code>로 정의되어 <code>BuildConfig</code>에 주입됩니다.</li>
+      <li>버전은 <code>app/version.properties</code>의 <code>MAJOR.MINOR.POINT</code>(현재 3.14.55)로 산정됩니다.</li>
+      <li>3rd Party 앱 허용 목록은 <code>app/src/main/assets/app_packages.properties</code>에 normal/hotel/ott 모드별로 정의됩니다.</li>
+      <li>산출물 APK 기본 파일명은 <code>tvapp-MARUSYS-b0&lt;BUILD_NUMBER&gt;-&lt;version&gt;</code> 형태입니다(<code>BUILD_NUMBER</code> 미설정 시 기본 45, versionCode 기본 1001).</li>
+    </ul>
+    <div class="callout warn">
+      <div class="ct">참고</div>
+      서명은 debug/release/staging 모두 <code>app/signkey/default_platform.jks</code> 플랫폼 키(v1/v2/v3)를 사용합니다. 단말에는 시스템(prebuilt) 앱으로 탑재되며, 운영 단말 업그레이드는 KCTV Management 앱을 통해 진행됩니다.
+    </div>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>최근 작업은 Android 14 / 마르시스 단말 정합 이후의 안정화 단계로, 플레이어 로그·디버그 설정 개선, livePlayer 재생성 등 재생 안정성 보강, Google 계정 추가/삭제 시나리오와 언어 변경 시 Android 시스템 언어 동기화, 호텔 welcome 화면·블루투스 종료 처리, NMS 연결 끊김 시 reboot 콜백 등 운영 시나리오 보완이 주를 이룹니다. 버전은 3.14.48부터 3.14.55까지 순차적으로 올라갔습니다.</p>
+    <ul class="commits">
+      <li><span class="date">2026-05-28</span><span class="msg">[fixed] ACTION_LOGBUFFER_SIZE 변경.</span></li>
+      <li><span class="date">2026-05-28</span><span class="msg">[fixed] Player 로그 on 추가.</span></li>
+      <li><span class="date">2026-05-28</span><span class="msg">[fixed] google dlg 추가.</span></li>
+      <li><span class="date">2026-05-28</span><span class="msg">[fixed] 3.14.55</span></li>
+      <li><span class="date">2026-05-28</span><span class="msg">[fixed] livePlayer 생성 못 했을 때 다시 생성하도록 수정.</span></li>
+      <li><span class="date">2026-05-27</span><span class="msg">[fixed]3.14.54</span></li>
+      <li><span class="date">2026-05-27</span><span class="msg">[fixed] Log 출력 설정시 log 나오록 설정. 호텔 welcome 화면 시 iframe 받도록 수정.</span></li>
+      <li><span class="date">2026-05-27</span><span class="msg">[fixed] Log 출력 설정시 log 나오록 설정.</span></li>
+      <li><span class="date">2026-05-27</span><span class="msg">[fixed] Player Debug 모드에서도 Log을 활성화 할수 있게 함.</span></li>
+      <li><span class="date">2026-05-13</span><span class="msg">[fixed] code 정리</span></li>
+      <li><span class="date">2026-05-13</span><span class="msg">[fixed] google 계정 추가/삭제 시나리오 추가.</span></li>
+      <li><span class="date">2026-05-12</span><span class="msg">[fixed] 3.14.52</span></li>
+      <li><span class="date">2026-05-12</span><span class="msg">[fixed] google 계정 추가/삭제 시나리오 추가.</span></li>
+      <li><span class="date">2026-05-12</span><span class="msg">[fixed] bluetooth 종료 시 close 추가.</span></li>
+      <li><span class="date">2026-05-06</span><span class="msg">[fixed] 홈키 sendmsg 시 홈메뉴 나왔을 때 전송</span></li>
+      <li><span class="date">2026-05-06</span><span class="msg">[fixed] 홈키 onkeyup으로 이동</span></li>
+      <li><span class="date">2026-04-27</span><span class="msg">[fixed] 키즈모드 수정.</span></li>
+      <li><span class="date">2026-04-17</span><span class="msg">[fixed] 언어 변경시 android 설정까지 언어 변경되도록 수정.</span></li>
+      <li><span class="date">2026-04-14</span><span class="msg">[fixed] 3.14.49 / mgmt 연결 끊어졌을 때 reboot callback 추가.</span></li>
+      <li><span class="date">2026-04-10</span><span class="msg">[fixed] 3.14.48 / Codec_MEM 문구 수정 및 commonData 로 변경.</span></li>
+    </ul>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li><code>README.md</code> — ott-tvapp (KCTV OTT Android TV App) 과제 개요·구조·빌드 가이드<span class="src">저장소 README</span></li>
+      <li><code>app/build.gradle</code>, <code>app/version.properties</code>, <code>app/src/main/AndroidManifest.xml</code> — 빌드 설정·버전·매니페스트<span class="src">소스 (1차 근거)</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3726868749">마르시스 (Confluence)</a> — 마르시스 MAU9001D / Android 14 단말 정보, 일정, Git 위치(android14/marusys)<span class="src">Confluence · ORGAPPDEV</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3882057768">Android 14 (Confluence)</a> — Android 11→14 업그레이드 변경 사항(SDK/Gradle/Manifest/권한/언어 변경)<span class="src">Confluence · ORGAPPDEV</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/2878021810">2021_KCTV_ANDR_OTT_STB (Confluence)</a> — Legacy 대비 OTT STB 개발 사항, OOB version.json 데이터 규격<span class="src">Confluence · ORGAPPDEV</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/2878023413">app design (Confluence)</a> — 3rd Party WebView 연동, EPG API 설계, SDP 통합 API/OOB 데이터 요구사항<span class="src">Confluence · ORGAPPDEV</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp">altimedia / ott-tvapp (Bitbucket)</a> — 원격 저장소 (분석 기준 브랜치 android14/marusys)<span class="src">형상 저장소</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>android14/marusys</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!doctype html>
+<!-- kt_magic_platform_ai_shortform · 단일/멀티 편집기 분기 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>단일/멀티 편집기 분기 — kt_magic_platform_ai_shortform 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">KT Magic AI 지니숏츠 (AI 숏폼 플랫폼)</a><span class="sep">›</span>
+      <span class="here">단일/멀티 편집기 분기</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">데스크톱 웹 (Vue 3 SPA) · JavaScript</span>
+    </div>
+    <h1>단일/멀티 편집기 분기</h1>
+    <p class="one-liner">진입 래퍼 <code>ShortformHighlightEdit.vue</code>가 <code>jobId</code> 유무로 멀티/팝업 편집기와 단일(Legacy) 편집기를 지연 로딩하고, 팝업 모드에서는 좌측 메뉴를 숨기고 전체 화면을 점유합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform" target="_blank" rel="noopener"><code>kt_magic_platform_ai_shortform</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>edit/ShortformHighlightEdit.vue</code></div></div>
+      <div class="item"><div class="k">분기 기준</div><div class="v"><code>route.query.jobId</code></div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>편집기 진입점은 <code>ShortformHighlightEdit.vue</code> 래퍼입니다. <code>useRoute()</code>로 <code>route.query.jobId</code>를 읽어 <code>hasJobId</code>를 계산하고, <code>defineAsyncComponent</code>로 두 편집기를 지연 로딩합니다. <code>jobId</code>가 있으면 멀티/팝업 편집기 <code>ShortformHighlightEditMulti.vue</code>를, 없으면 단일(Legacy) 편집기 <code>ShortformHighlightEditLegacy.vue</code>를 로드합니다.</p>
+    <p>결과 화면(<code>ShortformHighlightResult.vue</code>)의 편집 진입은 <code>window.open(`/user/user/studio/shortform-highlight/edit?jobId=...&amp;resultId=...`)</code>로 새 창에서 열리므로, 이 경로의 <code>jobId</code> 쿼리가 멀티/팝업 편집기 분기를 트리거합니다. 즉 결과 영상의 편집은 팝업 창(멀티 편집기)에서, 직접 진입(legacy 경로)은 단일 편집기에서 동작하도록 설계되어 있습니다.</p>
+    <p>팝업 모드에서는 <code>&lt;html&gt;</code>·<code>&lt;body&gt;</code>에 <code>popup-mode</code>(및 <code>no-scroll</code>) 클래스를 부여해 전체 화면(100vw/100vh)으로 만들고 스크롤을 막으며, <code>body.popup-mode .comp-leftmenu</code>를 <code>display:none</code>으로 숨기고 컨테이너 여백을 제거합니다. 컴포넌트는 <code>&lt;Suspense&gt;</code>로 감싸 비동기 로딩을 처리합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      두 편집기를 동적 import로 분리해 초기 번들을 가볍게 유지하고, 멀티 편집기에는 <code>webpackPrefetch: true</code> 힌트를 주어 선로딩을 유도합니다. 분기 키는 단순히 <code>jobId</code> 쿼리 유무 하나로 결정되어 라우팅이 단순합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant R as Vue Router
+    participant W as ShortformHighlightEdit.vue (래퍼)
+    participant M as ShortformHighlightEditMulti.vue
+    participant L as ShortformHighlightEditLegacy.vue
+    participant DOM as document(html/body)
+
+    R-&gt;&gt;W: /edit?jobId=...&amp;resultId=... 진입
+    W-&gt;&gt;W: hasJobId = !!route.query.jobId
+    alt jobId 있음 (결과에서 팝업 진입)
+        W-&gt;&gt;DOM: add class popup-mode / no-scroll
+        W-&gt;&gt;M: defineAsyncComponent import (Multi)
+    else jobId 없음
+        W-&gt;&gt;L: defineAsyncComponent import (Legacy)
+    end
+    Note over W: &lt;Suspense&gt;로 비동기 컴포넌트 렌더
+      </div>
+      <p class="cap"><strong>흐름.</strong> 래퍼가 <code>jobId</code> 유무로 멀티/단일 편집기를 동적 로딩하고, 팝업 진입이면 전체 화면 + 좌측 메뉴 숨김 모드를 켭니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ShortformHighlightEdit {
+        +hasJobId
+        +LazyComponent
+        +popup-mode 토글
+    }
+    class ShortformHighlightEditMulti {
+        +다중 결과 편집
+        +handleSave()
+        +saveMultipleVideos()
+    }
+    class ShortformHighlightEditLegacy {
+        +단일 결과 편집
+        +getEditParams()
+        +wavesurfer BGM
+    }
+    class ShortformHighlightResult {
+        +goToEditPage(result)
+    }
+
+    ShortformHighlightEdit ..&gt; ShortformHighlightEditMulti : jobId 있음 지연 로딩
+    ShortformHighlightEdit ..&gt; ShortformHighlightEditLegacy : jobId 없음 지연 로딩
+    ShortformHighlightResult ..&gt; ShortformHighlightEdit : window.open(jobId, resultId)
+      </div>
+      <p class="cap"><strong>관계.</strong> 래퍼가 두 편집기 중 하나를 지연 로딩하며, 결과 화면이 <code>jobId</code>를 붙여 팝업으로 열어 멀티 편집기 진입을 유발합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>user/src/views/common/api/edit/ShortformHighlightEdit.vue</code> — jobId 기반 지연 로딩과 팝업 모드</div>
+<pre><code>const route = useRoute()
+const hasJobId = computed(() =&gt; !!route.query.jobId)
+
+const LazyComponent = computed(() =&gt;
+  defineAsyncComponent({
+    loader: () =&gt; hasJobId.value
+      ? import(/* webpackPrefetch: true */ './ShortformHighlightEditMulti.vue')
+      : import('./ShortformHighlightEditLegacy.vue'),
+    loadingComponent: () =&gt; null
+  })
+)
+
+if (hasJobId) {
+  document.documentElement.classList.add('popup-mode')
+  document.body.classList.add('popup-mode', 'no-scroll')
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>user/src/views/common/api/result/ShortformHighlightResult.vue</code> — 결과에서 팝업 편집 진입</div>
+<pre><code>async function goToEditPage(result) {
+  window.open(
+    `/user/user/studio/shortform-highlight/edit?jobId=${jobId}&amp;resultId=${result.resultId}`,
+    `edit_${jobId}`
+  );
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/ShortformHighlightEdit.vue" target="_blank" rel="noopener">edit/ShortformHighlightEdit.vue</a><span class="src">진입 래퍼 · jobId 분기 · 팝업 모드 클래스</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/ShortformHighlightEditMulti.vue" target="_blank" rel="noopener">edit/ShortformHighlightEditMulti.vue</a><span class="src">멀티/팝업 편집기(다중 결과 저장)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/edit/ShortformHighlightEditLegacy.vue" target="_blank" rel="noopener">edit/ShortformHighlightEditLegacy.vue</a><span class="src">단일(Legacy) 편집기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_magic_platform_ai_shortform/src/main/user/src/views/common/api/result/ShortformHighlightResult.vue" target="_blank" rel="noopener">result/ShortformHighlightResult.vue</a><span class="src">goToEditPage · window.open(jobId, resultId)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f09.html">← 실행 취소·자동 저장·세션 복구</a>
+      <a href="f11.html">결과 확인·다운로드 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">kt_magic_platform_ai_shortform 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

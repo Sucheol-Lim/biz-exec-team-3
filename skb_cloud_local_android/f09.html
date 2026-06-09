@@ -1,0 +1,186 @@
+<!doctype html>
+<!-- skb_cloud_local_android · 클라우드 홈/CAPPL 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>클라우드 홈 / CAPPL — skb_cloud_local_android 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TBroad(SKB) Local EPG (Android)</a><span class="sep">›</span>
+      <span class="here">클라우드 홈 / CAPPL</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">SKB (TBroad)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV (Leanback) · Java</span>
+    </div>
+    <h1>클라우드 홈 / CAPPL</h1>
+    <p class="one-liner"><code>CloudHomeMain</code>이 <code>CloudConnector</code>(Windmill <code>Connector</code>)로 클라우드 홈 세션을 연결하고 PIP를 <code>HomePIPManager</code>로 다루며, <code>module/cappl</code>(<code>WindmillServiceFactory</code>)과 <code>clad</code>/<code>cladimpl</code> 인터페이스가 클라우드 앱 플랫폼 연동을 추상화합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/skb_cloud_local_android" target="_blank" rel="noopener"><code>skb_cloud_local_android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>UC500_log_2025</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>CloudHomeMain</code> · <code>CloudConnector</code> · <code>HomePIPManager</code> · <code>WindmillServiceFactory</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">클라우드 홈·앱 플랫폼(Windmill) 연동</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>본 앱은 로컬 모드와 클라우드 모드를 빌드 타입으로 전환합니다. 클라우드 모드의 핵심은 코드량 최대 모듈인 <code>module/cappl</code>(클라우드 앱 플랫폼, Windmill)과 클라우드 홈 모듈 <code>module/ccs</code>입니다. 부팅 시 <code>BootingFragment</code>가 <code>WindmillServiceFactory.getSingletonWindmillService()</code>로 Windmill 서비스를 초기화하고 <code>TbroadAuthorization</code>로 SDP 인증을 수행합니다.</p>
+    <p>클라우드 홈 진입점은 <code>CloudHomeMain</code>(싱글턴)입니다. <code>ConnectCallbackListener</code>·<code>ShowHomeCallbackListener</code>·<code>PowerModeChangeListener</code>를 구현하며, 내부 <code>CloudConnector</code>를 통해 클라우드 서버에 세션을 연결합니다(<code>connect()</code> → <code>clConnector.requestConnect()</code>). <code>CloudConnector</code>는 Windmill <code>Connector</code>의 <code>StateListener</code>·<code>AppEventListener</code>로서 세션/앱 이벤트를 받아 연결 성공·실패·타임아웃·복구(recovery)를 상태 코드로 관리합니다.</p>
+    <p>클라우드 홈은 메인 비디오 위에 PIP(Picture-In-Picture)로 라이브 화면을 띄울 수 있으며, <code>HomePIPManager</code>가 PIP 채널 선택·비디오 영역(<code>getLatestVideoSize()</code>) 관리를 담당합니다. <code>showHomeMenu()</code>·<code>favCh()</code> 등으로 홈/즐겨찾기 진입을 처리하고, 외부에서 <code>module/ccs/TBCladServiceManagerImpl</code> 등 <code>cladimpl</code> 구현이 <code>clad</code> 추상 인터페이스(<code>CladServiceManager</code>·<code>CladTVService</code>·<code>CladMediaPlayerService</code>)를 통해 클라우드 앱과 TV/미디어 기능을 연결합니다.</p>
+    <div class="callout">
+      <div class="ct">CLAD(Cloud App) 계층</div>
+      <code>clad</code>는 클라우드 앱이 사용하는 추상 인터페이스(TV·미디어·SI·config)를, <code>cladimpl</code>은 그 셋톱 구현(<code>TBCladTVServiceImpl</code>·<code>TBCladMediaPlayerServiceImpl</code> 등)을 제공해, 클라우드 앱과 로컬 방송 스택을 느슨하게 결합합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant BF as BootingFragment
+    participant WSF as WindmillServiceFactory
+    participant CHM as CloudHomeMain
+    participant CCN as CloudConnector
+    participant CON as Windmill Connector
+    participant PIP as HomePIPManager
+
+    BF-&gt;&gt;WSF: getSingletonWindmillService()
+    BF-&gt;&gt;CHM: getInstance() / init
+    Note over CHM: 클라우드 홈 진입 요청
+    CHM-&gt;&gt;CHM: connect(connectOption, recoveryType)
+    CHM-&gt;&gt;CCN: requestConnect(option, recovery, CHM)
+    CCN-&gt;&gt;CON: connector.connect()
+    CON--&gt;&gt;CCN: onState (CONNECT_SUCCESS / FAIL / TIMEOUT)
+    CCN--&gt;&gt;CHM: onConnected / connectFail
+    CHM-&gt;&gt;PIP: selectPIPChannel / getLatestVideoSize
+    Note over CHM,PIP: 홈 UI + 라이브 PIP 표시
+      </div>
+      <p class="cap"><strong>흐름.</strong> 부팅 시 Windmill 서비스를 초기화하고, 클라우드 홈 진입 시 <code>CloudConnector</code>가 Windmill <code>Connector</code>로 세션을 맺어 결과를 <code>CloudHomeMain</code>에 통지하며, PIP는 <code>HomePIPManager</code>가 관리합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ConnectCallbackListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class ShowHomeCallbackListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class PowerModeChangeListener {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class CloudHomeMain {
+        -CloudConnector clConnector
+        +getInstance() CloudHomeMain
+        +connect(JSONObject, int)
+        +showHomeMenu() boolean
+        +favCh() boolean
+        +isAvailableCloud() boolean
+    }
+    class CloudConnector {
+        -Connector connector
+        +requestConnect(option, recovery, listener)
+        +disconnect(byUser)
+    }
+    class HomePIPManager {
+        +getInstance() HomePIPManager
+        +selectPIPChannel(x, y, w, h)
+        +getLatestVideoSize() Rect
+    }
+    class WindmillServiceFactory {
+        +getSingletonWindmillService() WindmillService
+    }
+
+    CloudHomeMain ..|&gt; ConnectCallbackListener
+    CloudHomeMain ..|&gt; ShowHomeCallbackListener
+    CloudHomeMain ..|&gt; PowerModeChangeListener
+    CloudHomeMain o-- CloudConnector : 소유
+    CloudHomeMain ..&gt; HomePIPManager : PIP 제어
+    CloudHomeMain ..&gt; WindmillServiceFactory : Windmill 서비스
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>CloudHomeMain</code>이 세 콜백 인터페이스를 구현하며 <code>CloudConnector</code>를 소유하고, PIP와 Windmill 서비스를 사용합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>module/ccs/CloudHomeMain.java</code> — 클래스 선언 및 클라우드 연결 요청</div>
+<pre><code>public class CloudHomeMain implements ConnectCallbackListener,
+        ShowHomeCallbackListener, PowerModeChangeListener {
+    private CloudConnector clConnector;
+
+    private void connect(boolean init, JSONObject connectOption, int recoveryType) {
+        // ...
+        clConnector.requestConnect(connectOption.toString(), recoveryType, CloudHomeMain.this);
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>module/cappl/dm/WindmillServiceFactory.java</code> — Windmill 서비스 싱글턴</div>
+<pre><code>public static WindmillService getSingletonWindmillService() {
+    // 부팅 시 BootingFragment가 호출하여 클라우드 앱 플랫폼 서비스를 준비
+    return ...;
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/ccs/CloudHomeMain.java" target="_blank" rel="noopener">module/ccs/CloudHomeMain.java</a><span class="src">클라우드 홈 진입점 · 연결/홈/즐겨찾기 · PowerModeChangeListener</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/ccs/CloudConnector.java" target="_blank" rel="noopener">module/ccs/CloudConnector.java</a><span class="src">Windmill Connector 세션 연결·상태/앱 이벤트 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/ccs/HomePIPManager.java" target="_blank" rel="noopener">module/ccs/HomePIPManager.java</a><span class="src">클라우드 홈 PIP 채널 선택·비디오 영역 관리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/android/tv/local/module/cappl/dm/WindmillServiceFactory.java" target="_blank" rel="noopener">module/cappl/dm/WindmillServiceFactory.java</a><span class="src">CAPPL Windmill 서비스 싱글턴 팩토리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/skb_cloud_local_android/src/UC500_log_2025/app/src/main/java/com.alticast/clad/CladServiceManager.java" target="_blank" rel="noopener">clad/CladServiceManager.java</a><span class="src">CLAD(Cloud App) 서비스 매니저 추상 인터페이스</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f08.html">← 단말 안정화 / 전원</a>
+      <a href="index.html#features">주요 기능 목록</a>
+      <a href="f10.html">미디어 재생 연동(UMP) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>UC500_log_2025</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">skb_cloud_local_android 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

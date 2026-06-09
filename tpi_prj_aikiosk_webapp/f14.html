@@ -1,0 +1,218 @@
+<!doctype html>
+<!-- tpi_prj_aikiosk_webapp · 디버그 오버레이 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>디버그 오버레이 — AI Kiosk WebApp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">AI Kiosk WebApp</a><span class="sep">›</span>
+      <span class="here">디버그 오버레이</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TPI · AI Kiosk</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">zustand · React Portal</span>
+    </div>
+    <h1>디버그 오버레이</h1>
+    <p class="one-liner"><code>Debugger</code> 컴포넌트가 STT·TTS·LLMAgent 처리 상태를 화면 상단 오버레이로 표시하고, <code>debug-store</code>가 각 단계 상태와 표시 여부를 보관하며, <code>CommonLog</code> 로그 레벨은 빌드 인자로 제어합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp" target="_blank" rel="noopener"><code>tpi_prj_aikiosk_webapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>component/Debug/Debugger</code> · <code>store/debug-store.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">현장 음성 처리 상태 진단</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>키오스크는 마우스·콘솔이 없는 단말에서 단독으로 동작하므로, 음성 파이프라인(STT → LLM → TTS) 어디서 막혔는지 현장에서 눈으로 확인할 수단이 필요합니다. 이를 위해 <code>App.jsx</code>가 라우터와 함께 항상 <code>&lt;Debugger /&gt;</code>를 렌더하고, <code>Debugger</code>는 <code>react-dom</code>의 <code>createPortal</code>로 <code>index.html</code>의 <code>#debug-area</code>에 오버레이를 그립니다. 오버레이는 STT·TTS·LLMAgent 세 단계의 현재 상태를 한 줄씩 보여주는 검은 반투명 막대(<code>opacity: 0.4</code>)이며, 우측에 SETTING 버튼이 있어 Speech 리전·한국어 TTS 서버를 바꾸는 설정 팝업을 엽니다.</p>
+    <p>상태값은 <code>debug-store</code>(zustand)가 보관합니다. <code>StatusType</code>은 <code>Unknown</code>·<code>Pending</code>·<code>Error</code>·<code>OK</code> 네 가지이며, 각 단계의 훅이 처리 진행에 맞춰 상태를 갱신합니다. <code>useSTT</code>는 인식 시작 시 <code>Pending</code>, 결과 수신 시 <code>OK</code>, 오류 시 <code>Error</code>로 <code>setSTTStatus</code>를 호출하고, <code>useTTS</code>·<code>useLLMQuerySequence</code>도 각각 <code>setTTSStatus</code>·<code>setLLMAgentStatus</code>로 동일한 흐름을 반영합니다. 따라서 운영자는 오버레이만 보고 "STT는 OK인데 LLMAgent가 Pending에서 안 넘어간다" 같은 상황을 즉시 진단할 수 있습니다.</p>
+    <p>오버레이 표시 여부 <code>showDebugger</code>는 기본 <code>false</code>이며, 운영 중 실수로 노출되지 않도록 숨겨진 제스처로만 켭니다. 언어 선택 팝업의 스페인어 버튼(<code>ButtonLanugageBig</code>, 비활성 항목)을 10회 이상 연속 탭하면 <code>toggleShowDebugger()</code>가 호출되어 오버레이가 켜집니다. 한편 콘솔 로그 상세도는 별개로, <code>CommonLog.setLevel(import.meta.env.APP_LOG_LEVEL)</code>로 결정되며 이 환경변수는 빌드 인자로 주입됩니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      화면 오버레이(<code>Debugger</code>)와 콘솔 로그(<code>CommonLog</code>)는 별도 채널입니다. 오버레이는 숨겨진 10회 탭 제스처로만 켜지는 런타임 진단용이고, 로그 레벨은 빌드 시 <code>log=true</code>(<code>DEBUG</code>)/<code>log=false</code>(<code>INFO</code>) 인자로 고정됩니다. 릴리스 빌드는 <code>log=false</code>로 INFO 레벨이 적용됩니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant LANG as ButtonLanugageBig (spa)
+    participant DS as debug-store
+    participant DBG as Debugger
+    participant AREA as #debug-area
+    participant HK as useSTT / useTTS / useLLMQuerySequence
+
+    Note over LANG: 스페인어 버튼 10회 이상 탭
+    LANG-&gt;&gt;DS: toggleShowDebugger()
+    DS--&gt;&gt;DBG: showDebugger = true
+    DBG-&gt;&gt;AREA: createPortal(오버레이 렌더)
+    Note over HK: 음성 파이프라인 진행
+    HK-&gt;&gt;DS: setSTTStatus(Pending)
+    HK-&gt;&gt;DS: setLLMAgentStatus(Pending)
+    HK-&gt;&gt;DS: setTTSStatus(Pending)
+    DS--&gt;&gt;DBG: 상태 구독 갱신
+    DBG-&gt;&gt;AREA: STT / TTS / LLMAgent 상태 표시
+    HK-&gt;&gt;DS: setSTTStatus(OK) / setTTSStatus(OK) ...
+      </div>
+      <p class="cap"><strong>흐름.</strong> 숨겨진 10회 탭으로 <code>showDebugger</code>를 켜면 오버레이가 포털로 렌더되고, 각 음성 단계 훅이 스토어 상태를 갱신할 때마다 오버레이의 STT·TTS·LLMAgent 표시가 실시간으로 바뀝니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class Debugger {
+        +createPortal(#debug-area)
+        -showDebugger
+        -sttStatus
+        -ttsStatus
+        -llmAgentStatus
+    }
+    class Status {
+        +type
+        +status
+    }
+    class debugStore {
+        +showDebugger
+        +sttStatus
+        +ttsStatus
+        +llmAgentStatus
+        +toggleShowDebugger()
+        +setSTTStatus(s)
+        +setTTSStatus(s)
+        +setLLMAgentStatus(s)
+    }
+    class StatusType {
+        &lt;&lt;enumeration&gt;&gt;
+        Unknown
+        Pending
+        Error
+        OK
+    }
+    class ButtonLanugageBig {
+        -touchCount
+        +touchEndHandler()
+    }
+    class VoiceHooks {
+        +useSTT()
+        +useTTS()
+        +useLLMQuerySequence()
+    }
+
+    Debugger --&gt; debugStore : 상태 구독
+    Debugger o-- Status : 단계별 표시
+    debugStore ..&gt; StatusType
+    ButtonLanugageBig --&gt; debugStore : toggleShowDebugger
+    VoiceHooks --&gt; debugStore : setXxxStatus
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>Debugger</code>가 <code>debug-store</code>를 구독해 <code>Status</code> 행을 그리고, 음성 훅들이 단계 상태를 갱신합니다. 숨겨진 탭 제스처는 <code>ButtonLanugageBig</code>가 스토어 토글로 처리합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/component/Debug/Debugger/Debugger.jsx</code> — 포털 오버레이와 단계별 상태 행</div>
+<pre><code>const { sttStatus, ttsStatus, llmAgentStatus } = useDebugStore();
+const showDebugger = useDebugStore(showDebuggerSeletor);
+return (
+  showDebugger &amp;&amp;
+  createPortal(
+    &lt;div className={classes.debuggerWrapper}&gt;
+      &lt;Status type={"STT"} status={sttStatus} /&gt;
+      &lt;Status type={"TTS"} status={ttsStatus} /&gt;
+      &lt;Status type={"LLMAgent"} status={llmAgentStatus} /&gt;
+      &lt;div className={classes.settingButton}
+           onTouchEnd={() =&gt; openPopup(PopupStateType.SETTING)}&gt;
+        SETTING
+      &lt;/div&gt;
+    &lt;/div&gt;,
+    document.getElementById("debug-area")
+  )
+);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/store/debug-store.js</code> — 상태 enum과 토글·갱신 액션</div>
+<pre><code>export const StatusType = {
+  Unknown: "Unknown", Pending: "Pending", Error: "Error", OK: "OK",
+};
+const initialState = {
+  showDebugger: false,
+  sttStatus: StatusType.Unknown,
+  ttsStatus: StatusType.Unknown,
+  llmAgentStatus: StatusType.Unknown,
+};
+// actions: toggleShowDebugger / setSTTStatus / setTTSStatus / setLLMAgentStatus</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/component/Common/Button/ButtonLanguageBig/ButtonLanugageBig.jsx</code> — 숨겨진 10회 탭 토글</div>
+<pre><code>if (lang == "spa") {
+  if (touchCount &lt; 10) {
+    setTouchCount((prev) =&gt; prev + 1);
+  } else {
+    toggleShowDebugger();   // 오버레이 표시 토글
+    closePopup();
+  }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/component/Debug/Debugger/Debugger.jsx" target="_blank" rel="noopener">component/Debug/Debugger/Debugger.jsx</a><span class="src">createPortal → #debug-area · STT/TTS/LLMAgent 상태 + SETTING 버튼</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/component/Debug/Status/Status.jsx" target="_blank" rel="noopener">component/Debug/Status/Status.jsx</a><span class="src">단계별 상태 한 줄 표시 (type : status)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/store/debug-store.js" target="_blank" rel="noopener">store/debug-store.js</a><span class="src">StatusType enum · showDebugger 토글 · 단계 상태 setter</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/component/Common/Button/ButtonLanguageBig/ButtonLanugageBig.jsx" target="_blank" rel="noopener">component/Common/Button/ButtonLanguageBig/ButtonLanugageBig.jsx</a><span class="src">스페인어 버튼 10회 탭 → toggleShowDebugger</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/util/CommonLog.js" target="_blank" rel="noopener">util/CommonLog.js</a><span class="src">APP_LOG_LEVEL 기반 콘솔 로그 레벨(ERROR/WARN/INFO/DEBUG)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tpi_prj_aikiosk_webapp/src/main/src/App.jsx" target="_blank" rel="noopener">src/App.jsx</a><span class="src">라우터와 함께 Debugger 상시 렌더</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f13.html">← 세로 대화면 줌 보정</a>
+      <a href="f15.html">릴리스 ZIP 패키징 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">AI Kiosk WebApp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

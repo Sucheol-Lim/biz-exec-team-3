@@ -1,0 +1,192 @@
+<!doctype html>
+<!-- turk-webx-tivibu-sysapp · 예약 / 리마인더 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>예약 · 리마인더 — turk-webx-tivibu-sysapp 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">Türk Telekom Tivibu STB 시스템 앱 (EPG SYSAPP)</a><span class="sep">›</span>
+      <span class="here">예약 · 리마인더</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">Türk Telekom</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">WebX STB · JavaScript (ES6/AMD)</span>
+    </div>
+    <h1>예약 · 리마인더</h1>
+    <p class="one-liner"><code>ReminderController</code>가 시청 예약 목록을 관리하고 방송 시작 시각(보정 aheadtime 적용) 도래 시 <code>setTimeout</code> 타이머로 리마인더 팝업을 띄웁니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp" target="_blank" rel="noopener"><code>turk-webx-tivibu-sysapp</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>controller/ReminderController.js</code> · <code>controller/ReminderPopupController.js</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">시청 예약 · 도래 알림 · aheadtime 보정</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>리마인더는 향후 방송될 프로그램을 예약해 두면 시작 시각에 알림 팝업을 띄워 주는 기능입니다. <code>ReminderController</code>는 내부에 <code>reminderList</code>를 두고, <code>QueryManager.addReminder()</code>로 서버에 예약을 등록한 뒤 목록을 갱신합니다. 핵심은 <code>checkReminder()</code>로, 현재 목록을 순회하며 가장 가까운 미래 예약을 찾아 그 시작 시각까지 남은 지연(delay)을 계산하고 단일 <code>setTimeout</code> 타이머를 겁니다.</p>
+    <p>지연 계산에는 미리 알림 시간(<code>aheadtime</code>, 초 단위)이 반영되어 시작 N초 전에 알릴 수 있습니다. 이미 종료된 예약은 건너뛰고, 시작 전 미래 예약 중 가장 가까운 것 하나에 타이머를 설정합니다. 타이머가 만료되면 <code>showReminder()</code>가 <code>reminder.isRead = true</code>로 표시한 뒤 버튼이 있는 팝업을 띄웁니다. 팝업 자체는 <code>ReminderPopupController</code>(<code>ui/popup/ReminderPopupFrame</code>)가 별도 프레임으로 렌더링합니다. <code>VK_POWER</code> 키는 팝업이 가로채지 않고 전원 처리로 흐르게 둡니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      여러 타이머를 동시에 돌리지 않고, 목록을 정렬·순회해 "다음에 도래할 하나"에만 <code>setTimeout</code>을 거는 단일 타이머 방식을 씁니다. 예약을 추가·삭제하거나 목록이 갱신될 때마다 <code>clearReminderTimer()</code> 후 <code>checkReminder()</code>를 다시 호출해 타이머를 재설정합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as TVDetail / Guide
+    participant RC as ReminderController
+    participant QM as QueryManager
+    participant TMR as setTimeout 타이머
+    participant RPC as ReminderPopupController
+
+    UI-&gt;&gt;RC: addReminder(prevuecode, contenttype, aheadtime)
+    RC-&gt;&gt;QM: addReminder(...)
+    QM--&gt;&gt;RC: 결과 → reminderList 갱신
+    RC-&gt;&gt;RC: checkReminder()
+    Note over RC: 미래 예약 중 최근접 1건 선택 (delay = begin - now - aheadtime)
+    RC-&gt;&gt;TMR: setTimeout(showReminder, delay)
+    TMR--&gt;&gt;RC: 시각 도래
+    RC-&gt;&gt;RC: showReminder(reminder) (isRead = true)
+    RC-&gt;&gt;RPC: 리마인더 팝업 표시
+      </div>
+      <p class="cap"><strong>흐름.</strong> 예약 등록 후 <code>checkReminder()</code>가 다음 도래 예약 1건에 타이머를 걸고, 시각이 되면 <code>showReminder()</code>가 팝업을 띄웁니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ReminderController {
+        -reminderList
+        -reminderTimer
+        +addReminder(prevue, type, aheadtime, cb)
+        +checkReminder()
+        +showReminder(reminder)
+        +clearReminderTimer()
+        +getReminderList() list
+    }
+    class ReminderPopupController {
+        -frame ReminderPopupFrame
+        +show(param)
+        +hide(param)
+    }
+    class QueryManager {
+        +addReminder(prevue, type, aheadtime, cb)
+    }
+    class ReminderFrame {
+        +dispatchKeyDown(keyEvent)
+    }
+
+    ReminderController --&gt; QueryManager : 예약 등록
+    ReminderController --&gt; ReminderFrame : 예약 목록 화면
+    ReminderController ..&gt; ReminderPopupController : 도래 알림 팝업
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>ReminderController</code>가 예약 목록·타이머를 관리하고, 서버 등록은 <code>QueryManager</code>, 도래 알림 팝업은 <code>ReminderPopupController</code>가 담당합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>controller/ReminderController.js</code> — 다음 도래 예약에 타이머 설정</div>
+<pre><code>checkReminder: function() {
+    var now = new Date();
+    for (let idx = 0; idx &lt; this.reminderList.length; idx++) {
+        const reminder = this.reminderList[idx];
+        var beginTime = new Date(reminder.begintime);
+        var endTime   = new Date(reminder.endtime);
+
+        if (endTime &lt; now) {                          // 이미 종료
+            continue;
+        } else if (!reminder.isRead &amp;&amp; beginTime &gt;= now) {  // 미래 예약
+            let delay = beginTime - now;
+            delay = delay - reminder.aheadtime * 1000;       // aheadtime 보정
+            this.clearReminderTimer();
+            this.reminderTimer = setTimeout(() =&gt; {
+                _self.showReminder(reminder);
+            }, delay &gt; 0 ? delay : 0);
+            break;                                    // 최근접 1건만 설정
+        }
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>controller/ReminderPopupController.js</code> — 도래 알림 팝업 프레임</div>
+<pre><code>init: function init(type) {
+    this.frameName = 'ReminderPopupFrame';
+    this.frame = new PopupFrame(this.frameName, Priority.POPUP);
+    SYSAPP.RootWindow.addFrame(this.frame);
+},
+
+onKeyDown: function(keyEvent) {
+    switch (keyEvent.keyCode) {
+        case KeyEvent.VK_POWER:
+            break;                       // 전원 키는 가로채지 않음
+        default:
+            this.frame.dispatchKeyDown(keyEvent);
+            keyEvent.stopPropagation();
+            break;
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/ReminderController.js" target="_blank" rel="noopener">controller/ReminderController.js</a><span class="src">예약 목록 · checkReminder 타이머 · showReminder</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/ReminderPopupController.js" target="_blank" rel="noopener">controller/ReminderPopupController.js</a><span class="src">도래 알림 팝업 프레임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/ui/reminder/ReminderFrame.js" target="_blank" rel="noopener">ui/reminder/ReminderFrame.js</a><span class="src">예약 목록 화면 위젯</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/data/QueryManager.js" target="_blank" rel="noopener">data/QueryManager.js</a><span class="src">addReminder 등 예약 API</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f07.html">← 녹화(Recording)</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f09.html">결제 / PPV / 구매 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">turk-webx-tivibu-sysapp 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>
