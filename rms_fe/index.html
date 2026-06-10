@@ -205,7 +205,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3771728412" target="_blank" rel="noopener">Confluence — RMS FE (3771728412)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-06-05 · ad4e61a2 로그인 화면에 스크롤 안 나오게 수정</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-06-10 · a55d2131 group 상세에 다국어 추가</div></div>
       <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>mantis-react-ts</code> / package.json 1.2.0, 운영 빌드 2.2.26</div></div>
     </div>
   </div>
@@ -231,7 +231,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
     <h2>개요</h2>
     <p>RMS FrontEnd(<code>rms_fe</code>)는 Altimedia RMS(Remote Management System)의 관리자용 웹 UI입니다. 운영자가 브라우저로 접속해 현장에 배포된 다수의 Android 기반 셋톱박스(STB)/OTT 단말을 원격으로 모니터링하고 제어하는 단일 페이지 애플리케이션(SPA)입니다. 빌드 산출물은 정적 자원으로 패키징되어 <code>/rms-ui</code> 경로 하위에 배포되며, 사내 접속 URL은 <code>https://rms.altimedia.com/rms-ui/index.html</code>입니다.</p>
     <p>대상 사용자는 운영자 PC의 데스크톱 브라우저이며, 관리 대상은 Android STB/OTT 디바이스입니다. 화면은 모니터링 대시보드, VoC(고객 응대), 단말(Device) 관리, 앱(App) 관리, OTA(펌웨어) 관리, 관리자(Administrator) 설정, Master 정책, Workflow, 웹 터미널, AI 챗봇 등 운영자가 단말 생애주기 전반을 다룰 수 있도록 구성되어 있습니다.</p>
-    <p>이 프론트엔드는 단일 코드베이스를 여러 사이트에 공통 배포하는 멀티 타깃 구조입니다. <code>.env.*</code> 파일과 <code>src/utils/env.ts</code>의 <code>REACT_APP_TARGET</code> 값으로 사이트를 구분하며, 확인된 타깃은 <code>KT</code>, <code>OBE</code>, <code>TTG</code>, <code>GLOBAL</code>(기본값)입니다. 타깃별로 웹 터미널, 고급 메시지, 런처 리셋, WiFi 메뉴 노출, 위치 지도/네트워크 위젯, 챗봇 노출, 단말 식별자 필드(KT는 <code>deviceSiteId</code>, 그 외 <code>deviceId</code>) 등이 분기됩니다.</p>
+    <p>이 프론트엔드는 단일 코드베이스를 여러 사이트에 공통 배포하는 멀티 타깃 구조입니다. <code>.env.*</code> 파일과 <code>src/utils/env.ts</code>의 <code>REACT_APP_TARGET</code> 값으로 사이트를 구분하며, 확인된 타깃은 <code>KT</code>, <code>OBE</code>, <code>TTG</code>, <code>XLSmart</code>, <code>GLOBAL</code>(기본값)입니다. 타깃별로 웹 터미널, 고급 메시지, 런처 리셋, WiFi 메뉴 노출, 위치 지도/네트워크 위젯, 챗봇 노출, 단말 식별자 필드(KT는 <code>deviceSiteId</code>, 그 외 <code>deviceId</code>) 등이 분기되며, XLSmart는 Illegal Devices 위젯과 KPI 위젯 5개(대시보드 cols 20) 레이아웃을 추가로 사용합니다.</p>
     <div class="callout">
       <div class="ct">단말 연동 기본 흐름</div>
       운영자가 Management 메뉴의 Excel import로 단말 정보를 서버에 등록한 뒤 단말을 부팅하면, 단말의 RMS Client가 등록 정보를 바탕으로 인증하고 상태/정보를 서버에 올립니다. Screen Share·Terminal 같은 실시간 기능은 단말이 accessToken을 받아 connection 된 상태에서만 동작합니다(Confluence "RMS FE 단말 연동 방법").
@@ -248,13 +248,13 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <a class="card" href="f05.html"><div class="t">단말(Device) 관리</div><div class="d">단말 목록/상세, 단말 편집, 그룹 관리, 단말 정책(STB Policy)을 다룹니다. Excel import로 단말을 등록하고 그룹 단위 일괄 운영이 가능합니다.</div></a>
       <a class="card" href="f06.html"><div class="t">앱(App) 관리</div><div class="d">패키지 목록·설치, 기본 패키지(DefaultPackage), 앱 정책(AppPolicy) 등록/수정을 지원합니다. OBE 사이트에서는 패키지명 대신 앱 이름(appName)으로 표시합니다.</div></a>
       <a class="card" href="f07.html"><div class="t">OTA(펌웨어) 관리</div><div class="d">펌웨어 목록(<code>fwList</code>)과 펌웨어 설치(<code>fwInstall</code>) 화면으로 단말 펌웨어 OTA 업데이트를 운영합니다.</div></a>
-      <a class="card" href="f08.html"><div class="t">관리자 · 역할(Role) 관리</div><div class="d">관리자 계정 등록/상세, 역할(Role) 기반 권한, 메일 리포트/OTT 알림 설정, 운영 이력(OperationHistory)을 관리합니다. KT 타깃에서는 메일 리포트 경로가 알림 설정(AlertSetting)으로 분기됩니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">관리자 · 역할(Role) 관리</div><div class="d">관리자 계정 등록/상세, 역할(Role) 기반 권한, 알림 설정(AlertSetting, 메일/OTT/Network Offline 알림 편집), 운영 이력(OperationHistory)을 관리합니다. 기존 KT 전용이던 AlertSetting이 전 타깃 공통 경로로 통합되었습니다.</div></a>
       <a class="card" href="f09.html"><div class="t">Master 정책 설정</div><div class="d">단말(STB)·앱 디바이스 정책을 등록·수정하는 Master 화면(<code>devicePolicyStb*</code>/<code>devicePolicyApp*</code>)으로 사이트 공통 정책을 정의합니다.</div></a>
       <a class="card" href="f10.html"><div class="t">실시간 원격 제어 · 화면 공유</div><div class="d">WebSocket 시그널 서버와 SSE로 단말 상태/이벤트를 수신하며 Screen Share, 원격 명령, 디바이스 모달 폴링(10초) 등 실시간 제어를 수행합니다.</div></a>
       <a class="card" href="f11.html"><div class="t">웹 터미널</div><div class="d">@xterm/xterm 기반 웹 터미널(<code>pages/terminal</code>)로 단말에 원격 셸을 연결합니다(wetty 연동). OBE·TTG 타깃에서만 활성화됩니다.</div></a>
       <a class="card" href="f12.html"><div class="t">AI 챗봇</div><div class="d">사내 패키지 <code>@altimedia/rms-chatbot-ui</code>를 연동한 챗봇 팝업입니다. 디바이스/사용자 정보 요청과 화면 공유·앱 설치·펌웨어 OTA 등으로의 네비게이션을 처리하며 <code>REACT_APP_CHATBOT=Y</code> 사이트에서만 노출됩니다.</div></a>
       <a class="card" href="f13.html"><div class="t">국제화(i18n)</div><div class="d">i18next/react-i18next로 다국어를 지원합니다. 로케일은 <code>en</code>·<code>fr</code>·<code>tr</code>·<code>du</code>가 포함되어 글로벌 사이트 대응이 가능합니다.</div></a>
-      <a class="card" href="f14.html"><div class="t">사이트별 기능 분기</div><div class="d"><code>REACT_APP_TARGET</code>에 따라 모듈 권한·위젯 권한·정책 주기·식별자 필드를 분기해 KT/OBE/TTG/GLOBAL을 한 코드베이스로 운영합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">사이트별 기능 분기</div><div class="d"><code>REACT_APP_TARGET</code>에 따라 모듈 권한·위젯 권한·정책 주기·식별자 필드를 분기해 KT/OBE/TTG/XLSmart/GLOBAL을 한 코드베이스로 운영합니다.</div></a>
     </div>
   </section>
 
@@ -299,12 +299,12 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
         <thead><tr><th>구분</th><th>경로</th><th>역할</th></tr></thead>
         <tbody>
           <tr><td>엔트리/Provider 트리</td><td><code>src/App.tsx</code></td><td>QueryClientProvider → ThemeCustomization → TaskProvider → JWTProvider → PermissionProvider → ChatProvider → Routes 순으로 전역 컨텍스트 구성. <code>Alt+V</code> 버전 모달, <code>Alt+Ctrl+E</code> env 설정 모달 등 디버그 단축키 제공.</td></tr>
-          <tr><td>라우팅</td><td><code>src/routes/MainRoutes.tsx</code></td><td>전 페이지를 <code>lazy</code>+<code>Loadable</code> 코드 스플리팅. 메인 영역을 AuthGuard + PermissionGuard + MainLayout으로 감싸고, <code>/monitoring/dashboard/:id</code> 상세는 가드 밖 별도 경로로 노출. <code>mailreport</code>는 IS_KT 여부로 분기.</td></tr>
+          <tr><td>라우팅</td><td><code>src/routes/MainRoutes.tsx</code></td><td>전 페이지를 <code>lazy</code>+<code>Loadable</code> 코드 스플리팅. 메인 영역을 AuthGuard + PermissionGuard + MainLayout으로 감싸고, <code>/monitoring/dashboard/:id</code> 상세는 가드 밖 별도 경로로 노출. <code>mailreport</code> 경로는 타깃 무관 AlertSetting으로 통합되었고 <code>networkoffline/:id</code>(NetworkOfflineEdit) 경로가 추가됨.</td></tr>
           <tr><td>API 계층</td><td><code>src/_api/AxiosRequest.tsx</code></td><td><code>beAxios</code>가 <code>REACT_APP_RMS_BE_SERVER_URL</code>을 baseURL로 사용. 요청 인터셉터에서 sessionStorage의 accessToken을 authorization 헤더에 주입하고 <code>Time-Zone</code> 헤더 추가, 인증 엔드포인트(<code>/api/v1/auth</code>)는 토큰을 비움. 콜백 스타일 <code>request</code> 헬퍼로 multipart 폼·더미 데이터 지원.</td></tr>
           <tr><td>도메인 API 모듈</td><td><code>src/_api/*.tsx</code></td><td>Devices, Dashboard, Firmware, User, Voc, Parameter, Mail, App, deviceGroupApi, CommonCode 등으로 기능별 분리.</td></tr>
           <tr><td>상태 관리</td><td><code>src/store/reducers</code></td><td>Redux Toolkit 슬라이스(auth, menu, deviceInfo, enrolledDevice, notification, snackbar). 서버 데이터 캐싱은 react-query 담당.</td></tr>
           <tr><td>인증·권한</td><td><code>src/contexts</code>, <code>utils/route-guard</code></td><td>JWTContext가 JWT 로그인/세션, PermissionContext+PermissionGuard가 역할(Role) 기반 화면 접근을 통제. 세션 타임아웃은 <code>REACT_APP_RMS_SESSION_TIMEOUT</code>(기본 30).</td></tr>
-          <tr><td>사이트 분기</td><td><code>src/utils/env.ts</code></td><td><code>modulePermissions</code>(terminal, advancedMesage, launcherReset, chatbot, enbaleWifi), <code>widgetPermissions</code>(deviceLocationMap, deviceBrandModel, networkInterface, disableEditMode), <code>stpPolicyPeriodMin</code>, <code>ID_FIELD</code> 등을 타깃별로 분기.</td></tr>
+          <tr><td>사이트 분기</td><td><code>src/utils/env.ts</code></td><td><code>modulePermissions</code>(terminal, advancedMesage, launcherReset, chatbot, enbaleWifi), <code>widgetPermissions</code>(deviceLocationMap, deviceBrandModel, networkInterface, disableEditMode, illegalDevices, KPIWidgetCount, widgetCols), <code>stpPolicyPeriodMin</code>, <code>ID_FIELD</code> 등을 타깃별로 분기.</td></tr>
           <tr><td>실시간 통신</td><td>WS / SSE</td><td>WebSocket 시그널 서버(<code>REACT_APP_SIGNAL_BE_WS</code>)와 SSE(<code>useSSEController</code>, <code>REACT_APP_RMS_SSE_TIMEOUT</code>)로 단말 상태·원격 제어 이벤트 수신.</td></tr>
           <tr><td>AI 챗봇</td><td><code>src/chatbot</code>, <code>contexts/ChatContext.tsx</code></td><td>사내 패키지 <code>@altimedia/rms-chatbot-ui</code>를 연동. <code>useChat</code>의 <code>registOnChatbot</code>/<code>sendToFrontend</code>로 챗봇과 요청/응답 전문을 주고받음(Confluence "RMS FE AI Agent").</td></tr>
         </tbody>
@@ -415,28 +415,28 @@ yarn test                     # react-scripts test (CRA Jest)</code></pre>
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>최근 작업은 사이트별 운영 대응에 집중되어 있습니다. AI 챗봇 UI 패키지(<code>@altimedia/rms-chatbot-ui</code>)를 연동하고 OBE·TTG.AWS 2.2.26 버전을 배포했으며, TTG의 WiFi 메뉴 숨김 처리(<code>isWifiMenuHidden</code>)와 부팅 사유 필드명(<code>lastBootReason</code>) 정리, OBE의 패키지명 → 앱 이름(appName) 표시 변경, 디바이스 모달 폴링 주기(5→10초) 조정, 로그인 화면 스크롤 제거 등 운영 피드백을 반영했습니다.</p>
+    <p>최근 작업은 XLSmart 사이트 대응이 중심입니다. 모니터링 대시보드에 Illegal Devices·Top Installed Apps·Top Deleted Apps·HDMI Connection Status 위젯을 추가하고, KPI 위젯 5개 표시를 위해 대시보드 그리드 cols를 20으로 확장(<code>widgetCols</code>)했으며 지도 위젯에 device status select를 더했습니다. 앱 설치(PkgInstallModal)·앱 정책·펌웨어 설치(FwInstallModal) 화면과 알림 설정(AlertSetting, Network Offline 알림 편집 화면 추가)을 XLSmart 요구사항에 맞춰 반영했고, Report/Failure 테이블 컬럼명·다운로드 아이콘 수정, 단말 메시지의 position 필드(MIDDLE/TOP/BOTTOM) 추가, 다국어 리소스(en/fr/tr/du) 보강도 함께 진행했습니다.</p>
     <ul class="commits">
-      <li><span class="date">2026-06-05</span><span class="msg">로그인 화면에 스크롤 안 나오게 수정 (ad4e61a2)</span></li>
-      <li><span class="date">2026-06-05</span><span class="msg">AI 챗봇 UI 패키지(@altimedia/rms-chatbot-ui) 연동 (47c51390)</span></li>
-      <li><span class="date">2026-06-05</span><span class="msg">OBE, TTG.AWS 배포(2.2.26) (a4af3b14)</span></li>
-      <li><span class="date">2026-06-05</span><span class="msg">[TTG] lastRebootReason &gt; lastBootReason 이름 변경 (edd6859c)</span></li>
-      <li><span class="date">2026-06-05</span><span class="msg">[TTG] wifihidden &gt; isWifiMenuHidden 이름 변경 (edb81929)</span></li>
-      <li><span class="date">2026-06-05</span><span class="msg">[OBE] app upload modal 에 app name 적용 (feb04896)</span></li>
-      <li><span class="date">2026-06-05</span><span class="msg">[OBE] package name =&gt; app name 표시변경 (74f7d919)</span></li>
-      <li><span class="date">2026-06-05</span><span class="msg">[OBE] package name =&gt; app name 표시 변경 (0fec3619)</span></li>
-      <li><span class="date">2026-06-04</span><span class="msg">[TTG] wifi_hidden 처리 수정 (1a7b1467)</span></li>
-      <li><span class="date">2026-06-04</span><span class="msg">Device 모달 띄울때 폴링 시간을 5에서 10초로 변경 (ea3a3992)</span></li>
-      <li><span class="date">2026-06-04</span><span class="msg">[OBE] whiteList app description appName 으로 변경 (0fcac335)</span></li>
-      <li><span class="date">2026-06-04</span><span class="msg">[TTG] hide wifi menu disable 동작 수정 (3cc4faa1)</span></li>
-      <li><span class="date">2026-06-04</span><span class="msg">[OBE] OT-228 수정 사항 (eca68563)</span></li>
-      <li><span class="date">2026-06-04</span><span class="msg">eslint warnings 수정 (f90a8f54)</span></li>
-      <li><span class="date">2026-06-02</span><span class="msg">TTG.AWS 배포(2.2.26) (3cc189c6)</span></li>
-      <li><span class="date">2026-06-02</span><span class="msg">[TTG] hide wifi menu radio button 추가 (1f744737)</span></li>
-      <li><span class="date">2026-06-02</span><span class="msg">RMS 버전 팝업에 도메인 항목 삭제 (3b148ebd)</span></li>
-      <li><span class="date">2026-06-02</span><span class="msg">[TTG] radio comp의 value 에 따라 color 수정 (caf0c7af)</span></li>
-      <li><span class="date">2026-06-02</span><span class="msg">Revert "yarn.lock 업데이트" (e2624a2f)</span></li>
-      <li><span class="date">2026-06-02</span><span class="msg">yarn.lock 업데이트 (7055fbd0)</span></li>
+      <li><span class="date">2026-06-10</span><span class="msg">group 상세에 다국어 추가 (a55d2131)</span></li>
+      <li><span class="date">2026-06-10</span><span class="msg">local 일때 title에 target 보이도록 수정 (f7a2ac1a)</span></li>
+      <li><span class="date">2026-06-10</span><span class="msg">메시지에 position 필드 추가 (38d30e75)</span></li>
+      <li><span class="date">2026-06-10</span><span class="msg">메시지 관련 문구 수정 (6a0676df)</span></li>
+      <li><span class="date">2026-06-09</span><span class="msg">illegalDevices widget api 수정 (3b69a98e)</span></li>
+      <li><span class="date">2026-06-09</span><span class="msg">[XLSmart] KPI widget 5개 표시를 위해 dashboard cols 20으로 변경 (998d3b88)</span></li>
+      <li><span class="date">2026-06-09</span><span class="msg">[XLSmart] Top Apps by Usage Time 검색 필터 수정 (4046b5cf)</span></li>
+      <li><span class="date">2026-06-09</span><span class="msg">[XLSmart] Alert setting 반영 (e431ab9b)</span></li>
+      <li><span class="date">2026-06-09</span><span class="msg">[XLSmart] map widget device status select 추가 (f1be4bf7)</span></li>
+      <li><span class="date">2026-06-09</span><span class="msg">[XLSmart] device status select option 추가 (2004c13a)</span></li>
+      <li><span class="date">2026-06-08</span><span class="msg">[XLSmart] alert setting의 문구 반영 (ed910615)</span></li>
+      <li><span class="date">2026-06-08</span><span class="msg">[XLSmart] app install, app policy, fw install 반영 (9a3a1a8f)</span></li>
+      <li><span class="date">2026-06-08</span><span class="msg">[XLSmart] appPolicy, appInstall 추가사항 (2df6e44c)</span></li>
+      <li><span class="date">2026-06-08</span><span class="msg">[XLSmart] Top Installed Apps, Top Deleted Apps, HDMI Connection Status 위젯 추가 (d173f9b9)</span></li>
+      <li><span class="date">2026-06-08</span><span class="msg">[XLSmart] Illegal Devices 위젯 추가 (80714169)</span></li>
+      <li><span class="date">2026-06-08</span><span class="msg">Import Completed 팝업 문구 수정 (d2d43c26)</span></li>
+      <li><span class="date">2026-06-08</span><span class="msg">Report help 문구 수정 (40d951c3)</span></li>
+      <li><span class="date">2026-06-08</span><span class="msg">Report, Failure 에 다운로드 아이콘으로 수정 (5fb9d16b)</span></li>
+      <li><span class="date">2026-06-08</span><span class="msg">Report, Failure 테이블 컬럼명 수정 (d11c0550)</span></li>
+      <li><span class="date">2026-06-08</span><span class="msg">다국어 추가 (5a2cd403)</span></li>
     </ul>
   </section>
 
@@ -458,8 +458,8 @@ yarn test                     # react-scripts test (CRA Jest)</code></pre>
 
 <footer>
   <div class="wrap">
-    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
-    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>, 기준 커밋 <code>a55d2131</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · 갱신일 2026-06-10 · <a href="../index.html">전체 과제 목록으로</a>
   </div>
 </footer>
 

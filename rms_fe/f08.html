@@ -22,7 +22,7 @@
       <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
     </div>
     <h1>관리자 · 역할(Role) 관리</h1>
-    <p class="one-liner"><code>administratorList</code>/<code>rolelist</code>가 <code>UserApiManager</code>로 관리자 계정과 역할(Role) 기반 권한을 관리하고, 메일 리포트 화면은 라우트 단에서 KT 타깃이면 <code>AlertSetting</code>(알림 설정)으로 분기됩니다.</p>
+    <p class="one-liner"><code>administratorList</code>/<code>rolelist</code>가 <code>UserApiManager</code>로 관리자 계정과 역할(Role) 기반 권한을 관리하고, <code>mailreport</code> 경로는 사이트 공통으로 <code>AlertSetting</code>(알림 설정)을 렌더합니다. 알림 탭은 단말 상태·OTT 버전(KT 전용)·네트워크 오프라인으로 구성됩니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
@@ -49,10 +49,10 @@
   <section id="desc">
     <h2>기능 개요</h2>
     <p>관리자 영역은 RMS 운영자 계정과 권한 체계를 다룹니다. <code>administratorList</code>는 <code>UserApiManager.getList()</code>(<code>/api/v1/users</code>)로 관리자 목록을 조회하고, 등록/상세/수정은 <code>create</code>·<code>getDetail</code>·<code>update</code>로 처리합니다. 비밀번호 초기화(<code>resetUserPassword</code>)와 사용자명/이메일 중복 검사(<code>checkUserName</code>/<code>checkEmail</code>)도 같은 매니저에 있습니다.</p>
-    <p>역할(Role)은 <code>rolelist</code>가 <code>getRoleList</code>(<code>/api/v1/roles</code>)·<code>createRole</code>·<code>updateRole</code>로 관리합니다. 여기서 정의한 역할이 <code>PermissionContext</code>+<code>PermissionGuard</code>를 통해 화면 접근 권한으로 적용됩니다. 운영 이력은 <code>operationHistory</code>가 <code>DevicesApiManager.getOperationHistory()</code>로 운영자 작업 기록을 보여줍니다. 메일 리포트/알림 설정은 사이트별로 갈리는데, 라우트 정의(<code>MainRoutes.tsx</code>)에서 <code>mailreport</code> 경로가 <code>IS_KT</code>이면 <code>&lt;AlertSetting /&gt;</code>, 아니면 <code>&lt;MailReport /&gt;</code>로 분기됩니다.</p>
+    <p>역할(Role)은 <code>rolelist</code>가 <code>getRoleList</code>(<code>/api/v1/roles</code>)·<code>createRole</code>·<code>updateRole</code>로 관리합니다. 여기서 정의한 역할이 <code>PermissionContext</code>+<code>PermissionGuard</code>를 통해 화면 접근 권한으로 적용됩니다. 운영 이력은 <code>operationHistory</code>가 <code>DevicesApiManager.getOperationHistory()</code>로 운영자 작업 기록을 보여줍니다. 알림 설정은 라우트 정의(<code>MainRoutes.tsx</code>)에서 <code>mailreport</code> 경로가 사이트 구분 없이 <code>&lt;AlertSetting /&gt;</code>을 렌더하도록 통합되었고(기존 <code>IS_KT ? AlertSetting : MailReport</code> 분기 제거), 대신 탭 단에서 OTT 버전(<code>OTT_VER</code>) 탭만 <code>IS_KT</code>일 때 노출됩니다.</p>
     <div class="callout">
-      <div class="ct">KT의 메일 리포트 → 알림 설정 분기</div>
-      KT 타깃에서는 메일 리포트 대신 단말 상태/OTT 버전 알림을 설정하는 <code>AlertSetting</code> 화면이 노출됩니다. 동일한 메뉴 경로(<code>mailreport</code>)지만 <code>IS_KT</code> 플래그로 렌더 컴포넌트가 바뀌어, 사이트별 운영 요구에 맞춥니다.
+      <div class="ct">알림 설정 통합 + 네트워크 오프라인 탭 (XLSmart Alert setting 반영)</div>
+      <code>AlertSetting</code>은 단말 상태(<code>DeviceAlert</code>)·OTT 버전(<code>OttVersion</code>, KT 전용)·네트워크 오프라인(<code>NetworkOffline</code>) 세 탭으로 구성됩니다. 네트워크 오프라인 알림은 모니터링 윈도우/오프라인 비율/수신자 목록을 관리하며, 편집은 <code>networkoffline/:id</code> 경로의 <code>NetworkOfflineEdit</code> 화면이 담당합니다.
     </div>
   </section>
 
@@ -78,9 +78,9 @@ sequenceDiagram
     Note over PC: 정의된 Role 이 화면 접근 권한으로 적용
     OP-&gt;&gt;PC: 메뉴 진입
     PC-&gt;&gt;PC: PermissionGuard 권한 검사
-    Note over AL: mailreport 경로는 IS_KT ? AlertSetting : MailReport
+    Note over AL: mailreport 경로는 AlertSetting (OTT_VER 탭은 IS_KT 전용)
       </div>
-      <p class="cap"><strong>흐름.</strong> 관리자/역할을 <code>UserApiManager</code>로 CRUD 하고, 정의된 Role이 <code>PermissionGuard</code>를 통해 접근 통제에 반영됩니다. 메일 리포트 메뉴는 KT 여부로 알림 설정 화면으로 분기됩니다.</p>
+      <p class="cap"><strong>흐름.</strong> 관리자/역할을 <code>UserApiManager</code>로 CRUD 하고, 정의된 Role이 <code>PermissionGuard</code>를 통해 접근 통제에 반영됩니다. 메일 리포트 메뉴는 사이트 공통으로 알림 설정 화면을 렌더하고, OTT 버전 탭만 KT 전용으로 노출됩니다.</p>
     </div>
   </section>
 
@@ -99,12 +99,13 @@ classDiagram
     class OperationHistory {
         +getOperationHistory()
     }
-    class MailReport {
-        +render()
-    }
     class AlertSetting {
         +DeviceAlert
         +OttVersion
+        +NetworkOffline
+    }
+    class NetworkOfflineEdit {
+        +render()
     }
     class UserApiManager {
         +getList(cb, data)
@@ -115,15 +116,16 @@ classDiagram
         +resetUserPassword(cb, userID)
     }
     class MainRoutes {
-        +mailreport: IS_KT ? AlertSetting : MailReport
+        +mailreport: AlertSetting
+        +networkoffline: NetworkOfflineEdit
     }
 
     AdministratorList --&gt; UserApiManager : 계정 CRUD
     RoleList --&gt; UserApiManager : 역할 CRUD
-    MainRoutes ..&gt; AlertSetting : KT 분기
-    MainRoutes ..&gt; MailReport : 비-KT 기본
+    MainRoutes ..&gt; AlertSetting : mailreport 경로
+    MainRoutes ..&gt; NetworkOfflineEdit : networkoffline 편집 라우트
       </div>
-      <p class="cap"><strong>관계.</strong> 계정·역할 화면이 <code>UserApiManager</code>를 공유하고, 메일 리포트 메뉴는 <code>MainRoutes</code>에서 <code>IS_KT</code> 플래그에 따라 <code>AlertSetting</code>/<code>MailReport</code> 중 하나로 렌더됩니다.</p>
+      <p class="cap"><strong>관계.</strong> 계정·역할 화면이 <code>UserApiManager</code>를 공유하고, <code>MainRoutes</code>의 <code>mailreport</code> 경로는 항상 <code>AlertSetting</code>을 렌더합니다. <code>AlertSetting</code> 안에서 OTT 버전 탭은 <code>IS_KT</code>일 때만 노출되고, 네트워크 오프라인 알림 편집은 <code>NetworkOfflineEdit</code>로 이동합니다.</p>
     </div>
   </section>
 
@@ -138,15 +140,30 @@ getRoleList: (callback, page, size, name?) =&gt; { request('get', `/api/v1/roles
 createRole: (callback, data) =&gt; { request('post', '/api/v1/roles', callback, data); }</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>routes/MainRoutes.tsx</code> — KT 타깃에서 메일 리포트를 알림 설정으로 분기</div>
-<pre><code>import { IS_KT } from 'utils/env';
-// ...
-{
+      <div class="sc"><code>routes/MainRoutes.tsx</code> — mailreport 경로의 AlertSetting 통합과 networkoffline 편집 라우트</div>
+<pre><code>{
   path: 'mailreport',
   children: [
-    { path: '', element: IS_KT ? &lt;AlertSetting /&gt; : &lt;MailReport /&gt; }
+    { path: '', element: &lt;AlertSetting /&gt; }   // 기존 IS_KT ? AlertSetting : MailReport 분기 제거
+    // :id → MailEdit, ottVer/:id → OttAlertEdit ...
+  ]
+},
+{
+  path: 'networkoffline',
+  children: [
+    { path: ':id', element: &lt;NetworkOfflineEdit /&gt; }
   ]
 }</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>pages/administrator/alertSetting.tsx</code> — OTT 버전 탭 KT 전용 + 네트워크 오프라인 탭</div>
+<pre><code>&lt;Tab label={t('ms:alert_setting.tab.device_status')} value={'DEVICE_STATUS'} /&gt;
+{IS_KT &amp;&amp; &lt;Tab label={t('ms:alert_setting.tab.ott_ver')} value={'OTT_VER'} /&gt;}
+&lt;Tab label={t('ms:alert_setting.tab.network_offline')} value={'NETWORK_OFFLINE'} /&gt;
+// ...
+{tabState === 'DEVICE_STATUS' &amp;&amp; &lt;DeviceAlert /&gt;}
+{tabState === 'OTT_VER' &amp;&amp; &lt;OttVersion /&gt;}
+{tabState === 'NETWORK_OFFLINE' &amp;&amp; &lt;NetworkOffline /&gt;}</code></pre>
     </div>
   </section>
 
@@ -156,9 +173,10 @@ createRole: (callback, data) =&gt; { request('post', '/api/v1/roles', callback, 
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administratorList.tsx" target="_blank" rel="noopener">pages/administrator/administratorList.tsx</a><span class="src">관리자 계정 목록·등록</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/rolelist.tsx" target="_blank" rel="noopener">pages/administrator/rolelist.tsx</a><span class="src">역할(Role) 목록·권한 정의</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/operationHistory.tsx" target="_blank" rel="noopener">pages/administrator/operationHistory.tsx</a><span class="src">운영 이력 — getOperationHistory</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/alertSetting.tsx" target="_blank" rel="noopener">pages/administrator/alertSetting.tsx</a><span class="src">알림 설정(KT) — 단말 상태/OTT 버전 탭</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/mailReport.tsx" target="_blank" rel="noopener">pages/administrator/mailReport.tsx</a><span class="src">메일 리포트(비-KT)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/routes/MainRoutes.tsx" target="_blank" rel="noopener">routes/MainRoutes.tsx</a><span class="src">mailreport 경로의 IS_KT 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/alertSetting.tsx" target="_blank" rel="noopener">pages/administrator/alertSetting.tsx</a><span class="src">알림 설정 — 단말 상태/OTT 버전(KT 전용)/네트워크 오프라인 탭</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/alert/networkOffline.tsx" target="_blank" rel="noopener">pages/administrator/alert/networkOffline.tsx</a><span class="src">네트워크 오프라인 알림 목록 — monitoringWindow/offlineRatio/recipients</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/mailReport.tsx" target="_blank" rel="noopener">pages/administrator/mailReport.tsx</a><span class="src">메일 리포트 — 현재 라우트에서는 미사용(AlertSetting으로 통합)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/routes/MainRoutes.tsx" target="_blank" rel="noopener">routes/MainRoutes.tsx</a><span class="src">mailreport → AlertSetting · networkoffline/:id → NetworkOfflineEdit</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/User.tsx" target="_blank" rel="noopener">_api/User.tsx</a><span class="src">UserApiManager — users / roles CRUD·비밀번호 초기화</span></li>
     </ul>
     <div class="sibling-nav">

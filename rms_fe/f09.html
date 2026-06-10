@@ -48,7 +48,7 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>Master 정책은 사이트 전체에 공통으로 적용되는 디바이스 정책을 정의하는 영역입니다. <code>devicePolicyList</code>가 STB 탭(<code>devicePolicyTabStb</code>)과 App 탭(<code>devicePolicyTabApp</code>)으로 나뉘어 정책 목록을 보여주고, <code>DevicesApiManager.getPolicyList()</code>(<code>/api/v1/device-policies</code>)로 조회합니다. STB 정책은 단말 정보 업데이트 주기(<code>period</code>)·CPU/온도/네트워크 사용량 임계 등 모니터링 항목을, App 정책은 앱 디바이스 관련 항목을 다룹니다.</p>
+    <p>Master 정책은 사이트 전체에 공통으로 적용되는 디바이스 정책을 정의하는 영역입니다. <code>devicePolicyList</code>가 STB 탭(<code>devicePolicyTabStb</code>)과 App 탭(<code>devicePolicyTabApp</code>)으로 나뉘어 정책 목록을 보여주고, <code>DevicesApiManager.getPolicyList()</code>(<code>/api/v1/device-policies</code>)로 조회합니다. STB 정책은 단말 정보 업데이트 주기(<code>period</code>)·CPU/온도/네트워크 사용량 임계 등 모니터링 항목을, App 정책은 앱 디바이스 관련 항목을 다룹니다. App 탭 검색 필터에는 앱 크래시·메모리/CPU/네트워크/HDD 임계와 함께 셋톱 재시작(<code>stbReboot</code>) On/Off 항목이 추가되었습니다(XLSmart 대응).</p>
     <p>정책 등록은 <code>policy/devicePolicyStbRegister</code>(및 App/Edit 화면)가 Formik 폼으로 처리합니다. 저장 시 <code>checkPolicyName</code>으로 정책명 중복을 검사한 뒤, 즉시 적용/예약 여부(<code>immediately</code>)에 따라 <code>createPolicy()</code>로 <code>/api/v1/device-policies</code>에 POST 합니다. 수정은 <code>updatePolicy</code>(<code>/device-policies/:id/update</code>)를 사용합니다. STB 정책의 정보 업데이트 주기 같은 항목은 사이트 정책 주기 기본값(<code>stpPolicyPeriodMin</code>)과 연계됩니다.</p>
     <div class="callout">
       <div class="ct">사이트별 정책 주기 기본값</div>
@@ -98,6 +98,7 @@ classDiagram
     }
     class DevicePolicyTabApp {
         +getPolicyList()
+        +searchFilter stbReboot On/Off
     }
     class DevicePolicyStbRegister {
         +createPolicy(immediately)
@@ -151,7 +152,7 @@ createPolicy: (callback, data) =&gt; { request('post', `/api/v1/device-policies`
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/master/devicePolicyList.tsx" target="_blank" rel="noopener">pages/master/devicePolicyList.tsx</a><span class="src">정책 목록 컨테이너 — STB/App 탭</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/master/devicePolicyTabStb.tsx" target="_blank" rel="noopener">pages/master/devicePolicyTabStb.tsx</a><span class="src">STB 정책 탭 — period/임계 항목 표시</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/master/devicePolicyTabApp.tsx" target="_blank" rel="noopener">pages/master/devicePolicyTabApp.tsx</a><span class="src">App 정책 탭</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/master/devicePolicyTabApp.tsx" target="_blank" rel="noopener">pages/master/devicePolicyTabApp.tsx</a><span class="src">App 정책 탭 — stbReboot On/Off 검색 필터 포함</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/master/policy/devicePolicyStbRegister.tsx" target="_blank" rel="noopener">pages/master/policy/devicePolicyStbRegister.tsx</a><span class="src">STB 정책 등록 — 이름 검증·createPolicy</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Devices.tsx" target="_blank" rel="noopener">_api/Devices.tsx</a><span class="src">device-policies CRUD·check-name</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/utils/env.ts" target="_blank" rel="noopener">utils/env.ts</a><span class="src">stpPolicyPeriodMin — 사이트별 정책 주기 기본값</span></li>

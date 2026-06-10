@@ -49,7 +49,7 @@
   <section id="desc">
     <h2>기능 개요</h2>
     <p>이 기능은 두 화면으로 구성됩니다. 하나는 시스템 상태 화면(<code>dashboardSystem</code>)으로, RMS 서버 인프라 메트릭을 자체 차트로 그리는 대신 <code>REACT_APP_RMS_GRAFANA_URL</code>이 가리키는 Grafana(node-exporter) 대시보드를 <code>iframe</code>으로 임베드합니다. 컴포넌트 자체는 매우 얇아서, 메트릭 수집·시각화 책임을 Grafana에 위임하고 RMS UI는 메뉴 안에서 그 화면을 보여주는 역할만 합니다.</p>
-    <p>다른 하나는 Quick Operation 화면(<code>quickOperation</code>)입니다. 운영자가 단말 목록에서 여러 행을 체크해 선택(<code>selectedRows</code>)한 뒤 전원/제어 명령을 내리면, <code>DevicesApiManager.commandDevices()</code>가 선택 단말 ID 배열과 명령 코드를 묶어 <code>/api/v1/multi-device-commands/devices</code>로 POST 합니다. 명령 진행 상태와 배포 현황은 <code>getQuickOperationStatus</code>·<code>getQuickOperationDistribution</code>로 폴링하며, 내가 보낸 명령 이력은 <code>MyCommandHistoryModal</code>로 확인합니다. 모달 관리(최소화·복원)는 <code>useTask</code> 컨텍스트가 담당합니다.</p>
+    <p>다른 하나는 Quick Operation 화면(<code>quickOperation</code>)입니다. 운영자가 단말 목록에서 여러 행을 체크해 선택(<code>selectedRows</code>)한 뒤 전원/제어 명령을 내리면, <code>DevicesApiManager.commandDevices()</code>가 선택 단말 ID 배열과 명령 코드를 묶어 <code>/api/v1/multi-device-commands/devices</code>로 POST 합니다. 메시지 명령은 제목·본문 외에 표시 위치(<code>position</code>) 필드를 함께 보낼 수 있습니다. 명령 진행 상태와 배포 현황은 <code>getQuickOperationStatus</code>·<code>getQuickOperationDistribution</code>로 폴링하며, 내가 보낸 명령 이력은 <code>MyCommandHistoryModal</code>로 확인합니다. 모달 관리(최소화·복원)는 <code>useTask</code> 컨텍스트가 담당합니다.</p>
     <div class="callout">
       <div class="ct">단말 연결 선행 조건</div>
       Quick Operation에서 일부 명령은 단말이 <code>CONNECTED</code> 상태일 때만 의미가 있습니다. 화면은 단말 섹션 상태를 확인해 연결되지 않은 경우 <code>createDeviceConnection</code>으로 connection을 먼저 시도한 뒤 명령을 전송하는 흐름을 가집니다.
@@ -142,13 +142,14 @@ classDiagram
     </div>
     <div class="snippet">
       <div class="sc"><code>_api/Devices.tsx</code> — 선택 단말에 명령을 묶어 일괄 전송</div>
-<pre><code>commandDevices: ({ callback, ids, command, packageIds, subject, message, ... }: CommandType) =&gt; {
+<pre><code>commandDevices: ({ callback, ids, command, packageIds, subject, message, position, ... }: CommandType) =&gt; {
   const data = {
     ids,
     command,
     ...(packageIds &amp;&amp; packageIds.length &gt; 0 ? { packageIds } : {}),
-    ...(message != null &amp;&amp; message !== '' ? { message } : {})
-    // ...firmwareId / imageUrl / url 등 조건부 병합
+    ...(message != null &amp;&amp; message !== '' ? { message } : {}),
+    ...(position != null &amp;&amp; position !== '' ? { position } : {})
+    // ...type / autoClose / screenSize / firmwareId / imageUrl / url 등 조건부 병합
   };
   request('post', `/api/v1/multi-device-commands/devices`, callback, data);
 }</code></pre>

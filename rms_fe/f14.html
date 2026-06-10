@@ -22,7 +22,7 @@
       <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
     </div>
     <h1>사이트별 기능 분기</h1>
-    <p class="one-liner"><code>utils/env.ts</code>가 <code>REACT_APP_TARGET</code>(KT/OBE/TTG/GLOBAL)을 읽어 모듈 권한·위젯 권한·정책 주기·단말 식별자 필드를 분기시켜, 하나의 코드베이스를 여러 사이트에 공통 배포합니다.</p>
+    <p class="one-liner"><code>utils/env.ts</code>가 <code>REACT_APP_TARGET</code>(KT/OBE/TTG/XLSmart/GLOBAL)을 읽어 모듈 권한·위젯 권한·정책 주기·단말 식별자 필드를 분기시켜, 하나의 코드베이스를 여러 사이트에 공통 배포합니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
@@ -48,8 +48,8 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>RMS FrontEnd는 하나의 코드베이스를 KT·OBE·TTG·GLOBAL 등 여러 사이트에 공통 배포하는 멀티 타깃 구조입니다. 그 중심이 <code>src/utils/env.ts</code>입니다. 이 모듈은 빌드 시 주입된 <code>REACT_APP_TARGET</code>(기본값 <code>GLOBAL</code>)을 읽어 <code>IS_KT</code>·<code>IS_NOT_KT</code> 같은 불리언과, 화면 노출/동작을 결정하는 여러 분기 객체를 export 합니다. 사이트별 환경값은 <code>.env.kt</code>·<code>.env.obe</code>·<code>.env.ttg</code> 등 사이트별 <code>.env</code> 파일과 <code>build.js</code> 인자로 주입됩니다.</p>
-    <p>주요 분기는 네 가지입니다. <code>modulePermissions</code>는 터미널(OBE/TTG)·고급 메시지(비-KT)·런처 리셋(TTG)·챗봇(<code>CHATBOT=Y</code>)·WiFi 메뉴(TTG) 노출을 제어합니다. <code>widgetPermissions</code>는 대시보드의 위치 지도·브랜드 모델·네트워크 인터페이스 위젯을 OBE/TTG에서 숨기고 KT는 편집 모드를 막습니다(<code>disableEditMode</code>). <code>stpPolicyPeriodMin</code>은 정책 주기 기본값을 KT 10분/그 외 5분으로 둡니다. <code>ID_FIELD</code>는 KT면 <code>deviceSiteId</code>, 그 외면 <code>deviceId</code>로 단말 식별자 필드를 바꿉니다. 라우팅에서도 <code>MainRoutes.tsx</code>가 <code>IS_KT</code>로 메일 리포트를 알림 설정으로 분기합니다.</p>
+    <p>RMS FrontEnd는 하나의 코드베이스를 KT·OBE·TTG·XLSmart·GLOBAL 등 여러 사이트에 공통 배포하는 멀티 타깃 구조입니다. 그 중심이 <code>src/utils/env.ts</code>입니다. 이 모듈은 빌드 시 주입된 <code>REACT_APP_TARGET</code>(기본값 <code>GLOBAL</code>)을 읽어 <code>IS_KT</code>·<code>IS_NOT_KT</code> 같은 불리언과, 화면 노출/동작을 결정하는 여러 분기 객체를 export 합니다. 사이트별 환경값은 <code>.env.kt</code>·<code>.env.obe</code>·<code>.env.ttg</code> 등 사이트별 <code>.env</code> 파일과 <code>build.js</code> 인자로 주입됩니다.</p>
+    <p>주요 분기는 네 가지입니다. <code>modulePermissions</code>는 터미널(OBE/TTG)·고급 메시지(비-KT)·런처 리셋(TTG)·챗봇(<code>CHATBOT=Y</code>)·WiFi 메뉴(TTG) 노출을 제어합니다. <code>widgetPermissions</code>는 대시보드의 위치 지도·브랜드 모델·네트워크 인터페이스 위젯을 OBE/TTG/XLSmart에서 숨기고 KT는 편집 모드를 막습니다(<code>disableEditMode</code>). XLSmart 전용으로 <code>illegalDevices</code> 위젯 노출, <code>KPIWidgetCount</code> 5(그 외 4), <code>widgetCols</code> 20(그 외 16)이 추가되었습니다. <code>stpPolicyPeriodMin</code>은 정책 주기 기본값을 KT 10분/그 외 5분으로 둡니다. <code>ID_FIELD</code>는 KT면 <code>deviceSiteId</code>, 그 외면 <code>deviceId</code>로 단말 식별자 필드를 바꿉니다. 한편 <code>MainRoutes.tsx</code>의 <code>IS_KT</code> 기반 메일 리포트/알림 설정 분기는 제거되어 <code>mailreport</code> 라우트가 <code>AlertSetting</code>으로 고정되었고, <code>App.tsx</code>는 <code>REACT_APP_ENV_NAME</code>이 <code>local</code>일 때 문서 타이틀에 현재 <code>REACT_APP_TARGET</code>을 표시해 어떤 타깃으로 떠 있는지 바로 보이게 합니다.</p>
     <div class="callout">
       <div class="ct">한 코드, 여러 사이트</div>
       각 화면이 if/else를 흩뿌리지 않고 <code>env.ts</code>의 분기 값을 import 해 참조하므로, 타깃별 차이가 한곳에 모입니다. 신규 사이트 대응이나 권한 변경이 <code>env.ts</code> 한 파일과 <code>.env.*</code> 조정으로 수렴합니다.
@@ -66,7 +66,6 @@ sequenceDiagram
     participant ENV as utils/env.ts
     participant APP as App.tsx
     participant DASH as dashboardRms
-    participant ROUTE as MainRoutes
     participant DEV as 단말 화면
 
     BUILD-&gt;&gt;ENV: REACT_APP_TARGET 주입
@@ -74,14 +73,13 @@ sequenceDiagram
     ENV-&gt;&gt;ENV: modulePermissions / widgetPermissions / ID_FIELD / stpPolicyPeriodMin
     APP-&gt;&gt;ENV: modulePermissions.chatbot 확인
     APP-&gt;&gt;APP: 챗봇 버튼 노출 여부 결정
+    APP-&gt;&gt;APP: local이면 타이틀에 TARGET 표시
     DASH-&gt;&gt;ENV: widgetPermissions 확인
-    DASH-&gt;&gt;DASH: 지도/모델/네트워크 위젯 표시·편집 분기
-    ROUTE-&gt;&gt;ENV: IS_KT 확인
-    ROUTE-&gt;&gt;ROUTE: mailreport → AlertSetting / MailReport
+    DASH-&gt;&gt;DASH: 위젯 노출·컬럼 수(widgetCols)·편집 분기
     DEV-&gt;&gt;ENV: ID_FIELD 확인
     DEV-&gt;&gt;DEV: deviceSiteId(KT) / deviceId 로 표시
       </div>
-      <p class="cap"><strong>흐름.</strong> 빌드 시 주입된 <code>REACT_APP_TARGET</code>을 <code>env.ts</code>가 분기 값으로 가공하고, 각 화면(App·대시보드·라우트·단말)이 그 값을 참조해 노출·동작·식별자를 사이트에 맞게 결정합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 빌드 시 주입된 <code>REACT_APP_TARGET</code>을 <code>env.ts</code>가 분기 값으로 가공하고, 각 화면(App·대시보드·단말)이 그 값을 참조해 노출·동작·식별자를 사이트에 맞게 결정합니다.</p>
     </div>
   </section>
 
@@ -111,19 +109,21 @@ classDiagram
         +deviceLocationMap
         +deviceBrandModel
         +networkInterface
+        +networkInterfaceSwitch
         +disableEditMode
+        +illegalDevices
+        +KPIWidgetCount
+        +widgetCols
     }
     class App
-    class MainRoutes
     class DashboardRms
 
     envModule o-- modulePermissions
     envModule o-- widgetPermissions
     App ..&gt; modulePermissions : 챗봇 등 노출
-    MainRoutes ..&gt; envModule : IS_KT 라우트 분기
-    DashboardRms ..&gt; widgetPermissions : 위젯 노출
+    DashboardRms ..&gt; widgetPermissions : 위젯 노출·컬럼 수
       </div>
-      <p class="cap"><strong>관계.</strong> <code>env.ts</code>가 <code>modulePermissions</code>·<code>widgetPermissions</code>를 보유하고, App·MainRoutes·DashboardRms 등 소비자가 이를 import 해 사이트별로 분기합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>env.ts</code>가 <code>modulePermissions</code>·<code>widgetPermissions</code>를 보유하고, App·DashboardRms 등 소비자가 이를 import 해 사이트별로 분기합니다. <code>MainRoutes.tsx</code>의 <code>IS_KT</code> 라우트 분기는 제거되었습니다.</p>
     </div>
   </section>
 
@@ -135,17 +135,21 @@ classDiagram
 export const IS_KT = TARGET === 'KT';
 
 export const modulePermissions = {
-  terminal: TARGET === 'OBE' || TARGET === 'TTG',
+  terminal: ['OBE', 'TTG'].includes(TARGET),
   advancedMesage: TARGET !== 'KT',
   launcherReset: TARGET === 'TTG',
   chatbot: REACT_APP_CHATBOT === 'Y',
   enbaleWifi: TARGET === 'TTG'
 };
 export const widgetPermissions = {
-  deviceLocationMap: TARGET !== 'OBE' &amp;&amp; TARGET !== 'TTG',
-  deviceBrandModel:  TARGET !== 'OBE' &amp;&amp; TARGET !== 'TTG',
-  networkInterface:  TARGET !== 'OBE' &amp;&amp; TARGET !== 'TTG',
-  disableEditMode:   TARGET === 'KT'
+  deviceLocationMap: !['OBE', 'TTG', 'XLSmart'].includes(TARGET),
+  deviceBrandModel: !['OBE', 'TTG', 'XLSmart'].includes(TARGET),
+  networkInterface: !['OBE', 'TTG', 'XLSmart'].includes(TARGET),
+  networkInterfaceSwitch: !['OBE', 'TTG', 'XLSmart'].includes(TARGET),
+  disableEditMode: TARGET === 'KT',
+  illegalDevices: TARGET === 'XLSmart',
+  KPIWidgetCount: TARGET === 'XLSmart' ? 5 : 4,
+  widgetCols: TARGET === 'XLSmart' ? 20 : 16
 };
 export const stpPolicyPeriodMin = TARGET === 'KT' ? 10 : 5;
 export const useRegionalId = TARGET === 'KT';
@@ -157,8 +161,8 @@ export const ID_FIELD = useRegionalId ? 'deviceSiteId' : 'deviceId';</code></pre
     <h2>관련 소스</h2>
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/utils/env.ts" target="_blank" rel="noopener">src/utils/env.ts</a><span class="src">사이트 분기 핵심 — TARGET·modulePermissions·widgetPermissions·ID_FIELD·정책 주기</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/routes/MainRoutes.tsx" target="_blank" rel="noopener">routes/MainRoutes.tsx</a><span class="src">IS_KT 기반 mailreport → AlertSetting/MailReport 분기</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/App.tsx" target="_blank" rel="noopener">App.tsx</a><span class="src">modulePermissions.chatbot로 챗봇 노출 결정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/routes/MainRoutes.tsx" target="_blank" rel="noopener">routes/MainRoutes.tsx</a><span class="src">mailreport 라우트 AlertSetting 고정 (IS_KT 분기 제거) · networkoffline/:id 라우트 추가</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/App.tsx" target="_blank" rel="noopener">App.tsx</a><span class="src">modulePermissions.chatbot로 챗봇 노출 결정 · local 환경 타이틀에 TARGET 표시</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/dashboardRms.tsx" target="_blank" rel="noopener">pages/monitoring/dashboardRms.tsx</a><span class="src">widgetPermissions로 위젯 노출/편집 분기</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/build.js" target="_blank" rel="noopener">build.js</a><span class="src">사이트별 빌드 — target/도메인/버전 인자로 .env 주입</span></li>
     </ul>
