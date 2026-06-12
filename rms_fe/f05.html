@@ -48,8 +48,8 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>단말 관리(Management)는 RMS 운영의 기반이 되는 영역입니다. <code>managementDevices</code>/<code>devicelist</code>가 <code>DevicesApiManager.getList()</code>(<code>/api/v1/devices</code>)로 단말 목록을 조회하고, <code>deviceDetailInfo</code>/<code>deviceEdit</code>가 <code>getDetail</code>·<code>update</code>(<code>/api/v1/devices/:id/update</code>)로 상세 조회와 편집을 처리합니다. 그룹은 <code>groups</code>/<code>groupEdit</code>가 <code>getGroupList</code>·<code>changeGroup</code>·<code>moveDevices</code> 등으로 단말을 그룹 단위로 묶어 운영하고, 단말 정책은 <code>devicePolicy</code>가 <code>getPolicyList</code>(<code>/api/v1/device-policies</code>)로 STB Policy를 다룹니다.</p>
-    <p>대량 등록은 Excel import로 이뤄집니다. <code>deviceImportDialog</code>가 <code>downloadExcel('/api/v1/devices/download-upload-template', ...)</code>로 템플릿을 내려주고, 운영자가 작성한 파일을 <code>FormData</code>에 담아 <code>uploadDeviceExcelFileResult</code>로 <code>multipart/form-data</code> 전송합니다. 이렇게 서버에 단말 정보가 등록되면, 단말 부팅 시 RMS Client가 해당 정보로 인증하고 목록/상세에 연동 단말로 나타납니다.</p>
+    <p>단말 관리(Management)는 RMS 운영의 기반이 되는 영역입니다. <code>managementDevices</code>/<code>devicelist</code>가 <code>DevicesApiManager.getList()</code>(<code>/api/v1/devices</code>)로 단말 목록을 조회하고, <code>deviceDetailInfo</code>/<code>deviceEdit</code>가 <code>getDetail</code>·<code>update</code>(<code>/api/v1/devices/:id/update</code>)로 상세 조회와 편집을 처리합니다. 그룹은 <code>groups</code>/<code>groupEdit</code>가 <code>getGroupList</code>·<code>changeGroup</code>·<code>moveDevices</code> 등으로 단말을 그룹 단위로 묶어 운영하고, 단말 정책은 <code>devicePolicy</code>가 <code>getPolicyList</code>(<code>/api/v1/device-policies</code>)로 STB Policy를 다룹니다. 단말 관리 탭 컨테이너(<code>managementDevices.tsx</code>)는 같은 탭을 다시 클릭하면 <code>refreshKey</code>를 증가시켜 하위 컴포넌트(Devices·CommandHistory·AdvanceSearch)의 <code>key</code>를 바꿔 리마운트하는 방식으로 목록을 새로고침합니다. 기존에 각 탭으로 내려주던 <code>clickTime</code> prop과 <code>groups.tsx</code> 등의 <code>clickTime</code> 감시 <code>useEffect</code>는 제거되었습니다.</p>
+    <p>대량 등록은 Excel import로 이뤄집니다. <code>deviceImportDialog</code>가 <code>downloadExcel('/api/v1/devices/download-upload-template', ...)</code>로 템플릿을 내려주고, 운영자가 작성한 파일을 <code>FormData</code>에 담아 <code>uploadDeviceExcelFileResult</code>로 <code>multipart/form-data</code> 전송합니다. 이렇게 서버에 단말 정보가 등록되면, 단말 부팅 시 RMS Client가 해당 정보로 인증하고 목록/상세에 연동 단말로 나타납니다. 단말·그룹 일괄 명령 API(<code>commandDevices</code>·<code>commandDevicesAll</code>·<code>commandDeviceGroups</code> 등)의 <code>CommandType</code>에는 잠금 사유(<code>lockReason</code>) 필드가 추가되어, LOCK 명령 시 명령 모달에서 선택한 사유(Unactive·Suspended·IP Range·Model·ETC, XLSmart는 Illegal 포함)가 함께 전송됩니다.</p>
     <div class="callout">
       <div class="ct">사이트별 식별자 필드</div>
       <code>utils/env.ts</code>의 <code>ID_FIELD</code>는 KT 타깃이면 <code>deviceSiteId</code>, 그 외에는 <code>deviceId</code>로 분기됩니다(<code>useRegionalId</code>). 같은 단말 화면도 KT에서는 지역 식별자 기준으로 표시·검색됩니다.
@@ -161,11 +161,11 @@ update: (callback, data) =&gt; {
     <h2>관련 소스</h2>
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/deviceImportDialog.tsx" target="_blank" rel="noopener">pages/management/deviceImportDialog.tsx</a><span class="src">Excel import — 템플릿 다운로드·FormData 업로드</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/managementDevices.tsx" target="_blank" rel="noopener">pages/management/managementDevices.tsx</a><span class="src">단말 목록 화면</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/managementDevices.tsx" target="_blank" rel="noopener">pages/management/managementDevices.tsx</a><span class="src">단말 관리 탭 컨테이너 — 탭 재클릭 시 refreshKey 기반 key 리마운트 새로고침</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/deviceEdit.tsx" target="_blank" rel="noopener">pages/management/deviceEdit.tsx</a><span class="src">단말 편집 — getDetail·update</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/groups.tsx" target="_blank" rel="noopener">pages/management/groups.tsx</a><span class="src">단말 그룹 관리 — 그룹 목록·이동</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/devicePolicy.tsx" target="_blank" rel="noopener">pages/management/devicePolicy.tsx</a><span class="src">단말 정책(STB Policy) 조회</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Devices.tsx" target="_blank" rel="noopener">_api/Devices.tsx</a><span class="src">DevicesApiManager — 단말/그룹/정책/Excel 업로드 통합 API</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Devices.tsx" target="_blank" rel="noopener">_api/Devices.tsx</a><span class="src">DevicesApiManager — 단말/그룹/정책/Excel 업로드 통합 API (일괄 명령 CommandType에 lockReason 추가)</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

@@ -49,7 +49,7 @@
   <section id="desc">
     <h2>기능 개요</h2>
     <p>실시간 원격 제어는 두 채널을 함께 씁니다. 첫째는 화면 공유(Screen Share)로, 디바이스 상세 모달에서 운영자가 화면 공유를 누르면 <code>DevicesApiManager.specialCommands(..., 'SCREEN_SHARE')</code>가 호출되어 서버로부터 <code>channelId</code>를 받습니다. 이 채널 ID로 <code>screenShareModal</code>이 <code>REACT_APP_SIGNAL_BE_WS</code> WebSocket에 접속하고, <code>RTCPeerConnection</code>(TURN 서버 <code>turn:&lt;domain&gt;:3478</code>)을 만들어 시그널링(<code>join</code>/<code>offer</code>/<code>answer</code>/<code>ice-candidate</code>)을 거쳐 단말의 화면 스트림을 WebRTC로 수신합니다. 수신한 <code>MediaStream</code>은 비디오 엘리먼트에 바인딩되며 캡처/리코딩도 지원합니다.</p>
-    <p>둘째는 상태 구독(SSE)으로, <code>useSSEController</code>가 <code>/api/v1/notifications/subscribe</code>에 <code>EventSourcePolyfill</code>로 연결해 <code>NOTIFICATION</code> 이벤트를 받습니다. 디바이스 상세 모달은 이 SSE 메시지로 단말 연결/상태 변화를 실시간 반영하고, 보조적으로 폴링도 사용합니다(개발 이력에서 디바이스 모달 폴링 주기를 5초에서 10초로 조정). 연결되지 않은 단말은 모달이 dim 처리되어 원격 명령이 막히고, 필요 시 <code>createDeviceConnection</code>으로 connection을 먼저 맺습니다.</p>
+    <p>둘째는 상태 구독(SSE)으로, <code>useSSEController</code>가 <code>/api/v1/notifications/subscribe</code>에 <code>EventSourcePolyfill</code>로 연결해 <code>NOTIFICATION</code> 이벤트를 받습니다. 디바이스 상세 모달은 이 SSE 메시지로 단말 연결/상태 변화를 실시간 반영하고, 보조적으로 폴링도 사용합니다(개발 이력에서 디바이스 모달 폴링 주기를 5초에서 10초로 조정). 연결되지 않은 단말은 모달이 dim 처리되어 원격 명령이 막히고, 필요 시 <code>createDeviceConnection</code>으로 connection을 먼저 맺습니다. 원격 명령 페이로드 타입(<code>_api/Devices.tsx</code>의 <code>CommandType</code>)에는 단말 잠금(LOCK) 명령용 사유 필드 <code>lockReason</code>이 추가되어, 디바이스 모달에서 잠금 시 선택한 사유(Unactive·Suspended·IP Range·Model·ETC, XLSmart는 Illegal 포함)가 명령과 함께 전송됩니다.</p>
     <div class="callout">
       <div class="ct">connection 선행 + dim 처리</div>
       Screen Share·Terminal 등 실시간 기능은 단말이 connection 된 상태(<code>currSectionStatus</code> CONNECTED)에서만 동작합니다. 디바이스 모달은 <code>isConnected</code>와 편집 권한(<code>isPermission.isEdit</code>)을 보고 dim 여부를 결정하며, dim 상태에서 화면 공유를 누르면 토스트로 막습니다.
@@ -170,7 +170,7 @@ const handleScreenShareOpen = () =&gt; {
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/deviceDetailModal/screenShare/screenShareModal.tsx" target="_blank" rel="noopener">components/deviceDetailModal/screenShare/screenShareModal.tsx</a><span class="src">화면 공유 — WebSocket 시그널·RTCPeerConnection(TURN)·ontrack</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/deviceDetailModal/deviceDetail.tsx" target="_blank" rel="noopener">components/deviceDetailModal/deviceDetail.tsx</a><span class="src">디바이스 모달 — SSE 구독·화면 공유 채널 획득·dim 처리</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/hooks/useSSEController.ts" target="_blank" rel="noopener">hooks/useSSEController.ts</a><span class="src">SSE 컨트롤러 — EventSourcePolyfill·NOTIFICATION 구독·connect/disconnect</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Devices.tsx" target="_blank" rel="noopener">_api/Devices.tsx</a><span class="src">specialCommands(SCREEN_SHARE) / createDeviceConnection</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Devices.tsx" target="_blank" rel="noopener">_api/Devices.tsx</a><span class="src">specialCommands(SCREEN_SHARE) / createDeviceConnection · CommandType에 lockReason(잠금 사유) 필드 추가</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

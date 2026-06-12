@@ -205,7 +205,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3771728412" target="_blank" rel="noopener">Confluence — RMS FE (3771728412)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-06-10 · a55d2131 group 상세에 다국어 추가</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-06-12 · 62653c62 Failure 리스트에 fail type 컬럼 추가</div></div>
       <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>mantis-react-ts</code> / package.json 1.2.0, 운영 빌드 2.2.26</div></div>
     </div>
   </div>
@@ -271,7 +271,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
 ├── compress.js               # 빌드 결과 압축 (postbuild)
 ├── set-version.js / release.js / delete-unused-assets.js
 ├── .env.local / .env.kt / .env.obe / .env.ttg / .env.ttg.aws
-│   / .env.ttg_staging / .env.demo / .env.eu / .env.alti / .env.ai
+│   / .env.ttg_staging / .env.demo / .env.eu / .env.alti / .env.ai / .env.xl
 ├── Dockerfile / eks/         # 컨테이너·Helm·nginx 배포 리소스
 ├── public/ , vendor/ , diagrams/
 └── src/
@@ -410,33 +410,33 @@ yarn build --target=prod --compressType=tar --name=TTG --domain=172.28.12.11:808
 yarn build:dev                # dotenv -e .env.dev react-app-rewired build
 yarn build:ttg / build:aws    # .env.ttg/.env.aws + postbuild compress.js
 yarn test                     # react-scripts test (CRA Jest)</code></pre>
-    <p>산출물은 정적 자원(<code>build/</code>)으로 빌드되어 <code>/rms-ui</code> 경로에 배포됩니다. 컨테이너 배포는 <code>docker build -t rms-ui .</code>(빌드 후 <code>serve</code>로 8080 서빙)이며, Kubernetes는 <code>eks/helm</code> 차트와 <code>eks/nginx/nginx.conf</code>로 서빙합니다. 환경 설정은 <code>.env.local / .env.kt / .env.obe / .env.ttg / .env.ttg.aws / .env.demo / .env.eu / .env.alti / .env.ai</code> 등 사이트별 파일로 분리됩니다.</p>
+    <p>산출물은 정적 자원(<code>build/</code>)으로 빌드되어 <code>/rms-ui</code> 경로에 배포됩니다. 컨테이너 배포는 <code>docker build -t rms-ui .</code>(빌드 후 <code>serve</code>로 8080 서빙)이며, Kubernetes는 <code>eks/helm</code> 차트와 <code>eks/nginx/nginx.conf</code>로 서빙합니다. 환경 설정은 <code>.env.local / .env.kt / .env.obe / .env.ttg / .env.ttg.aws / .env.demo / .env.eu / .env.alti / .env.ai / .env.xl</code> 등 사이트별 파일로 분리됩니다.</p>
   </section>
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>최근 작업은 XLSmart 사이트 대응이 중심입니다. 모니터링 대시보드에 Illegal Devices·Top Installed Apps·Top Deleted Apps·HDMI Connection Status 위젯을 추가하고, KPI 위젯 5개 표시를 위해 대시보드 그리드 cols를 20으로 확장(<code>widgetCols</code>)했으며 지도 위젯에 device status select를 더했습니다. 앱 설치(PkgInstallModal)·앱 정책·펌웨어 설치(FwInstallModal) 화면과 알림 설정(AlertSetting, Network Offline 알림 편집 화면 추가)을 XLSmart 요구사항에 맞춰 반영했고, Report/Failure 테이블 컬럼명·다운로드 아이콘 수정, 단말 메시지의 position 필드(MIDDLE/TOP/BOTTOM) 추가, 다국어 리소스(en/fr/tr/du) 보강도 함께 진행했습니다.</p>
+    <p>최근 작업은 KT 사용자 등록과 XL Smart 대응이 중심입니다. KT 타깃 로그인 화면에 사용자 등록 팝업(<code>UserRegistrationModal</code>)을 추가하고 LDAP 검증/제출 API(<code>/api/v1/auth/ldap/register/*</code>)와 가입 신청 승인/거절 API(<code>/api/v1/registration-users</code>)를 연동했습니다. XL Smart용으로는 설문 설정(Survey Setting) 화면·라우트(<code>surveySetting</code>/<code>SurveyCreate</code>, 메뉴는 임시 처리)와 <code>.env.xl</code>을 추가하고, Illegal Devices 위젯 테마 컬러·지도 위젯 셀렉트 GUI를 다듬었습니다. 단말 잠금(Lock) 명령에는 사유(<code>lockReason</code>) 선택이 도입되어 API와 명령 모달에 반영되었고, Failure 리포트 목록에 실패 유형(failureType) 컬럼과 단말 상세의 WiFi enable 표시가 추가되었으며 관련 다국어(en/fr/tr/du)도 보강되었습니다.</p>
     <ul class="commits">
+      <li><span class="date">2026-06-12</span><span class="msg">Failure 리스트에 fail type 컬럼 추가 (62653c62)</span></li>
+      <li><span class="date">2026-06-12</span><span class="msg">Lock 커멘드 호출 시에 reason 선택 되도록 수정 (90a0d4c6)</span></li>
+      <li><span class="date">2026-06-12</span><span class="msg">Lock reason api 적용 (feb120ef)</span></li>
+      <li><span class="date">2026-06-12</span><span class="msg">wifi enable 기능 추가 (eb34fae2)</span></li>
+      <li><span class="date">2026-06-12</span><span class="msg">Lock 관련 다국어 추가 (66b4e242)</span></li>
+      <li><span class="date">2026-06-11</span><span class="msg">[KT] LDAP API 추가 (80bf8bc4)</span></li>
+      <li><span class="date">2026-06-11</span><span class="msg">사용자 등록 팝업에 cancel 버튼 시나리오 수정 (66933d6d)</span></li>
+      <li><span class="date">2026-06-11</span><span class="msg">KTUser Registration 구현 (e5948959)</span></li>
+      <li><span class="date">2026-06-11</span><span class="msg">KT 로그인 관련 다국어 추가 (fa541370)</span></li>
+      <li><span class="date">2026-06-11</span><span class="msg">[XL Smart] survey setting 추가. 메뉴는 임시로 처리. (2b85f73b)</span></li>
+      <li><span class="date">2026-06-10</span><span class="msg">LDAP api 추가 (c52e79b5)</span></li>
+      <li><span class="date">2026-06-10</span><span class="msg">[XLSmart] env.xl 추가 (c3eaf955)</span></li>
+      <li><span class="date">2026-06-10</span><span class="msg">다국어 문구 추가 (6f4988c7)</span></li>
+      <li><span class="date">2026-06-10</span><span class="msg">[XLSmart] IllegalDevice theme color 수정 (821e7eaa)</span></li>
+      <li><span class="date">2026-06-10</span><span class="msg">[XLSmart] 1depth map select gui반영 (1ca05c87)</span></li>
       <li><span class="date">2026-06-10</span><span class="msg">group 상세에 다국어 추가 (a55d2131)</span></li>
       <li><span class="date">2026-06-10</span><span class="msg">local 일때 title에 target 보이도록 수정 (f7a2ac1a)</span></li>
       <li><span class="date">2026-06-10</span><span class="msg">메시지에 position 필드 추가 (38d30e75)</span></li>
-      <li><span class="date">2026-06-10</span><span class="msg">메시지 관련 문구 수정 (6a0676df)</span></li>
-      <li><span class="date">2026-06-09</span><span class="msg">illegalDevices widget api 수정 (3b69a98e)</span></li>
       <li><span class="date">2026-06-09</span><span class="msg">[XLSmart] KPI widget 5개 표시를 위해 dashboard cols 20으로 변경 (998d3b88)</span></li>
-      <li><span class="date">2026-06-09</span><span class="msg">[XLSmart] Top Apps by Usage Time 검색 필터 수정 (4046b5cf)</span></li>
-      <li><span class="date">2026-06-09</span><span class="msg">[XLSmart] Alert setting 반영 (e431ab9b)</span></li>
-      <li><span class="date">2026-06-09</span><span class="msg">[XLSmart] map widget device status select 추가 (f1be4bf7)</span></li>
-      <li><span class="date">2026-06-09</span><span class="msg">[XLSmart] device status select option 추가 (2004c13a)</span></li>
-      <li><span class="date">2026-06-08</span><span class="msg">[XLSmart] alert setting의 문구 반영 (ed910615)</span></li>
-      <li><span class="date">2026-06-08</span><span class="msg">[XLSmart] app install, app policy, fw install 반영 (9a3a1a8f)</span></li>
-      <li><span class="date">2026-06-08</span><span class="msg">[XLSmart] appPolicy, appInstall 추가사항 (2df6e44c)</span></li>
-      <li><span class="date">2026-06-08</span><span class="msg">[XLSmart] Top Installed Apps, Top Deleted Apps, HDMI Connection Status 위젯 추가 (d173f9b9)</span></li>
       <li><span class="date">2026-06-08</span><span class="msg">[XLSmart] Illegal Devices 위젯 추가 (80714169)</span></li>
-      <li><span class="date">2026-06-08</span><span class="msg">Import Completed 팝업 문구 수정 (d2d43c26)</span></li>
-      <li><span class="date">2026-06-08</span><span class="msg">Report help 문구 수정 (40d951c3)</span></li>
-      <li><span class="date">2026-06-08</span><span class="msg">Report, Failure 에 다운로드 아이콘으로 수정 (5fb9d16b)</span></li>
-      <li><span class="date">2026-06-08</span><span class="msg">Report, Failure 테이블 컬럼명 수정 (d11c0550)</span></li>
-      <li><span class="date">2026-06-08</span><span class="msg">다국어 추가 (5a2cd403)</span></li>
     </ul>
   </section>
 
@@ -458,8 +458,8 @@ yarn test                     # react-scripts test (CRA Jest)</code></pre>
 
 <footer>
   <div class="wrap">
-    이 문서는 저장소 소스 코드(브랜치 <code>master</code>, 기준 커밋 <code>a55d2131</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
-    생성일 2026-06-05 · 갱신일 2026-06-10 · <a href="../index.html">전체 과제 목록으로</a>
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>, 기준 커밋 <code>62653c62</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · 갱신일 2026-06-12 · <a href="../index.html">전체 과제 목록으로</a>
   </div>
 </footer>
 

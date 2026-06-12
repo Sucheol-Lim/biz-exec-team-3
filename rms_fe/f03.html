@@ -49,7 +49,7 @@
   <section id="desc">
     <h2>기능 개요</h2>
     <p>배치 리포트 화면(<code>batchReport.tsx</code>)은 MUI <code>Tabs</code>로 LOG·DEVICE(report)·FAIL(failure) 세 탭을 제공합니다. LOG 탭은 <code>tabs/Log.tsx</code>(<code>LogReport</code>), 나머지 두 탭은 <code>tabs/Etc.tsx</code>(<code>EtcReport</code>)가 렌더링합니다. 데이터는 <code>ParameterApiManager</code>를 통해 조회하는데, LOG 탭은 <code>getFileMetaLast</code>(<code>/api/v1/file-metas</code>), Report/Failure 탭은 <code>getReportHistory</code>(<code>/api/v1/report-historys</code>)를 호출합니다.</p>
-    <p>각 리포트 행에는 결과 파일이 첨부되어 있어, 운영자가 다운로드를 누르면 <code>downloadFile()</code>이 <code>REACT_APP_RMS_BE_SERVER_URL</code> + <code>/api/v1/files/download?objectName=...</code> URL을 <code>fetch</code>로 받아 Blob으로 저장합니다. Report/Failure 탭(<code>Etc.tsx</code>)에서는 파일명 텍스트 링크 대신 다운로드 아이콘 버튼(<code>customFileComponet</code> + <code>DownloadIcon</code>)으로 내려받으며, 테이블의 리포트 주기 컬럼 라벨도 <code>items.report_cycle</code>로 정리되었습니다. 화면에 표시된 테이블 자체는 공용 <code>ReactTable</code>의 react-csv <code>CSVLink</code>로 CSV 내보내기가 가능합니다. 상세 보기는 <code>batchReportDetail</code>이 <code>getBatchReport</code>(<code>/api/v1/batch-reports</code>)로 단건 데이터를 받아 표시하고, 뒤로가기 시 <code>navigate('/monitoring/batch')</code>로 목록으로 복귀합니다.</p>
+    <p>각 리포트 행에는 결과 파일이 첨부되어 있어, 운영자가 다운로드를 누르면 <code>downloadFile()</code>이 <code>REACT_APP_RMS_BE_SERVER_URL</code> + <code>/api/v1/files/download?objectName=...</code> URL을 <code>fetch</code>로 받아 Blob으로 저장합니다. Report/Failure 탭(<code>Etc.tsx</code>)에서는 파일명 텍스트 링크 대신 다운로드 아이콘 버튼(<code>customFileComponet</code> + <code>DownloadIcon</code>)으로 내려받으며, 테이블의 리포트 주기 컬럼 라벨도 <code>items.report_cycle</code>로 정리되었습니다. 컬럼 정의는 <code>reportColumns</code>/<code>failureColumns</code>로 분리되어, Failure 탭(<code>tabState === 'FAIL'</code>)에서는 실패 유형(<code>failureType</code>, <code>items.failure_type</code>) 컬럼이 추가로 표시됩니다. 화면에 표시된 테이블 자체는 공용 <code>ReactTable</code>의 react-csv <code>CSVLink</code>로 CSV 내보내기가 가능합니다. 상세 보기는 <code>batchReportDetail</code>이 <code>getBatchReport</code>(<code>/api/v1/batch-reports</code>)로 단건 데이터를 받아 표시하고, 뒤로가기 시 <code>navigate('/monitoring/batch')</code>로 목록으로 복귀합니다.</p>
     <div class="callout">
       <div class="ct">조회와 다운로드의 분리</div>
       목록 조회는 콜백 스타일 <code>request</code> 헬퍼(axios)로, 파일 다운로드는 <code>sessionStorage</code>의 <code>accessToken</code>을 <code>Authorization</code> 헤더로 붙인 직접 <code>fetch</code> + Blob 방식으로 처리됩니다. 둘의 책임이 분리되어 있어 대용량 리포트 파일도 테이블 렌더와 무관하게 받아집니다.
@@ -104,6 +104,8 @@ classDiagram
     }
     class EtcReport {
         +downloadFile(url, name)
+        +reportColumns
+        +failureColumns
     }
     class BatchReportDetail {
         +navigate()
@@ -155,6 +157,18 @@ ParameterApiManager.getFileMetaLast((result, data) =&gt; { /* 목록 렌더 */ }
   }
   // downloadFile(): fetch(url, { headers: { Authorization: sessionStorage.getItem('accessToken') } }) → Blob 저장
 };</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>pages/monitoring/tabs/Etc.tsx</code> — Failure 탭 전용 컬럼 분기 (fail type 컬럼 추가)</div>
+<pre><code>&lt;CustomTable
+  dataSource={tabState === 'FAIL' ? failureColumns : reportColumns}
+  rows={rows}
+  setRows={setRows}
+  selectedRows={selectedRows}
+  ...
+/&gt;
+// failureColumns: no / reportTime / reportPeriodType / failureType(items.failure_type) / count / filePath
+// reportColumns:  no / reportTime / reportPeriodType / count / filePath</code></pre>
     </div>
   </section>
 

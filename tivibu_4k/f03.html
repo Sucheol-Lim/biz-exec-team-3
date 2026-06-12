@@ -148,7 +148,8 @@ classDiagram
         VodType.SERIES to SeriesVodPlayHandler(::playJust, ::setCurrentContent, ...),
         VodType.PREVIEW to PreviewPlayHandler(::playJust, vodAdapter, channelAdapter, navigator),
         VodType.TS_TV  to TsTvPlayHandler(::playJust, ::emitUiUpdateEvent, ...),
-        VodType.RECORD to NPVRPlayHandler(::playJust, ::emitUiUpdateEvent, ...),
+        // RECORD/PPV 공용 핸들러. NPVR 시청 완료 보고(addComplete)를 위해 vodRepository 주입
+        VodType.RECORD to NPVRPlayHandler(::playJust, ::emitUiUpdateEvent, ..., vodRepository, ...),
         VodType.PL_TV  to PlTvPlayHandler(::setCurrentContent, startOverAdapter, ...),
     )
 }
