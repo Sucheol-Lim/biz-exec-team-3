@@ -1,0 +1,264 @@
+<!doctype html>
+<!-- vams_fe · Figma 연동·품질 게이트 파이프라인 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Figma 연동·품질 게이트 파이프라인 — vams_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">VAMS 고도화 (Video Asset Management System FE)</a><span class="sep">›</span>
+      <span class="here">Figma 연동·품질 게이트 파이프라인</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">관리자 웹앱 (Vue 3 SPA)</span>
+    </div>
+    <h1>Figma 연동·품질 게이트 파이프라인</h1>
+    <p class="one-liner">Figma 공식 릴리즈 3파일을 PAT(REST)로 덤프해 화면 매핑 정본(<code>design/screen-map.json</code>)과 behavior 스펙을 동기화하는 파이프라인(<code>scripts/figma-mapping/</code>, Python)과, 픽셀 게이트(<code>check:pixel</code>)·스택 버전 핀 대조(<code>check:pins</code>)·미정의 CSS 변수 검사(<code>check:cssvars</code>) 등 "추측 구현·조용한 회귀"를 기계로 차단하는 자동 검증 도구 체계입니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/vams_fe" target="_blank" rel="noopener"><code>vams_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트·화면</div><div class="v"><code>scripts/figma-mapping/*.py</code> · <code>scripts/check-*.mjs</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">UI 화면이 아닌 개발 프로세스 인프라 — 디자인 동기화 + 품질 게이트</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ VAMS 고도화</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>이 기능은 화면이 아니라 <strong>개발 프로세스 자체를 코드로 만든 인프라</strong>입니다. 첫째 축은 Figma 매핑 파이프라인(<code>scripts/figma-mapping/</code>, Python·PAT REST 전용·MCP 불사용)입니다. <code>check-versions.py</code>가 디자인팀 공식 릴리즈 3파일(UI 시나리오 Flipbook · GUI · 공통 컴포넌트 GUI)의 version/lastModified를 스냅샷(<code>design/json_raw/.versions.json</code>)과 대조해 변경 여부를 exit code(0=변경 없음/1=변경/2=404/3=판단 불가)로 알려주고, 변경 시 <code>dump-sources.py</code>가 Flipbook 페이지별 JSON과 GUI depth-2 인벤토리를 <code>design/json_raw/</code>에 저장합니다. 이어서 <code>build-screen-map.py</code>가 Flipbook(시나리오) ↔ GUI 화면 매칭 정본 <code>design/screen-map.json</code>을 생성하는데, 사람 판정(수동 매칭·컴포넌트 참조·정책 재분류)은 <code>overrides.json</code>으로 분리·머지되어 재생성해도 큐레이션이 보존됩니다.</p>
+    <p>매핑 정본 위에서 <code>extract-behaviors.py</code>가 시나리오 프레임의 description 표를 구조화해 메뉴별 behavior 스펙(<code>design/behavior/{NN}-{menu}.json</code>)을 뽑고, <code>extract-policy-common.py</code>(00-policy/00-common)와 <code>link-policy-refs.py</code>(behavior ↔ 공통 정책 상호참조 링킹)가 뒤따릅니다. <code>gen-pixel-manifest.py</code>는 screen-map에서 GUI 노드를 조회해 픽셀 게이트 manifest 뼈대와 레퍼런스 PNG(REST 이미지 렌더)를 만들어 두 축을 연결합니다.</p>
+    <p>둘째 축은 npm 스크립트로 실행하는 <strong>결정론적 품질 게이트</strong>(<code>scripts/*.mjs</code>, Node)입니다. <code>check:pixel</code>(L4)은 Playwright로 렌더 DOM의 크기·색·여백·radius·폰트를 실측해 Figma 실측 manifest와 1:1 대조하고 스크린샷·레퍼런스 PNG 오버레이 diff까지 수행합니다 — manifest나 레퍼런스가 없으면 "조용한 PASS" 없이 즉시 FAIL(exit 1)입니다(2026-06-18 썸네일 상세 추측 구현 사고 재발 방지). <code>check:pins</code>(L3)는 package.json 핵심 의존성 메이저 버전을 ADR 확정 핀과 대조해 임의 다운그레이드를 잡고(2026-06-05 TS6→5.9 거짓 다운그레이드 사고 재발 방지), <code>check:cssvars</code>(L3)는 fallback 없는 미정의 <code>var(--x)</code> 사용(토큰 리네임 낙오 회귀)을, <code>check:ownership</code>은 feature 브랜치의 담당 범위 침범을 검출합니다. <code>figma:tokens</code>는 <code>tokens.scss</code>와 Figma 변수의 드리프트를 리포트합니다(게이트 아님, 항상 exit 0).</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      파이프라인 산출물(<code>design/json_raw/</code>·<code>design/screen-map.json</code>·<code>design/behavior/</code>)은 gitignore된 <strong>로컬 전용</strong>이라 팀원 각자 실행해 생성하며, 저장소에는 스크립트·<code>overrides.json</code>·픽셀 게이트 manifest(<code>design/pixel-gate/</code>)만 커밋됩니다. 전 과정은 PAT(REST) 전용으로 Figma MCP 없이 동작하고, 429 응답의 Retry-After가 60초를 넘으면 플랜 쿼터 소진으로 판단해 무한 대기하지 않습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant DEV as 개발자·에이전트
+    participant CV as check-versions.py
+    participant FIGMA as Figma REST API (PAT)
+    participant DS as dump-sources.py
+    participant BSM as build-screen-map.py
+    participant EB as extract-behaviors.py 계열
+    participant GPM as gen-pixel-manifest.py
+    participant PG as check-pixel-gate.mjs
+    participant PW as Playwright (dev server)
+
+    DEV->>CV: python3 check-versions.py
+    CV->>FIGMA: GET /v1/files/{key}?depth=1 (공식 3파일)
+    FIGMA-->>CV: name / version / lastModified
+    CV-->>DEV: exit 1 (변경 있음 — 계열 표시)
+    DEV->>DS: dump-sources.py --only flipbook
+    DS->>FIGMA: 페이지별 nodes 조회 (N.xxx + Policy + Common)
+    FIGMA-->>DS: 페이지 JSON
+    DS->>DS: design/json_raw/ 저장 (gitignore 로컬 전용)
+    DEV->>CV: check-versions.py --save (버전 스냅샷)
+    DEV->>BSM: build-screen-map.py
+    BSM->>BSM: Flipbook↔GUI 매칭 + overrides.json 머지
+    BSM-->>DEV: design/screen-map.json (정본)
+    DEV->>EB: extract-behaviors → extract-policy-common → link-policy-refs
+    EB-->>DEV: design/behavior/NN-menu.json (+00-policy·00-common 상호참조)
+    DEV->>GPM: gen-pixel-manifest.py VAMS-TH-002
+    GPM->>FIGMA: GET /v1/images (레퍼런스 PNG 렌더, scale=1)
+    GPM-->>DEV: design/pixel-gate/slug.json 뼈대 + PNG
+    Note over DEV,GPM: expect 실측값은 Figma 실측으로만 채움 (추측 금지)
+    DEV->>PG: npm run check:pixel design/pixel-gate/slug.json
+    PG->>PW: 라우트 진입 후 DOM 실측 (크기·색·여백·radius·폰트)
+    PW-->>PG: 측정값 + 구현 스크린샷
+    PG->>PG: manifest expect 1:1 대조 + PNG 오버레이 diff
+    PG-->>DEV: PASS 또는 FAIL (exit 1)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 버전 확인 → 변경 계열만 선택 덤프 → 화면 매핑 정본 재생성(사람 큐레이션은 overrides로 보존) → behavior·정책 스펙 추출 → 픽셀 manifest 생성 → 픽셀 게이트 실측 대조로 이어집니다. 레퍼런스가 없으면 게이트는 통과 자체가 불가능합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class CheckVersions {
+        &lt;&lt;python&gt;&gt;
+        -FILES 공식 3파일 fileKey
+        -MAX_RETRY_WAIT 60초
+        +fetch(key, token)
+        +exit 0·1·2·3 프로토콜
+    }
+    class DumpSources {
+        &lt;&lt;python&gt;&gt;
+        -FLIPBOOK_KEY GUI_KEY COMP_KEY
+        -RAW_DIR design/json_raw
+        +--only flipbook·gui·component
+    }
+    class BuildScreenMap {
+        &lt;&lt;python&gt;&gt;
+        -OVERRIDES overrides.json
+        -ALIASES 화면명 별칭 사전
+        -OUT design/screen-map.json
+    }
+    class ExtractBehaviors {
+        &lt;&lt;python&gt;&gt;
+        -OUT_DIR design/behavior
+        +visible false 서브트리 제외
+        +description 표 구조화
+    }
+    class GenPixelManifest {
+        &lt;&lt;python&gt;&gt;
+        -OUT_DIR design/pixel-gate
+        +figmaNode 자동 기입
+        +레퍼런스 PNG REST 렌더
+    }
+    class CheckPixelGate {
+        &lt;&lt;node mjs&gt;&gt;
+        -SIZE_TOL COLOR_TOL OVERLAY_TOL
+        +colorClose(a, b, tol)
+        +overlay(implBuf, figmaBuf)
+        +manifest 없으면 FAIL exit 1
+    }
+    class CheckStackPins {
+        &lt;&lt;node mjs&gt;&gt;
+        -EXPECTED 메이저 버전 핀
+        +majorOf(range)
+    }
+    class CheckUndefinedCssVars {
+        &lt;&lt;node mjs&gt;&gt;
+        -DEF_RE USE_RE
+        -WHITELIST --v- --radix- --reka-
+        +fallback 없는 미정의 var FAIL
+    }
+
+    CheckVersions ..> DumpSources : 변경 감지 시 덤프 유도
+    DumpSources --> BuildScreenMap : design/json_raw 제공
+    BuildScreenMap --> ExtractBehaviors : screen-map.json 입력
+    BuildScreenMap --> GenPixelManifest : GUI 노드 조회
+    GenPixelManifest --> CheckPixelGate : manifest·레퍼런스 PNG
+    CheckStackPins ..> CheckPixelGate : 동일 게이트 체계 (L3·L4)
+    CheckUndefinedCssVars ..> CheckPixelGate : 동일 게이트 체계 (L3·L4)
+      </div>
+      <p class="cap"><strong>관계.</strong> Python 파이프라인(좌측 계열)이 Figma 원본을 덤프·매핑·추출해 산출물을 만들고, 그 산출물을 Node 게이트(우측 계열)가 소비합니다. 게이트는 L3(결정론적 정적 검사 — 버전 핀·CSS 변수)와 L4(런타임 픽셀 실측)로 층위가 나뉩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>scripts/check-pixel-gate.mjs</code> — 레퍼런스 없으면 "조용한 PASS" 불가</div>
+<pre><code>// "Figma를 안 보고 색·여백·위치·크기를 추측 구현 → 육안으로 괜찮아 보임 → 완료 선언"
+// 이라는 반복 실패를 기계적으로 차단한다. 빌드/타입체크 PASS 여도 Figma 실측과
+// 다르면 여기서 FAIL(exit 1) 한다. (2026-06-18 썸네일 상세 추측구현 사고 재발 방지)
+
+const manifestPath = process.argv[2]
+if (!manifestPath || !existsSync(manifestPath)) {
+  console.error(`❌ FAIL: manifest 없음 — "${manifestPath ?? '(경로 미지정)'}"`)
+  console.error('   → design/pixel-gate/&lt;feature&gt;.json 을 Figma 실측값으로 작성해야 게이트 통과 가능.')
+  console.error('   → 레퍼런스 없이 UI 완료 선언 금지. design/pixel-gate/README.md 참조.')
+  process.exit(1)
+}
+
+const m = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+const SIZE_TOL = m.tolerances?.sizePx ?? 2        // 크기 허용 오차 2px
+const COLOR_TOL = m.tolerances?.colorChannel ?? 6 // 채널당 색 오차 6
+const OVERLAY_TOL = m.tolerances?.overlayRatio ?? 0.12 // 오버레이 diff 12%</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>scripts/check-stack-pins.mjs</code> — ADR 확정 메이저 버전 핀 대조</div>
+<pre><code>// 구현 에이전트가 "빌드 통과를 위해" 확정 버전을 임의로 낮추는 사고를
+// 잡기 위함. 빌드/타입체크가 PASS여도 버전이 틀리면 여기서 FAIL 한다.
+// (2026-06-05 vue-implementer가 TS6→5.9 / Vite8→7로 거짓 다운그레이드한 사고 재발 방지)
+
+// 확정 메이저 버전. 변경은 ADR/_basis 갱신을 통해서만 (코드 임의 변경 금지).
+const EXPECTED = {
+  vue: 3, 'vue-router': 5, pinia: 3, typescript: 6, vite: 8,
+  '@tanstack/vue-query': 5, '@tanstack/vue-table': 8, '@tanstack/vue-virtual': 3,
+  'vee-validate': 4, zod: 4,
+  'reka-ui': 2, echarts: 6, 'vue-echarts': 8, 'vue-i18n': 11, axios: 1,
+  'wavesurfer.js': 7,          // 자막 편집 파형 (ADR §1.4)
+  konva: 10, 'vue-konva': 3,   // 포스터 캔버스 편집기 (ADR §1.4)
+  '@vitejs/plugin-vue': 6, 'vue-tsc': 3, eslint: 10, 'eslint-plugin-vue': 10,
+  prettier: 3, vitest: 4, '@playwright/test': 1, msw: 2, 'sass-embedded': 1,
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>scripts/figma-mapping/check-versions.py</code> — 공식 3파일 추적과 쿼터 소진 방어</div>
+<pre><code>FILES = [  # (계열, 역할, fileKey) — 디자인팀 공식 릴리즈 3파일 (2026-07-09 확정)
+    ('ui-scenario', 'official', 'AUO3Tw25AEdULzJgmZVBCX'),   # KT-VAMS_UI-Flipbook
+    ('gui', 'official', 'FzvI6jvlYIZFaniOOanASj'),           # [KT]VAMS_GUI (공유)
+    ('gui-component', 'official', 'N6Lkk77lhn5lKz7lqjgXfJ'), # [KT]VAMS_GUI_Component
+]
+VERSIONS_FILE = 'design/json_raw/.versions.json'
+
+MAX_RETRY_WAIT = 60  # 초 — 이보다 큰 Retry-After는 순간 제한이 아니라
+                     # 플랜 쿼터 소진이므로 대기하지 않는다
+
+def fetch(key, token, retries=3):
+    req = urllib.request.Request(
+        f'https://api.figma.com/v1/files/{key}?depth=1',
+        headers={'X-Figma-Token': token})
+    # ... 429는 Retry-After 만큼 재시도, 60초 초과면 즉시 exit 3(판단 불가)</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/check-versions.py" target="_blank" rel="noopener">scripts/figma-mapping/check-versions.py</a><span class="src">공식 3파일 버전 확인 — 덤프 필요 여부를 exit code(0/1/2/3)로 판정, 쿼터 소진 방어</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/dump-sources.py" target="_blank" rel="noopener">scripts/figma-mapping/dump-sources.py</a><span class="src">공식 3파일을 PAT(REST)로 design/json_raw/에 덤프 — --only 계열 선택 덤프 지원</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/build-screen-map.py" target="_blank" rel="noopener">scripts/figma-mapping/build-screen-map.py</a><span class="src">Flipbook ↔ GUI 화면 매핑 정본 생성 — overrides.json 큐레이션 머지·별칭 사전</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/extract-behaviors.py" target="_blank" rel="noopener">scripts/figma-mapping/extract-behaviors.py</a><span class="src">시나리오 description 표 구조화 → design/behavior/{NN}-{menu}.json (QA 검증 반영 v2)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/extract-policy-common.py" target="_blank" rel="noopener">scripts/figma-mapping/extract-policy-common.py</a><span class="src">Policy/Common 공통 정책 페이지 구조화 → 00-policy.json·00-common.json</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/link-policy-refs.py" target="_blank" rel="noopener">scripts/figma-mapping/link-policy-refs.py</a><span class="src">behavior ↔ 공통 정책 상호참조 링킹 (policyRefs / referencedBy, 멱등)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/gen-pixel-manifest.py" target="_blank" rel="noopener">scripts/figma-mapping/gen-pixel-manifest.py</a><span class="src">screen-map 기반 픽셀 게이트 manifest 뼈대 + 레퍼런스 PNG REST 렌더</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/check-pixel-gate.mjs" target="_blank" rel="noopener">scripts/check-pixel-gate.mjs</a><span class="src">L4 픽셀 게이트 — Playwright DOM 실측 vs Figma manifest 1:1 대조 + 오버레이 diff</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/check-stack-pins.mjs" target="_blank" rel="noopener">scripts/check-stack-pins.mjs</a><span class="src">L3 스택 버전 핀 게이트 — ADR 확정 메이저 버전과 package.json 대조</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/check-undefined-css-vars.mjs" target="_blank" rel="noopener">scripts/check-undefined-css-vars.mjs</a><span class="src">L3 미정의 CSS 변수 게이트 — fallback 없는 var(--x) 사용 검출</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/check-ownership.mjs" target="_blank" rel="noopener">scripts/check-ownership.mjs</a><span class="src">feature 브랜치 변경 파일의 담당 범위 침범 검출 (--own / --branch 추정)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/design/pixel-gate/README.md" target="_blank" rel="noopener">design/pixel-gate/README.md</a><span class="src">픽셀 게이트 manifest 작성 가이드 — expect 값은 Figma 실측만, 추측 금지</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f07.html">‹ 공통 컴포넌트·디자인 시스템</a>
+      <a href="index.html#features">기능 목록</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">VAMS 고도화 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

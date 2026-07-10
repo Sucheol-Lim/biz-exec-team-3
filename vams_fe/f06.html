@@ -1,0 +1,268 @@
+<!doctype html>
+<!-- vams_fe · 설정 (관리자) 기능 상세 — 탭 3종(작업 설정·연동·사용자 권한) 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>설정 (관리자) — vams_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">VAMS 고도화 (Video Asset Management System FE)</a><span class="sep">›</span>
+      <span class="here">설정 (관리자)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">관리자 웹앱 (Vue 3 SPA)</span>
+    </div>
+    <h1>설정 (관리자)</h1>
+    <p class="one-liner"><code>SettingsPage</code>가 단일 라우트(<code>/settings</code>) 안에서 카테고리별 솔루션 작업 설정(WorkConfig)·솔루션별 연동 설정(Integration)·사용자 권한 설정(UserRole) 3개 탭을 제공하는 관리자 설정 화면입니다. 연동 탭은 드래프트/베이스라인 스토어 기반 dirty 가드와 즉시 저장 모델을, 권한 탭은 낙관적 업데이트 기반 역할 변경을 구현하며 권한 3계층(일반운영자/중간관리자/시스템관리자) 정책과 연동됩니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/vams_fe" target="_blank" rel="noopener"><code>vams_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트·화면</div><div class="v"><code>features/settings/pages/SettingsPage.vue</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">LNB 12개 메뉴 중 관리자 설정 — 솔루션 9종·역할 3계층 운영 정책의 진입점</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ VAMS 고도화</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>설정 메뉴는 <code>src/features/settings/routes.ts</code>가 self-export 하는 단일 라우트 <code>settings</code>로 앱 셸(<code>AppShellContainer</code>) 하위에 등록되며, <code>SettingsPage.vue</code>가 공용 세그먼트형 탭 컴포넌트(<code>VTabs</code>, Reka UI TabsRoot 합성)로 3개 탭을 렌더합니다. 탭 구성은 <code>SETTINGS_TAB_ITEMS</code> 상수에 정의된 <strong>카테고리별 솔루션 작업 설정(work)</strong> · <strong>솔루션별 연동 설정(integration)</strong> · <strong>사용자 권한 설정(roles)</strong>이며, 활성 탭은 딥링크 없이 페이지 내부 <code>activeTab</code> ref가 소유합니다. 탭 전환 시 <code>handleTabChange</code>가 가드를 거쳐, 차단되면 마지막 통과 탭(<code>committedTab</code>)으로 롤백하는 구조입니다.</p>
+    <p>탭1(WorkConfig)은 장르/세부장르 필터 + <code>DataTable</code> + 페이지네이션으로 카테고리 작업 항목을 조회하고 <code>CategoryItemFormModal</code>로 항목 추가/수정을 수행합니다. 솔루션 마스터는 API(E10 <code>/solutions</code>) 응답이 없으면 FE 상수 <code>SETTING_SOLUTIONS</code>(포스터·썸네일·자막·구간마킹·얼굴인식·골라보기·하이라이트·개인화 포스터/하이라이트 9종)로 폴백합니다. 탭2(Integration)는 전체 자동 연동 마스터 스위치 + <code>SolutionIntegrationCard</code> 9장으로 구성되며, <code>useSettingsEditorStore</code>의 드래프트/베이스라인 이중 상태로 dirty를 판정하고 토글·체크 변경마다 전체 스냅샷을 PUT 하는 <strong>즉시 저장</strong> 모델을 씁니다. 저장 실패 시 직전 저장 상태로 자동 복원됩니다.</p>
+    <p>탭3(UserRole)은 역할 필터(<code>VSelect</code>) + 키워드 검색 + <code>UserRoleTable</code>로 사용자 목록을 조회하고, 역할 변경(E8 PUT <code>/users/:id/role</code>)은 Vue Query 캐시를 먼저 갱신하는 <strong>낙관적 업데이트</strong>로 처리합니다. 역할 코드는 <code>OPERATOR</code>/<code>MANAGER</code>/<code>ADMIN</code> 3계층으로, 앱 전역의 권한 판정 컴포저블 <code>useCan</code>(authStore role 기반)이 참조하는 권한 정책의 관리 지점입니다. 모든 API는 <code>SETTINGS_API</code>·<code>USER_API</code> 등 추상 경로 상수를 경유하고 dev에서는 MSW가 인터셉트하며, DTO→도메인 변환은 <code>api/adapters/settings.ts</code> 단일 지점에서만 수행합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트 — dirty 가드 이중 결선</div>
+      연동 탭의 미저장 드래프트 보호는 두 경로에 결선됩니다. 같은 페이지 안의 탭 전환은 <code>useSettingsGuard.guardTabChange</code>가, 다른 메뉴로의 라우트 이탈은 <code>onBeforeRouteLeave</code> 훅이 각각 확인 모달(<code>useConfirm</code>)을 띄우고, 이동을 확정하면 <code>resetIntegration()</code>으로 드래프트를 폐기합니다. 한편 라우트 자체의 권한 차단 meta는 제거되어 있어(비침습 원칙) 화면 접근 제어보다 데이터 정합 보호에 무게를 둔 구현입니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as 운영자 (관리자)
+    participant PG as SettingsPage
+    participant GD as useSettingsGuard
+    participant TAB as IntegrationTab
+    participant ST as useSettingsEditorStore
+    participant MU as useSettingsMutations
+    participant API as SETTINGS_API (MSW/BE)
+
+    U->>PG: /settings 진입 (기본 탭 work)
+    U->>PG: 연동 설정 탭 클릭
+    PG->>GD: guardTabChange(work, integration)
+    GD-->>PG: true (dirty 아님 → 허용)
+    PG->>TAB: 탭 패널 활성화
+    TAB->>API: GET /settings/integration (useIntegrationQuery)
+    API-->>TAB: IntegrationSettingsResponseDto → 어댑터 변환
+    TAB->>ST: hydrateIntegration(server) — baseline+draft 동기
+    U->>TAB: 솔루션 토글 ON/OFF
+    TAB->>ST: toggleSolution(code, enabled) — 마스터 파생 동기화
+    TAB->>MU: persistIntegration() → saveIntegration.mutate(draft)
+    MU->>API: PUT /settings/integration (전체 스냅샷)
+    alt 저장 성공
+        API-->>MU: 200 OK
+        MU-->>TAB: onSuccess
+        TAB->>ST: commitIntegration() — baseline=draft
+    else 저장 실패
+        MU-->>TAB: onError (에러 토스트 발화)
+        TAB->>ST: resetIntegration() — 직전 저장 상태 복원
+    end
+    Note over PG,ST: 미저장 dirty 상태의 탭 전환·라우트 이탈은 확인 모달 후 드래프트 폐기
+      </div>
+      <p class="cap"><strong>흐름.</strong> 연동 탭 진입 시 서버 스냅샷을 baseline+draft로 hydrate 하고, 토글·체크 변경마다 전체 스냅샷을 즉시 PUT 합니다. 성공하면 <code>commitIntegration</code>으로 baseline을 전진시키고, 실패하면 <code>resetIntegration</code>으로 롤백합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class SettingsPage {
+        -activeTab SettingsTab
+        -committedTab SettingsTab
+        +handleTabChange(newTab)
+    }
+    class WorkConfigTab {
+        -filterGenre string
+        -filterSubGenre string
+        +useQuery(E1 categoryItems)
+    }
+    class IntegrationTab {
+        +persistIntegration()
+        +handleMasterToggle(val)
+        +handleSolutionToggle(code, enabled)
+        +handleCategoryUpdate(code, itemIds)
+    }
+    class UserRoleTab {
+        -roleFilter RoleCode
+        -searchKeyword string
+        +handleSearch()
+        +handleApply(userId, roleCode)
+    }
+    class useSettingsGuard {
+        +integrationDirty boolean
+        +guardTabChange(fromTab, toTab) Promise~boolean~
+    }
+    class useSettingsEditorStore {
+        -integrationDraft IntegrationSettings
+        -integrationBaseline IntegrationSettings
+        +integrationDirty boolean
+        +hydrateIntegration(server)
+        +setMaster(enabled)
+        +toggleSolution(code, enabled)
+        +setLinkedCategories(code, itemIds)
+        +resetIntegration()
+        +commitIntegration()
+    }
+    class useSettingsMutations {
+        +addCategoryItem Mutation
+        +editCategoryItem Mutation
+        +saveIntegration Mutation
+        +changeUserRole Mutation
+    }
+    class settingsQueries {
+        +settingsKeys
+        +fetchCategoryItems(params)
+        +fetchIntegration()
+        +fetchUsers(params)
+        +saveIntegration(body)
+        +setUserRole(userId, roleCode)
+    }
+
+    SettingsPage o-- WorkConfigTab : panel-work
+    SettingsPage o-- IntegrationTab : panel-integration
+    SettingsPage o-- UserRoleTab : panel-roles
+    SettingsPage ..> useSettingsGuard : 탭 전환 가드
+    useSettingsGuard --> useSettingsEditorStore : integrationDirty 감시
+    IntegrationTab --> useSettingsEditorStore : 드래프트 조작
+    IntegrationTab --> useSettingsMutations : 즉시 저장
+    UserRoleTab --> useSettingsMutations : 역할 변경(낙관적)
+    WorkConfigTab --> useSettingsMutations : 항목 추가·수정
+    useSettingsMutations --> settingsQueries : fetch·save 호출
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>SettingsPage</code>가 탭 셸로 3개 탭 컴포넌트를 소유하고, 연동 탭만 Pinia 드래프트 스토어(<code>useSettingsEditorStore</code>)를 씁니다. 나머지 탭은 Vue Query 캐시(서버 상태)와 로컬 ref만으로 동작하는 얇은 구조입니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/features/settings/pages/SettingsPage.vue</code> — 탭 전환 가드와 committedTab 롤백</div>
+<pre><code>/** 활성 탭 (D1: 내부 상태, 딥링크 없음). */
+const activeTab = ref&lt;SettingsTab&gt;('work')
+/** 가드를 통과한 마지막 탭 — 차단 시 롤백 기준 */
+let committedTab: SettingsTab = 'work'
+
+const { guardTabChange } = useSettingsGuard()
+
+async function handleTabChange(newTab: string) {
+  if (newTab === committedTab) return // 현재 탭 재클릭 = 무반응
+
+  // 이 시점 activeTab은 이미 newTab(v-model) — 가드 차단 시 롤백
+  const allowed = await guardTabChange(committedTab, newTab)
+  if (allowed) {
+    committedTab = newTab as SettingsTab
+  } else {
+    activeTab.value = committedTab // 차단 시 이전 탭으로 롤백
+  }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/settings/stores/useSettingsEditorStore.ts</code> — 솔루션 토글과 마스터 파생 동기화(V7)</div>
+<pre><code>/**
+ * 솔루션 개별 토글.
+ * 전체 자동 연동(마스터)은 "모든 솔루션이 ON일 때만 ON"으로 파생 동기화(V7).
+ * → 하나라도 OFF되면 마스터 OFF / 개별 토글로 전부 ON이 되면 마스터 ON.
+ */
+function toggleSolution(code: SettingSolutionCode, enabled: boolean): void {
+  if (!integrationDraft.value) return
+  const solutions = integrationDraft.value.solutions.map((s) =&gt;
+    s.code === code ? { ...s, enabled } : s,
+  )
+  // 마스터 = 모든 솔루션 ON일 때만 ON (하나라도 OFF면 OFF)
+  const masterEnabled = solutions.every((s) =&gt; s.enabled)
+  integrationDraft.value = { ...integrationDraft.value, solutions, masterEnabled }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/settings/composables/useSettingsGuard.ts</code> — 탭2 dirty 확인 가드</div>
+<pre><code>async function guardTabChange(fromTab: string, toTab: string): Promise&lt;boolean&gt; {
+  if (fromTab !== 'integration' || !integrationDirty.value) {
+    return true // 탭2 아니거나 dirty 아님 → 바로 허용
+  }
+  if (fromTab === toTab) return false // 현재 탭 재클릭 = 무반응
+
+  const ok = await confirm({
+    titleKey: 'settings.common.leaveConfirm.title',
+    messageKey: 'settings.common.leaveConfirm.message',
+    confirmKey: 'settings.common.leaveConfirm.confirm',
+    cancelKey: 'settings.common.leaveConfirm.cancel',
+  })
+
+  if (ok) {
+    store.resetIntegration() // 이동 확인 시 드래프트 폐기
+  }
+  return ok
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/pages/SettingsPage.vue" target="_blank" rel="noopener">features/settings/pages/SettingsPage.vue</a><span class="src">설정 탭 셸 — VTabs 합성 · activeTab/committedTab · dirty 가드 결선</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/tabs/WorkConfigTab.vue" target="_blank" rel="noopener">features/settings/tabs/WorkConfigTab.vue</a><span class="src">탭1 카테고리별 솔루션 작업 설정 — DataTable·장르 필터·항목 추가/수정 모달</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/tabs/IntegrationTab.vue" target="_blank" rel="noopener">features/settings/tabs/IntegrationTab.vue</a><span class="src">탭2 솔루션별 연동 설정 — 마스터 스위치·카드 9장·즉시 저장/롤백</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/tabs/UserRoleTab.vue" target="_blank" rel="noopener">features/settings/tabs/UserRoleTab.vue</a><span class="src">탭3 사용자 권한 설정 — 역할 필터·검색·낙관적 역할 변경</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/stores/useSettingsEditorStore.ts" target="_blank" rel="noopener">features/settings/stores/useSettingsEditorStore.ts</a><span class="src">탭2 드래프트/베이스라인 Pinia 스토어 — dirty 판정·마스터 파생 동기화</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/composables/useSettingsGuard.ts" target="_blank" rel="noopener">features/settings/composables/useSettingsGuard.ts</a><span class="src">탭 전환 가드 + onBeforeRouteLeave 이탈 확인</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/composables/useSettingsMutations.ts" target="_blank" rel="noopener">features/settings/composables/useSettingsMutations.ts</a><span class="src">항목 추가/수정 · 연동 전체 스냅샷 PUT · 역할 변경 useMutation 묶음</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/queries.ts" target="_blank" rel="noopener">features/settings/queries.ts</a><span class="src">queryKey 팩토리 + fetch/save 함수 (SETTINGS_API·USER_API 경유, 어댑터 변환)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/constants.ts" target="_blank" rel="noopener">features/settings/constants.ts</a><span class="src">탭 아이템·솔루션 9종 상수·역할 옵션(OPERATOR/MANAGER/ADMIN)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/app/composables/useCan.ts" target="_blank" rel="noopener">app/composables/useCan.ts</a><span class="src">권한 3계층 판정 컴포저블 — 설정 탭3이 관리하는 역할의 소비 지점</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f05.html">‹ 구간마킹</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f07.html">공통 컴포넌트·디자인 시스템 ›</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">VAMS 고도화 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

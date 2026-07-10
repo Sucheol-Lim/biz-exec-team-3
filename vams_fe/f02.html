@@ -1,0 +1,274 @@
+<!doctype html>
+<!-- vams_fe · AI 포스터 검수·편집 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 포스터 검수·편집 — vams_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">VAMS 고도화 (Video Asset Management System FE)</a><span class="sep">›</span>
+      <span class="here">AI 포스터 검수·편집</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">관리자 웹앱 (Vue 3 SPA)</span>
+    </div>
+    <h1>AI 포스터 검수·편집</h1>
+    <p class="one-liner">포스터 작업 목록(<code>/poster</code>) → 결과 이미지 검수·대표 선택 상세 → Konva 캔버스 기반 이미지·타이틀 편집기로 이어지는 워크플로입니다. 크롭·색 조정·선명도·마스킹·업스케일과 스냅샷 기반 undo/redo(최대 50단계 FIFO)를 제공하고, 편집 결과를 원본 해상도로 bake 하여 multipart 로 등록합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/vams_fe" target="_blank" rel="noopener"><code>vams_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트·화면</div><div class="v"><code>src/features/poster/</code> — 페이지 3종 · 편집 도구 6종 · <code>poster.store.ts</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">검수 게이트 — AI 생성 포스터 4종 검수 후 C-Cube 연동</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ VAMS 고도화</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>AI 포스터 엔진은 콘텐츠 1건당 <code>method1~4</code> 4종(목록형 이미지/타이틀, 상세 배경형 이미지/타이틀) 결과 이미지를 생성합니다. 운영자는 LNB의 포스터 목록(<code>PosterListPage</code>, <code>/poster</code>)에서 상태칩·장르 2단 필터·조회기간·긴급만보기로 작업을 찾고(검색 조건은 <code>vams:listQuery:poster</code> 키로 영속), 행을 클릭해 풀스크린(bare) 상세(<code>PosterDetailPage</code>, <code>/poster/:jobId</code>)로 진입합니다. 상세는 <code>usePosterDetail</code>이 <strong>2단 조회</strong>(jobId → <code>fetchPosterDetail</code> → contentId → <code>fetchPosterResults</code>)로 결과 이미지를 불러와 목록형/상세배경형 탭으로 보여주고, 대표 선택을 draft 로 관리하다가 <code>savePosterSelection</code>(PUT <code>editList</code>)으로 저장합니다. 연동·재처리는 <code>postLink</code>/<code>postReprocess</code>로 요청합니다.</p>
+    <p>상세에서 결과 이미지를 선택하면 편집기(<code>PosterEditPage</code>, <code>/poster/:jobId/edit-image/:resultId</code> 또는 <code>edit-title</code>)로 진입합니다. 편집기의 중심은 오케스트레이터 컴포저블 <code>usePosterEdit</code>로, 크롭(<code>cropTool</code>)·색 조정(<code>adjustTool</code> — 밝기·대비·채도·선명도) 도구를 <code>EditTool</code> 계약으로 관리하고, 도구가 커밋한 자기 차원을 <code>EditorState{crop, adjust}</code>로 합성해 <code>usePosterEditorStore</code>에 스냅샷으로 push 합니다. undo/redo 는 스냅샷 스택+커서 이동으로 동작하며 최대 50단계(Figma Flipbook Policy 6 근거, <code>MAX_SNAPSHOTS</code>) 초과 시 가장 오래된 이력부터 FIFO 제거됩니다. 조정 슬라이더는 라이브 드래그=SVG filter 프리뷰(스냅샷 없음), 릴리즈(valueCommit)=1스냅샷 커밋으로 스냅샷 남발을 막습니다.</p>
+    <p>이 밖에 이미지 제거 마스킹(<code>usePosterMaskDraw</code> — stroke 누적, BE 인페인팅 전송 seam), 업스케일(<code>usePosterUpscale</code> — <code>useAsyncJob</code> 폴링 + x2/x4 완료 토스트), 타이틀 편집(<code>usePosterTitleEdit</code> — 이동·리사이즈 transform 1차원, 대지 합성 export)이 같은 스토어·도구 패턴 위에 얹혀 있습니다. 등록 시 <code>exportBlob</code>이 크롭·조정·선명도를 원본 해상도로 bake 한 Blob 을 만들고 <code>saveEditedPoster</code>가 multipart(POST <code>edit-save</code>)로 업로드하며, 성공 시 결과 쿼리 invalidate + 스토어 <code>$reset</code>으로 dirty 를 해제합니다. dirty 상태 이탈은 <code>onBeforeRouteLeave</code> 가드가 확인 다이얼로그로 막습니다(INV-9).</p>
+    <div class="callout">
+      <div class="ct">설계 포인트 — 도구 불가지 · 도메인 무지</div>
+      <code>usePosterEditorStore</code>는 도구·Konva·fetch 를 import 하지 않는 <strong>도구 불가지</strong>(INV-4) 스냅샷 스택이고, <code>CanvasHost</code>는 "크롭·밝기" 의미를 모른 채 일반 Konva 핸들과 픽셀 export 만 노출하는 <strong>도메인 무지</strong>(INV-8) 캔버스입니다. 도메인 의미의 합성·복원은 전부 <code>usePosterEdit</code> 오케스트레이터 한 곳에 모여 있어, 타이틀 편집기가 같은 스토어·캔버스를 무수정으로 재사용합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant OP as 운영자
+    participant LIST as PosterListPage (/poster)
+    participant DET as PosterDetailPage (usePosterDetail)
+    participant EDIT as PosterEditPage · Shell
+    participant ORCH as usePosterEdit
+    participant ST as usePosterEditorStore
+    participant CV as CanvasHost (Konva)
+    participant API as queries.ts (HTTP·MSW)
+
+    OP->>LIST: 검색·필터 (vams:listQuery:poster 복원)
+    LIST->>API: fetchPosters(toListQuery)
+    API-->>LIST: PosterJobRow 목록 (adapter 변환)
+    OP->>DET: 행 클릭 → 상세 진입 (/poster/:jobId)
+    DET->>API: fetchPosterDetail(jobId) → contentId
+    DET->>API: fetchPosterResults(contentId)
+    API-->>DET: method1~4 결과 이미지
+    OP->>DET: 검수 · 대표 선택(draft) → savePosterSelection(PUT)
+    OP->>EDIT: 이미지 편집 진입 (/poster/:jobId/edit-image/:resultId)
+    EDIT->>ORCH: 이미지 로드 완료 → seedBaseline()
+    ORCH->>ST: seedBaseline(EditorState)
+    loop 편집 (크롭 · 조정 · 선명도)
+        OP->>CV: 도구 조작 (크롭 드래그 · 슬라이더 릴리즈)
+        CV-->>ORCH: onCommit · valueCommit
+        ORCH->>ST: pushSnapshot(EditorState) — 최대 50 FIFO
+    end
+    OP->>ORCH: Ctrl+Z · Ctrl+Shift+Z
+    ORCH->>ST: undo() · redo() — 커서 이동
+    ST-->>ORCH: 복원 스냅샷
+    ORCH->>CV: restoreFromSnapshot — crop·adjust 결정론 재적용
+    OP->>EDIT: [편집 이미지 등록]
+    EDIT->>ORCH: registerEdited(contentId, type)
+    ORCH->>CV: exportBlob — 원본 해상도 bake (조정 LUT + 선명도 convolution)
+    ORCH->>API: saveEditedPoster — POST multipart (file + type)
+    API-->>ORCH: code · message
+    ORCH->>ST: $reset() — dirty 해제 후 상세 복귀
+      </div>
+      <p class="cap"><strong>흐름.</strong> 목록 → 상세(2단 조회·대표 선택) → 편집기 순으로 진입하며, 편집기에서는 도구 커밋마다 <code>EditorState</code> 스냅샷이 스택에 쌓이고 undo/redo 는 커서 이동 + 결정론 재적용으로 복원됩니다. 등록은 캔버스 bake → multipart 업로드 → 스토어 리셋 순입니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class PosterEditPage {
+        +jobId resultId editKind
+        +detailQuery 2단조회 jobId→contentId
+        +resultsQuery contentId→결과이미지
+        +frameKey method1-4 매핑
+    }
+    class usePosterEdit {
+        -committedCrop CropRect
+        -committedAdjust AdjustParams
+        +activateCrop()
+        +activateAdjust()
+        +commitActiveTool()
+        +commitAdjust()
+        +undo()
+        +redo()
+        +resetEdits()
+        +seedBaseline()
+        +registerEdited(contentId, type) boolean
+    }
+    class usePosterEditorStore {
+        -snapshots
+        -cursor int
+        -baseline
+        +current Snapshot
+        +canUndo boolean
+        +canRedo boolean
+        +dirty boolean
+        +seedBaseline(s)
+        +pushSnapshot(s)
+        +undo() Snapshot
+        +redo() Snapshot
+        +$reset()
+    }
+    class EditTool {
+        &lt;&lt;interface&gt;&gt;
+        +id string
+        +activate(handle)
+        +deactivate()
+        +commit()
+        +restore(snapshot)
+    }
+    class CropTool {
+        +commit() CropRect
+        +setOnCommit(fn)
+    }
+    class AdjustTool {
+        +setParams(p)
+        +commit() AdjustParams
+    }
+    class CanvasHandle {
+        &lt;&lt;interface&gt;&gt;
+        +getStage() Stage
+        +getKonvaImage() Image
+        +setPreviewAdjust(spec)
+        +exportBlob(opts) Blob
+        +exportFrameBlob(opts) Blob
+    }
+    class CanvasHost {
+        Konva Stage · 도메인 무지 INV-8
+    }
+    class usePosterTitleEdit {
+        transform 1차원 · 동일 store 재사용
+    }
+
+    PosterEditPage --> usePosterEdit : PosterEditShell 경유 배선
+    usePosterEdit --> usePosterEditorStore : pushSnapshot · undo · redo
+    usePosterEdit --> CropTool : 활성화·커밋
+    usePosterEdit --> AdjustTool : 프리뷰·커밋
+    usePosterEdit --> CanvasHandle : exportBlob 호출
+    CropTool ..|> EditTool
+    AdjustTool ..|> EditTool
+    CanvasHost ..|> CanvasHandle : defineExpose
+    usePosterTitleEdit --> usePosterEditorStore : 동일 스냅샷 스택
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>usePosterEdit</code>가 <code>EditTool</code> 계약의 도구들과 <code>CanvasHandle</code>을 오케스트레이션하고, 스냅샷은 도구 불가지 스토어 <code>usePosterEditorStore</code>에만 쌓입니다. 타이틀 편집기는 같은 스토어·캔버스를 transform 차원으로 재사용합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/features/poster/stores/poster.store.ts</code> — 스냅샷 push (redo 분기 절단 + 50단계 FIFO)</div>
+<pre><code>function pushSnapshot(s: Snapshot): void {
+  // cursor 뒤 분기 제거
+  snapshots.value = snapshots.value.slice(0, cursor.value + 1)
+  snapshots.value.push(s)
+  // FIFO cap: 초과분만큼 앞(가장 오래된)에서 제거
+  if (snapshots.value.length &gt; MAX_SNAPSHOTS) {
+    snapshots.value = snapshots.value.slice(snapshots.value.length - MAX_SNAPSHOTS)
+  }
+  cursor.value = snapshots.value.length - 1 // shift 후 끝으로 자동 보정
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/poster/composables/usePosterEdit.ts</code> — 도구 차원 → EditorState 합성 커밋 (INV-4)</div>
+<pre><code>function commitActiveTool(): void {
+  const tool = activeTool.value
+  if (!tool) return
+  if (tool.id === 'crop') {
+    committedCrop = cropToolInstance?.commit() ?? null
+  } else if (tool.id === 'adjust') {
+    committedAdjust = adjustToolInstance?.commit() ?? { ...DEFAULT_ADJUST }
+    adjustState.value = { ...committedAdjust }
+  }
+  activeTool.value = null
+  pushEditorState()
+}
+
+function pushEditorState(): void {
+  const state: EditorState = { crop: committedCrop, adjust: { ...committedAdjust } }
+  store.pushSnapshot(state)
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/poster/queries.ts</code> — 편집 이미지 등록 (POST multipart, BE 1차 I/F edit-save)</div>
+<pre><code>/** 편집 이미지 등록 (POST multipart: file + type). BE 1차 I/F: POST /d-cms/poster/edit-save/{contentId} */
+export async function saveEditedPoster(
+  contentId: string,
+  file: Blob,
+  type: PosterResultType,
+): Promise&lt;{ code: string; message: string }&gt; {
+  const form = new FormData()
+  form.append('file', file, `edited-${type}.jpg`)
+  form.append('type', type)
+  return httpPostFormData&lt;{ code: string; message: string }&gt;(
+    POSTER_RESULT_API.editSave(contentId),
+    form,
+  )
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/poster/stores/poster.store.ts" target="_blank" rel="noopener">src/features/poster/stores/poster.store.ts</a><span class="src">도구 불가지 스냅샷 스택 — MAX_SNAPSHOTS=50 · pushSnapshot/undo/redo/dirty/$reset</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/poster/composables/usePosterEdit.ts" target="_blank" rel="noopener">src/features/poster/composables/usePosterEdit.ts</a><span class="src">편집기 오케스트레이션 — EditorState 합성 커밋 · undo/redo 재적용 · 등록 · 이탈 가드(INV-9)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/poster/composables/tools/types.ts" target="_blank" rel="noopener">src/features/poster/composables/tools/types.ts</a><span class="src">EditTool 계약 · CanvasHandle(INV-8 — exportBlob/exportFrameBlob/setPreviewAdjust)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/poster/composables/usePosterDetail.ts" target="_blank" rel="noopener">src/features/poster/composables/usePosterDetail.ts</a><span class="src">P2 상세 — 2단 조회(jobId→contentId→results) · 대표 선택 draft · 저장/연동/재처리 mutation</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/poster/pages/PosterEditPage.vue" target="_blank" rel="noopener">src/features/poster/pages/PosterEditPage.vue</a><span class="src">편집기 진입 — editKind(image/title) 해석 · method1~4 → FrameKey 매핑</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/poster/queries.ts" target="_blank" rel="noopener">src/features/poster/queries.ts</a><span class="src">queryKey 전략 · toListQuery · fetchPosters/Detail/Results · savePosterSelection · saveEditedPoster</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/poster/composables/usePosterMaskDraw.ts" target="_blank" rel="noopener">src/features/poster/composables/usePosterMaskDraw.ts</a><span class="src">마스킹 드로잉(B3) — stroke 누적 · BE 인페인팅 전송 seam (usePosterUpscale·usePosterTitleEdit 동일 위치)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/app/router/index.ts" target="_blank" rel="noopener">src/app/router/index.ts</a><span class="src">poster 라우트 4종 — 목록(셸) · 상세/편집(meta.layout='bare' 풀스크린)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f01.html">‹ 대시보드 (통합 AI 작업 목록)</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f03.html">AI 썸네일 검수 ›</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">VAMS 고도화 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

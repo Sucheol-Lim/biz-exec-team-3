@@ -1,0 +1,278 @@
+<!doctype html>
+<!-- vams_fe · 대시보드(통합 AI 작업 목록) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>대시보드 (통합 AI 작업 목록) — vams_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">VAMS 고도화 (Video Asset Management System FE)</a><span class="sep">›</span>
+      <span class="here">대시보드 (통합 AI 작업 목록)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">관리자 웹앱 (Vue 3 SPA)</span>
+    </div>
+    <h1>대시보드 (통합 AI 작업 목록)</h1>
+    <p class="one-liner">포스터·썸네일·자막 등 전 AI 엔진의 작업(Job)을 단일 목록에서 조회·필터링하는 VAMS 홈 화면입니다. 서비스 타입 다중 필터(8종)·상태칩(7종)·상태칩별 동적 정렬을 제공하고, 검색 조건은 <code>vams:listQuery:dashboard</code> 키로 localStorage에 영속되어 재방문 시 복원됩니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/vams_fe" target="_blank" rel="noopener"><code>vams_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>features/dashboard/pages/DashboardListPage.vue</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">LNB 홈 화면 — 전 메뉴 공통 리스트 패턴(listQuery)의 대표 구현</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ VAMS 고도화</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>대시보드는 VAMS 로그인 후 처음 만나는 홈 화면으로, 포스터·썸네일·자막·개인화·구간마킹·얼굴인식(CI)·골라보기·하이라이트 8개 서비스 타입의 AI 작업을 하나의 목록으로 통합 조회합니다. 화면은 <code>DashboardListPage.vue</code>가 <code>ContentListLayout</code> 슬롯 합성으로 구성하며, 검색(<code>SearchBox</code>+최근검색)·상태칩 7종(전체/대기/검수필요/실패/검수중/검수완료/연동완료)·AI작업 다중 칩·조회기간 프리셋·긴급만 보기 스위치를 검색 조건으로 제공합니다.</p>
+    <p>검색 조건 상태는 공통 팩토리 <code>createListQueryStore('dashboard')</code>가 만든 Pinia 싱글톤 스토어가 담당합니다. 스토어는 <code>@vueuse/core</code>의 <code>useStorage</code>로 <code>vams:listQuery:dashboard</code> 키에 화이트리스트(상태칩·서비스타입·조회기간·정렬 등 — <code>keyword</code>·<code>page</code>는 제외)를 영속해, 다른 메뉴에 다녀와도 필터가 유지됩니다. 조회는 <code>toListQuery()</code>가 <code>SearchData</code>를 쿼리 파라미터로 변환(서비스타입 CSV, 상태칩→<code>jobStates</code> 코드 변환)해 TanStack Vue Query의 <code>queryKey</code>로 삼는 구조라, 필터를 바꾸면 자동 재조회됩니다. 응답 DTO는 <code>api/adapters/dashboard.ts</code>에서만 도메인 모델(<code>DashboardJobRow</code>)로 변환되어 화면은 DTO를 직접 만지지 않습니다.</p>
+    <p>행 단위 액션은 상태 기반 CTA로 결정됩니다. <code>useDashboardActions().ctaFor()</code>가 내부 상태코드 10종(P·I·F·S·R·V·W·T·E·L) 중 실패(F)→재처리, 연동실패(E)→재연동, 검수 가능 상태(S·V·L)→[검수]를 매핑하고, [검수]는 <code>reviewRoute()</code>로 서비스 타입별 상세 화면(<code>/poster/:jobId</code> 등)으로 라우팅합니다. 우측 상세 패널(<code>DashboardDetailPanel</code>)은 작업 이력·콘텐츠 정보를 별도 쿼리로 노출합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      기본 정렬은 "검수필요·실패 우선"(<code>PRIORITY</code>)이지만 상태칩이 <code>all</code>이 아니면 우선순위 정렬이 무의미하므로 <code>toListQuery()</code>가 <code>LATEST</code>로 강등하는 가드를 둡니다. 상태칩 변경 시에도 칩별 기본 정렬(<code>SORT_BY_CHIP</code>)로 자동 전환됩니다. 백엔드 미연동 개발 단계라 dev 서버에서는 MSW가 <code>DASHBOARD_API</code> 경로를 인터셉트해 fixtures를 반환합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant OP as 운영자
+    participant PG as DashboardListPage
+    participant ST as listQuery store (dashboard)
+    participant LS as localStorage
+    participant VQ as Vue Query
+    participant API as http.ts (dev는 MSW)
+    participant AD as adapters/dashboard.ts
+
+    OP->>PG: 대시보드(홈) 진입
+    PG->>ST: useDashboardListParams()
+    ST->>LS: useStorage(vams:listQuery:dashboard) 복원
+    LS-->>ST: 영속 화이트리스트 병합 (keyword·page 제외)
+    Note over ST,VQ: searchData → toListQuery() → queryKey 입력 computed
+    PG->>VQ: useQuery(dashboardKeys.list(params), fetchDashboard)
+    VQ->>API: httpGet(DASHBOARD_API.list, params)
+    API-->>VQ: DashboardListResponseDto
+    VQ->>AD: toDashboardList(dto)
+    AD-->>PG: rows(DashboardJobRow)·totalCount
+
+    OP->>PG: 상태칩/AI작업 칩/검색어 변경
+    PG->>ST: patch(변경값, page=1)
+    ST->>LS: watch로 영속 화이트리스트 동기화
+    Note over PG,VQ: queryKey 변경 → 자동 재조회 (keepPreviousData)
+
+    OP->>PG: 행 CTA 클릭 — 검수(S·V·L)
+    PG->>PG: reviewRoute(serviceType, jobId)로 상세 이동
+    OP->>PG: 일괄 연동/재처리 (F·E 선택)
+    PG->>API: postLink / postReprocess (confirm 후)
+    API-->>PG: per-item 결과 → 토스트 + invalidateQueries
+      </div>
+      <p class="cap"><strong>흐름.</strong> 진입 시 스토어가 localStorage에서 검색 조건을 복원하고, <code>toListQuery()</code> 출력이 Vue Query의 <code>queryKey</code>가 되어 필터 변경만으로 자동 재조회됩니다. 검수는 서비스 타입별 상세로, 실패 건은 일괄 재처리/재연동 mutation으로 분기합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class DashboardListPage {
+        -searchInput
+        -selected List~string~
+        -panelOpen boolean
+        -SORT_BY_CHIP
+        +onSearch(keyword)
+        +onClear()
+        +selectAllServices()
+    }
+    class ListQueryStore {
+        +SearchData searchData
+        +patch(partial)
+        +reset()
+    }
+    class SearchData {
+        +string keyword
+        +StatusChip statusChip
+        +List~ServiceType~ serviceTypes
+        +DateRange dateRange
+        +SortType sortType
+        +boolean urgentOnly
+        +number page
+        +number size
+    }
+    class DashboardQueries {
+        +dashboardKeys
+        +toListQuery(s) DashboardListQueryParams
+        +fetchDashboard(params)
+        +fetchDashboardDetail(jobId)
+        +postLink(payload)
+        +postReprocess(payload)
+    }
+    class DashboardAdapter {
+        +toDashboardRow(dto) DashboardJobRow
+        +toDashboardList(dto)
+        +toDashboardJobHistory(dto)
+        -parseJobState(raw) JobState
+        -normalizeEngineVersion(raw) string
+    }
+    class UseDashboardActions {
+        +ctaFor(jobState) CtaConfig
+        +run(kind, jobIds, onDone)
+    }
+    class ReviewRoute {
+        +reviewRoute(serviceType, jobId) string
+    }
+
+    DashboardListPage --> ListQueryStore : searchData 구독 · patch
+    ListQueryStore *-- SearchData
+    DashboardListPage --> DashboardQueries : useQuery(fetchDashboard)
+    DashboardQueries --> DashboardAdapter : DTO → 도메인 변환
+    DashboardQueries ..> ListQueryStore : toListQuery(searchData)
+    DashboardListPage --> UseDashboardActions : CTA · 일괄 액션
+    UseDashboardActions --> DashboardQueries : postLink · postReprocess
+    DashboardListPage --> ReviewRoute : 검수 상세 라우팅
+      </div>
+      <p class="cap"><strong>관계.</strong> 페이지는 공통 팩토리로 만든 <code>listQuery</code> 스토어의 <code>searchData</code>만 구독하고, feature 레이어의 <code>queries.ts</code>가 스토어 상태를 쿼리 파라미터로 변환합니다. DTO 접근은 어댑터 한 곳으로 봉인되며, 액션 composable과 검수 라우팅이 상태코드 기반으로 분기합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/features/dashboard/queries.ts</code> — searchData → 쿼리 파라미터 변환과 PRIORITY 가드</div>
+<pre><code>export function toListQuery(s: SearchData): DashboardListQueryParams {
+  // PRIORITY 가드 — 상태칩이 all 이 아니면 LATEST 로 강등
+  const sortType: SortType =
+    s.sortType === 'PRIORITY' &amp;&amp; s.statusChip !== 'all' ? 'LATEST' : s.sortType
+
+  const base: DashboardListQueryParams = {
+    page: String(s.page),
+    size: String(s.size),
+    sortType,
+  }
+
+  // AI작업 필터(다중) — 비었으면 전체
+  if (s.serviceTypes.length &gt; 0) {
+    base.serviceTypes = s.serviceTypes.join(',')
+  }
+
+  if (s.keyword) {
+    base.keyword = s.keyword
+  }
+
+  const states = CHIP_TO_STATES[s.statusChip]   // 상태칩 → 내부 상태코드 목록
+  if (states.length &gt; 0) {
+    base.jobStates = states.join(',')
+  }
+  ...
+  return base
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/shared/stores/listQuery.ts</code> — 검색 조건 영속 (vams:listQuery:&lt;slug&gt;)</div>
+<pre><code>export function createListQueryStore(slug: string) {
+  return defineStore(`listQuery:${slug}`, () =&gt; {
+    // useStorage 영속(화이트리스트) — 키 vams:listQuery:{slug}
+    const persisted = useStorage&lt;PersistedSearchData&gt;(
+      `vams:listQuery:${slug}`,
+      pickPersisted(defaultSearchData()),
+      localStorage,
+      { mergeDefaults: true },
+    )
+
+    // searchData 초기값 = 기본값 + 영속 화이트리스트 머지
+    const searchData = reactive&lt;SearchData&gt;({
+      ...defaultSearchData(),
+      ...persisted.value,
+    })
+
+    // searchData 변경 → 영속 화이트리스트 동기화
+    watch(
+      () =&gt; pickPersisted(searchData),
+      (val) =&gt; { persisted.value = val },
+      { deep: true },
+    )
+    ...
+  })()   // defineStore(...)() 즉시실행 — 싱글톤 인스턴스 반환
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/dashboard/composables/useDashboardActions.ts</code> — 상태코드 → CTA 매핑</div>
+<pre><code>/**
+ * 상태 → CTA 매핑 (cell-actions / DetailCta 공유). null 이면 버튼 없음.
+ * - F → 재처리 / E → 재연동(link) / S·V·L → 검수(상세 이동)
+ * - 대기·진행(P·W·I·T·R) → null
+ */
+function ctaFor(jobState: JobState): CtaConfig | null {
+  switch (jobState) {
+    case 'F':
+      return { labelKey: 'dashboard.action.reprocess', action: 'reprocess' }
+    case 'E':
+      return { labelKey: 'dashboard.action.link', action: 'link' }
+    case 'S':
+    case 'V':
+    case 'L':
+      return { labelKey: 'dashboard.action.review', action: 'review' }
+    default:
+      return null
+  }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/pages/DashboardListPage.vue" target="_blank" rel="noopener">src/features/dashboard/pages/DashboardListPage.vue</a><span class="src">홈 화면 — ContentListLayout 합성 · 상태칩 7/AI작업 칩 8 · SORT_BY_CHIP 동적 정렬 · 상세 패널</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/queries.ts" target="_blank" rel="noopener">src/features/dashboard/queries.ts</a><span class="src">toListQuery(서비스타입 CSV·PRIORITY 가드) · dashboardKeys · fetchDashboard/postLink/postReprocess</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/composables/useDashboardStore.ts" target="_blank" rel="noopener">src/features/dashboard/composables/useDashboardStore.ts</a><span class="src">createListQueryStore('dashboard') 싱글톤 + listQueryParams computed</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/stores/listQuery.ts" target="_blank" rel="noopener">src/shared/stores/listQuery.ts</a><span class="src">메뉴별 listQuery 스토어 팩토리 — SearchData · useStorage 영속(vams:listQuery:&lt;slug&gt;)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/adapters/dashboard.ts" target="_blank" rel="noopener">src/api/adapters/dashboard.ts</a><span class="src">DTO → 도메인 어댑터 — parseJobState · toStatusChip · maskActor · engineVersion 정규화</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/composables/useDashboardActions.ts" target="_blank" rel="noopener">src/features/dashboard/composables/useDashboardActions.ts</a><span class="src">단건/일괄 연동·재처리 mutation — ctaFor 상태 매핑 · confirm → 토스트 → invalidate</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/reviewRoute.ts" target="_blank" rel="noopener">src/features/dashboard/reviewRoute.ts</a><span class="src">[검수] → 서비스 타입별 상세 라우트 매핑 (/poster·/thumbnail·/subtitle 등)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">기능 목록</a>
+      <a href="f02.html">AI 포스터 검수·편집 ›</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">VAMS 고도화 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

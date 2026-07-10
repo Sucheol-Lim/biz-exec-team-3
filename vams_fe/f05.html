@@ -1,0 +1,289 @@
+<!doctype html>
+<!-- vams_fe · 구간마킹 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구간마킹 — vams_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">VAMS 고도화 (Video Asset Management System FE)</a><span class="sep">›</span>
+      <span class="here">구간마킹</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">관리자 웹앱 (Vue 3 SPA)</span>
+    </div>
+    <h1>구간마킹</h1>
+    <p class="one-liner">씬서치(shot boundary) 샷 추출 결과를 기반으로 인트로·등급고지·엔딩 3종 구간을 확인·수정하는 화면입니다. 공통 리스트 패턴의 목록과 bare 풀스크린 상세(마킹 3카드 + 씬서치 그리드)로 구성되며, 씬 카드 클릭으로 START/END를 지정하는 편집 레이어를 갖춥니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/vams_fe" target="_blank" rel="noopener"><code>vams_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트·화면</div><div class="v"><code>src/features/segment-marking/</code> — 목록·상세·씬서치 그리드</div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">LNB 12개 메뉴 중 구현 6개 도메인의 하나 · 씬서치 결과 검수</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ VAMS 고도화</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>구간마킹은 AI 씬서치 엔진이 추출한 샷 경계(shot boundary) 결과를 근거로, 콘텐츠의 <strong>인트로(INTRO)·등급고지(RATING)·엔딩(ENDING)</strong> 3종 구간을 운영자가 확인하고 수정하는 메뉴입니다. 목록 화면(<code>SegmentMarkingListPage</code>)은 전 메뉴 공통 리스트 패턴(<code>ContentListLayout</code> + 검색·상태칩·페이지네이션)을 따르되, 구간마킹 고유의 <strong>완결여부 3택1 필터</strong>(feature-local ref로 머지, listQuery 스토어 미침범)와 마킹 구간 수(<code>segmentCount</code>) 컬럼을 추가합니다. 우측 <code>SegmentMarkingDetailPanel</code>로 행 요약을 확인하고, 상세는 AppShell 밖 <strong>bare 풀스크린 라우트</strong>(<code>/segment-marking/:jobId</code>)로 진입합니다.</p>
+    <p>상세 화면(<code>SegmentMarkingDetailPage</code>)은 헤더 + 마킹 3카드(프리뷰) + 리사이즈 스플리터 + <strong>씬서치 썸네일 그리드(6열)</strong>의 3분할 구조입니다. 데이터는 <code>useSegmentMarkingDetail</code>이 <strong>2단계 조회</strong>로 가져옵니다 — 먼저 <code>jobId</code>로 콘텐츠 정보·작업이력을 조회하고, 확보한 <code>contentId</code>를 키로 씬 그리드(<code>shot-boundary-detection-result</code>)와 마킹 3종 구간(<code>boundary-marking-result</code>)을 병렬 조회합니다. 어댑터(<code>toMarkingSegments</code>)가 응답에 없는 구간 유형을 미지정(assigned=false)으로 채워 <strong>항상 길이 3의 고정 순서</strong>(INTRO→RATING→ENDING)를 보장하므로, 화면 코드는 결측 분기 없이 3카드를 그대로 렌더합니다.</p>
+    <p>편집은 읽기전용 조회 위에 <code>useMarkingSegmentEdit</code>가 additive로 얹은 draft 레이어입니다. 카드 [편집]으로 <code>editingKind</code>를 활성화한 뒤 씬 카드의 [START]/[END]를 클릭하면 기획서 VAMS-MK-006의 <strong>5전이규칙</strong>(확장/축소·역전 시 구간 해제 등)에 따라 draft가 갱신되고, 그리드에는 구간이 행별 하이라이트 밴드로 실시간 표시됩니다. 저장은 완성(START·END 모두 지정) 구간만 추려 <code>PUT boundary</code>로 content 단위 전체 교체(replace)하며, dirty 상태에서는 이탈·새로고침 가드가 동작합니다.</p>
+    <div class="callout">
+      <div class="ct">참고 — 매니페스트 기술과의 차이</div>
+      과제 개요 문서에는 이 기능이 "상세 본문 스텁 단계"로 기재되어 있으나, 현재 <code>develop</code> 소스에는 읽기전용 상세(3카드·씬 그리드·리사이즈)에 편집 레이어(Phase B — 씬 클릭 지정·저장·이탈가드)까지 구현되어 있습니다. 초기 골격이던 <code>SegmentMarkingDetailStub.vue</code>는 트리에 남아 있지만 라우트는 <code>SegmentMarkingDetailPage.vue</code>를 사용합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant USR as 운영자
+    participant PAGE as SegmentMarkingDetailPage (bare)
+    participant HOOK as useSegmentMarkingDetail
+    participant EDIT as useMarkingSegmentEdit
+    participant API as detailQueries / queries
+    participant AD as adapters/marking.ts
+
+    USR->>PAGE: 목록에서 상세 진입 (/segment-marking/:jobId)
+    PAGE->>HOOK: useSegmentMarkingDetail(jobId)
+    HOOK->>API: fetchMarkingDetail(jobId) — GET /markings/{jobId}
+    API->>AD: toMarkingContentInfo / toMarkingJobHistory
+    AD-->>HOOK: contentInfo (contentId 확보)
+    HOOK->>API: fetchMarkingScenes / fetchMarkingSegments (enabled=hasContent)
+    API->>AD: toMarkingScenes · toMarkingSegments
+    AD-->>HOOK: MarkingScene 목록 · 3종 구간 (항상 길이 3)
+    HOOK->>EDIT: serverSegments seed → draftSegments 복제
+    USR->>PAGE: 마킹 카드 [편집] 클릭
+    PAGE->>EDIT: enterEdit(kind) — editingKind 활성
+    USR->>PAGE: 씬 카드 [START]/[END] 클릭
+    PAGE->>EDIT: designate(kind, slot, sceneIdx)
+    Note over EDIT: MK-006 5전이규칙 — 역전 지정 시 구간 해제 + 토스트
+    EDIT-->>PAGE: draftSegments 갱신 → 그리드 하이라이트 밴드 재계산
+    USR->>PAGE: 헤더 [저장] (isDirty)
+    PAGE->>EDIT: saveAll()
+    EDIT->>API: saveMarkingBoundary — PUT boundary (buildEditList: 완성 구간만)
+    API-->>EDIT: 저장 완료
+    EDIT->>API: invalidateQueries (segments · 리스트 segmentCount 정합)
+      </div>
+      <p class="cap"><strong>흐름.</strong> 상세 진입 시 <code>jobId</code>→<code>contentId</code> 2단계 조회로 씬·구간을 가져와 draft에 seed하고, 씬 클릭 지정은 5전이규칙으로 draft를 갱신합니다. 저장은 완성 구간만 <code>PUT</code>으로 content 단위 교체 후 상세·리스트 쿼리를 무효화합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class SegmentMarkingListPage {
+        완결여부 3택1 필터
+        상태칩 7종 · segmentCount 컬럼
+    }
+    class SegmentMarkingDetailPage {
+        +jobId string
+        +onDesignate(slot, sceneIdx)
+        +onHeaderSave()
+        +onHeaderReset()
+    }
+    class useSegmentMarkingDetail {
+        &lt;&lt;composable&gt;&gt;
+        +scenes
+        +segments
+        +videoUrl
+        +reprocess()
+        +link()
+    }
+    class useMarkingSegmentEdit {
+        &lt;&lt;composable&gt;&gt;
+        +draftSegments
+        +editingKind
+        +isDirty
+        +designate(kind, slot, sceneIdx)
+        +clearSegment(kind)
+        +saveSegment(kind)
+        +saveAll()
+        +resetAll()
+    }
+    class MarkingSegmentCard
+    class SceneSearchGrid {
+        +scenes
+        +segments
+        +editingKind
+        -sceneBands 행별 하이라이트 밴드
+    }
+    class MarkingAdapter {
+        +toMarkingScenes(dto)
+        +toMarkingSegments(dto)
+        +buildEditList(draft)
+        +msToTimestamp(ms) string
+    }
+    class MarkingSegment {
+        +kind MarkingSegmentKind
+        +assigned boolean
+        +startMs · endMs
+        +startThumbIdx · endThumbIdx
+    }
+    class MarkingSegmentKind {
+        &lt;&lt;enumeration&gt;&gt;
+        INTRO
+        RATING
+        ENDING
+    }
+
+    SegmentMarkingListPage --> SegmentMarkingDetailPage : goReview (route state)
+    SegmentMarkingDetailPage --> useSegmentMarkingDetail : 데이터 훅
+    useSegmentMarkingDetail o-- useMarkingSegmentEdit : 편집 레이어 합성
+    SegmentMarkingDetailPage --> MarkingSegmentCard : 3카드 렌더
+    SegmentMarkingDetailPage --> SceneSearchGrid : 씬 그리드 렌더
+    useMarkingSegmentEdit --> MarkingAdapter : buildEditList 호출
+    useSegmentMarkingDetail ..> MarkingAdapter : detailQueries 경유
+    MarkingAdapter ..> MarkingSegment : 생성
+    MarkingSegment --> MarkingSegmentKind
+      </div>
+      <p class="cap"><strong>관계.</strong> 상세 페이지는 <code>useSegmentMarkingDetail</code> 하나만 사용하고, 편집 상태는 그 안에서 <code>useMarkingSegmentEdit</code>가 additive로 합성되어 re-export됩니다. DTO↔도메인 변환은 <code>adapters/marking.ts</code> 단일 지점에서만 일어납니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/api/adapters/marking.ts</code> — 3종 구간을 항상 길이 3·고정 순서로 보장</div>
+<pre><code>const SEG_KIND: Record&lt;BoundaryMarkingDto['type'], MarkingSegmentKind&gt; = {
+  opening: 'INTRO',
+  notice: 'RATING',
+  ending: 'ENDING',
+}
+
+const SEG_ORDER: MarkingSegmentKind[] = ['INTRO', 'RATING', 'ENDING']
+
+/** 3종 구간 전체 — 항상 길이 3, 고정 순서 INTRO→RATING→ENDING.
+ *  dto.data 에 없는 kind 는 미지정(assigned=false, 값 null)으로 채움. */
+export function toMarkingSegments(dto: BoundaryMarkingResponseDto): MarkingSegment[] {
+  const byKind = new Map&lt;MarkingSegmentKind, MarkingSegment&gt;()
+  for (const item of dto.data) {
+    byKind.set(SEG_KIND[item.type], toMarkingSegment(item))
+  }
+  return SEG_ORDER.map(
+    (kind) =&gt;
+      byKind.get(kind) ?? {
+        kind, assigned: false,
+        startMs: null, endMs: null,
+        startThumbUrl: null, endThumbUrl: null,
+        startThumbIdx: null, endThumbIdx: null,
+      },
+  )
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/segment-marking/composables/useMarkingSegmentEdit.ts</code> — START/END 지정 5전이규칙 (VAMS-MK-006)</div>
+<pre><code>// 1 START 재지정(END 이전)  → 확장/축소(정상)
+// 2 END   재지정(START 이후) → 확장/축소(정상)
+// 3 START 이전에 END 지정    → 구간 해제 → END만
+// 4 END   이후에 START 지정   → 구간 해제 → START만
+// 5 기존 START를 END로 / 기존 END를 START로 → 구간 해제 + 토스트
+function designate(kind: MarkingSegmentKind, slot: 'start' | 'end', sceneIdx: number): void {
+  const scene = sceneAt(sceneIdx)
+  const seg = draftOf(kind)
+  if (!scene || !seg) return
+
+  if (slot === 'start') {
+    const prevEnd = seg.endThumbIdx
+    if (prevEnd === null || sceneIdx &lt; prevEnd) {
+      setStart(seg, scene)                  // 시작만 / 규칙1
+    } else {
+      setStart(seg, scene)                  // sceneIdx &gt;= prevEnd
+      clearEnd(seg)                         //   규칙4(&gt;) 해제→START만 / 규칙5(==)
+      if (sceneIdx === prevEnd) toast.info({ messageKey: RANGE_RESET_KEY })
+    }
+  } else {
+    // END 슬롯 — 대칭 처리(규칙2·3·5)
+  }
+  syncAssigned(seg)                         // START·END 모두 지정 시 assigned=true
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/api/endpoints.ts</code> · <code>src/features/segment-marking/detailQueries.ts</code> — contentId 키 상세 API와 저장(replace)</div>
+<pre><code>// 구간마킹 — thumbnail 동형 추상경로(MSW 핸들러와 1:1)
+export const MARKING_API = {
+  list: '/markings',
+  detail: (jobId: string) =&gt; `/markings/${jobId}`,
+  // 상세 — contentId 키. BE 실경로:
+  //   scenes   = GET /db-api/shot-boundary-detection-result/contents/{contentId}
+  //   boundary = GET /db-api/boundary-marking-result/content/{contentId}
+  scenes: (contentId: string) =&gt; `/markings/contents/${contentId}/scenes`,
+  boundary: (contentId: string) =&gt; `/markings/contents/${contentId}/boundary`,
+  boundarySave: (contentId: string) =&gt; `/markings/contents/${contentId}/boundary`, // PUT
+} as const
+
+/** 마킹 3종 구간 저장 — PUT editList(완성 구간만).
+ *  content 단위 replace(M3): editList 로 boundary 전체 교체. */
+export async function saveMarkingBoundary(
+  contentId: string,
+  editList: BoundaryMarkingEditDto[],
+): Promise&lt;void&gt; {
+  await httpPut&lt;MarkingBoundarySaveDto, { code: string; message: string }&gt;(
+    MARKING_API.boundarySave(contentId),
+    { editList },
+  )
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/pages/SegmentMarkingListPage.vue" target="_blank" rel="noopener">features/segment-marking/pages/SegmentMarkingListPage.vue</a><span class="src">목록 화면 — 공통 리스트 패턴 + 완결여부 3택1 필터·segmentCount 컬럼</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/pages/SegmentMarkingDetailPage.vue" target="_blank" rel="noopener">features/segment-marking/pages/SegmentMarkingDetailPage.vue</a><span class="src">bare 풀스크린 상세 — 헤더 + 마킹 3카드 + 스플리터 + 씬 그리드, 이탈/새로고침 가드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/composables/useSegmentMarkingDetail.ts" target="_blank" rel="noopener">features/segment-marking/composables/useSegmentMarkingDetail.ts</a><span class="src">상세 데이터 훅 — jobId→contentId 2단계 조회 · 편집 레이어 합성</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/composables/useMarkingSegmentEdit.ts" target="_blank" rel="noopener">features/segment-marking/composables/useMarkingSegmentEdit.ts</a><span class="src">편집 draft 상태 — designate 5전이규칙 · isDirty · 저장/원복</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/components/SceneSearchGrid.vue" target="_blank" rel="noopener">features/segment-marking/components/SceneSearchGrid.vue</a><span class="src">씬서치 6열 썸네일 그리드 — 행별 구간 하이라이트 밴드 · 검은 프레임 토글</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/detailQueries.ts" target="_blank" rel="noopener">features/segment-marking/detailQueries.ts</a><span class="src">상세 queryKey·fetch — 씬/구간 조회 · boundary PUT 저장</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/adapters/marking.ts" target="_blank" rel="noopener">api/adapters/marking.ts</a><span class="src">DTO↔도메인 단일 변환 지점 — toMarkingSegments(항상 3종) · buildEditList · 타임스탬프 변환</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/domain/marking.ts" target="_blank" rel="noopener">domain/marking.ts</a><span class="src">도메인 모델 — MarkingJobRow · MarkingScene · MarkingSegment(3종 kind)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/routes.ts" target="_blank" rel="noopener">features/segment-marking/routes.ts</a><span class="src">라우트 — 목록(AppShell children) · 상세(top-level bare)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f04.html">‹ AI 자막 편집기</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f06.html">설정 (관리자) ›</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">VAMS 고도화 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

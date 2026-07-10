@@ -1,0 +1,301 @@
+<!doctype html>
+<!-- vams_fe · AI 썸네일 검수 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 썸네일 검수 — vams_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">VAMS 고도화 (Video Asset Management System FE)</a><span class="sep">›</span>
+      <span class="here">AI 썸네일 검수</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">관리자 웹앱 (Vue 3 SPA)</span>
+    </div>
+    <h1>AI 썸네일 검수</h1>
+    <p class="one-liner">구간 썸네일(SECTION)·10초 썸네일(GTV/GTM) 작업을 검수하는 워크플로입니다. 공통 리스트 패턴의 목록에서 bare 풀스크린 상세로 진입해, working copy 모델 위에서 대표 구간 지정·구간 썸네일 프레임 교체를 수행하고 저장·재생성·C-Cube 연동까지 이어집니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/vams_fe" target="_blank" rel="noopener"><code>vams_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트·화면</div><div class="v"><code>ThumbnailListPage</code> · <code>ThumbnailDetailPage</code> · <code>useThumbnailDetail</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">6월 마일스톤 — 썸네일 C-Cube 연동 (10월 10초 썸네일 통합)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ VAMS 고도화</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>AI 썸네일 메뉴는 AI 엔진이 VOD 콘텐츠에서 자동 추출한 썸네일 작업을 검수하는 화면입니다. 작업유형은 두 가지로, <code>thumbKind</code>가 <code>SECTION</code>이면 구간 썸네일(콘텐츠의 구간별 대표 이미지, 편집 가능), <code>GTV</code>/<code>GTM</code>이면 10초 썸네일(읽기전용 정보 카드)로 분기합니다. 목록 화면 <code>ThumbnailListPage</code>는 전 메뉴 공통 리스트 패턴을 따르며 검색어·상태칩(썸네일은 검수완료 제외 6종)·장르/세부장르 2단 필터·조회기간·긴급만 보기와 우선순위 정렬(<code>PRIORITY</code> — 긴급 0순위 고정 + 검수필요·실패 우선)을 제공합니다. 검색 조건은 <code>createListQueryStore</code> 기반 스토어로 영속되고, 행 선택 시 우측 패널(<code>ThumbnailDetailPanel</code>)에서 AI 작업이력과 콘텐츠 정보를 확인합니다.</p>
+    <p>목록의 행을 열면 <code>/thumbnail/:jobId?kind=…</code> 라우트의 <code>ThumbnailDetailPage</code>(상세화면 S4)로 이동합니다. 이 라우트는 <code>meta.layout:'bare'</code> 풀스크린으로 LNB·앱 헤더 없이 렌더되며, 상단은 공통 <code>DetailHeader</code>+<code>DetailHeaderActions</code>(초기화·재생성·저장·연동)입니다. 구간 썸네일 상세(<code>ThumbnailSegmentDetail</code>)는 구간 카드 그리드(1920px 6열)를 보여주고, 카드에서 <strong>대표로 지정</strong> 버튼으로 콘텐츠 대표 구간을 바꾸거나, 카드를 클릭해 편집 모달(<code>ThumbnailSegmentEditModal</code>)에서 AI가 추출한 프레임 중 하나를 해당 구간의 썸네일로 교체합니다. 이전/다음 구간 이동으로 모달을 닫지 않고 연속 검수할 수 있습니다.</p>
+    <p>편집은 <code>useThumbnailDetail</code> 컴포저블의 <strong>working copy 모델</strong>로 동작합니다. 서버 응답을 깊은 복제(<code>cloneSegments</code>)한 로컬 사본 위에서만 대표 지정·프레임 교체가 일어나고(<code>dirty</code> 플래그 갱신), 저장 시 <code>POST /thumbnails/:jobId/segments</code>로 일괄 커밋합니다. 초기화는 진입 시점 데이터로 복귀하고, 미저장 상태로 뒤로가기를 누르면 이탈 확인 다이얼로그가 뜹니다. 재생성은 확인 후 AI 재작업을 요청하고 목록으로 복귀하며, 연동은 <code>POST /thumbnails/link</code>로 해당 작업을 C-Cube 연동 큐에 올립니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트</div>
+      서버 상태(Vue Query 캐시)와 편집 상태(working copy)를 분리해 초기화·이탈 경고를 단순하게 만들었습니다. 저장 성공 시 <code>setQueryData</code>로 캐시를 응답으로 교체해 재조회 없이 정합성을 유지하고, DTO는 <code>api/adapters/thumbnail.ts</code>에서만 도메인 모델로 변환되어(알 수 없는 <code>jobState</code>는 <code>parseJobState</code>가 <code>'P'</code>로 폴백) 화면 코드는 도메인 타입만 다룹니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant OP as 운영자
+    participant LP as ThumbnailListPage
+    participant DP as ThumbnailDetailPage (bare)
+    participant CP as useThumbnailDetail
+    participant DQ as detailQueries
+    participant BE as BE API (dev는 MSW)
+    participant ADP as adapters/thumbnail
+
+    OP->>LP: 썸네일 작업 행 열기
+    LP->>DP: router.push /thumbnail/:jobId?kind=SECTION
+    DP->>CP: useThumbnailDetail(jobId, kind)
+    alt kind == SECTION (구간 썸네일)
+        CP->>DQ: fetchSegmentDetail(jobId)
+        DQ->>BE: GET /thumbnails/:jobId/segments
+        BE-->>DQ: SegmentDetail DTO
+        DQ->>ADP: toSegmentDetail(dto)
+        ADP-->>CP: 도메인 모델 (segments)
+        CP->>CP: cloneSegments() → working copy, dirty=false
+    else kind == GTV/GTM (10초 썸네일)
+        CP->>DQ: fetchTenSecDetail(jobId)
+        DQ->>BE: GET /thumbnails/:jobId/tensec
+        BE-->>CP: 읽기전용 정보 카드 (GTV·GTM)
+    end
+    OP->>DP: 대표로 지정 / 편집 모달에서 프레임 선택
+    DP->>CP: setRepresentative / setSegmentThumb
+    CP->>CP: working copy 갱신, dirty=true
+    OP->>DP: 저장
+    DP->>CP: save()
+    CP->>DQ: postSaveSegments(jobId, segments)
+    DQ->>BE: POST /thumbnails/:jobId/segments
+    BE-->>CP: 갱신된 상세 → setQueryData, dirty=false
+    opt 재생성 (confirm 후)
+        CP->>BE: POST /thumbnails/:jobId/regenerate
+        CP->>LP: router.push('/thumbnail') 목록 복귀
+    end
+    opt C-Cube 연동
+        CP->>BE: POST /thumbnails/link (jobIds)
+        CP->>CP: invalidateQueries(thumbnailKeys.all)
+    end
+      </div>
+      <p class="cap"><strong>흐름.</strong> 목록에서 bare 풀스크린 상세로 진입하면 작업유형에 따라 구간(편집)·10초(읽기전용) 조회가 분기됩니다. 편집은 working copy에만 반영되다가 저장 시 일괄 커밋되고, 재생성·연동은 헤더 액션에서 확인 후 실행됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class ThumbnailListPage {
+        +onSearch(keyword)
+        +onClear()
+        +statusChips 6종 (검수완료 제외)
+        +sortOptions PRIORITY/LATEST/OLDEST
+    }
+    class ThumbnailDetailPage {
+        -jobId string
+        -kind ThumbKind
+    }
+    class useThumbnailDetail {
+        +isSection boolean
+        +segments Ref~ThumbnailSegment~
+        +dirty Ref~boolean~
+        +setRepresentative(segmentId)
+        +setSegmentThumb(segmentId, frameId)
+        +save()
+        +reset()
+        +regenerate()
+        +link()
+        +goBack()
+    }
+    class detailQueries {
+        +fetchSegmentDetail(jobId) ThumbnailSegmentDetail
+        +fetchTenSecDetail(jobId) TenSecThumbDetail
+        +postSaveSegments(jobId, segments)
+        +postRegenerate(jobId)
+    }
+    class thumbnailAdapter {
+        +toThumbnailList(dto)
+        +toSegmentDetail(dto)
+        +toTenSecDetail(dto)
+        +parseJobState(raw) JobState
+    }
+    class ThumbnailSegmentDetailVue {
+        +openEdit(seg)
+        +gotoPrev()
+        +gotoNext()
+    }
+    class ThumbnailTenSecDetailVue {
+        +infos GTV·GTM 정보 카드
+    }
+    class ThumbnailSegment {
+        +segmentId string
+        +index number
+        +timecode string
+        +imageUrl string
+        +isRepresentative boolean
+        +frames List~ThumbnailFrame~
+    }
+    class ThumbnailFrame {
+        +frameId string
+        +timecode string
+        +resolution string
+        +isSegmentThumb boolean
+    }
+
+    ThumbnailListPage --> ThumbnailDetailPage : router push (kind 쿼리)
+    ThumbnailDetailPage --> useThumbnailDetail : 상태·액션 배선
+    ThumbnailDetailPage --> ThumbnailSegmentDetailVue : kind=SECTION
+    ThumbnailDetailPage --> ThumbnailTenSecDetailVue : kind=GTV/GTM
+    ThumbnailSegmentDetailVue ..> useThumbnailDetail : set-representative / set-segment-thumb emit
+    useThumbnailDetail --> detailQueries : fetch·mutation
+    detailQueries --> thumbnailAdapter : DTO 변환
+    useThumbnailDetail o-- ThumbnailSegment : working copy
+    ThumbnailSegment o-- ThumbnailFrame : 추출 프레임
+      </div>
+      <p class="cap"><strong>관계.</strong> 상세 페이지가 컴포저블 <code>useThumbnailDetail</code>에 상태·액션을 위임하고, 작업유형에 따라 구간 그리드(편집)·10초 카드(읽기전용) 컴포넌트로 분기합니다. 통신·변환은 <code>detailQueries</code>→어댑터 계층에 격리됩니다. (<code>*Vue</code> 접미는 동명 도메인 타입과 구분하기 위한 표기입니다.)</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/features/thumbnail/composables/useThumbnailDetail.ts</code> — working copy 편집 모델</div>
+<pre><code>const segments = ref&lt;ThumbnailSegment[]&gt;([])
+const dirty = ref(false)
+watch(
+  () =&gt; segmentQuery.data.value,
+  (d) =&gt; {
+    if (d) {
+      segments.value = cloneSegments(d.segments)   // 진입 시점 스냅샷 = 초기화 복귀 지점
+      dirty.value = false
+    }
+  },
+  { immediate: true },
+)
+
+function setRepresentative(segmentId: string): void {
+  segments.value = segments.value.map((s) =&gt; ({
+    ...s,
+    isRepresentative: s.segmentId === segmentId,   // 대표 구간은 콘텐츠당 1개
+  }))
+  dirty.value = true
+}
+function setSegmentThumb(segmentId: string, frameId: string): void {
+  segments.value = segments.value.map((s) =&gt; {
+    if (s.segmentId !== segmentId) return s
+    const frames = s.frames.map((f) =&gt; ({ ...f, isSegmentThumb: f.frameId === frameId }))
+    const chosen = frames.find((f) =&gt; f.frameId === frameId)
+    return {
+      ...s,
+      frames,
+      imageUrl: chosen?.imageUrl ?? s.imageUrl,    // 선택 프레임이 구간 카드 이미지가 됨
+      timecode: chosen?.timecode ?? s.timecode,
+    }
+  })
+  dirty.value = true
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/thumbnail/detailQueries.ts</code> — 상세 조회·저장·재생성 (어댑터 단일 지점 변환)</div>
+<pre><code>export async function fetchSegmentDetail(jobId: string): Promise&lt;ThumbnailSegmentDetail&gt; {
+  const dto = await httpGet&lt;ThumbnailSegmentDetailResponseDto&gt;(THUMBNAIL_API.segmentDetail(jobId))
+  return toSegmentDetail(dto)                       // DTO → 도메인 변환은 어댑터에서만
+}
+
+/** 구간 상세 저장(working copy 커밋) — 갱신된 상세 반환 */
+export async function postSaveSegments(
+  jobId: string,
+  segments: ThumbnailSegment[],
+): Promise&lt;ThumbnailSegmentDetail&gt; {
+  const dto = await httpPost&lt;SaveSegmentsRequestDto, ThumbnailSegmentDetailResponseDto&gt;(
+    THUMBNAIL_API.segmentDetail(jobId),
+    { segments: segments.map((s) =&gt; ({ /* segmentId·isRepresentative·frames ... */ })) },
+  )
+  return toSegmentDetail(dto)
+}
+
+/** 재생성 요청 */
+export async function postRegenerate(jobId: string): Promise&lt;{ ok: boolean }&gt; {
+  return httpPost&lt;Record&lt;string, never&gt;, { ok: boolean }&gt;(THUMBNAIL_API.regenerate(jobId), {})
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/thumbnail/queries.ts</code> — 목록 쿼리 변환과 PRIORITY 정렬 가드</div>
+<pre><code>export function toListQuery(s: SearchData): ThumbnailListQueryParams {
+  // PRIORITY 가드 — 상태칩이 '전체'가 아니면 우선순위 정렬을 LATEST 로 강등
+  const sortType: SortType =
+    s.sortType === 'PRIORITY' &amp;&amp; s.statusChip !== 'all' ? 'LATEST' : s.sortType
+
+  const base: ThumbnailListQueryParams = {
+    page: String(s.page),
+    size: String(s.size),
+    serviceType: 'THUMBNAIL',                       // 고정 주입
+    sortType,
+  }
+  if (s.keyword) base.keyword = s.keyword
+  const states = CHIP_TO_STATES[s.statusChip]       // 화면 상태칩 → 내부 jobState 코드 변환
+  if (states.length &gt; 0) base.jobStates = states.join(',')
+  if (s.urgentOnly) base.urgentOnly = 'true'        // 긴급만 보기
+  return base
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/thumbnail/pages/ThumbnailListPage.vue" target="_blank" rel="noopener">src/features/thumbnail/pages/ThumbnailListPage.vue</a><span class="src">목록 화면 — 검색·상태칩 6종·장르 2단 필터·조회기간·긴급만 보기·정렬 배선</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/thumbnail/pages/ThumbnailDetailPage.vue" target="_blank" rel="noopener">src/features/thumbnail/pages/ThumbnailDetailPage.vue</a><span class="src">상세화면(S4) 셸 — kind 쿼리로 구간/10초 분기, 공통 DetailHeader+액션</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/thumbnail/composables/useThumbnailDetail.ts" target="_blank" rel="noopener">src/features/thumbnail/composables/useThumbnailDetail.ts</a><span class="src">working copy 편집 모델 — 대표 지정·프레임 교체·저장/초기화/재생성/연동/이탈 확인</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/thumbnail/detailQueries.ts" target="_blank" rel="noopener">src/features/thumbnail/detailQueries.ts</a><span class="src">상세 queryKey·fetch/mutation — segments/tensec/regenerate 엔드포인트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/thumbnail/components/ThumbnailSegmentDetail.vue" target="_blank" rel="noopener">src/features/thumbnail/components/ThumbnailSegmentDetail.vue</a><span class="src">구간 카드 그리드 — 대표 배지/지정 버튼, 편집 모달(이전·다음 구간 이동) 진입</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/adapters/thumbnail.ts" target="_blank" rel="noopener">src/api/adapters/thumbnail.ts</a><span class="src">DTO→도메인 어댑터 — parseJobState 폴백·engineVersion 정규화·actor 마스킹</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/domain/thumbnail.ts" target="_blank" rel="noopener">src/domain/thumbnail.ts</a><span class="src">도메인 모델 — ThumbnailSegment/Frame·TenSecThumbInfo·SECTION/GTV/GTM 분기 정의</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f02.html">‹ AI 포스터 검수·편집</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f04.html">AI 자막 편집기 ›</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">VAMS 고도화 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>
