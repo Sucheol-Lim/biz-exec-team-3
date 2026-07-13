@@ -48,8 +48,8 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>Master 정책은 사이트 전체에 공통으로 적용되는 디바이스 정책을 정의하는 영역입니다. <code>devicePolicyList</code>가 STB 탭(<code>devicePolicyTabStb</code>)과 App 탭(<code>devicePolicyTabApp</code>)으로 나뉘어 정책 목록을 보여주고, <code>DevicesApiManager.getPolicyList()</code>(<code>/api/v1/device-policies</code>)로 조회합니다. STB 정책은 단말 정보 업데이트 주기(<code>period</code>)·CPU/온도/네트워크 사용량 임계 등 모니터링 항목을, App 정책은 앱 디바이스 관련 항목을 다룹니다. App 탭 검색 필터에는 앱 크래시·메모리/CPU/네트워크/HDD 임계와 함께 셋톱 재시작(<code>stbReboot</code>) On/Off 항목이 추가되었습니다(XLSmart 대응).</p>
-    <p>정책 등록은 <code>policy/devicePolicyStbRegister</code>(및 App/Edit 화면)가 Formik 폼으로 처리합니다. 저장 시 <code>checkPolicyName</code>으로 정책명 중복을 검사한 뒤, 즉시 적용/예약 여부(<code>immediately</code>)에 따라 <code>createPolicy()</code>로 <code>/api/v1/device-policies</code>에 POST 합니다. 수정은 <code>updatePolicy</code>(<code>/device-policies/:id/update</code>)를 사용합니다. STB 정책의 정보 업데이트 주기 같은 항목은 사이트 정책 주기 기본값(<code>stpPolicyPeriodMin</code>)과 연계됩니다.</p>
+    <p>Master 정책은 사이트 전체에 공통으로 적용되는 디바이스 정책을 정의하는 영역입니다. <code>devicePolicyList</code>가 STB 탭(<code>devicePolicyTabStb</code>)과 App 탭(<code>devicePolicyTabApp</code>)으로 나뉘어 정책 목록을 보여주고, <code>DevicesApiManager.getPolicyList()</code>(<code>/api/v1/device-policies</code>)로 조회합니다. STB 정책은 단말 정보 업데이트 주기(<code>period</code>)·CPU/온도/네트워크 사용량 임계 등 모니터링 항목을, App 정책은 앱 디바이스 관련 항목을 다룹니다. App 탭 검색은 패키지명 대신 앱 이름(<code>fullName</code>) 기준으로 바뀌었고 앱 크래시·메모리/CPU/네트워크/HDD 임계·정책 상태 필터를 제공합니다(기존 셋톱 재시작 <code>stbReboot</code> 필터는 제거).</p>
+    <p>정책 등록은 <code>policy/devicePolicyStbRegister</code>(및 App/Edit 화면)가 Formik 폼으로 처리합니다. 저장 시 <code>checkPolicyName(type, name)</code>으로 정책명 중복을 검사한 뒤, 즉시 적용/예약 여부(<code>immediately</code>)에 따라 <code>createPolicy()</code>로 <code>/api/v1/device-policies</code>에 POST 합니다. 수정은 <code>updatePolicy</code>(<code>/device-policies/:id/update</code>)를 사용합니다. STB 정책에는 부팅 시 자동 실행(<code>autoLaunchOnBoot</code>) 항목이 추가되어(XLSmart 대응) Switch로 On/Off 하고, <code>PackageListModal</code>에서 대상 앱을 선택해 <code>autoLaunchOnBootPackageName</code>/<code>autoLaunchOnBootAppName</code>을 지정합니다. App 정책 등록도 같은 모달에서 앱 이름과 패키지명을 분리해 받아(<code>getPackageName(name, pkgName)</code>) 정책 <code>name</code>에는 패키지명을 저장합니다. STB 정책의 정보 업데이트 주기 같은 항목은 사이트 정책 주기 기본값(<code>stpPolicyPeriodMin</code>)과 연계됩니다.</p>
     <div class="callout">
       <div class="ct">사이트별 정책 주기 기본값</div>
       <code>utils/env.ts</code>의 <code>stpPolicyPeriodMin</code>은 KT 타깃이면 10분, 그 외에는 5분으로 분기됩니다. 같은 정책 화면이라도 사이트에 따라 단말 정보 업데이트 주기의 기준값이 달라집니다.
@@ -65,6 +65,7 @@ sequenceDiagram
     participant OP as 운영자 (Browser)
     participant PL as devicePolicyList (Stb/App 탭)
     participant PR as devicePolicyStbRegister
+    participant PM as PackageListModal
     participant DM as DevicesApiManager (_api/Devices)
     participant BE as RMS BE 서버
 
@@ -73,15 +74,18 @@ sequenceDiagram
     DM-&gt;&gt;BE: GET /api/v1/device-policies
     BE--&gt;&gt;PL: 정책 목록 (STB / App)
     OP-&gt;&gt;PR: 정책 등록 (Formik)
-    PR-&gt;&gt;DM: checkPolicyName(name)
+    OP-&gt;&gt;PR: 자동 실행 앱 선택 (autoLaunchOnBoot)
+    PR-&gt;&gt;PM: open (isDeviceAppLaunch)
+    PM--&gt;&gt;PR: getPackageName(name, pkgName)
+    PR-&gt;&gt;DM: checkPolicyName(type, name)
     DM-&gt;&gt;BE: GET /device-policies/check-name
-    BE--&gt;&gt;PR: 중복 여부
+    BE--&gt;&gt;PR: 중복 여부 (available)
     OP-&gt;&gt;PR: 저장 (즉시/예약)
     PR-&gt;&gt;DM: createPolicy(data)
     DM-&gt;&gt;BE: POST /api/v1/device-policies
     BE--&gt;&gt;PR: 등록 결과
       </div>
-      <p class="cap"><strong>흐름.</strong> STB/App 탭으로 정책 목록을 조회하고, 등록 폼에서 정책명 중복을 검사한 뒤 <code>createPolicy</code>로 사이트 공통 정책을 저장합니다.</p>
+      <p class="cap"><strong>흐름.</strong> STB/App 탭으로 정책 목록을 조회하고, 등록 폼에서 자동 실행 대상 앱을 <code>PackageListModal</code>로 선택·정책명 중복을 검사한 뒤 <code>createPolicy</code>로 사이트 공통 정책을 저장합니다.</p>
     </div>
   </section>
 
@@ -98,18 +102,25 @@ classDiagram
     }
     class DevicePolicyTabApp {
         +getPolicyList()
-        +searchFilter stbReboot On/Off
+        +searchFilter fullName 앱 이름
     }
     class DevicePolicyStbRegister {
         +createPolicy(immediately)
         +onSubmit(values)
+        +autoLaunchOnBoot Switch
+        +getPackageName(name, pkgName)
+    }
+    class PackageListModal {
+        +getPackages(name)
+        +dimedPackageName
+        +isDeviceAppLaunch
     }
     class DevicesApiManager {
         +getPolicyList(cb, data)
         +getPolicyDetail(cb, id)
         +createPolicy(cb, data)
         +updatePolicy(cb, data)
-        +checkPolicyName(cb, name)
+        +checkPolicyName(cb, type, name)
     }
     class envUtil {
         +stpPolicyPeriodMin
@@ -119,9 +130,10 @@ classDiagram
     DevicePolicyList o-- DevicePolicyTabApp
     DevicePolicyTabStb --&gt; DevicesApiManager : 목록
     DevicePolicyStbRegister --&gt; DevicesApiManager : 등록·검증
+    DevicePolicyStbRegister --&gt; PackageListModal : 자동 실행 앱 선택
     DevicePolicyStbRegister ..&gt; envUtil : 정책 주기 기본값
       </div>
-      <p class="cap"><strong>관계.</strong> <code>DevicePolicyList</code>가 STB/App 탭을 소유하고, 등록 화면이 <code>DevicesApiManager</code>의 정책 엔드포인트를 사용하며 정책 주기 기본값은 <code>env.ts</code>에서 분기됩니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>DevicePolicyList</code>가 STB/App 탭을 소유하고, 등록 화면이 <code>DevicesApiManager</code>의 정책 엔드포인트와 <code>PackageListModal</code>(자동 실행 앱 선택)을 사용하며 정책 주기 기본값은 <code>env.ts</code>에서 분기됩니다.</p>
     </div>
   </section>
 
@@ -132,18 +144,27 @@ classDiagram
 <pre><code>getPolicyList: (callback, data) =&gt; { request('get', `/api/v1/device-policies`, callback, data); },
 getPolicyDetail: (callback, id) =&gt; { request('get', `/api/v1/device-policies/${id}`, callback); },
 createPolicy: (callback, data) =&gt; { request('post', `/api/v1/device-policies`, callback, data); },
-// updatePolicy: request('post', `/api/v1/device-policies/${data.id}/update`, callback, data);
-// checkPolicyName: request('get', `/api/v1/device-policies/check-name`, callback, data);</code></pre>
+updatePolicy: (callback, data) =&gt; { request('post', `/api/v1/device-policies/${data.id}/update`, callback, data); },
+checkPolicyName: (callback, type, name) =&gt; { request('get', `/api/v1/device-policies/check-name`, callback, { type, name }); },</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>pages/master/policy/devicePolicyStbRegister.tsx</code> — 이름 검증 후 정책 생성</div>
+      <div class="sc"><code>pages/master/policy/devicePolicyStbRegister.tsx</code> — 자동 실행 앱 포함 정책 생성</div>
 <pre><code>const createPolicy = async (immediately: boolean) =&gt; {
-  // ...폼 값 구성 (period / cput / cpuTemp / nwUsage ...)
+  let param: any = {
+    type: 'SETTOP_BOX',
+    period: formik.values.period,
+    // ...sendLog / restartApp / closeBackgroundApps / clearCache ...
+    immediately: immediately,
+    autoLaunchOnBoot: formik.values.autoLaunchOnBoot,
+    autoLaunchOnBootPackageName: formik.values.autoLaunchOnBootPackageName,
+    autoLaunchOnBootAppName: formik.values.autoLaunchOnBootAppName
+  };
+  // ...memoryThreshold / cpuThreshold / cpuTemperature / networkUsage / hddUsage 조건부 추가
   DevicesApiManager.createPolicy((result, data, code, message) =&gt; {
     // 등록 결과 처리
-  }, data);
+  }, param);
 };
-// onSubmit: DevicesApiManager.checkPolicyName(...) 으로 중복 검사 후 createPolicy 호출</code></pre>
+// onSubmit: DevicesApiManager.checkPolicyName(cb, 'SETTOP_BOX', values.name) 중복 검사 후 저장</code></pre>
     </div>
   </section>
 
@@ -152,8 +173,9 @@ createPolicy: (callback, data) =&gt; { request('post', `/api/v1/device-policies`
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/master/devicePolicyList.tsx" target="_blank" rel="noopener">pages/master/devicePolicyList.tsx</a><span class="src">정책 목록 컨테이너 — STB/App 탭</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/master/devicePolicyTabStb.tsx" target="_blank" rel="noopener">pages/master/devicePolicyTabStb.tsx</a><span class="src">STB 정책 탭 — period/임계 항목 표시</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/master/devicePolicyTabApp.tsx" target="_blank" rel="noopener">pages/master/devicePolicyTabApp.tsx</a><span class="src">App 정책 탭 — stbReboot On/Off 검색 필터 포함</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/master/policy/devicePolicyStbRegister.tsx" target="_blank" rel="noopener">pages/master/policy/devicePolicyStbRegister.tsx</a><span class="src">STB 정책 등록 — 이름 검증·createPolicy</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/master/devicePolicyTabApp.tsx" target="_blank" rel="noopener">pages/master/devicePolicyTabApp.tsx</a><span class="src">App 정책 탭 — 앱 이름(fullName) 검색·정책 상태 필터</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/master/policy/devicePolicyStbRegister.tsx" target="_blank" rel="noopener">pages/master/policy/devicePolicyStbRegister.tsx</a><span class="src">STB 정책 등록 — 이름 검증·autoLaunchOnBoot·createPolicy</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/master/policy/packageListModal.tsx" target="_blank" rel="noopener">pages/master/policy/packageListModal.tsx</a><span class="src">자동 실행/App 정책 대상 앱 선택 모달 — 앱 이름·패키지명 분리 반환</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Devices.tsx" target="_blank" rel="noopener">_api/Devices.tsx</a><span class="src">device-policies CRUD·check-name</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/utils/env.ts" target="_blank" rel="noopener">utils/env.ts</a><span class="src">stpPolicyPeriodMin — 사이트별 정책 주기 기본값</span></li>
     </ul>

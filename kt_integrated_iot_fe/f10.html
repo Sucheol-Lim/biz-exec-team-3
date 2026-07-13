@@ -50,7 +50,7 @@
     <h2>기능 개요</h2>
     <p>세 게시판 도메인은 동일한 목록/상세/편집 패턴으로 구성됩니다. 공지(<code>/notice</code> → <code>NoticeList/Detail/Edit</code>), 자료실(<code>/resource</code> → <code>ResourceList/Detail/Edit</code>), 문의(<code>/contact-us</code> → <code>ContactUsList/Detail/Edit</code> + <code>Reply</code>)입니다. 데이터는 <code>boardApi</code>의 공통 게시판 엔드포인트(<code>/bff/monitor/boards/*</code>)와 도메인별 엔드포인트(<code>boards/notice</code>, <code>boards/resources</code>)를 사용합니다.</p>
     <p>첨부 파일은 <code>boardApi.uploadFile()</code>/<code>fileList()</code>/<code>downloadFile()</code>/<code>deleteFile()</code>로 관리합니다. 업로드 UI는 공통 컴포넌트 <code>CustomFile</code>이 담당하는데, <code>accept</code>에 지정된 확장자 목록과 실제 파일 확장자를 대조해 허용되지 않으면 입력을 비우고 선택을 취소합니다. 용량은 <code>limitSize</code>를 초과하면 경고 모달(<code>Alarm</code>)을 띄웁니다.</p>
-    <p>최근 KT 보안성 검증 반영으로 자료실에서 허용하지 않는 확장자 업로드 시 노출되던 alert 문구가 제거되는 등 첨부 처리 정책이 강화되었습니다. 문의(Q&amp;A)는 운영자가 답변(<code>Reply</code>)을 등록하는 흐름을 포함합니다.</p>
+    <p>최근 KT 보안성 검증 반영으로 자료실에서 허용하지 않는 확장자 업로드 시 노출되던 alert 문구가 제거되는 등 첨부 처리 정책이 강화되었습니다. 문의(Q&amp;A)는 운영자가 답변(<code>Reply</code>)을 등록하는 흐름을 포함하며, 문의 목록의 등록 버튼은 <code>hasRole()</code> 권한 판정으로 고객(서비스 고객) 계정에서만 노출되고 관제요원 이상 관리자 계정에서는 숨겨집니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       확장자 검증을 업로드 공통 컴포넌트(<code>CustomFile</code>)에 두어 자료실·문의·기타 첨부가 동일한 보안 정책을 공유합니다. 검증 실패 시 입력 <code>value</code>를 비워 잘못된 파일이 폼에 남지 않게 합니다.
@@ -152,6 +152,20 @@ resourceDetail: (boardSequence) =&gt; apiClient.get(`/bff/monitor/boards/resourc
 delete: (boardSequence) =&gt; apiClient.delete(`/bff/monitor/boards/${boardSequence}`).then((r) =&gt; r.data),
 downloadFile: (fileItemSequence, config) =&gt; apiClient.get(`/bff/monitor/files/download/${fileItemSequence}`, { /* ... */ }),</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/contactUs/ContactUsList.tsx</code> — 등록 버튼 권한 제어</div>
+<pre><code>button={
+  // 고객(serviceClient) 레벨에서만 등록 버튼 노출
+  !hasRole(1)
+    ? {
+        title: '등록',
+        func: () =&gt; {
+          navigate(`/${site.path}/contact-us/edit/regist`, { state: { /* ... */ } });
+        },
+      }
+    : undefined
+}</code></pre>
+    </div>
   </section>
 
   <section id="sources">
@@ -160,6 +174,7 @@ downloadFile: (fileItemSequence, config) =&gt; apiClient.get(`/bff/monitor/files
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/board.ts" target="_blank" rel="noopener">src/api/board.ts</a><span class="src">공지/자료실/문의 게시판 · 첨부 업로드·다운로드 API</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/search/CustomFile.tsx" target="_blank" rel="noopener">src/components/search/CustomFile.tsx</a><span class="src">첨부 확장자·용량 검증 공통 컴포넌트</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/ResourceEdit.tsx" target="_blank" rel="noopener">src/pages/resource/ResourceEdit.tsx</a><span class="src">자료실 편집 · CustomFile 적용</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/contactUs/ContactUsList.tsx" target="_blank" rel="noopener">src/pages/contactUs/ContactUsList.tsx</a><span class="src">문의 목록 · hasRole 기반 등록 버튼 노출 제어</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/contactUs/Reply.tsx" target="_blank" rel="noopener">src/pages/contactUs/Reply.tsx</a><span class="src">문의 답변 등록</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">notice / resource / contact-us 라우트</span></li>
     </ul>

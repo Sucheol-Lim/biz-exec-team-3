@@ -205,7 +205,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/vams_fe" target="_blank" rel="noopener"><code>vams_fe</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/4212162576" target="_blank" rel="noopener">KT_VAMS 프로젝트 요약 (4212162576)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-07-10 · e3b6d10 [Docs] Figma 매핑 파이프라인 팀 온보딩 proposal</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-07-10 · dd26012 Merge 'features/0702_posteredit_jh' (포스터 타이틀편집 후속)</div></div>
       <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>vams-fe</code> / 0.0.0 (private, 개발 중)</div></div>
     </div>
   </div>
@@ -242,7 +242,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
     <h2>주요 기능</h2>
     <div class="cards">
       <a class="card" href="f01.html"><div class="t">대시보드 (통합 AI 작업 목록)</div><div class="d">전 AI 엔진의 작업을 단일 목록에서 조회·필터링하는 홈 화면입니다. 서비스 타입 다중 필터, 상태칩, 검색 조건 영속(<code>vams:listQuery:dashboard</code>)을 지원합니다.</div></a>
-      <a class="card" href="f02.html"><div class="t">AI 포스터 검수·편집</div><div class="d">포스터 작업 목록 → 결과 이미지 검수·대표 선택 상세 → Konva 캔버스 기반 이미지·타이틀 편집기로 이어지는 워크플로입니다. 크롭·마스킹·업스케일과 스냅샷 기반 undo/redo(최대 50단계)를 제공합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">AI 포스터 검수·편집</div><div class="d">포스터 작업 목록 → 결과 이미지 검수·대표 선택 상세 → Konva 캔버스 기반 이미지·타이틀 편집기로 이어지는 워크플로입니다. 크롭·마스킹·업스케일과 스냅샷 기반 undo/redo(최대 50단계)를 제공하며, 타이틀 편집은 N객체 모델 기반의 오려두기/제거·다중선택을 지원합니다.</div></a>
       <a class="card" href="f03.html"><div class="t">AI 썸네일 검수</div><div class="d">구간 썸네일·10초 썸네일 검수 워크플로입니다. 목록에서 풀스크린 상세로 진입해 후보 검수·대표 지정·재생성을 수행합니다.</div></a>
       <a class="card" href="f04.html"><div class="t">AI 자막 편집기</div><div class="d">자막 작업 목록에서 풀스크린 편집기로 진입합니다. wavesurfer 파형 타임라인, 편집 단축키, KRCC/KT 변환, 찾기/바꾸기, 동기화 시프트 등 20종 이상의 편집 다이얼로그를 갖춘 본 과제 최대 규모 기능입니다.</div></a>
       <a class="card" href="f05.html"><div class="t">구간마킹</div><div class="d">씬서치 샷 추출 결과 기반으로 인트로·등급고지·엔딩 구간을 확인·수정하는 화면입니다. 목록·상세 골격이 구현되어 있으며 상세 본문은 스텁 단계입니다.</div></a>
@@ -384,8 +384,11 @@ npm run check:ownership</code></pre>
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>최근 작업은 두 흐름입니다. 하나는 자막 편집기 UI 완성도 작업(KRCC/KT 팝업 모달 통일, 레이아웃 디바이더, 팝업 버그 수정)이고, 다른 하나는 Figma 매핑 파이프라인 정식화(figma-mapping-sync 스킬, 디자인팀 공식 파일 체계 반영, 드라이런 결함 보정)와 media-feature-pipeline v2로 이어지는 개발 하네스 고도화입니다.</p>
+    <p>최근 작업은 두 흐름입니다. 하나는 포스터 타이틀 편집기 고도화로, 영역설정 후속 작업(G3a~G5b)에서 N객체 타이틀 모델·오려두기/제거·선택전환·다중선택을 구현하고(<code>titleObjects</code>·<code>regionRaster</code>·<code>sizePositionTool</code> 확장 + 브라우저 테스트 2종 추가) 관련 설계·계획 문서를 함께 정리했습니다. 다른 하나는 Figma 매핑 파이프라인 정식화(figma-mapping-sync 스킬, 디자인팀 공식 파일 체계 반영, 드라이런 결함 보정)와 media-feature-pipeline v2로 이어지는 개발 하네스 고도화입니다.</p>
     <ul class="commits">
+      <li><span class="date">2026-07-10</span><span class="msg">Merge branch 'features/0702_posteredit_jh' into develop</span></li>
+      <li><span class="date">2026-07-10</span><span class="msg">[Docs] 포스터 타이틀편집 영역설정 후속 설계·계획 문서 (G3a~G5b)</span></li>
+      <li><span class="date">2026-07-10</span><span class="msg">[Feature] 포스터 타이틀편집 영역설정 후속 — N객체 모델·오려두기/제거·선택전환·다중선택(G3a~G5b)</span></li>
       <li><span class="date">2026-07-10</span><span class="msg">[Docs] Figma 매핑 파이프라인 팀 온보딩 proposal — 원인·해결 + 상황별 마이그레이션</span></li>
       <li><span class="date">2026-07-09</span><span class="msg">[Fix] 드라이런(AI Pick Phase 0.5~2b)에서 발견된 스킬 결함 2건 보정</span></li>
       <li><span class="date">2026-07-09</span><span class="msg">[Feature] media-feature-pipeline v2 — screen-map/behavior 산출물 연동</span></li>
@@ -398,9 +401,6 @@ npm run check:ownership</code></pre>
       <li><span class="date">2026-07-09</span><span class="msg">[Docs] Pretendard proposal 해결 처리 — 팀 합의 완료·develop 반영</span></li>
       <li><span class="date">2026-07-09</span><span class="msg">[Fix] Pretendard self-host 번들 + 픽셀게이트 폰트로드 대기</span></li>
       <li><span class="date">2026-07-08</span><span class="msg">Merge branch 'features/0708_subtitle_yw' into develop</span></li>
-      <li><span class="date">2026-07-08</span><span class="msg">[UI] KRCC/KT 팝업 전체를 자막 정본 중앙정렬 모달로 통일</span></li>
-      <li><span class="date">2026-07-08</span><span class="msg">[UI] 자막 편집 레이아웃 디바이더 평소 숨김·hover 시에만 노출</span></li>
-      <li><span class="date">2026-07-08</span><span class="msg">[Fix] 자막 이동/찾기 팝업 Enter 시 알림 모달이 떴다 바로 닫히는 버그</span></li>
     </ul>
   </section>
 

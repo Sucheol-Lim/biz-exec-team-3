@@ -48,8 +48,8 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p><code>Summary</code> 화면(<code>pages/summary/index.tsx</code>)은 세션의 <code>site.code</code>에 따라 사이트별 요약 컴포넌트(<code>airmap/DashBoard</code>, <code>aidx/Overall</code>, SafeMate 4종, <code>smartgreen/overall</code>)를 분기 렌더링합니다. 추가 분석 화면으로 AI산업안전DX 설비 이용률(<code>EquipmentUtilization</code>)·자원환경(<code>ResourceEnvironment</code>), SMART GREEN 생육 디바이스 분석(<code>GrowthDevice</code>), 측정소 분석(<code>StationAnalysis</code>) 등이 라우팅에 등록되어 있습니다.</p>
-    <p>차트는 <code>components/chart</code> 아래의 Nivo 래퍼들(<code>NivoStackedBarChart</code>, <code>NivoGroupedBarChart</code>, <code>NivoLineChart</code>, <code>NivoPie</code>, <code>NivoComposedChart</code> 등)을 사용합니다. 각 래퍼는 <code>@nivo/bar</code>·<code>@nivo/line</code> 등의 <code>Responsive*</code> 컴포넌트를 감싸고, <code>useChartBar</code>·<code>useChartLine</code>·<code>useChartTheme</code> 훅으로 데이터 가공과 라이트/다크 테마를 적용합니다. 게이지·일부 커스텀 시각화에는 D3가 함께 쓰입니다.</p>
+    <p><code>Summary</code> 화면(<code>pages/summary/index.tsx</code>)은 세션의 <code>site.code</code>에 따라 사이트별 요약 컴포넌트(<code>airmap/DashBoard</code>, <code>aidx/Overall</code>, SafeMate 4종, <code>smartgreen/overall</code>)를 분기 렌더링합니다. 추가 분석 화면으로 AI산업안전DX 설비 이용률(<code>EquipmentUtilization</code>)·자원환경(<code>ResourceEnvironment</code>), SMART GREEN 생육 디바이스 분석(<code>GrowthDevice</code>), 측정소 분석(<code>StationAnalysis</code>) 등이 라우팅에 등록되어 있습니다. Air Map 종합분석(<code>airmap/DashBoard</code>)은 측정위치별·미세/초미세먼지 측정기 위치별·한달 기준값별·시간대별·주의지역 Top5 분석 유형을 제공하며, 조회 월 기준으로 <code>startDate</code>/<code>endDate</code>를 산출해 <code>airmapApi.getAreaAnalytics</code>를 호출합니다. 전국 측정소 서비스대상(<code>AIRMAPNATIONAL</code>)에서는 지역·구역 조회를 중단하고 안내 문구를 표시합니다.</p>
+    <p>차트는 <code>components/chart</code> 아래의 Nivo 래퍼들(<code>NivoStackedBarChart</code>, <code>NivoGroupedBarChart</code>, <code>NivoLineChart</code>, <code>NivoPie</code>, <code>NivoComposedChart</code> 등)을 사용합니다. 각 래퍼는 <code>@nivo/bar</code>·<code>@nivo/line</code> 등의 <code>Responsive*</code> 컴포넌트를 감싸고, <code>useChartBar</code>·<code>useChartLine</code>·<code>useChartTheme</code> 훅으로 데이터 가공과 라이트/다크 테마를 적용합니다. 막대 차트의 막대·툴팁은 <code>CustomBar</code>·<code>CustomTooltipLayer</code> 커스텀 레이어로 렌더링하며, 게이지·일부 커스텀 시각화에는 D3가 함께 쓰입니다.</p>
     <p>데이터는 React Query로 도메인 API(예: <code>rooftopDoorApi</code>, <code>intFireDetectorApi</code>, <code>airmap</code>·<code>smartGreen</code> 모듈 등)에서 조회합니다. 요약 화면의 다운로드 버튼은 <code>downloadFileFromResponse</code>로 Content-Disposition 기반 CSV 저장을 수행합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
@@ -133,7 +133,9 @@ classDiagram
       <div class="sc"><code>src/components/chart/NivoStackedBarChart.tsx</code> — Nivo + 차트 훅 조합</div>
 <pre><code>import { ResponsiveBar } from '@nivo/bar';
 import useChartBar from '@/hooks/useChartBar';
+import CustomBarTooltipLayer from './CustomTooltipLayer';
 import useChartTheme from '@/hooks/useChartTheme';
+import CustomBar from './CustomBar';
 
 interface NivoStackedBarChartProps {
   data: { [key: string]: any }[];
@@ -141,7 +143,8 @@ interface NivoStackedBarChartProps {
   keys: string[] | undefined;
   chartColors?: string[];
   labelMap?: { [key: string]: string }; // 키를 한글 라벨로 매핑
-  maxValueScale?: number;
+  maxValueScale?: number; // 최대값 스케일 조정 비율
+  valueSuffix?: string; // 값 뒤에 표시할 단위 (예: '%', '건', '개')
 }</code></pre>
     </div>
     <div class="snippet">
@@ -158,6 +161,26 @@ interface NivoStackedBarChartProps {
   },
 });</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/summary/airmap/DashBoard.tsx</code> — 종합분석 조회 월·측정 항목 파라미터 산출</div>
+<pre><code>const getAnalyticsProperties = (analysisType?: string, segment?: string) =&gt; {
+    if (analysisType === 'top5_warning_area') {
+        if (segment === '01') return 'pm10';
+        if (segment === '02') return 'pm25';
+    }
+
+    return DEFAULT_PROPERTIES; // 'pm10,pm25'
+};
+
+const getMonthRangeParams = (queryMonth: string) =&gt; {
+    const month = dayjs(`${queryMonth}-01`);
+
+    return {
+        startDate: month.startOf('month').format('YYYY-MM-DD HH:mm:ss'),
+        endDate: month.endOf('month').format('YYYY-MM-DD HH:mm:ss'),
+    };
+};</code></pre>
+    </div>
   </section>
 
   <section id="sources">
@@ -167,6 +190,7 @@ interface NivoStackedBarChartProps {
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/chart/NivoStackedBarChart.tsx" target="_blank" rel="noopener">src/components/chart/NivoStackedBarChart.tsx</a><span class="src">@nivo/bar 래퍼 · labelMap 한글화</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/hooks/useChartBar.ts" target="_blank" rel="noopener">src/hooks/useChartBar.ts</a><span class="src">막대 차트 데이터 가공 훅</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/hooks/useChartTheme.ts" target="_blank" rel="noopener">src/hooks/useChartTheme.ts</a><span class="src">Nivo 라이트/다크 테마 훅</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/airmap/DashBoard.tsx" target="_blank" rel="noopener">src/pages/summary/airmap/DashBoard.tsx</a><span class="src">Air Map 종합분석 — 분석 유형·조회 월 파라미터 · CSV 다운로드</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/aidx/EquipmentUtilization.tsx" target="_blank" rel="noopener">src/pages/summary/aidx/EquipmentUtilization.tsx</a><span class="src">AI산업안전DX 설비 이용률 분석 화면</span></li>
     </ul>
     <div class="sibling-nav">

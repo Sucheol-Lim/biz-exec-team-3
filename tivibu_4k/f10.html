@@ -95,7 +95,7 @@ sequenceDiagram
       <div class="mermaid">
 classDiagram
     class ActivityInitializer {
-        &lt;&lt;interface&gt;&gt;
+        &lt;&lt;abstract&gt;&gt;
         +initialize(activity, isFirstCreated) Single~InitializerResult~
         +priority int
     }
@@ -123,14 +123,14 @@ classDiagram
     class ProvisionPopup
     class ProvisionErrorPopup
 
-    ProvisionInitializer ..|&gt; ActivityInitializer
+    ProvisionInitializer --|&gt; ActivityInitializer
     ProvisionInitializer --&gt; EasRepository
     EasRepository --&gt; EasApi : Retrofit
     ProvisionInitializer --&gt; FailSafeMonitorRepository : 폴백
     ProvisionInitializer ..&gt; ProvisionPopup
     ProvisionInitializer ..&gt; ProvisionErrorPopup
       </div>
-      <p class="cap"><strong>관계.</strong> <code>ProvisionInitializer</code>는 초기화 인터페이스 구현체로, <code>EasRepository</code>→<code>EasApi</code>로 단말 등록·인증을 수행하고 실패 시 <code>FailSafeMonitorRepository</code>로 폴백하며 입력/오류 팝업을 띄웁니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>ProvisionInitializer</code>는 초기화 추상 클래스 <code>ActivityInitializer</code>를 상속해, <code>EasRepository</code>→<code>EasApi</code>로 단말 등록·인증을 수행하고 실패 시 <code>FailSafeMonitorRepository</code>로 폴백하며 입력/오류 팝업을 띄웁니다.</p>
     </div>
   </section>
 

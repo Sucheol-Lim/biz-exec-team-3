@@ -50,7 +50,7 @@
     <h2>기능 개요</h2>
     <p>분기 빌드의 중심은 composite build인 <code>build-logic</code>의 <code>PlatformFlavor</code> enum입니다. 단일 차원(<code>FlavorDimension.platform</code>) 아래에 4개 flavor를 정의하며, 각 항목이 빌드 키와 <code>applicationId</code>를 들고 있습니다. <code>tivibuEv</code>(기본 flavor, <code>tivibu.android.stb</code>)·<code>tivibuGo</code>(<code>tivibu.android.stb.ott</code>)·<code>stvOtt</code>(<code>com.ttnet.tivibutv</code>)·<code>zteAosp</code>(<code>com.zte.aosp</code>)입니다. <code>getFlavor(fullName)</code>은 변형(variant) 이름 문자열에서 flavor를 역추적하는 유틸로, 버전 산출 등 빌드 스크립트가 활용합니다.</p>
     <p><code>configureFlavors()</code> 확장 함수는 모든 모듈이 동일한 flavor 차원·항목을 갖도록 <code>productFlavors</code>를 일괄 등록합니다. 애플리케이션 모듈에서는 flavor별 <code>applicationId</code>·<code>versionName</code>·<code>versionCode</code>를 적용하고(버전은 <code>readVersion(flavor)</code> 콜백으로 <code>auto-version-*.gradle</code>에서 산출), 라이브러리 모듈에서는 <code>VERSION_NAME</code>/<code>VERSION_CODE</code>를 <code>buildConfigField</code>로 노출합니다. 이렇게 모든 모듈의 flavor 차원을 일치시켜야 flavor별 소스셋(<code>app/src/tivibuEv</code> 등)과 flavor 한정 의존성이 충돌 없이 결합됩니다.</p>
-    <p>플랫폼 종속 구현은 빌드 시점에 flavor별로 주입됩니다. <code>app/build.gradle.kts</code>는 공통으로 <code>player:impl-tt4k</code>·<code>si:impl-tt4k</code>를 <code>runtimeOnly</code>로 넣고, 플랫폼 의존성은 <code>tivibuEvRuntimeOnly</code>/<code>tivibuGoRuntimeOnly</code>는 <code>dependency:platform:tt4k</code>를, <code>stvOttRuntimeOnly</code>는 <code>dependency:platform:smarttv</code>를 연결하는 flavor 한정 configuration을 사용합니다. Smart TV용 staging 빌드는 <code>androidComponents.beforeVariants</code>에서 <code>stvOtt</code> flavor일 때만 활성화하여 다른 flavor에는 staging 변형이 생성되지 않도록 막습니다.</p>
+    <p>플랫폼 종속 구현은 빌드 시점에 flavor별로 주입됩니다. <code>app/build.gradle.kts</code>는 공통으로 <code>player:impl-tt4k</code>·<code>si:impl-tt4k</code>를 <code>runtimeOnly</code>로 넣고, 플랫폼 의존성은 <code>tivibuEvRuntimeOnly</code>/<code>tivibuGoRuntimeOnly</code>는 <code>dependency:platform:tt4k</code>를, <code>stvOttRuntimeOnly</code>는 <code>dependency:platform:smarttv</code>를 연결하는 flavor 한정 configuration을 사용합니다. Smart TV용 staging 빌드는 <code>androidComponents.beforeVariants</code>에서 <code>stvOtt</code> flavor일 때만 활성화하여 다른 flavor에는 staging 변형이 생성되지 않도록 막습니다. 또한 <code>productFlavors</code> 블록에서 flavor별 <code>manifestPlaceholders</code>로 <code>launcherDataProviderAuthority</code>를 주입해, 같은 <code>dependency:platform:tt4k</code>를 공유하는 <code>tivibuEv</code>(<code>tivibu.android.stb.data.provider</code>)와 <code>tivibuGo</code>(<code>tivibu.android.stb.ott.data.provider</code>)가 서로 다른 <code>LauncherDataProvider</code> authority로 설치되도록 하여 EV/GO 런처 동시 설치 시 provider 충돌을 방지합니다. provider 쪽은 <code>attachInfo()</code>에서 실제 배정된 authority를 받아 <code>UriMatcher</code>를 구성합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트 — 단일 차원 + flavor 한정 configuration</div>
       플랫폼 차이를 코드 분기(if/when)가 아니라 빌드 의존성 주입으로 흡수합니다. 공통 코드는 인터페이스(player·si 추상화)에만 의존하고, 실제 구현은 flavor별 <code>runtimeOnly</code>로 갈아끼우므로 앱 코드는 어떤 단말로 빌드되는지 몰라도 됩니다. <code>missingDimensionStrategy</code> 없이도 모든 모듈이 같은 <code>platform</code> 차원을 공유하도록 <code>configureFlavors()</code>가 강제합니다.
@@ -75,6 +75,7 @@ sequenceDiagram
     VER--&gt;&gt;FLV: (versionName, versionCode)
     FLV-&gt;&gt;GRADLE: applicationId/version 적용
     GRADLE-&gt;&gt;DEP: tivibuEv/Go → platform.tt4k, stvOtt → platform.smarttv
+    Note over GRADLE: flavor별 manifestPlaceholders로 LauncherDataProvider authority 치환(EV/GO)
     Note over GRADLE: stvOtt + staging 일 때만 staging variant 활성
     GRADLE--&gt;&gt;DEV: tt-play_&lt;ver&gt;_&lt;date&gt;_&lt;type&gt;.apk
       </div>
@@ -110,6 +111,7 @@ classDiagram
         +stvOttRuntimeOnly(platform.smarttv)
         +runtimeOnly(player.implTt4k)
         +runtimeOnly(si.implTt4k)
+        +manifestPlaceholders(launcherDataProviderAuthority)
     }
     class PlatformTt4k
     class PlatformSmarttv
@@ -176,6 +178,33 @@ androidComponents {
     }
 }</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>app/build.gradle.kts</code> + <code>dependency/platform/tt4k</code> — flavor별 provider authority 분기</div>
+<pre><code>// app/build.gradle.kts — flavor별 manifestPlaceholders 주입
+productFlavors {
+    // LauncherDataProvider authority 는 flavor 별로 다르게 지정 (dependency:platform:tt4k manifest 참고)
+    getByName(PlatformFlavor.tivibuEv.name) {
+        manifestPlaceholders["launcherDataProviderAuthority"] = "tivibu.android.stb.data.provider"
+    }
+    getByName(PlatformFlavor.tivibuGo.name) {
+        manifestPlaceholders["launcherDataProviderAuthority"] = "tivibu.android.stb.ott.data.provider"
+    }
+}
+
+// dependency/platform/tt4k/src/main/AndroidManifest.xml — placeholder 치환
+&lt;provider
+    android:name="com.altimedia.app.core.service.LauncherDataProvider"
+    android:authorities="${launcherDataProviderAuthority}" ... /&gt;
+
+// LauncherDataProvider.kt — 배정된 authority로 UriMatcher 구성
+override fun attachInfo(context: android.content.Context?, info: android.content.pm.ProviderInfo?) {
+    super.attachInfo(context, info)
+    info?.authority?.let { authority -&gt;
+        // EV런처: tivibu.android.stb.data.provider, GO런처: tivibu.android.stb.ott.data.provider
+        uriMatcher.addURI(authority, API_USER, USERS)
+    }
+}</code></pre>
+    </div>
   </section>
 
   <section id="sources">
@@ -184,6 +213,8 @@ androidComponents {
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/build-logic/convention/src/main/java/com/altimedia/buildlogic/Flavor.kt" target="_blank" rel="noopener">build-logic/.../buildlogic/Flavor.kt</a><span class="src">PlatformFlavor enum · configureFlavors() · getFlavor()</span></li>
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/build.gradle.kts" target="_blank" rel="noopener">app/build.gradle.kts</a><span class="src">flavor 한정 runtimeOnly 주입 · staging variant 게이트 · APK 파일명</span></li>
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/settings.gradle.kts" target="_blank" rel="noopener">settings.gradle.kts</a><span class="src">composite build(build-logic) 포함 · 모듈(player/si/platform tt4k·smarttv) 구성</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/dependency/platform/tt4k/src/main/AndroidManifest.xml" target="_blank" rel="noopener">dependency/platform/tt4k/.../AndroidManifest.xml</a><span class="src">LauncherDataProvider authority를 ${launcherDataProviderAuthority} placeholder로 선언</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/dependency/platform/tt4k/src/main/java/com/altimedia/app/core/service/LauncherDataProvider.kt" target="_blank" rel="noopener">dependency/platform/tt4k/.../LauncherDataProvider.kt</a><span class="src">attachInfo()에서 flavor별 authority 수신 · UriMatcher 구성</span></li>
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/auto-version-functions.gradle" target="_blank" rel="noopener">auto-version-functions.gradle</a><span class="src">flavor별 버전명/버전코드 산출(readVersion 입력)</span></li>
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/bitbucket-pipelines.yml" target="_blank" rel="noopener">bitbucket-pipelines.yml</a><span class="src">flavor별 assemble 순차 실행 후 FTP 배포 CI</span></li>
     </ul>

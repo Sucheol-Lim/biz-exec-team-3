@@ -49,8 +49,8 @@
   <section id="desc">
     <h2>기능 개요</h2>
     <p>VOD 재생은 <code>PlayCoordinator</code>(재생 요청 + 네비게이션 제어)로 시작됩니다. 화면(VOD 상세 등)이 <code>playSingleVod()</code>·<code>playSeriesVod()</code> 등을 호출하면, 대응하는 <code>PlaySingleVodUseCase</code> 계열 UseCase가 재생 파라미터(<code>PlayInfo</code>)를 만들고 이를 <code>PlayOrchestrator</code>로 넘깁니다.</p>
-    <p><code>PlayOrchestrator</code>는 <code>VodType</code>(SINGLE / SERIES / PREVIEW / TRAILER / TS_TV / RECORD / PPV / PL_TV)을 키로 하는 핸들러 딕셔너리(<code>playHandlerDict</code>)를 보유합니다. <code>PlayInfo.type</code>에 맞는 <code>BasePlayHandler</code>를 찾아 <code>startPlay()</code>를 위임하고, 핸들러는 Media3/ExoPlayer 기반 <code>VodPlayerAdapter</code>로 실제 스트림을 재생한 뒤 <code>observePlayStates()</code>로 위치·상태를 관찰합니다(북마크 저장, 추천/다음 화 팝업 트리거 등).</p>
-    <p>재생 UI는 <code>VodPlayBarScreen</code>(<code>ATVScreen</code>)이 담당합니다. 플레이바 리스너가 일시정지/시킹, 해상도(<code>VideoTrackUiInfo</code>), 자막/오디오 트랙(<code>TrackUiInfo</code>), 배속(<code>SpeedUiInfo</code>), 썸네일 미리보기(<code>ThumbnailList</code>) 선택을 받아 <code>VodPlayerAdapter</code>에 반영합니다.</p>
+    <p><code>PlayOrchestrator</code>는 <code>VodType</code>(SINGLE / SERIES / PREVIEW / TRAILER / TS_TV / RECORD / PPV / PL_TV)을 키로 하는 핸들러 딕셔너리(<code>playHandlerDict</code>)를 보유합니다. <code>PlayInfo.type</code>에 맞는 <code>BasePlayHandler</code>를 찾아 <code>startPlay()</code>를 위임하고, 핸들러는 Media3/ExoPlayer 기반 <code>VodPlayerAdapter</code>로 실제 스트림을 재생한 뒤 <code>observePlayStates()</code>로 위치·상태를 관찰합니다(북마크 저장, 추천/다음 화 팝업 트리거 등). 모든 핸들러에는 <code>AppStateProvider</code>가 주입되어, 앱이 백그라운드로 전환된 상태에서는 <code>terminate()</code>의 정리(플레이어 정지·화면 닫기)를 건너뛰어 복귀 시 플레이바 화면이 닫혀 있는 문제를 방지합니다.</p>
+    <p>재생 UI는 <code>VodPlayBarScreen</code>(<code>ATVScreen</code>)이 담당합니다. 플레이바 리스너가 일시정지/시킹, 해상도(<code>VideoTrackUiInfo</code>), 자막/오디오 트랙(<code>TrackUiInfo</code>), 배속(<code>SpeedUiInfo</code>), 썸네일 미리보기(<code>ThumbnailList</code>) 선택을 받아 <code>VodPlayerAdapter</code>에 반영합니다. OTT 플랫폼 빌드(<code>DomainConfig.isOttPlatform</code>)에서는 플레이바 버튼 목록(<code>PlayBarButton</code>)에 해상도(<code>Resolution</code>) 버튼이 추가되고, 썸네일은 URL path 기반 <code>diskCacheKey</code>로 캐시 키를 정규화해 중복 요청과 메모리 캐시 오동작을 방지합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       재생 로직을 한 핸들러에 몰지 않고 <code>VodType</code>별로 분리한 뒤 <code>PlayOrchestrator</code>가 딕셔너리로 라우팅합니다. 핸들러는 DI 대신 함수 참조(<code>::playJust</code>, <code>::emitUiUpdateEvent</code> 등)를 주입받아 직접 생성되며, 재생 화면(<code>VodPlayBarScreen</code>)의 표시 여부와 무관하게 리소스를 관리합니다(<code>BasePlayHandler</code> 주석).
@@ -144,13 +144,13 @@ classDiagram
       <div class="sc"><code>ui/play/PlayOrchestrator.kt</code> — VodType별 핸들러 딕셔너리 라우팅</div>
 <pre><code>private val playHandlerDict by lazy {
     mapOf(
-        VodType.SINGLE to SingleVodPlayHandler(::playJust, ::emitUiUpdateEvent, vodAdapter, ...),
-        VodType.SERIES to SeriesVodPlayHandler(::playJust, ::setCurrentContent, ...),
-        VodType.PREVIEW to PreviewPlayHandler(::playJust, vodAdapter, channelAdapter, navigator),
-        VodType.TS_TV  to TsTvPlayHandler(::playJust, ::emitUiUpdateEvent, ...),
+        VodType.SINGLE to SingleVodPlayHandler(::playJust, ::emitUiUpdateEvent, vodAdapter, ..., appStateProvider, navigator),
+        VodType.SERIES to SeriesVodPlayHandler(::playJust, ::setCurrentContent, ..., appStateProvider, navigator),
+        VodType.PREVIEW to PreviewPlayHandler(::playJust, vodAdapter, channelAdapter, appStateProvider, navigator),
+        VodType.TS_TV  to TsTvPlayHandler(::playJust, ::emitUiUpdateEvent, ..., appStateProvider, navigator, contextProvider),
         // RECORD/PPV 공용 핸들러. NPVR 시청 완료 보고(addComplete)를 위해 vodRepository 주입
-        VodType.RECORD to NPVRPlayHandler(::playJust, ::emitUiUpdateEvent, ..., vodRepository, ...),
-        VodType.PL_TV  to PlTvPlayHandler(::setCurrentContent, startOverAdapter, ...),
+        VodType.RECORD to NPVRPlayHandler(::playJust, ::emitUiUpdateEvent, ..., vodRepository, ..., appStateProvider, navigator),
+        VodType.PL_TV  to PlTvPlayHandler(::setCurrentContent, startOverAdapter, ..., appStateProvider, navigator),
     )
 }
 
@@ -160,17 +160,27 @@ override fun setCurrentContent(playInfo: PlayInfo) {
 }</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>ui/play/handler/SingleVodPlayHandler.kt</code> — startPlay → requestPlay → 상태 관찰</div>
+      <div class="sc"><code>ui/play/handler/SingleVodPlayHandler.kt</code> — startPlay → requestPlay → 상태 관찰 · 백그라운드 terminate 가드</div>
 <pre><code>override fun startPlay(playInfo: PlayInfo, stopCurrent: Boolean, onSuccessPlay: () -&gt; Unit) {
     if (playInfo !is PlayInfo.Single) return
 
-    requestPlay(playInfo, VodLogParam(/* contentCode, definition, playUrl, ... */),
+    requestPlay(playInfo, VodLogParam(/* contentCode, contentType, definition, ... */),
         stopCurrent,
-        { error -&gt; terminate() }
+        { error -&gt; terminate() }   // error pop-up이 닫히는 경우
     ) { result -&gt;
         if (result is PlayResult.Fail) { terminate(); return@requestPlay }
         observePlayStates(playInfo)   // 위치/상태 관찰: 북마크·추천 팝업
         onSuccessPlay()
+    }
+}
+
+private fun terminate() {
+    val isAppActive = appStateProvider.currentIsActive
+    if (!isAppActive) return   // 백그라운드 전환 시 정리 생략 → 복귀 시 플레이바 유지
+
+    clear()
+    CoroutineScope(Dispatchers.Main).launch { // player stop must be requested in MAIN Thread
+        // Close VodPlayBarScreen ...
     }
 }</code></pre>
     </div>
@@ -184,6 +194,7 @@ override fun setCurrentContent(playInfo: PlayInfo) {
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/core/coodinator/src/main/java/com/altimedia/core/coodinator/play/PlayCoordinator.kt" target="_blank" rel="noopener">core/coodinator/.../play/PlayCoordinator.kt</a><span class="src">재생 요청/네비게이션 제어 인터페이스</span></li>
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/play/vod/VodPlayBarScreen.kt" target="_blank" rel="noopener">ui/play/vod/VodPlayBarScreen.kt</a><span class="src">VOD 플레이바 화면 · 해상도/자막/배속/썸네일 선택</span></li>
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/play/playbar/VodPlayBar.kt" target="_blank" rel="noopener">ui/play/playbar/VodPlayBar.kt</a><span class="src">플레이바 위젯 (시크바·버튼·상태 텍스트)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/play/playbar/buttons/PlayBarButton.kt" target="_blank" rel="noopener">ui/play/playbar/buttons/PlayBarButton.kt</a><span class="src">플레이바 버튼 목록 정의 · OTT 플랫폼 해상도(Resolution) 버튼 분기</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

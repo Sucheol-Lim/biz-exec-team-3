@@ -48,8 +48,8 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>PIP와 모자이크는 모두 <code>LiveTvScreen</code>이 소유하는 오버레이 뷰로, 메인 채널 재생 위에 떠서 동작합니다. <code>PipView</code>는 메인 재생과 충돌하지 않도록 전용 SI 어댑터(<code>@PipChannelAdapter</code>로 주입된 <code>ChannelPlayerAdapter</code>)를 사용합니다. <code>show(channelId)</code> 호출 시 PIP 가용성(<code>isChannelPipAvailable</code>)을 확인하고, 볼륨을 0으로 낮춘 뒤(<code>setVolume(0f)</code>) 해당 채널을 튜닝합니다. 메인 오디오는 그대로 두고 보조 영상만 보여주는 구조입니다. 튜닝 실패 시 <code>hide()</code>로 정리하고 리스너에 오류를 통보합니다.</p>
-    <p><code>MosaicView</code>는 모자이크 채널(여러 채널을 한 스트림에 합성한 특수 채널)을 위한 화면입니다. 서버가 내려준 <code>TTChannelMosaicData.itemList</code>의 각 항목 좌표(left/top)를 행·열로 환산해 2행 3열 <code>GridLayout</code>에 <code>MosaicItem</code>을 배치하고, 각 셀을 실제 채널 ID에 매핑합니다. 리모컨 입력(<code>processKeyDown</code>)으로 셀 간 포커스를 이동하고, 선택한 셀의 오디오 트랙을 활성화/비활성화(<code>updateAudioTrack</code>/<code>disableAudioTrack</code>)하며, OK 시 해당 채널로 튜닝합니다.</p>
+    <p>PIP와 모자이크는 모두 <code>MainActivity</code>가 소유하는 오버레이 뷰(<code>getPipView()</code>/<code>getMosaicView()</code>)로, 메인 채널 재생 위에 떠서 동작하며 <code>LiveTvScreen</code>이 이를 가져와 제어합니다. <code>PipView</code>는 메인 재생과 충돌하지 않도록 전용 SI 어댑터(<code>@PipChannelAdapter</code>로 주입된 <code>ChannelPlayerAdapter</code>)를 사용합니다. 플레이바의 <code>onSelectPip</code>에서 <code>show(channelId)</code>가 호출되면 PIP 가용성(<code>isChannelPipAvailable</code>)을 확인하고, 볼륨을 0으로 낮춘 뒤(<code>setVolume(0f)</code>) 해당 채널을 튜닝합니다. 메인 오디오는 그대로 두고 보조 영상만 보여주는 구조입니다. 튜닝 실패 시 <code>hide()</code>로 정리하고 리스너에 오류를 통보합니다.</p>
+    <p><code>MosaicView</code>는 모자이크 채널(여러 채널을 한 스트림에 합성한 특수 채널)을 위한 화면입니다. <code>onAttachedToWindow</code>에서 채널 어댑터의 현재 튜닝 채널 스트림을 스스로 구독하다가, 채널에 <code>mosaicData</code>가 있고 재생 중이면 <code>setMosaicData</code>와 <code>show()</code>를 직접 수행합니다. 서버가 내려준 <code>TTChannelMosaicData.itemList</code>의 각 항목 좌표(left/top)를 행·열로 환산해 2행 3열 <code>GridLayout</code>에 <code>MosaicItem</code>을 배치하고, 각 셀을 실제 채널 ID에 매핑합니다. 리모컨 입력(<code>processKeyDown</code>)으로 셀 간 포커스를 이동하고, 선택한 셀의 오디오 트랙을 활성화/비활성화(<code>updateAudioTrack</code>/<code>disableAudioTrack</code>)하며, OK 시 해당 채널로 튜닝합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       PIP는 메인 플레이어를 침범하지 않도록 독립된 <code>PipChannelAdapter</code> 인스턴스로 분리되어 있고, 모자이크는 단일 모자이크 스트림 안에서 셀 좌표를 채널 ID로 역매핑해 "여러 채널을 보는 것처럼" 보이게 합니다. 둘 다 라이브 상태 머신(<code>LiveTvUiState.Mosaic</code> 등)과 연동해 표시/숨김을 관리합니다.
@@ -63,12 +63,15 @@
 sequenceDiagram
     autonumber
     participant SCR as LiveTvScreen
+    participant MAIN as MainActivity
     participant PIP as PipView
     participant PCA as PipChannelAdapter (SI)
     participant MOS as MosaicView
     participant MCA as ChannelPlayerAdapter
 
-    Note over SCR,PCA: (A) PIP
+    Note over SCR,PCA: (A) PIP — onSelectPip
+    SCR->>MAIN: getPipView()
+    MAIN--&gt;>SCR: PipView
     SCR->>PIP: show(channelId)
     PIP->>PIP: isChannelPipAvailable(channelId)
     PIP->>PCA: setVolume(0f)
@@ -78,14 +81,15 @@ sequenceDiagram
         PIP->>PIP: hide() + listener.onError()
     end
 
-    Note over SCR,MCA: (B) 모자이크
-    SCR->>MOS: setMosaicData(TTChannelMosaicData)
-    MOS->>MOS: itemList 좌표 → 2x3 GridLayout(MosaicItem)
-    SCR->>MOS: processKeyDown(keyCode)
+    Note over SCR,MCA: (B) 모자이크 — 자가 구독
+    MOS->>MCA: getCurrentTuningChannelObservable() 구독
+    MCA--&gt;>MOS: 튜닝 채널 (mosaicData 포함)
+    MOS->>MOS: setMosaicData + show() — itemList 좌표 → 2x3 GridLayout(MosaicItem)
+    SCR->>MOS: processKeyDown(keyCode) — getMosaicView() 경유
     MOS->>MOS: 셀 포커스 이동 + updateAudioTrack(index)
     MOS->>MCA: 선택 셀 채널 tune (OK)
       </div>
-      <p class="cap"><strong>흐름.</strong> (A) PIP는 전용 어댑터로 음소거 튜닝하며 실패 시 자동 숨김합니다. (B) 모자이크는 서버 좌표를 격자로 환산해 셀을 그리고, 키 입력으로 포커스/오디오를 바꾸며 선택 채널로 튜닝합니다.</p>
+      <p class="cap"><strong>흐름.</strong> (A) PIP는 <code>MainActivity</code>가 소유한 뷰를 <code>LiveTvScreen</code>이 가져와 전용 어댑터로 음소거 튜닝하며 실패 시 자동 숨김합니다. (B) 모자이크는 채널 어댑터의 튜닝 채널을 스스로 구독해 격자를 그리고, 키 입력으로 포커스/오디오를 바꾸며 선택 채널로 튜닝합니다.</p>
     </div>
   </section>
 
@@ -94,13 +98,17 @@ sequenceDiagram
     <div class="diagram">
       <div class="mermaid">
 classDiagram
+    class MainActivity {
+        +getPipView() PipView
+        +getMosaicView() MosaicView
+    }
     class LiveTvScreen
     class PipView {
         -ChannelPlayerAdapter pipChannelAdapter
         +show(channelId)
         +hide()
-        +setSize(...)
-        -isChannelPipAvailable(channelId) boolean
+        +setSize(width, height)
+        +isChannelPipAvailable(channelId) boolean
     }
     class MosaicView {
         -MosaicUseCase mosaicUseCase
@@ -126,14 +134,16 @@ classDiagram
         +itemList
     }
 
-    LiveTvScreen o-- PipView : 소유
-    LiveTvScreen o-- MosaicView : 소유
+    MainActivity o-- PipView : 소유
+    MainActivity o-- MosaicView : 소유
+    LiveTvScreen ..&gt; PipView : show/hide 제어
+    LiveTvScreen ..&gt; MosaicView : processKeyDown 전달
     PipView --&gt; ChannelPlayerAdapter : PipChannelAdapter
     MosaicView o-- MosaicItem : 격자 셀
     MosaicView ..&gt; TTChannelMosaicData
     MosaicView --&gt; ChannelPlayerAdapter : 셀 채널 tune
       </div>
-      <p class="cap"><strong>관계.</strong> <code>LiveTvScreen</code>이 두 오버레이를 소유합니다. <code>PipView</code>는 전용 <code>PipChannelAdapter</code>로 보조 재생하고, <code>MosaicView</code>는 <code>TTChannelMosaicData</code>를 <code>MosaicItem</code> 격자로 변환해 채널 어댑터로 튜닝합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>MainActivity</code>가 두 오버레이를 소유하고 <code>LiveTvScreen</code>이 getter로 가져와 제어합니다. <code>PipView</code>는 전용 <code>PipChannelAdapter</code>로 보조 재생하고, <code>MosaicView</code>는 <code>TTChannelMosaicData</code>를 <code>MosaicItem</code> 격자로 변환해 채널 어댑터로 튜닝합니다.</p>
     </div>
   </section>
 
@@ -146,6 +156,7 @@ classDiagram
 
     isVisible = true
     listener?.onVisible()
+    isPlaying = false
     pipChannelAdapter.setVolume(0f)                 // 보조 영상만, 오디오는 메인 유지
     pipChannelAdapter.tune(channelId = channelId) { result -&gt;
         when (result) {
@@ -181,7 +192,8 @@ classDiagram
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/mosaic/MosaicView.kt" target="_blank" rel="noopener">ui/livetv/mosaic/MosaicView.kt</a><span class="src">모자이크 격자 구성 · 키 입력/오디오 트랙 · 셀 튜닝</span></li>
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/mosaic/MosaicItem.kt" target="_blank" rel="noopener">ui/livetv/mosaic/MosaicItem.kt</a><span class="src">모자이크 셀(채널 매핑) 아이템</span></li>
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/mosaic/MosaicUseCase.kt" target="_blank" rel="noopener">ui/livetv/mosaic/MosaicUseCase.kt</a><span class="src">모자이크 데이터/오디오 트랙 UseCase</span></li>
-      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/LiveTvScreen.kt" target="_blank" rel="noopener">ui/livetv/LiveTvScreen.kt</a><span class="src">오버레이 호스팅 · onSelectPip · 모자이크 상태 연동</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/LiveTvScreen.kt" target="_blank" rel="noopener">ui/livetv/LiveTvScreen.kt</a><span class="src">onSelectPip · 모자이크 키 전달 · 상태 연동</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/MainActivity.kt" target="_blank" rel="noopener">ui/MainActivity.kt</a><span class="src">PIP/모자이크 뷰 소유 · getPipView/getMosaicView · PIP 크기/에러 팝업</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

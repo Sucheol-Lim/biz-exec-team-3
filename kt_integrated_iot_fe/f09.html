@@ -50,7 +50,7 @@
     <h2>기능 개요</h2>
     <p>AI 에이전트 모달(<code>modal/aiagent/index.tsx</code>)은 드래그·리사이즈 가능한 플로팅 다이얼로그입니다. 좌측 <code>Thread</code> 패널에서 대화 스레드를 선택·추가·삭제하고, 우측 <code>Message</code> 영역에서 대화 내용을 주고받습니다. 스레드 목록은 <code>aiAgentApi.getThreads()</code>로 조회하고, 새 스레드는 <code>regiestThread('USER')</code>, 삭제는 <code>deleteThread(threadId)</code>로 처리합니다.</p>
     <p>메시지 전송은 <code>aiAgentApi.request(threadId, message)</code>로 이뤄지며, 성공 응답을 메시지 목록에 추가합니다. 최초 질의 후 서버가 스레드 제목을 부여하면(<code>data.threadName</code>) 스레드 목록을 갱신합니다. 스레드 전환 시 <code>getMessages(threadId)</code>로 기존 대화를 불러와 역순 정렬해 표시합니다.</p>
-    <p>에이전트의 실시간 응답은 전역 <code>WebSocketProvider</code>를 통해 들어옵니다. 수신 메시지에 <code>threadId</code>가 있고 에이전트가 활성(<code>isActiveAgent</code>)인 경우에만 <code>setLastMessage</code>로 라우팅되어, 관제 이벤트(<code>lastEvent</code>)와 채널을 공유하면서도 분리 수신됩니다. <code>setActiveAgent</code>로 에이전트 모달의 활성 상태를 알립니다.</p>
+    <p>에이전트 응답의 분리 수신 경로는 전역 <code>WebSocketProvider</code>에 마련되어 있습니다. 수신 메시지에 <code>threadId</code>가 있고 에이전트가 활성(<code>isActiveAgent</code>)인 경우에만 <code>setLastMessage</code>로 라우팅되어, 관제 이벤트(<code>lastEvent</code>)와 채널을 공유하면서도 분리 보관됩니다. 다만 현재 소스에서 모달이 <code>lastMessage</code>를 구독하거나 <code>setActiveAgent</code>를 호출하는 코드는 없으며, 대화 표시는 <code>request</code>의 REST 응답만으로 완결됩니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       에이전트 응답과 관제 이벤트가 같은 STOMP 큐로 들어오므로, <code>threadId</code> 존재 여부와 <code>isActiveAgent</code> 플래그를 함께 검사해 두 흐름을 안전하게 갈라냅니다(기능 04 참고).
@@ -68,21 +68,21 @@ sequenceDiagram
     participant WS as WebSocketProvider
 
     UI-&gt;&gt;API: getThreads()
-    API--&gt;&gt;UI: 스레드 목록
-    UI-&gt;&gt;UI: setActiveAgent(true)
+    API--&gt;&gt;UI: 스레드 목록 (useQuery)
+    UI-&gt;&gt;UI: send() 사용자 메시지 즉시 추가
     UI-&gt;&gt;API: request(threadId, message)
-    API--&gt;&gt;UI: 응답(messages 추가)
-    Note over WS: 같은 STOMP 큐로 비동기 응답 도착
+    API--&gt;&gt;UI: 응답 result(messages 추가, threadName 오면 refetch)
+    Note over WS: 같은 STOMP 큐로 이벤트 도착
     WS-&gt;&gt;WS: stompData.threadId &amp;&amp; isActiveAgent ?
     alt 에이전트 응답
-        WS-&gt;&gt;UI: setLastMessage (lastMessage 구독 반영)
+        WS-&gt;&gt;WS: setLastMessage (lastMessage 컨텍스트 보관)
     else 관제 이벤트
         WS-&gt;&gt;WS: setLastEvent (다른 화면)
     end
     UI-&gt;&gt;API: getMessages(threadId) (스레드 전환 시)
     API--&gt;&gt;UI: 이전 대화(역순 표시)
       </div>
-      <p class="cap"><strong>흐름.</strong> 모달이 스레드/메시지를 REST로 관리하고, 에이전트 실시간 응답은 WebSocket의 <code>threadId</code>·<code>isActiveAgent</code> 판별로 분리 수신됩니다.</p>
+      <p class="cap"><strong>흐름.</strong> 모달은 스레드/메시지를 REST만으로 완결 처리합니다. <code>WebSocketProvider</code>는 <code>threadId</code>·<code>isActiveAgent</code> 판별로 에이전트 응답을 관제 이벤트와 분리해 <code>lastMessage</code>에 보관하지만, 현재 모달이 이를 구독하지는 않습니다.</p>
     </div>
   </section>
 
@@ -117,15 +117,15 @@ classDiagram
     }
     class WebSocketProvider {
         +lastMessage
+        +isActiveAgent
         +setActiveAgent(bool)
     }
 
     AiAgent o-- Thread : 스레드 패널
     AiAgent o-- Message : 메시지 영역
     AiAgent ..&gt; aiAgentApi : 스레드/메시지 CRUD
-    AiAgent ..&gt; WebSocketProvider : 실시간 응답 수신
       </div>
-      <p class="cap"><strong>관계.</strong> <code>AiAgent</code> 모달이 <code>Thread</code>·<code>Message</code> 하위 컴포넌트를 조합하고, REST(<code>aiAgentApi</code>)와 WebSocket(<code>lastMessage</code>)을 함께 사용합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>AiAgent</code> 모달이 <code>Thread</code>·<code>Message</code> 하위 컴포넌트를 조합하고 REST(<code>aiAgentApi</code>)로 대화를 처리합니다. <code>WebSocketProvider</code>는 에이전트 응답 분리 라우팅(<code>lastMessage</code>)을 갖추고 있으나 현재 모달과 직접 연결되어 있지는 않습니다.</p>
     </div>
   </section>
 
@@ -146,9 +146,11 @@ classDiagram
     <div class="snippet">
       <div class="sc"><code>src/contexts/WebSocketProvider.tsx</code> — 에이전트 응답 분리 수신</div>
 <pre><code>if (stompData.threadId &amp;&amp; isActiveAgent) {
-  setLastMessage(stompData);   // AI 에이전트 응답만 모달로
+  if (isActiveAgent) {
+    setLastMessage(stompData);   // AI 에이전트 응답만 분리 보관
+  }
 } else if (stompData) {
-  setLastEvent(stompData);     // 그 외 관제 이벤트
+  setLastEvent(stompData);       // 그 외 관제 이벤트
 }</code></pre>
     </div>
   </section>

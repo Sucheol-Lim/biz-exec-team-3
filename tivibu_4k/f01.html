@@ -48,11 +48,11 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>라이브 TV 시청은 단말이 부팅·홈 진입을 끝낸 뒤 가장 빈번하게 사용하는 핵심 화면입니다. <code>LiveTvScreen</code>은 단일 액티비티(<code>MainActivity</code>) 위에 show/hide 방식으로 올라가는 Fragment(<code>ATVScreen</code>)이며, 화면 안에 미니 가이드(<code>MiniGuideView</code>), 채널 OSD(<code>ChannelOsdView</code>), 채널 플레이바(<code>ChannelPlayBar</code>), PIP(<code>PipView</code>), 모자이크(<code>MosaicView</code>) 등 라이브 시청 요소를 직접 보유합니다.</p>
-    <p>채널 전환은 리모컨 키 입력에서 시작합니다. <code>onKeyDown()</code>이 숫자 키·채널 업/다운·핫키를 받아 <code>processChannelKey()</code> / <code>processHotKey()</code>로 분기하고, <code>LiveTvViewModel.startChannel()</code>이 대상 채널 번호를 해석해 SI 채널 어댑터(<code>ChannelPlayerAdapter.tune()</code>)로 실제 튜닝을 지시합니다. 튜닝이 끝나면 채널의 종류(일반/모자이크/MyTV)에 따라 <code>LiveTvUiState</code>를 갱신해 미니 가이드 또는 모자이크 화면을 노출합니다.</p>
+    <p>라이브 TV 시청은 단말이 부팅·홈 진입을 끝낸 뒤 가장 빈번하게 사용하는 핵심 화면입니다. <code>LiveTvScreen</code>은 단일 액티비티(<code>MainActivity</code>) 위에 show/hide 방식으로 올라가는 Fragment(<code>ATVScreen</code>)이며, 화면 레이아웃 안에 미니 가이드(<code>MiniGuideView</code>), 채널 OSD(<code>ChannelOsdView</code>), 채널 플레이바(<code>ChannelPlayBar</code>)를 직접 보유합니다. PIP(<code>PipView</code>)와 모자이크(<code>MosaicView</code>)는 <code>MainActivity</code>가 소유하며, 화면에서 <code>getPipView()</code>/<code>getMosaicView()</code>로 참조해 위치·키 처리를 조정합니다.</p>
+    <p>초기 튜닝은 화면 진입(<code>onCreate()</code>) 시 <code>LiveTvViewModel.startChannel()</code>이 수행합니다. 채널 데이터 상태(<code>DataState</code>)가 Updated가 될 때까지 대기한 뒤 대상 채널(진입 채널 번호 → 현재 채널 → 채널 링 → 첫 채널 순)을 해석해 SI 채널 어댑터(<code>ChannelPlayerAdapter.tune()</code>)로 튜닝을 지시합니다. 이후 채널 전환은 리모컨 키 입력에서 시작합니다. <code>onKeyDown()</code>이 <code>processChannelKey()</code> / <code>processHotKey()</code>로 분기해, 채널 업/다운은 <code>HotKeyCoordinator</code> 위임 메서드(<code>pressChannelUpKey()</code>/<code>pressChannelDownKey()</code>)를 통해 어댑터의 <code>channelUp()</code>/<code>channelDown()</code>을 호출하고, 숫자 키는 <code>pressNumberKey()</code>가 DCA(직접 채널 입력) 팝업을 띄웁니다. 튜닝 결과는 <code>currentTuningChannel</code> 스트림으로 관찰되어 채널 종류(일반/모자이크)에 따라 <code>LiveTvUiState</code>를 갱신해 미니 가이드 또는 모자이크 화면을 노출합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
-      <code>LiveTvViewModel</code>은 <code>PlayCoordinator</code>·<code>RecordCoordinator</code>·<code>HotKeyCoordinator</code>를 위임(by) 받아 재생·녹화·핫키 기능을 합성합니다. 화면 상태는 <code>LiveTvUiState</code>(MiniGuide / Mosaic / PlayBar / FailSafeMode 등)로 단일화해, 키 입력과 비동기 튜닝 결과가 동일한 상태 머신을 통해 화면에 반영되도록 했습니다.
+      <code>LiveTvViewModel</code>은 <code>RecordCoordinator</code>·<code>HotKeyCoordinator</code>를 위임(by) 받아 녹화·핫키 기능을 합성하고, <code>PlayCoordinator</code>는 주입받아 재생 제어에 사용합니다. 화면 상태는 <code>LiveTvUiState</code>(MiniGuide / Mosaic / PlayBar / CleanAV / FailSafeMode 등)로 단일화해, 키 입력과 비동기 튜닝 결과가 동일한 상태 머신을 통해 화면에 반영되도록 했습니다. 최근 스프린트에서는 채널 리스트 팝업 복귀 시 미니 가이드 채널 초기화(<code>setMiniGuideChannelId()</code>), 팝업·플레이어 정리(cleanup)와 플레이어 리사이즈 방어 로직, 미니 가이드·채널 리스트 GUI 개편이 반영되었습니다.
     </div>
   </section>
 
@@ -65,26 +65,40 @@ sequenceDiagram
     participant U as 리모컨 (User)
     participant SCR as LiveTvScreen
     participant VM as LiveTvViewModel
+    participant HK as HotKeyCoordinatorImpl
     participant CR as ChannelRepository
     participant CA as ChannelPlayerAdapter (SI)
-    participant UI as LiveTvUiState
 
-    U->>SCR: onKeyDown(숫자/CH+/-)
-    SCR->>SCR: processChannelKey(keyCode)
-    SCR->>VM: startChannel()
-    VM->>CR: getChannelList() / getChannel(id)
-    CR--&gt;>VM: 채널/현재 채널 ID
-    VM->>CA: tune(channelId) { result }
-    CA--&gt;>VM: tune result
-    alt channel.isMosaic
-        VM->>UI: setUiState(Mosaic)
-    else 일반 채널
-        VM->>UI: setUiState(MiniGuide)
+    Note over SCR,VM: 화면 진입 (onCreate)
+    SCR-&gt;&gt;VM: startChannel()
+    VM-&gt;&gt;CR: getCurrentDataStateObservable()
+    CR--&gt;&gt;VM: DataState.Updated
+    VM-&gt;&gt;VM: 대상 채널 해석 (진입 번호/현재/채널 링/첫 채널)
+    VM-&gt;&gt;CA: tune(channelId) { result }
+
+    Note over U,SCR: 이후 채널 전환 (키 입력)
+    U-&gt;&gt;SCR: onKeyDown(숫자/CH+/-)
+    SCR-&gt;&gt;SCR: processChannelKey(keyCode)
+    alt CH UP / DOWN
+        SCR-&gt;&gt;VM: pressChannelUpKey() / pressChannelDownKey()
+        VM-&gt;&gt;HK: HotKeyCoordinator by 위임
+        HK-&gt;&gt;CA: channelUp() / channelDown()
+    else 숫자 키
+        SCR-&gt;&gt;VM: pressNumberKey(keyCode)
+        VM-&gt;&gt;HK: HotKeyCoordinator by 위임
+        HK-&gt;&gt;HK: DCA 팝업 표시 (showDCAPopup)
     end
-    UI--&gt;>SCR: uiState 갱신 관찰
-    SCR->>SCR: 미니가이드/OSD/플레이바 표시
+
+    CA--&gt;&gt;VM: currentTuningChannel 변경 통지
+    alt channel.isMosaic
+        VM-&gt;&gt;VM: setUiState(Mosaic)
+    else 일반 채널
+        VM-&gt;&gt;VM: setUiState(MiniGuide)
+    end
+    VM--&gt;&gt;SCR: uiState 갱신 관찰
+    SCR-&gt;&gt;SCR: 미니가이드/OSD/플레이바 표시
       </div>
-      <p class="cap"><strong>흐름.</strong> 리모컨 키가 <code>LiveTvScreen.onKeyDown()</code>으로 들어오면 채널 키를 분류해 <code>startChannel()</code>을 호출하고, ViewModel이 채널을 해석해 SI 어댑터로 튜닝합니다. 결과에 따라 <code>LiveTvUiState</code>를 모자이크/미니가이드로 전환하고 화면이 이를 관찰해 오버레이를 그립니다.</p>
+      <p class="cap"><strong>흐름.</strong> 화면 진입 시 <code>startChannel()</code>이 채널 데이터 준비를 기다렸다가 대상 채널을 해석해 SI 어댑터로 튜닝합니다. 이후 리모컨 키는 <code>onKeyDown()</code> → <code>processChannelKey()</code>에서 분류되어 채널 업/다운은 <code>HotKeyCoordinator</code> 위임을 거쳐 어댑터의 <code>channelUp()</code>/<code>channelDown()</code>으로, 숫자 키는 DCA 팝업으로 이어집니다. 튜닝 결과는 <code>currentTuningChannel</code> 스트림으로 관찰되어 <code>LiveTvUiState</code>를 모자이크/미니가이드로 전환하고 화면이 이를 관찰해 오버레이를 그립니다.</p>
     </div>
   </section>
 
@@ -102,15 +116,25 @@ classDiagram
         +setOsd(isShow, channelId)
     }
     class LiveTvViewModel {
+        -startChannelNumber
         -currentChannelRingList
         +startChannel()
         +tuneMiniGuideChannel()
         +setUiState(state, forced)
+        +setMiniGuideChannelId(channelId)
         +setOsdShowEvent(show)
+    }
+    class HotKeyCoordinator {
+        &lt;&lt;interface&gt;&gt;
+        +pressChannelUpKey(isSameChannel, callback)
+        +pressChannelDownKey(isSameChannel, callback)
+        +pressNumberKey(keyCode)
     }
     class ChannelPlayerAdapter {
         &lt;&lt;interface&gt;&gt;
         +tune(channelId, callback)
+        +channelUp(isSameChannel, callback)
+        +channelDown(isSameChannel, callback)
         +getCurrentChannelId() ChannelId
         +currentState PlayerState
     }
@@ -118,29 +142,34 @@ classDiagram
         &lt;&lt;interface&gt;&gt;
         +getChannelList() List~Channel~
         +getChannel(id) Channel
+        +getCurrentDataState() DataState
     }
     class LiveTvUiState {
         &lt;&lt;sealed&gt;&gt;
         MiniGuide
         Mosaic
         PlayBar
+        CleanAV
+        ChannelUpdating
         FailSafeMode
     }
     class MiniGuideView
     class ChannelOsdView
-    class PipView
-    class MosaicView
+    class ChannelPlayBar
+    class MainActivity
 
     LiveTvScreen --&gt; LiveTvViewModel : viewModels()
     LiveTvScreen o-- MiniGuideView : 소유
     LiveTvScreen o-- ChannelOsdView : 소유
-    LiveTvScreen o-- PipView : 소유
-    LiveTvScreen o-- MosaicView : 소유
+    LiveTvScreen o-- ChannelPlayBar : 소유
+    LiveTvScreen ..&gt; MainActivity : getPipView() getMosaicView()
+    LiveTvViewModel ..|&gt; HotKeyCoordinator : by 위임
     LiveTvViewModel --&gt; ChannelPlayerAdapter : tune 위임
     LiveTvViewModel --&gt; ChannelRepository : 채널 조회
     LiveTvViewModel ..&gt; LiveTvUiState : 상태 갱신
+    HotKeyCoordinator ..&gt; ChannelPlayerAdapter : channelUp/Down
       </div>
-      <p class="cap"><strong>관계.</strong> <code>LiveTvScreen</code>이 라이브 오버레이 뷰들을 소유하고 <code>LiveTvViewModel</code>을 구독합니다. ViewModel은 SI <code>ChannelPlayerAdapter</code>와 <code>ChannelRepository</code>를 통해 튜닝·채널 조회를 수행하며 결과를 <code>LiveTvUiState</code>로 단일화합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>LiveTvScreen</code>이 미니 가이드·OSD·플레이바 뷰를 소유하고 <code>LiveTvViewModel</code>을 구독하며, PIP·모자이크 뷰는 <code>MainActivity</code>를 통해 참조합니다. ViewModel은 <code>HotKeyCoordinator</code>를 by 위임으로 구현해 채널 업/다운·숫자 키를 처리하고, SI <code>ChannelPlayerAdapter</code>와 <code>ChannelRepository</code>를 통해 튜닝·채널 조회를 수행하며 결과를 <code>LiveTvUiState</code>로 단일화합니다.</p>
     </div>
   </section>
 
@@ -148,9 +177,7 @@ classDiagram
     <h2>핵심 코드</h2>
     <div class="snippet">
       <div class="sc"><code>ui/livetv/LiveTvViewModel.kt</code> — startChannel(): 채널 해석 → 튜닝 → 상태 전환</div>
-<pre><code>val channelId = startChannelNumber?.run {
-        channelRepository.getChannelList().find { it.number == this }?.id
-    }
+<pre><code>val channelId = startChannelNumber?.run { channelRepository.getChannelList().find { it.number == this }?.id }
     ?: channelAdapter.getCurrentChannelId()
     ?: channelAdapter.getCurrentChannelRingChannelList().firstOrNull()?.id
     ?: channelList.firstOrNull()?.id
@@ -159,15 +186,19 @@ channelId?.apply {
     channelAdapter.tune(channelId = this@apply) {        // SI 어댑터로 실제 튜닝
         Timber.d("startChannel() tune result: $it")
     }
+
     val channel = channelRepository.getChannel(id = channelId)
     if (showPlayBarFirst) {
         setUiState(LiveTvUiState.PlayBar(showAnimation = false), forced = true)
+    } else if (hideMiniGuideFirst) {
+        // do nothing                                     // 미니가이드 숨김 진입
     } else if (channel?.isMosaic == true) {
         setUiState(LiveTvUiState.Mosaic, forced = true)   // 모자이크 채널
     } else {
         setUiState(LiveTvUiState.MiniGuide, forced = true) // 일반 채널
     }
-}</code></pre>
+}
+isStartingChannel = false</code></pre>
     </div>
   </section>
 
@@ -176,6 +207,8 @@ channelId?.apply {
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/LiveTvScreen.kt" target="_blank" rel="noopener">ui/livetv/LiveTvScreen.kt</a><span class="src">라이브 화면 Fragment · onKeyDown/채널키·핫키 처리 · 오버레이 호스팅</span></li>
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/LiveTvViewModel.kt" target="_blank" rel="noopener">ui/livetv/LiveTvViewModel.kt</a><span class="src">startChannel/tune · LiveTvUiState 관리 · Coordinator 위임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/core/coodinator/src/main/java/com/altimedia/core/coodinator/hotkey/HotKeyCoordinator.kt" target="_blank" rel="noopener">core/coodinator/…/hotkey/HotKeyCoordinator.kt</a><span class="src">채널 업/다운·숫자 키 처리 인터페이스 (core 모듈)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/utils/coordinator/HotKeyCoordinatorImpl.kt" target="_blank" rel="noopener">ui/utils/coordinator/HotKeyCoordinatorImpl.kt</a><span class="src">HotKeyCoordinator 구현 · channelUp/Down · DCA 팝업 연동</span></li>
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/miniguide/MiniGuideView.kt" target="_blank" rel="noopener">ui/livetv/miniguide/MiniGuideView.kt</a><span class="src">미니 가이드(채널 링) 뷰</span></li>
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/osd/ChannelOsdView.kt" target="_blank" rel="noopener">ui/livetv/osd/ChannelOsdView.kt</a><span class="src">채널 OSD(채널 정보) 뷰</span></li>
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/fivechannel/FiveChannelPopup.kt" target="_blank" rel="noopener">ui/livetv/fivechannel/FiveChannelPopup.kt</a><span class="src">5채널 동시 보기 팝업</span></li>

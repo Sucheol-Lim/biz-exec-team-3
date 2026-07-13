@@ -148,8 +148,9 @@ export const DRAWER_FULL_WIDTH = 270;
 
 export const SITE_MENU = [
   { title: 'Air Map', children: [
-      { code: '001ENV301', title: 'Air Map', path: 'air' },
-      { code: 'GWACHEON', title: '과천 관제 센터', path: 'gwacheon' } ] },
+      { code: '001ENV301', realcode: '001ENV301', title: 'Air Map', path: 'air' },
+      { code: 'GWACHEON', realcode: '001ENV301',
+        title: '과천 관제 센터', path: 'gwacheon' } ] },
   { title: 'AI산업안전DX', children: [ /* ... */ ] },
   { title: 'SafeMate', children: [ /* 4종 */ ] },
   // SMART GREEN / 한전 AMI ...

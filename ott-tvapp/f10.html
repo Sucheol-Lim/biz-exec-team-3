@@ -134,21 +134,34 @@ classDiagram
       <div class="sc"><code>ott/Agent.java</code> — 이벤트별 상태 데이터 조립 후 전송</div>
 <pre><code>case MSG_NETWORK_CONNECTED:
     buildData(builder, dataBuilder.makeCommonData(NMSEventID.KE04));
+    // Current Status
     buildData(builder, dataBuilder.makeCPUData());
     buildData(builder, dataBuilder.makeMemoryData());
     buildData(builder, dataBuilder.makeFlashData());
     buildData(builder, dataBuilder.makeNetData());
+    buildData(builder, dataBuilder.getIOData());
     buildData(builder, dataBuilder.makeConfigData());
+    buildData(builder, dataBuilder.makeRCUData());
+    buildData(builder, dataBuilder.makeSystemData());
     buildData(builder, dataBuilder.makeSIData());
+    buildData(builder, dataBuilder.makeHDMIData());
+    buildData(builder, dataBuilder.makeGoogleData());
+    // VOD
     buildData(builder, dataBuilder.makeVODData());
+    // IPTV
     buildData(builder, dataBuilder.makeIPTVData());
+
     sendData(NMSEventID.KE04, builder.toString());
     break;</code></pre>
     </div>
     <div class="snippet">
       <div class="sc"><code>ott/Agent.java</code> — sendData: mgmt 클라이언트로 NMS 전송</div>
 <pre><code>private static void sendData(String eventId, String msg) {
-    if (inmsSender != null) {
+    if (msg == null || msg.isEmpty()) {
+        return;
+    }
+    Log.d(TAG, "sendData: msg=" + msg);
+    if(inmsSender != null) {
         inmsSender.sendNmsData(eventId, msg);   // NmsDataSender (mgmtcli)
         Log.d(TAG, "inmsSender: sendNMSData");
     }

@@ -22,7 +22,7 @@
       <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
     </div>
     <h1>앱(App) 관리</h1>
-    <p class="one-liner"><code>packageList</code>/<code>packageInstall</code>/<code>defaultPackage</code>/<code>appPolicy</code>가 <code>AppApiManager</code>로 APK 패키지 업로드·설치·기본 패키지·앱 정책을 다루며, OBE 사이트에서는 패키지명 대신 앱 이름(<code>appName</code>) 컬럼을 표시합니다.</p>
+    <p class="one-liner"><code>packageList</code>/<code>packageInstall</code>/<code>defaultPackage</code>/<code>appPolicy</code>가 <code>AppApiManager</code>로 APK 패키지 업로드·설치(중지/재시도 포함)·기본 패키지·앱 정책을 다루며, 목록에는 <code>getAppPackageName</code> 유틸로 앱 이름(<code>appName(패키지명)</code>) 형식을 표시합니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
@@ -48,11 +48,11 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>앱 관리는 단말에 배포할 APK 패키지의 등록부터 설치, 정책 적용까지를 다룹니다. <code>packageList</code>는 <code>AppApiManager.getList()</code>(<code>/api/v1/app-packages</code>)로 패키지 목록을 조회하고, 업로드는 <code>create</code>(<code>FormData</code> + <code>isForm=true</code>)로 APK를 <code>multipart/form-data</code> 전송하며 사전에 <code>getApkInfo</code>(<code>analyze-apk</code>)로 APK 메타를 분석합니다. 실제 단말 설치는 <code>packageInstall</code>이 <code>install()</code>(<code>/api/v1/app-package-installs</code>)에 <code>packageIds</code>·<code>mode</code>·<code>installTime</code>·대상 <code>deviceGroupIds</code>를 넘겨 예약/즉시 배포합니다. 진행 상태는 <code>getInstallDetailHistroyStatus</code>로 추적합니다.</p>
-    <p><code>defaultPackage</code>는 단말 초기 구성에 들어갈 기본 패키지(<code>/api/v1/default-packages</code>)와 관리 앱(managed-app) XML 업로드를 다루고, <code>appPolicy</code>는 화이트리스트/블랙리스트 등 앱 정책을 등록·수정합니다. OBE 타깃에서는 운영자에게 친숙한 표시를 위해 목록 컬럼이 패키지명 대신 <code>appName</code>으로 표시되도록 분기되어 있습니다(<code>appmanagement.columns.ts</code>).</p>
+    <p>앱 관리는 단말에 배포할 APK 패키지의 등록부터 설치, 정책 적용까지를 다룹니다. <code>packageList</code>는 <code>AppApiManager.getList()</code>(<code>/api/v1/app-packages</code>)로 패키지 목록을 조회하고, 업로드는 <code>create</code>(<code>FormData</code> + <code>isForm=true</code>)로 APK를 <code>multipart/form-data</code> 전송하며 사전에 <code>getApkInfo</code>(<code>analyze-apk</code>)로 APK 메타를 분석합니다. 실제 단말 설치는 <code>packageInstall</code>이 <code>install()</code>(<code>/api/v1/app-package-installs</code>)에 <code>packageIds</code>·<code>mode</code>·<code>installTime</code>·대상 <code>deviceGroupIds</code>를 넘겨 예약/즉시 배포합니다. 진행 상태는 <code>getInstallDetailHistroyStatus</code>로 추적하고, 진행 중인 배포는 설치 상세 모달(<code>PkgInstallModal</code>)에서 <code>getInstallStop</code>(<code>/app-package-installs/{id}/stop</code>)으로 중지하거나 <code>getInstallRetry</code>로 재시도할 수 있습니다. 설치 목록은 건당 단일 패키지(<code>appPackage</code>) 기준으로 표시됩니다.</p>
+    <p><code>defaultPackage</code>는 단말 초기 구성에 들어갈 기본 패키지(<code>/api/v1/default-packages</code>)와 관리 앱(managed-app) XML 업로드를 다루고, <code>appPolicy</code>는 Threshold(임계치)·화이트리스트/블랙리스트·managed-app 탭을 묶는 컨테이너로 하위 목록은 <code>whiteList.tsx</code>가 공용 처리합니다. 화이트/블랙리스트 편집 모달(<code>PolicyAppListEditModal</code>)은 <code>getDefaultGroupedPkg</code>(<code>/default-packages/grouped</code>)로 같은 이름의 패키지를 묶어 버전을 select로 고르게 합니다. 목록 컬럼은 <code>getAppPackageName</code> 유틸이 앱 이름이 있으면 <code>appName(패키지명)</code> 형식으로 표시합니다(<code>appmanagement.columns.ts</code>).</p>
     <div class="callout">
-      <div class="ct">OBE 앱 이름 표시</div>
-      최근 작업으로 OBE 사이트에서 패키지명을 앱 이름(<code>appName</code>)으로 바꿔 표시하도록 컬럼·업로드 모달·화이트리스트 설명이 정비되었습니다(개발 이력 <code>74f7d919</code> 등). 코드베이스는 동일하지만 사이트별로 사용자에게 보이는 라벨이 달라집니다.
+      <div class="ct">설치 중지·앱 이름 표시 정비</div>
+      최근 작업으로 앱 설치 중지 API(<code>/app-package-installs/{id}/stop</code>) 반영과 설치 목록 단일 패키지 표시 수정(개발 이력 <code>55313374</code>), 화이트/블랙리스트 버전 select(<code>863f6b65</code>)가 추가되었고, KT UI 검수를 거치며 패키지명 표시가 사이트 공통 유틸 <code>getAppPackageName</code>으로 통일되었습니다(<code>53f8ace7</code>, <code>ae080c36</code>).
     </div>
   </section>
 
@@ -85,8 +85,14 @@ sequenceDiagram
         AM-&gt;&gt;BE: GET 상태
         BE--&gt;&gt;PI: 단말별 설치 진행/결과
     end
+    opt 설치 중지
+        OP-&gt;&gt;PI: 설치 상세 모달에서 Stop
+        PI-&gt;&gt;AM: getInstallStop(id)
+        AM-&gt;&gt;BE: POST /app-package-installs/id/stop
+        BE--&gt;&gt;PI: 상태 갱신 (stopped)
+    end
       </div>
-      <p class="cap"><strong>흐름.</strong> APK를 분석·업로드한 뒤 대상 그룹·시각·모드를 지정해 <code>install</code>로 배포하고, 설치 히스토리 상태를 폴링해 단말별 결과를 확인합니다.</p>
+      <p class="cap"><strong>흐름.</strong> APK를 분석·업로드한 뒤 대상 그룹·시각·모드를 지정해 <code>install</code>로 배포하고, 설치 히스토리 상태를 폴링해 단말별 결과를 확인합니다. 진행 중인 배포는 설치 상세 모달(<code>PkgInstallModal</code>)에서 중지(stop)·재시도(retry)할 수 있습니다.</p>
     </div>
   </section>
 
@@ -100,14 +106,15 @@ classDiagram
     }
     class PackageInstall {
         +install()
+        +getInstallStop()
     }
     class DefaultPackage {
         +getDefaultPkgList()
         +uploadManagedApp()
     }
     class AppPolicy {
-        +register()
-        +update()
+        +editPolicyAppList()
+        +getDefaultGroupedPkg()
     }
     class AppApiManager {
         +getList(cb, page, size, name)
@@ -115,36 +122,50 @@ classDiagram
         +getApkInfo(cb, FormData)
         +install(cb, packageIds, mode, time, groupIds)
         +getInstallDetailHistroyStatus(cb, id)
+        +getInstallStop(cb, id)
         +getDefaultPkgList(cb, ...)
+        +getDefaultGroupedPkg(cb, ...)
     }
 
     PackageList --&gt; AppApiManager : 목록
-    PackageInstall --&gt; AppApiManager : 설치·상태
+    PackageInstall --&gt; AppApiManager : 설치·상태·중지
     DefaultPackage --&gt; AppApiManager : 기본 패키지·managed-app
-    AppPolicy --&gt; AppApiManager : 정책 등록/수정
+    AppPolicy --&gt; AppApiManager : 화이트/블랙리스트 편집
       </div>
-      <p class="cap"><strong>관계.</strong> 앱 관리 하위 화면들이 <code>AppApiManager</code> 하나를 공유해 패키지 CRUD·설치·정책을 처리합니다. APK 업로드와 managed-app XML은 <code>FormData</code>(<code>isForm</code>)로 전송됩니다.</p>
+      <p class="cap"><strong>관계.</strong> 앱 관리 하위 화면들이 <code>AppApiManager</code> 하나를 공유해 패키지 CRUD·설치(중지 포함)·정책을 처리합니다. APK 업로드와 managed-app XML은 <code>FormData</code>(<code>isForm</code>)로 전송되고, 정책 편집 모달은 <code>getDefaultGroupedPkg</code>로 이름별 버전 목록을 받아 select로 제공합니다.</p>
     </div>
   </section>
 
   <section id="code">
     <h2>핵심 코드</h2>
     <div class="snippet">
-      <div class="sc"><code>_api/App.tsx</code> — APK 업로드(FormData)와 그룹 단위 설치 요청</div>
+      <div class="sc"><code>_api/App.tsx</code> — APK 업로드(FormData)·그룹 단위 설치·설치 중지</div>
 <pre><code>create: (callback, data: FormData) =&gt; {
   request('post', `/api/v1/app-packages`, callback, data, true);  // isForm = multipart
 },
 install: (callback, packageIds, mode, installTime, deviceGroupIds: number[]) =&gt; {
   request('post', `/api/v1/app-package-installs`, callback,
     { packageIds, mode, installTime, deviceGroupIds });
+},
+getInstallStop: (callback, id: number) =&gt; {
+  request('post', `/api/v1/app-package-installs/${id}/stop`, callback);
 }</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>pages/appmanagement/appmanagement.columns.ts</code> — OBE 등에서 appName 컬럼 사용</div>
-<pre><code>{
+      <div class="sc"><code>utils/common.tsx</code> · <code>appmanagement.columns.ts</code> — 앱 이름(appName) 표시 유틸과 목록 컬럼</div>
+<pre><code>// utils/common.tsx — 앱 이름이 있으면 "appName(패키지명)" 형식으로 표시
+export const getAppPackageName = (app: { name: string; appName?: string }): string =&gt; {
+  return app.appName ? `${app.appName}(${app.name})` : `${app.name}`;
+};
+
+// appmanagement.columns.ts — 패키지 목록의 App Name 컬럼
+{
   id: 'appName',
-  // OBE 사이트: 패키지명 대신 앱 이름(appName)을 목록 컬럼으로 표시
-  // ...
+  label: t('cm:items.app_name'),
+  type: 'custom',
+  component: (data: any, row: any, rows: any[]) =&gt; {
+    return getAppPackageName(row);
+  }
 }</code></pre>
     </div>
   </section>
@@ -154,10 +175,13 @@ install: (callback, packageIds, mode, installTime, deviceGroupIds: number[]) =&g
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/appmanagement/packageList.tsx" target="_blank" rel="noopener">pages/appmanagement/packageList.tsx</a><span class="src">패키지 목록 조회</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/appmanagement/packageInstall.tsx" target="_blank" rel="noopener">pages/appmanagement/packageInstall.tsx</a><span class="src">앱 설치 — 그룹/시각/모드 지정 배포·상태 추적</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/appmanagement/modal/PkgInstallModal.tsx" target="_blank" rel="noopener">pages/appmanagement/modal/PkgInstallModal.tsx</a><span class="src">설치 상세 모달 — 단말별 진행 상태·중지(stop)·재시도(retry)</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/appmanagement/defaultPackage.tsx" target="_blank" rel="noopener">pages/appmanagement/defaultPackage.tsx</a><span class="src">기본 패키지·managed-app XML 업로드</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/appmanagement/appPolicy.tsx" target="_blank" rel="noopener">pages/appmanagement/appPolicy.tsx</a><span class="src">앱 정책 등록/수정</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/App.tsx" target="_blank" rel="noopener">_api/App.tsx</a><span class="src">AppApiManager — app-packages / app-package-installs / default-packages</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/appmanagement/appmanagement.columns.ts" target="_blank" rel="noopener">pages/appmanagement/appmanagement.columns.ts</a><span class="src">목록 컬럼 — OBE의 appName 표시 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/appmanagement/appPolicy.tsx" target="_blank" rel="noopener">pages/appmanagement/appPolicy.tsx</a><span class="src">앱 정책 탭 컨테이너 — Threshold·화이트/블랙리스트·managed-app</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/appmanagement/whiteList.tsx" target="_blank" rel="noopener">pages/appmanagement/whiteList.tsx</a><span class="src">화이트/블랙리스트·기본앱 목록 공용 탭</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/appmanagement/modal/PolicyAppListEditModal.tsx" target="_blank" rel="noopener">pages/appmanagement/modal/PolicyAppListEditModal.tsx</a><span class="src">정책 앱 목록 편집 — grouped 패키지 버전 select</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/App.tsx" target="_blank" rel="noopener">_api/App.tsx</a><span class="src">AppApiManager — app-packages / app-package-installs(stop 포함) / default-packages(grouped 포함)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/appmanagement/appmanagement.columns.ts" target="_blank" rel="noopener">pages/appmanagement/appmanagement.columns.ts</a><span class="src">목록 컬럼 — getAppPackageName 기반 앱 이름 표시</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

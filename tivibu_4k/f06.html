@@ -48,7 +48,7 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>채널 필터는 채널 링(<code>ChannelRing</code> = 장르 그룹) 기반입니다. 라이브 화면에서 필터 팝업(<code>ChannelFilterPopup</code>)을 열면 <code>ChannelFilterPopupViewModel</code>이 채널 링 목록(<code>TTChannelRing.Genre</code>를 sortNum 순으로 정렬)을 제공하고, 선택한 링을 <code>updateCurrentChannelRingId()</code>로 현재 필터에 반영합니다. 전체(All) 링이 아닌 특정 링이 적용되어 있으면 필터 아이콘에 red dot을 노출하며, 최근 스프린트에서 이 red dot이 필터 리스트 열림/닫힘 상태와 무관하게 표시되도록 보정되었습니다.</p>
+    <p>채널 필터는 채널 링(<code>ChannelRing</code> = 장르 그룹) 기반입니다. 라이브 화면에서 필터 팝업(<code>ChannelFilterPopup</code>)을 열면 <code>ChannelFilterPopupViewModel</code>이 채널 링 목록(<code>TTChannelRing.Genre</code>를 sortNum 순으로 정렬)을 제공하고, 선택한 링을 <code>updateCurrentChannelRingId()</code>로 현재 필터에 반영합니다. 전체(All) 링이 아닌 특정 링이 적용되어 있으면 채널 리스트 팝업(<code>ChannelListPopup</code>)의 필터 아이콘에 red dot을 노출하며(<code>isAllChannelRing</code> 판정으로 파생), 이 red dot은 필터 리스트 열림/닫힘 상태와 무관하게 표시됩니다. 최근 스프린트에서는 필터 팝업이 닫힐 때(<code>onDestroyView</code>) Rx 구독을 정리하는 팝업 cleanup 보완이 반영되었습니다.</p>
     <p>즐겨찾기·잠금은 설정 화면의 <code>FavoriteLockChannelView</code>/<code>FavoriteLockChannelViewModel</code>에서 관리합니다. 진입 시 <code>channelRepository.updateFavoriteChannelList()</code>로 즐겨찾기 목록을 최신화하고, 전체 채널을 표시한 뒤 항목별로 즐겨찾기(<code>setFavoriteChannel</code> → <code>addFavorite</code>/<code>removeFavorite</code>)와 잠금(<code>setBlockChannel</code> → <code>addBlock</code>/<code>removeBlock</code>)을 토글합니다. 채널의 <code>isFavorite</code>/<code>isBlocked</code> 플래그가 현재 상태를 나타내며, 추가/제거는 SI 채널 레이어에 반영됩니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
@@ -81,7 +81,7 @@ sequenceDiagram
     FLVM->>CR: updateFavoriteChannelList() / getChannelList()
     U->>SET: 채널 즐겨찾기/잠금 토글
     SET->>FLVM: setFavoriteChannel / setBlockChannel
-    FLVM->>CR: addFavorite/removeFavorite · addBlock/removeBlock
+    FLVM->>CR: addFavorite/removeFavorite · addBlock/removeBlock (channelIdList)
       </div>
       <p class="cap"><strong>흐름.</strong> (A) 필터 팝업에서 채널 링을 선택하면 ViewModel이 현재 링을 갱신하고 All이 아니면 red dot이 표시됩니다. (B) 설정 화면에서 즐겨찾기/잠금 토글이 SI <code>ChannelRepository</code>에 add/remove로 반영됩니다.</p>
     </div>
@@ -110,11 +110,13 @@ classDiagram
         &lt;&lt;interface&gt;&gt;
         +getChannelList(channelRing) List~Channel~
         +getChannelRingList() List~ChannelRing~
-        +addFavorite(...) / removeFavorite(...)
-        +addBlock(...) / removeBlock(...)
+        +getChannel(channelId) Channel
+        +addFavorite(channelIdList) / removeFavorite(channelIdList)
+        +addBlock(channelIdList) / removeBlock(channelIdList)
         +updateFavoriteChannelList()
     }
     class Channel {
+        +id
         +isFavorite boolean
         +isBlocked boolean
     }
@@ -135,19 +137,31 @@ classDiagram
       <div class="sc"><code>ui/setting/view/FavoriteLockChannelViewModel.kt</code> — 잠금/즐겨찾기 토글</div>
 <pre><code>fun setBlockChannel(channel: Channel) {
     if (!channel.isBlocked) {
-        channelRepository.addBlock(channel)
-            .subscribe({ /* addBlock result */ }, { /* error */ })
+        channelRepository.addBlock(
+            channelIdList = listOf(channel.id),
+        ).subscribe(
+            { Timber.d("addBlock result: $it") },
+            { Timber.e(it, "addBlock error") },
+        ).apply { disposables.add(this) }
     } else {
-        channelRepository.removeBlock(channel)
-            .subscribe({ /* removeBlock result */ }, { /* error */ })
+        channelRepository.removeBlock(
+            channelIdList = listOf(channel.id),
+        ) /* ...subscribe 동일 */
     }
 }
 
 fun setFavoriteChannel(channel: Channel, callback: (Channel) -&gt; Unit) {
     if (!channel.isFavorite) {
-        channelRepository.addFavorite(channel)
-            .subscribe({ /* addFavorite result */ }, { /* error */ })
-    } /* else removeFavorite */
+        channelRepository.addFavorite(
+            channelIdList = listOf(channel.id)
+        ).subscribe(
+            {
+                Timber.d("addFavorite result: $it")
+                channelRepository.getChannel(channel.id)?.apply { callback(this@apply) }
+            },
+            { Timber.e(it, "addFavorite error") },
+        ).apply { disposables.add(this) }
+    } /* else removeFavorite 동일 흐름 */
 }</code></pre>
     </div>
     <div class="snippet">
@@ -176,6 +190,7 @@ fun isAllChannelRing(channelRing: ChannelRing?): Boolean {
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/setting/view/FavoriteLockChannelViewModel.kt" target="_blank" rel="noopener">ui/setting/view/FavoriteLockChannelViewModel.kt</a><span class="src">즐겨찾기/채널 잠금 토글 · 즐겨찾기 목록 갱신</span></li>
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/setting/view/FavoriteLockChannelView.kt" target="_blank" rel="noopener">ui/setting/view/FavoriteLockChannelView.kt</a><span class="src">설정 즐겨찾기/잠금 채널 리스트 뷰</span></li>
       <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/popup/channellist/filter/ChannelFilterView.kt" target="_blank" rel="noopener">ui/livetv/popup/channellist/filter/ChannelFilterView.kt</a><span class="src">채널 리스트 내 필터 뷰</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tivibu_4k/src/sprint/LS0626_release/app/src/main/java/com/altimedia/ui/livetv/popup/channellist/ChannelListPopup.kt" target="_blank" rel="noopener">ui/livetv/popup/channellist/ChannelListPopup.kt</a><span class="src">필터 아이콘 red dot 표시(<code>isAllChannelRing</code> 판정) · 팝업 cleanup</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

@@ -50,9 +50,10 @@
     <h2>기능 개요</h2>
     <p>VOD·시리즈 상세는 콘텐츠 정보(포스터·줄거리·등급)와 시즌/에피소드 목록, 재생/구매/녹화 버튼을 보여주는 화면입니다. <code>TVDetailController</code>가 2022 리뉴얼 상세 프레임(<code>ui2022/tvdetail/TVDetailFrame</code>)을 띄우며, 시리즈인 경우 <code>SeriesUtil</code>이 <code>QueryManager</code>를 통해 <code>SeriesHeader</code>·<code>Season</code>·<code>Episode</code> 모델을 구성해 시즌 전환과 에피소드 선택을 지원합니다.</p>
     <p>재생은 <code>VodPlayController</code>가 담당합니다. 생성 시 <code>SystemInterface.getVideoPlayer()</code>로 HTML5 <code>&lt;video&gt;</code>(<code>videoPlayer</code> DOM)를 가져오고, <code>loadedmetadata</code> 이벤트에 자막 트랙 초기화를 연결합니다. <code>startPlay(param)</code>은 재생 모드(VOD/PLTV)에 따라 재생 URL을 만들고, DRM이 필요한 경우 <code>updatePlayerConfig()</code>에서 Widevine 라이선스 URL과 CustomData(시리얼·usertoken 기반)를 구성합니다. 재생 위치(북마크)는 <code>QueryManager</code>로 조회·저장하며, 시리즈는 다음 에피소드 자동 재생을 처리합니다.</p>
+    <p>레거시 STB(<code>SystemInterface.isLegacy()</code>)에서는 상세·검색 등 화면 전환 시 <code>LegacyPlayController</code>가 라이브/VOD 정지(<code>stopPlay</code>)·재개(<code>startPlay</code>)를 지연 스케줄로 중계하는데, VOD 재생 시작 시점에 이 대기 상태가 남아 있으면 재생이 되돌려질 수 있습니다. 이를 막기 위해 <code>VodPlayController.startPlay()</code>가 먼저 <code>LegacyPlayController.resetPendingResume()</code>를 호출해 예약된 stop/start 전환과 suspend 상태를 초기화합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
-      라이브 방송이 OIPF VBO를 쓰는 것과 달리, VOD/PLTV 재생은 HTML5 <code>&lt;video&gt;</code> 요소와 Widevine DRM 경로를 사용합니다. 최근 스프린트(Jira <code>VLTRANLAND-1738/1760/1779</code>)에서 VOD 리모컨 사용성, 썸네일 롱프레스 점프, 스크롤 리셋 로직이 개선되었습니다.
+      라이브 방송이 OIPF VBO를 쓰는 것과 달리, VOD/PLTV 재생은 HTML5 <code>&lt;video&gt;</code> 요소와 Widevine DRM 경로를 사용합니다. 최근 스프린트(Jira <code>VLTRANLAND-1918</code>)에서 레거시 STB의 일부 과거 프로그램이 재생되지 않던 문제를 <code>resetPendingResume</code> 도입으로 수정했습니다.
     </div>
   </section>
 
@@ -66,6 +67,7 @@ sequenceDiagram
     participant SU as SeriesUtil
     participant QM as QueryManager
     participant VPC as VodPlayController
+    participant LPC as LegacyPlayController
     participant SI as SystemInterface
     participant VID as HTML5 video (videoPlayer)
 
@@ -78,6 +80,10 @@ sequenceDiagram
     end
     Note over TVD,VPC: 재생 버튼 선택
     TVD-&gt;&gt;VPC: startPlay(param)
+    opt 레거시 STB (isLegacy)
+        VPC-&gt;&gt;LPC: resetPendingResume(reason)
+        LPC-&gt;&gt;LPC: 예약된 stop/start 전환 취소 (suspendDepth=0)
+    end
     VPC-&gt;&gt;VPC: updatePlayerConfig() (Widevine URL · CustomData)
     VPC-&gt;&gt;SI: getVideoPlayer()
     SI--&gt;&gt;VPC: videoPlayer (HTML5 video)
@@ -117,14 +123,23 @@ classDiagram
     class SystemInterface {
         +getVideoPlayer() video
         +getSerialNumber()
+        +isLegacy() bool
+    }
+    class LegacyPlayController {
+        -suspendDepth int
+        -resumeTarget
+        +startPlay(param)
+        +stopPlay(param)
+        +resetPendingResume(reason)
     }
 
     TVDetailController ..&gt; SeriesUtil : 시리즈 모델 구성
     TVDetailController ..&gt; VodPlayController : 재생 위임
     SeriesUtil --&gt; SeriesHeader : 시즌/에피소드 모델
     VodPlayController --&gt; SystemInterface : HTML5 video 획득
+    VodPlayController ..&gt; LegacyPlayController : 레거시 대기 상태 초기화
       </div>
-      <p class="cap"><strong>관계.</strong> <code>TVDetailController</code>가 상세 화면을, <code>SeriesUtil</code>이 시리즈 모델을, <code>VodPlayController</code>가 <code>SystemInterface</code>의 HTML5 <code>&lt;video&gt;</code>로 재생을 담당합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>TVDetailController</code>가 상세 화면을, <code>SeriesUtil</code>이 시리즈 모델을, <code>VodPlayController</code>가 <code>SystemInterface</code>의 HTML5 <code>&lt;video&gt;</code>로 재생을 담당합니다. 레거시 STB에서는 재생 시작 전 <code>LegacyPlayController</code>의 대기 상태를 초기화합니다.</p>
     </div>
   </section>
 
@@ -158,12 +173,32 @@ initPlayerConfig: function() {
     // SeriesHeader / Season / Episode 모델로 시즌·에피소드 트리 구성
 });</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>VodPlayController.js · LegacyPlayController.js</code> — 레거시 STB 재생 대기 상태 초기화 (VLTRANLAND-1918)</div>
+<pre><code>// VodPlayController.startPlay — 레거시 STB면 대기 중인 stop/start 전환을 먼저 초기화
+startPlay: function(param) {
+    ...
+    if (SYSAPP.SystemInterface.isLegacy()) {
+        SYSAPP.LegacyPlayController.resetPendingResume('VodPlayController.startPlay');
+    }
+    this.updatePlayerConfig();
+    ...
+},
+
+// LegacyPlayController — 예약된 전환 타이머를 취소하고 suspend 상태를 리셋
+resetPendingResume: function(reason) {
+    this._clearPendingTransition('resetPendingResume');
+    this.suspendDepth = 0;
+    this.resumeTarget = null;
+}</code></pre>
+    </div>
   </section>
 
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/VodPlayController.js" target="_blank" rel="noopener">controller/VodPlayController.js</a><span class="src">VOD/PLTV 재생 · DRM 설정 · 북마크 · 다음 에피소드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/LegacyPlayController.js" target="_blank" rel="noopener">controller/LegacyPlayController.js</a><span class="src">레거시 STB 라이브/VOD 정지·재개 중계 · resetPendingResume</span></li>
       <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/controller/TVDetailController.js" target="_blank" rel="noopener">controller/TVDetailController.js</a><span class="src">VOD/시리즈 상세(2022) 프레임</span></li>
       <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/data/SeriesUtil.js" target="_blank" rel="noopener">data/SeriesUtil.js</a><span class="src">시리즈/시즌/에피소드 모델 구성</span></li>
       <li><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp/src/master/static/app/data/SeriesHeader.js" target="_blank" rel="noopener">data/SeriesHeader.js</a><span class="src">시리즈 헤더 모델</span></li>

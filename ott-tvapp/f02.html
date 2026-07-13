@@ -160,11 +160,14 @@ if (livePlayer != null) {
     for (EPGChannel ch : target.values()) {
         if (!skipChannel.containsKey(ch.getNumber())
             &amp;&amp; String.valueOf(ch.getNumber()).startsWith(selection)) {
+            // 아이콘 우선순위: 시청제한 &gt; 선호 &gt; 홍보/CH-VOD/오디오/유료
             int icon = 0;
             if (isBlocked(ch)) icon = 1;
             else if (isFav(ch)) icon = 2;
+            else if (isPromo(ch)) icon = 3;
             else if (isChVod(ch)) icon = 4;
             else if (isAudio(ch)) icon = 5;
+            else if (isPay(ch)) icon = 6;
             cursor.addRow(new Object[]{ ch.getServiceId(),
                 String.format("%03d", ch.getNumber()), ch.getName(), icon });
         }

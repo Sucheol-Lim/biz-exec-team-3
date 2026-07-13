@@ -22,7 +22,7 @@
       <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
     </div>
     <h1>관리자 · 역할(Role) 관리</h1>
-    <p class="one-liner"><code>administratorList</code>/<code>rolelist</code>가 <code>UserApiManager</code>로 관리자 계정과 역할(Role) 기반 권한을 관리하고, <code>mailreport</code> 경로는 사이트 공통으로 <code>AlertSetting</code>(알림 설정)을 렌더합니다. 알림 탭은 단말 상태·OTT 버전(KT 전용)·네트워크 오프라인으로 구성됩니다.</p>
+    <p class="one-liner"><code>administratorList</code>는 Admin List·Pending Approval(KT 전용) 탭으로 관리자 계정과 등록 신청 승인을, <code>rolelist</code>는 역할(Role) 기반 권한을 <code>UserApiManager</code>로 관리합니다. <code>mailreport</code> 경로는 사이트 공통으로 <code>AlertSetting</code>(단말 상태·OTT 버전(KT 전용)·네트워크 오프라인 탭)을 렌더합니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
@@ -48,11 +48,11 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>관리자 영역은 RMS 운영자 계정과 권한 체계를 다룹니다. <code>administratorList</code>는 <code>UserApiManager.getList()</code>(<code>/api/v1/users</code>)로 관리자 목록을 조회하고, 등록/상세/수정은 <code>create</code>·<code>getDetail</code>·<code>update</code>로 처리합니다. 비밀번호 초기화(<code>resetUserPassword</code>)와 사용자명/이메일 중복 검사(<code>checkUserName</code>/<code>checkEmail</code>)도 같은 매니저에 있습니다. KT 타깃 대응으로 사용자 등록 신청 흐름이 추가되어, 로그인 화면의 User Registration 팝업(<code>UserRegistrationModal</code>)이 <code>registLdap</code>(<code>/api/v1/auth/ldap/register/verify</code>, KT User ID + LDAP Password 검증)과 <code>submitLdap</code>(<code>/api/v1/auth/ldap/register/submit</code>)으로 신청을 제출하고, 관리자는 <code>getRegistrationList</code>(<code>/api/v1/registration-users</code>)로 신청 목록을 조회해 <code>approveUser</code>(roleId 지정 승인)/<code>rejectUser</code>(거절)로 처리합니다.</p>
-    <p>역할(Role)은 <code>rolelist</code>가 <code>getRoleList</code>(<code>/api/v1/roles</code>)·<code>createRole</code>·<code>updateRole</code>로 관리합니다. 여기서 정의한 역할이 <code>PermissionContext</code>+<code>PermissionGuard</code>를 통해 화면 접근 권한으로 적용됩니다. 운영 이력 화면(<code>operationHistory.tsx</code>)은 라우트에서 분리되어, 현재 <code>operationHistory</code> 경로는 임시로 설문 설정 화면(<code>SurveySetting</code>)을 렌더하며 별도의 <code>surveySetting</code>(목록)·<code>surveySetting/register</code>(<code>SurveyCreate</code>) 경로도 추가되었습니다([XL Smart] survey setting, 메뉴 임시 처리). 알림 설정은 라우트 정의(<code>MainRoutes.tsx</code>)에서 <code>mailreport</code> 경로가 사이트 구분 없이 <code>&lt;AlertSetting /&gt;</code>을 렌더하도록 통합되었고(기존 <code>IS_KT ? AlertSetting : MailReport</code> 분기 제거), 대신 탭 단에서 OTT 버전(<code>OTT_VER</code>) 탭만 <code>IS_KT</code>일 때 노출됩니다.</p>
+    <p>관리자 영역은 RMS 운영자 계정과 권한 체계를 다룹니다. <code>administratorList</code>는 Admin List·Pending Approval 두 탭을 가진 컨테이너로 재편되어, Admin List 탭(<code>administer/adminList.tsx</code>)이 <code>UserApiManager.getList()</code>(<code>/api/v1/users</code>)로 관리자 목록(역할명·Role Level 포함)을 조회하고, 등록/상세/수정은 <code>create</code>·<code>getDetail</code>·<code>update</code>로 처리합니다. 비밀번호 초기화(<code>resetUserPassword</code>)와 사용자명/이메일 중복 검사(<code>checkUserName</code>/<code>checkEmail</code>)도 같은 매니저에 있습니다. KT 사용자 등록 신청 흐름은 로그인 화면의 User Registration 팝업(<code>UserRegistrationModal</code>)이 <code>registLdap</code>(<code>/api/v1/auth/ldap/register/verify</code>, KT User ID + LDAP Password 검증)과 <code>submitLdap</code>(<code>/api/v1/auth/ldap/register/submit</code>)으로 신청을 제출하면, 관리자가 Pending Approval 탭(<code>administer/pendingApprovalList.tsx</code>, <code>adminPermissions.pendingApprovalTab</code> — KT 타깃 전용)에서 <code>getRegistrationList</code>(<code>/api/v1/registration-users</code>)로 신청 목록을 확인하고, 신청 행을 눌러 진입한 상세 화면(<code>administer/adminDetail.tsx</code>)에서 <code>approveUser</code>(roleId 지정 승인)/<code>rejectUser</code>(거절)로 처리합니다.</p>
+    <p>역할(Role)은 <code>rolelist</code>가 <code>getRoleList</code>(<code>/api/v1/roles</code>)·<code>createRole</code>·<code>updateRole</code>로 관리하며, 목록·상세에 Role Level(Level1~Level3)이 뱃지 형태로 표시되고 권한 편집 UI는 공용 컴포넌트(<code>administer/components/permissionShared.tsx</code>)로 정리되었습니다. 여기서 정의한 역할이 <code>PermissionContext</code>+<code>PermissionGuard</code>를 통해 화면 접근 권한으로 적용됩니다. 운영 이력 화면(<code>operationHistory.tsx</code>)은 라우트에 다시 연결되어 <code>operationHistory</code> 경로가 <code>DevicesApiManager.getOperationHistory</code> 기반의 운영 이력 화면을 렌더하고, 설문 설정은 <code>surveySetting</code>(목록)·<code>surveySetting/register</code>(<code>SurveyCreate</code>)에 상세/수정 경로 <code>surveySetting/:id</code>(<code>SurveyDetail</code>)가 추가되었습니다. 알림 설정은 라우트 정의(<code>MainRoutes.tsx</code>)에서 <code>mailreport</code> 경로가 사이트 구분 없이 <code>&lt;AlertSetting /&gt;</code>을 렌더하고, 탭 단에서 OTT 버전(<code>OTT_VER</code>) 탭만 <code>IS_KT</code>일 때 노출됩니다.</p>
     <div class="callout">
-      <div class="ct">알림 설정 통합 + 네트워크 오프라인 탭 (XLSmart Alert setting 반영)</div>
-      <code>AlertSetting</code>은 단말 상태(<code>DeviceAlert</code>)·OTT 버전(<code>OttVersion</code>, KT 전용)·네트워크 오프라인(<code>NetworkOffline</code>) 세 탭으로 구성됩니다. 네트워크 오프라인 알림은 모니터링 윈도우/오프라인 비율/수신자 목록을 관리하며, 편집은 <code>networkoffline/:id</code> 경로의 <code>NetworkOfflineEdit</code> 화면이 담당합니다.
+      <div class="ct">네트워크 오프라인 알림 — 전용 API 연동 (XLsmart Network Offline api 반영)</div>
+      <code>AlertSetting</code>은 단말 상태(<code>DeviceAlert</code>)·OTT 버전(<code>OttVersion</code>, KT 전용)·네트워크 오프라인(<code>NetworkOffline</code>) 세 탭으로 구성됩니다. 네트워크 오프라인 알림은 <code>MailApiManager</code>의 전용 엔드포인트 <code>/api/v1/network-offline-alert/policy</code>(목록/생성/상세/수정/삭제)와 템플릿 API(<code>/api/v1/network-offline-alert/template</code>)로 연동되었으며, 편집은 <code>networkoffline/:id</code> 경로의 <code>NetworkOfflineEdit</code> 화면이 담당합니다.
     </div>
   </section>
 
@@ -63,24 +63,26 @@
 sequenceDiagram
     autonumber
     participant OP as 운영자 (Browser)
-    participant AL as administratorList / rolelist
+    participant AL as administratorList (탭 컨테이너)
+    participant AD as adminDetail
     participant UM as UserApiManager (_api/User)
     participant BE as RMS BE 서버
     participant PC as PermissionContext / Guard
 
-    OP-&gt;&gt;AL: 관리자 목록 조회
+    OP-&gt;&gt;AL: Admin List 탭 조회
     AL-&gt;&gt;UM: getList(data)
     UM-&gt;&gt;BE: GET /api/v1/users
-    BE--&gt;&gt;AL: 관리자 목록
-    OP-&gt;&gt;AL: 역할 생성/수정
-    AL-&gt;&gt;UM: createRole / updateRole(data)
-    UM-&gt;&gt;BE: POST /api/v1/roles ...
-    Note over PC: 정의된 Role 이 화면 접근 권한으로 적용
-    OP-&gt;&gt;PC: 메뉴 진입
-    PC-&gt;&gt;PC: PermissionGuard 권한 검사
+    BE--&gt;&gt;AL: 관리자 목록 (role.roleLevel 포함)
+    OP-&gt;&gt;AL: Pending Approval 탭 (KT 전용)
+    AL-&gt;&gt;UM: getRegistrationList(data)
+    UM-&gt;&gt;BE: GET /api/v1/registration-users
+    OP-&gt;&gt;AD: 신청 행 클릭 → 상세 진입
+    AD-&gt;&gt;UM: approveUser(id, roleId) / rejectUser(id)
+    UM-&gt;&gt;BE: POST /api/v1/registration-users/:id/approve
+    Note over PC: rolelist 에서 정의한 Role 이 PermissionGuard 로 화면 접근 권한에 적용
     Note over AL: mailreport 경로는 AlertSetting (OTT_VER 탭은 IS_KT 전용)
       </div>
-      <p class="cap"><strong>흐름.</strong> 관리자/역할을 <code>UserApiManager</code>로 CRUD 하고, 정의된 Role이 <code>PermissionGuard</code>를 통해 접근 통제에 반영됩니다. 메일 리포트 메뉴는 사이트 공통으로 알림 설정 화면을 렌더하고, OTT 버전 탭만 KT 전용으로 노출됩니다.</p>
+      <p class="cap"><strong>흐름.</strong> 관리자 화면이 Admin List·Pending Approval 탭으로 재편되어 계정 조회와 KT 등록 신청 승인/거절을 한 화면에서 처리하고, <code>rolelist</code>에서 정의한 Role이 <code>PermissionGuard</code>를 통해 접근 통제에 반영됩니다. 메일 리포트 메뉴는 사이트 공통으로 알림 설정 화면을 렌더하고, OTT 버전 탭만 KT 전용으로 노출됩니다.</p>
     </div>
   </section>
 
@@ -90,15 +92,22 @@ sequenceDiagram
       <div class="mermaid">
 classDiagram
     class AdministratorList {
-        +getList()
+        +visibleTabs
+        +handleTabChange()
+    }
+    class AdminList {
+        +searchAdminList()
+    }
+    class PendingApprovalList {
+        +getRegistrationList()
+    }
+    class AdminDetail {
+        +onApproveAdmin()
+        +onRejectAdmin()
     }
     class RoleList {
         +getRoleList()
         +createRole()
-    }
-    class SurveySetting {
-        +searchFinished()
-        +refresh()
     }
     class UserRegistrationModal {
         +handleNext()
@@ -108,9 +117,6 @@ classDiagram
         +DeviceAlert
         +OttVersion
         +NetworkOffline
-    }
-    class NetworkOfflineEdit {
-        +render()
     }
     class UserApiManager {
         +getList(cb, data)
@@ -125,21 +131,30 @@ classDiagram
         +registLdap(cb, userId, password)
         +submitLdap(cb)
     }
+    class MailApiManager {
+        +getNetworkOfflineAlert(cb, data)
+        +createNetworkOfflineAlert(cb, data)
+        +updateNetworkOfflineAlert(cb, id, data)
+    }
     class MainRoutes {
         +mailreport: AlertSetting
         +networkoffline: NetworkOfflineEdit
-        +operationHistory: SurveySetting
-        +surveySetting: SurveyCreate
+        +operationHistory: OperationHistory
+        +surveySetting: SurveySetting SurveyCreate SurveyDetail
     }
 
-    AdministratorList --&gt; UserApiManager : 계정 CRUD
+    AdministratorList --&gt; AdminList : Admin List 탭
+    AdministratorList --&gt; PendingApprovalList : Pending Approval 탭 (KT)
+    AdminList --&gt; UserApiManager : 계정 CRUD
+    PendingApprovalList --&gt; AdminDetail : 신청 행 클릭 시 상세 이동
+    AdminDetail --&gt; UserApiManager : 승인·거절
     RoleList --&gt; UserApiManager : 역할 CRUD
     UserRegistrationModal --&gt; UserApiManager : LDAP 검증·신청 제출
+    AlertSetting --&gt; MailApiManager : 네트워크 오프라인 정책 API
     MainRoutes ..&gt; AlertSetting : mailreport 경로
-    MainRoutes ..&gt; NetworkOfflineEdit : networkoffline 편집 라우트
-    MainRoutes ..&gt; SurveySetting : operationHistory·surveySetting 경로
+    MainRoutes ..&gt; AdministratorList : administrator 경로
       </div>
-      <p class="cap"><strong>관계.</strong> 계정·역할 화면과 KT 사용자 등록 팝업(<code>UserRegistrationModal</code>)이 <code>UserApiManager</code>를 공유하고, <code>MainRoutes</code>의 <code>mailreport</code> 경로는 항상 <code>AlertSetting</code>을 렌더합니다. <code>AlertSetting</code> 안에서 OTT 버전 탭은 <code>IS_KT</code>일 때만 노출되고, 네트워크 오프라인 알림 편집은 <code>NetworkOfflineEdit</code>로 이동합니다. <code>operationHistory</code>·<code>surveySetting</code> 경로는 현재 설문 설정 화면(<code>SurveySetting</code>/<code>SurveyCreate</code>)을 렌더합니다.</p>
+      <p class="cap"><strong>관계.</strong> 관리자 화면(<code>AdministratorList</code>)이 Admin List·Pending Approval 탭 컨테이너로 재편되어 하위 목록 컴포넌트와 상세(<code>AdminDetail</code>)가 <code>UserApiManager</code>를 공유하고, KT 사용자 등록 팝업(<code>UserRegistrationModal</code>)도 같은 매니저로 신청을 제출합니다. <code>MainRoutes</code>의 <code>mailreport</code> 경로는 항상 <code>AlertSetting</code>을 렌더하며(OTT 버전 탭은 <code>IS_KT</code> 전용), 네트워크 오프라인 탭은 <code>MailApiManager</code>의 network-offline-alert API를 사용하고 편집은 <code>networkoffline/:id</code>의 <code>NetworkOfflineEdit</code>가 담당합니다. <code>operationHistory</code> 경로는 운영 이력 화면으로 복구되었고, <code>surveySetting</code> 경로는 목록·등록(<code>SurveyCreate</code>)·상세(<code>SurveyDetail</code>)를 렌더합니다.</p>
     </div>
   </section>
 
@@ -150,7 +165,10 @@ classDiagram
 <pre><code>getList: (callback, data) =&gt; { request('get', '/api/v1/users', callback, data); },
 create: (callback, data) =&gt; { request('post', '/api/v1/users', callback, data); },
 // Roles
-getRoleList: (callback, page, size, name?) =&gt; { request('get', `/api/v1/roles`, callback, data); },
+getRoleList: (callback, page, size, name?) =&gt; {
+  const data = { page, size, ...(name != null &amp;&amp; name !== '' ? { name } : {}) };
+  request('get', `/api/v1/roles`, callback, data);
+},
 createRole: (callback, data) =&gt; { request('post', '/api/v1/roles', callback, data); },
 // KT 사용자 등록 신청 (registration-users)
 getRegistrationList: (callback, data) =&gt; { request('get', '/api/v1/registration-users', callback, data); },
@@ -162,7 +180,18 @@ registLdap: async (callback, userId, password) =&gt;
 submitLdap: async (callback) =&gt; request('post', '/api/v1/auth/ldap/register/submit', callback)</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>routes/MainRoutes.tsx</code> — mailreport 경로의 AlertSetting 통합과 networkoffline 편집 라우트</div>
+      <div class="sc"><code>pages/administrator/administratorList.tsx</code> — Admin List / Pending Approval 탭 컨테이너</div>
+<pre><code>const tabs: TabConfig[] = [
+  { value: 'DEFAULT', label: t('ms:administratorList.tab.admin_list'),
+    enabled: true, content: &lt;AdminList /&gt; },
+  { value: 'PENDING_APPROVAL', label: t('ms:administratorList.tab.pendingApproval'),
+    enabled: adminPermissions.pendingApprovalTab,   // utils/env: TARGET === 'KT'
+    content: &lt;PendingApprovalList /&gt; }
+];
+const visibleTabs = tabs.filter((tab) =&gt; tab.enabled);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>routes/MainRoutes.tsx</code> — mailreport의 AlertSetting 통합 · operationHistory 복구 · surveySetting 상세 라우트</div>
 <pre><code>{
   path: 'mailreport',
   children: [
@@ -176,12 +205,13 @@ submitLdap: async (callback) =&gt; request('post', '/api/v1/auth/ldap/register/s
     { path: ':id', element: &lt;NetworkOfflineEdit /&gt; }
   ]
 },
-{ path: 'operationHistory', element: &lt;SurveySetting /&gt; },   // 임시: 설문 설정 렌더
+{ path: 'operationHistory', element: &lt;OperationHistory /&gt; },   // 운영 이력 라우트 복구
 {
   path: 'surveySetting',
   children: [
     { path: '', element: &lt;SurveySetting /&gt; },
-    { path: 'register', element: &lt;SurveyCreate /&gt; }
+    { path: 'register', element: &lt;SurveyCreate /&gt; },
+    { path: ':id', element: &lt;SurveyDetail /&gt; }
   ]
 }</code></pre>
     </div>
@@ -200,16 +230,21 @@ submitLdap: async (callback) =&gt; request('post', '/api/v1/auth/ldap/register/s
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administratorList.tsx" target="_blank" rel="noopener">pages/administrator/administratorList.tsx</a><span class="src">관리자 계정 목록·등록</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/rolelist.tsx" target="_blank" rel="noopener">pages/administrator/rolelist.tsx</a><span class="src">역할(Role) 목록·권한 정의</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/operationHistory.tsx" target="_blank" rel="noopener">pages/administrator/operationHistory.tsx</a><span class="src">운영 이력 — getOperationHistory (현재 라우트 미연결, operationHistory 경로는 SurveySetting 렌더)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/surveySetting.tsx" target="_blank" rel="noopener">pages/administrator/surveySetting.tsx</a><span class="src">설문 설정 목록 — surveySetting·operationHistory 경로 렌더, 등록은 administer/SurveyCreate.tsx</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administratorList.tsx" target="_blank" rel="noopener">pages/administrator/administratorList.tsx</a><span class="src">관리자 화면 탭 컨테이너 — Admin List·Pending Approval(KT 전용) 탭</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administer/adminList.tsx" target="_blank" rel="noopener">pages/administrator/administer/adminList.tsx</a><span class="src">관리자 계정 목록 — getList, 역할명·roleLevel 표시</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administer/pendingApprovalList.tsx" target="_blank" rel="noopener">pages/administrator/administer/pendingApprovalList.tsx</a><span class="src">등록 신청 대기 목록 — getRegistrationList, 행 클릭 시 상세 이동</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administer/adminDetail.tsx" target="_blank" rel="noopener">pages/administrator/administer/adminDetail.tsx</a><span class="src">관리자 상세 — PENDING_APPROVAL 탭 진입 시 approveUser(roleId)/rejectUser 버튼</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/rolelist.tsx" target="_blank" rel="noopener">pages/administrator/rolelist.tsx</a><span class="src">역할(Role) 목록·권한 정의 — Role Level 뱃지 표시</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/operationHistory.tsx" target="_blank" rel="noopener">pages/administrator/operationHistory.tsx</a><span class="src">운영 이력 — DevicesApiManager.getOperationHistory (operationHistory 라우트 복구)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/surveySetting.tsx" target="_blank" rel="noopener">pages/administrator/surveySetting.tsx</a><span class="src">설문 설정 목록 — 등록은 administer/SurveyCreate.tsx, 상세는 administer/surveyDetail.tsx</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administer/surveyDetail.tsx" target="_blank" rel="noopener">pages/administrator/administer/surveyDetail.tsx</a><span class="src">설문 상세/수정 — getSurvey·updateSurvey·stopSurvey·deleteSurvey</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/sections/auth/auth-forms/UserRegistrationModal.tsx" target="_blank" rel="noopener">sections/auth/auth-forms/UserRegistrationModal.tsx</a><span class="src">KT 사용자 등록 팝업 — registLdap 검증·submitLdap 제출·cancel 시나리오</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/alertSetting.tsx" target="_blank" rel="noopener">pages/administrator/alertSetting.tsx</a><span class="src">알림 설정 — 단말 상태/OTT 버전(KT 전용)/네트워크 오프라인 탭</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/alert/networkOffline.tsx" target="_blank" rel="noopener">pages/administrator/alert/networkOffline.tsx</a><span class="src">네트워크 오프라인 알림 목록 — monitoringWindow/offlineRatio/recipients</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/alert/networkOffline.tsx" target="_blank" rel="noopener">pages/administrator/alert/networkOffline.tsx</a><span class="src">네트워크 오프라인 알림 목록 — MailApiManager.getNetworkOfflineAlert 연동</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/mailReport.tsx" target="_blank" rel="noopener">pages/administrator/mailReport.tsx</a><span class="src">메일 리포트 — 현재 라우트에서는 미사용(AlertSetting으로 통합)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/routes/MainRoutes.tsx" target="_blank" rel="noopener">routes/MainRoutes.tsx</a><span class="src">mailreport → AlertSetting · networkoffline/:id → NetworkOfflineEdit · operationHistory/surveySetting → SurveySetting·SurveyCreate</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/routes/MainRoutes.tsx" target="_blank" rel="noopener">routes/MainRoutes.tsx</a><span class="src">mailreport → AlertSetting · networkoffline/:id → NetworkOfflineEdit · operationHistory → OperationHistory · surveySetting → SurveySetting·SurveyCreate·SurveyDetail</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/User.tsx" target="_blank" rel="noopener">_api/User.tsx</a><span class="src">UserApiManager — users / roles CRUD·비밀번호 초기화·registration-users 승인/거절·LDAP register</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Mail.tsx" target="_blank" rel="noopener">_api/Mail.tsx</a><span class="src">MailApiManager — network-offline-alert policy/template API</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

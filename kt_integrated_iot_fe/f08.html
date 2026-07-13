@@ -27,7 +27,7 @@
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
       <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/smsSend</code> · <code>pages/smsAlarm</code></div></div>
-      <div class="item"><div class="k">기능 맥락</div><div class="v">safemate/sms-control API · 마스킹 해제</div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">safemate/sms-control · airmap push/sms/setting API</div></div>
     </div>
   </div>
 </header>
@@ -50,7 +50,8 @@
     <h2>기능 개요</h2>
     <p>SMS 발송 화면(<code>pages/smsSend/index.tsx</code>)은 SMS 수신 대상자를 목록·검색·등록·수정·삭제합니다. 대상자 조회는 <code>safemateApi.smsControl()</code>·<code>smsControlServiceTarget()</code>로, 등록/수정/삭제는 <code>registerSmsUser</code>·<code>updateSmsUser</code>·<code>deleteSmsUser</code>로 처리합니다. 발송 설정은 <code>updateSmsControlSetting</code>으로 사용자별 설정을 저장합니다. 검색은 이름·전화번호 필터를 지원하고, 테이블(<code>SmsSendTable</code>)에서 대상자 행을 선택해 수정 다이얼로그를 엽니다.</p>
     <p>개인정보(전화번호 등)는 기본적으로 마스킹되어 표시되며, 마스킹 해제는 별도 인증 모달(<code>ChangeMask</code>)을 거칩니다. 최근 KT 보안성 검증 반영으로 일부 사이트에서 마스킹 해제 버튼이 미노출 처리되었습니다.</p>
-    <p>알림 설정 화면(<code>pages/smsAlarm/index.tsx</code>)은 세션 <code>site.code</code>로 분기하며, 현재 Air Map(<code>SITE_CODES.AIRMAP</code>)에 대해 공기질 알림 SMS 설정(<code>AirMapAlarm</code>)을 제공합니다. 라우팅상 발송은 <code>/:site/sms-send</code>, 알림 설정은 <code>/:site/sms-alert-settings</code>로 진입합니다.</p>
+    <p>알림 설정 화면(<code>pages/smsAlarm/index.tsx</code>)은 세션 <code>site.code</code>로 분기하며, 현재 Air Map(<code>SITE_CODES.AIRMAP</code>)에 대해 공기질 알림 SMS 설정(<code>AirMapAlarm</code>)을 제공합니다. 설정 조회·저장·측정소 목록은 <code>airmapApi</code>의 <code>push/sms/setting</code> 계열 엔드포인트(<code>getSmsSettings</code>·<code>saveSmsSettings</code>·<code>getSmsSettingDevices</code> 등)로 처리합니다. 라우팅상 발송은 <code>/:site/sms-send</code>, 알림 설정은 <code>/:site/sms-alert-settings</code>로 진입합니다.</p>
+    <p>최근 KT 이슈 대응으로 알림 설정 저장 시 기준 측정소 <code>deviceId</code>를 함께 전송하고, 측정소 목록 조회에 서버 페이지네이션(<code>page</code>·<code>size</code>)이 적용되었습니다. 사용초과비율 사용 시 기준 측정소를 선택하지 않고 저장하면 "측정소를 선택해주세요." 안내 팝업(<code>StationSelectAlertPopup</code>)이 표시됩니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       대상자 등록·수정은 다이얼로그(<code>SmsTargetRegisterDialog</code>/<code>SmsTargetModifyDialog</code>)로 분리해, 목록 화면은 조회·검색에 집중하고 입력 검증은 다이얼로그에서 처리합니다.
@@ -115,13 +116,23 @@ classDiagram
     class AirMapAlarmPage {
         +renderSitePage(site.code)
     }
+    class AirMapAlarm {
+        +handleSave()
+        +executeSave()
+    }
+    class airmapApi {
+        +getSmsSettings(params)
+        +saveSmsSettings(data)
+        +getSmsSettingDevices(params)
+    }
 
     SmsSend ..&gt; safemateApi : 대상자 CRUD
     SmsSend --&gt; SmsTargetDialog : 등록/수정
     SmsSend ..&gt; ChangeMask : 마스킹 해제
-    AirMapAlarmPage ..&gt; safemateApi : 알림 설정
+    AirMapAlarmPage --&gt; AirMapAlarm : AIRMAP 분기
+    AirMapAlarm ..&gt; airmapApi : 알림 설정 조회·저장
       </div>
-      <p class="cap"><strong>관계.</strong> <code>SmsSend</code>가 <code>safemateApi</code>의 sms-control 엔드포인트로 대상자를 관리하고, 마스킹 해제는 <code>ChangeMask</code>, 알림 설정은 사이트별 <code>AirMapAlarmPage</code>가 담당합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>SmsSend</code>가 <code>safemateApi</code>의 sms-control 엔드포인트로 대상자를 관리하고, 마스킹 해제는 <code>ChangeMask</code>가 담당합니다. 알림 설정은 <code>AirMapAlarmPage</code>가 사이트 분기 후 <code>AirMapAlarm</code>이 <code>airmapApi</code>의 push/sms/setting 엔드포인트로 조회·저장합니다.</p>
     </div>
   </section>
 
@@ -150,6 +161,28 @@ classDiagram
 };
 // title: `${headerServiceTarget?.serviceTargetName} 공기질 알림 SMS 설정`</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/smsAlarm/AirMapAlarm.tsx</code> — 기준 측정소 검증·deviceId 포함 저장</div>
+<pre><code>// 저장 핸들러 (필수값 유효성 검증 후 저장 확인 팝업 표시)
+const handleSave = () =&gt; {
+  // 기준 측정소 사용 초과 비율 사용 시에만 측정소 선택 필요 안내 팝업 표시
+  if (settings.useBaseStationRatio &amp;&amp; !baseStation) {
+    setStationSelectPopupOpen(true);
+    return;
+  }
+  // ...필수값 검증 후 setSaveConfirmPopupOpen(true)
+};
+
+// 저장 실행 — 기준 측정소 deviceId 포함
+await airmapApi.saveSmsSettings({
+  serviceTargetId: headerServiceTarget?.serviceTargetId || '',
+  deviceId: baseStation?.id || '',
+  smsSendStatus: settings.smsEnabled ? 'ON' : 'OFF',
+  sendDayType,
+  senderPhoneNumber: settings.senderNumber,
+  // ...발송 시간·재전송 주기·임계치·템플릿
+});</code></pre>
+    </div>
   </section>
 
   <section id="sources">
@@ -158,6 +191,9 @@ classDiagram
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsSend/index.tsx" target="_blank" rel="noopener">src/pages/smsSend/index.tsx</a><span class="src">SMS 발송 대상자 목록·검색·등록/수정/삭제</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/safemate.ts" target="_blank" rel="noopener">src/api/safemate.ts</a><span class="src">safemate/sms-control 대상자·설정 API</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsAlarm/index.tsx" target="_blank" rel="noopener">src/pages/smsAlarm/index.tsx</a><span class="src">사이트별 공기질 알림 SMS 설정 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsAlarm/AirMapAlarm.tsx" target="_blank" rel="noopener">src/pages/smsAlarm/AirMapAlarm.tsx</a><span class="src">공기질 알림 SMS 설정 본문 — 측정소 페이지네이션·deviceId 저장</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsAlarm/SmsAlarmPopups.tsx" target="_blank" rel="noopener">src/pages/smsAlarm/SmsAlarmPopups.tsx</a><span class="src">저장/초기화 확인·측정소 선택 안내 등 팝업 모음</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/airmap.ts" target="_blank" rel="noopener">src/api/airmap.ts</a><span class="src">airmap push/sms/setting 조회·저장·측정소 목록 API</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modal/auth/ChangeMask.tsx" target="_blank" rel="noopener">src/modal/auth/ChangeMask.tsx</a><span class="src">개인정보 마스킹 해제 인증 모달</span></li>
     </ul>
     <div class="sibling-nav">

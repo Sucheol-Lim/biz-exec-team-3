@@ -48,7 +48,7 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p><code>DashboardMap</code>은 <code>react-grid-layout</code>의 <code>Responsive</code> + <code>WidthProvider</code>를 사용해 위젯 카드를 격자에 배치합니다. 컨테이너 크기에 맞춰 <code>cols</code>와 <code>maxRows</code>를 동적으로 계산하고, <code>config.ts</code>의 <code>GRID_LAYOUT_*</code> 상수로 격자 단위·여백을 정합니다. 저장된 위젯 목록은 <code>getSavedWidgets(site.code, 'map_' + serviceType, savedWidgets)</code>로 사이트·서비스타입별로 불러옵니다.</p>
+    <p><code>DashboardMap</code>은 <code>react-grid-layout</code>의 <code>Responsive</code> + <code>WidthProvider</code>를 사용해 위젯 카드를 격자에 배치합니다. 컨테이너 크기에 맞춰 <code>cols</code>와 <code>maxRows</code>를 동적으로 계산하고, <code>config.ts</code>의 <code>GRID_LAYOUT_*</code> 상수로 격자 단위·여백을 정합니다. 저장된 위젯 목록은 <code>getSavedWidgets(site.code, 'map_' + serviceType, savedWidgets)</code>로 사이트·서비스타입별로 불러옵니다. 저장분이 없으면 <code>types/widget.ts</code>의 사이트별 기본 배치(<code>defaultAirmapAirCard</code>·<code>defaultAirmapAirMap</code> 등)로 대체하고, Air Map 지도형에서는 <code>normalizeWidgets</code>가 <code>message_stats_kpi</code> 위젯의 높이를 고정 보정합니다.</p>
     <p>각 카드는 <code>WidgetComp</code>(<code>components/widget</code>)가 위젯 <code>type</code>에 따라 적절한 위젯 컴포넌트(예: <code>OverAllStatus</code>, <code>EventOccurrence</code>, <code>DeviceStatus</code>, <code>WeatherInfo</code>, AMI/SMART GREEN 위젯 등)를 골라 렌더링합니다. 위젯 목록과 배치는 <code>commonApi.widgetList()</code>로 조회하고 <code>registWidget</code>·<code>editWidget</code>·<code>deleteWidget</code>으로 영속화합니다.</p>
     <p>편집 모드(<code>isEditMode</code>)에서만 드래그·리사이즈가 허용되며, <code>onLayoutChange</code>가 변경된 좌표·크기를 위젯 상태에 반영합니다. <code>limitBottom</code>이 카드가 격자 최대 행(<code>GRID_LAYOUT_MAX_ROWS</code>)을 넘지 않도록 보정합니다. 편집 종료 시 <code>WidgetControl</code>이 변경 배치를 저장합니다.</p>
     <div class="callout">
@@ -151,7 +151,8 @@ const handleLayoutChange = (newLayout: Layout[]) =&gt; {
   if (isEditMode) {
     const updated = widgets.map((w) =&gt; {
       const item = newLayout.find((l) =&gt; l.i === w.type);
-      return item ? { ...w, x: item.x, y: item.y, w: item.w, h: item.h } : w;
+      if (!item) return w;
+      return { ...w, x: item.x, y: item.y, w: item.w, h: item.h };
     });
     setWidgets(updated);
   }
@@ -160,14 +161,43 @@ const handleLayoutChange = (newLayout: Layout[]) =&gt; {
     <div class="snippet">
       <div class="sc"><code>src/api/common.ts</code> — 위젯 배치 저장 엔드포인트</div>
 <pre><code>widgetList: (serviceType?: string) =&gt;
-  apiClient.get('/bff/monitor/widgets', { params: { size: 100, page: 0, serviceType } })
-    .then((res) =&gt; res.data),
+  apiClient.get('/bff/monitor/widgets', {
+    params: { size: 100, page: 0, serviceType: serviceType?.trim() || undefined },
+  }).then((res) =&gt; res.data),
 registWidget: (params) =&gt;
   apiClient.post('/bff/monitor/widgets', { ...params }).then((res) =&gt; res.data),
 editWidget: (id, params) =&gt;
   apiClient.put(`/bff/monitor/widgets/${id}`, { ...params }).then((res) =&gt; res.data),
 deleteWidget: (id) =&gt;
   apiClient.delete(`/bff/monitor/widgets/${id}`).then((res) =&gt; res.data),</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/types/widget.ts</code> — 저장 배치 로드 + 기본 배치 폴백·보정</div>
+<pre><code>export const getSavedWidgets = (code, type, widgetData, isDefault?) =&gt; {
+  const normalizeWidgets = (widgets) =&gt; {
+    if (!widgets) return widgets;
+    if (code === SITE_CODES.AIRMAP &amp;&amp; type.startsWith('map')) {
+      return widgets.map((widget) =&gt;
+        widget.type === 'message_stats_kpi'
+          ? { ...widget, h: 18, mH: widget.mH ?? 12 }
+          : widget,
+      );
+    }
+    return widgets;
+  };
+
+  const saved =
+    widgetData &amp;&amp; widgetData[code] &amp;&amp; widgetData[code][type] ? widgetData[code][type] : null;
+  if (saved &amp;&amp; saved.length &gt; 0 &amp;&amp; !isDefault) {
+    return normalizeWidgets(saved);
+  } else {
+    switch (code) {
+      case SITE_CODES.AIRMAP:
+        return normalizeWidgets(type.startsWith('card') ? defaultAirmapAirCard : defaultAirmapAirMap);
+      // ... 사이트 코드별 기본 배치 분기
+    }
+  }
+};</code></pre>
     </div>
   </section>
 
@@ -178,6 +208,7 @@ deleteWidget: (id) =&gt;
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/widget/index.tsx" target="_blank" rel="noopener">src/components/widget/index.tsx</a><span class="src">위젯 type → 위젯 컴포넌트 매핑(getWidgetInfo)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/WidgetControl.tsx" target="_blank" rel="noopener">src/pages/home/WidgetControl.tsx</a><span class="src">편집 모드 토글 · 배치 저장 컨트롤</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/common.ts" target="_blank" rel="noopener">src/api/common.ts</a><span class="src">widgetList / registWidget / editWidget / deleteWidget</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/types/widget.ts" target="_blank" rel="noopener">src/types/widget.ts</a><span class="src">getSavedWidgets · 사이트별 기본 배치(default*) · normalizeWidgets 보정</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">GRID_LAYOUT_COLS / GRID_LAYOUT_MAX_ROWS 등 격자 상수</span></li>
     </ul>
     <div class="sibling-nav">

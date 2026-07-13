@@ -205,8 +205,8 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/turk-webx-tivibu-sysapp" target="_blank" rel="noopener"><code>turk-webx-tivibu-sysapp</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3451388730" target="_blank" rel="noopener">STB Booting Process</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-05-20 · d5641a2c update a version to 1.1.75</div></div>
-      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>tt-sysapp</code> / 1.1.75</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-06-30 · d0b1fc7c update a version to 1.1.76.1</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>tt-sysapp</code> / 1.1.76.1</div></div>
     </div>
   </div>
 </header>
@@ -277,7 +277,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
    ├─ app/                 # 애플리케이션 레이어 (Tivibu 비즈니스 로직/화면)
    │  ├─ NavSIMain.js       # 앱 부트 오케스트레이터. 컨트롤러/매니저 초기화 진입점
    │  ├─ SysApp.js          # antie.Application 확장. 루트 컨테이너 설정, 키 이벤트 위임
-   │  ├─ AppConfig.js       # 앱 전역 설정(VERSION 1.1.75, 타임아웃, 애니메이션, 페이지 크기 등)
+   │  ├─ AppConfig.js       # 앱 전역 설정(VERSION 1.1.76.1, 타임아웃, 애니메이션, 페이지 크기 등)
    │  ├─ Priority.js / Additional.js / ErrorCode.js / FocusManager.js / Frame.js / RootWindow.js
    │  ├─ controller/        # 화면/기능 컨트롤러 약 63종 (Guide, LiveTV, MiniGuide, Search, Recording, PPV, Profile, OTA 등)
    │  ├─ osd/               # 각 컨트롤러에 대응하는 OSD(화면 렌더링) 모듈 + OSDConstant/OSDLibrary
@@ -304,7 +304,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
         <tbody>
           <tr><td><code>SysApp</code></td><td>static/app/SysApp.js</td><td><code>antie.Application</code> 확장. 루트 컨테이너 구성, 프레임워크 준비 후 <code>run()</code>에서 NavSIMain 로드, 키 이벤트를 KeyEventManager로 위임합니다.</td></tr>
           <tr><td><code>NavSIMain</code></td><td>static/app/NavSIMain.js</td><td>앱 초기화 오케스트레이터. 50종 이상의 컨트롤러·매니저(부팅, 홈, 가이드, 채널, PIP, 전원, 잠금, CA, 녹화, OTA, 구매, 프로필, 알림, 하트비트 등)를 구성합니다.</td></tr>
-          <tr><td><code>AppConfig</code></td><td>static/app/AppConfig.js</td><td>버전(1.1.75), PC_BROWSER 플래그, 각종 타임아웃·애니메이션·페이지 크기·부트 비디오 버전 등 런타임 정책 상수입니다.</td></tr>
+          <tr><td><code>AppConfig</code></td><td>static/app/AppConfig.js</td><td>버전(1.1.76.1), PC_BROWSER 플래그, 각종 타임아웃·애니메이션·페이지 크기·부트 비디오 버전 등 런타임 정책 상수입니다.</td></tr>
           <tr><td><code>SystemInterface</code></td><td>static/core/sys/SystemInterface.js</td><td>OIPF 객체 팩토리로 메인/서브 Video Broadcast Object, Configuration, CA System 객체를 생성·관리하는 STB 하드웨어·미들웨어 접점입니다.</td></tr>
           <tr><td><code>SysConfig</code></td><td>static/core/sys/SysConfig.js</td><td>컴포넌트 타입(video/audio/subtitle)과 전원 상태(ON/STANDBY/HIBERNATE 등) 상수 정의입니다.</td></tr>
           <tr><td>채널 도메인</td><td>static/core/channel/</td><td><code>Channel</code>·<code>ChannelList</code>·<code>ChannelRing</code>(순환)·<code>ChannelDB</code>/<code>ChannelListDB</code>(저장)·<code>ChannelType</code> 등 채널 모델과 제어입니다.</td></tr>
@@ -408,30 +408,30 @@ npx grunt release_all</code></pre>
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>최근 작업은 1.1.7x 대 유지보수·개선이 중심입니다. 채널 리스트 필터링 규칙·디자인 개선(스프린트 <code>LS0526/channellistfilter</code>), legacy 단말의 라이브 비디오·인포 배너·채널 로고 표시 문제 수정(<code>LS0526/legacylivevideo</code>), VOD 리모컨 사용성·에피소드 북마크·텍스트 복수형 처리 등 다수의 <code>VLTRANLAND</code> Jira 이슈가 반영되었고, 생성 CSS/.DS_Store untrack 등 빌드 정리와 버전 1.1.75 갱신으로 마무리되었습니다.</p>
+    <p>최근 작업은 <code>LS0626</code> 스프린트를 중심으로 한 1.1.76.x 릴리스입니다. 채널 인포·미니가이드 디자인 개편(<code>LS0626/designchannelinfo</code> — 인포 바 투명도, 채널 번호·시간 가시성, 긴 채널명 overflow 수정), 검색 결과 개선(콘텐츠명 터키어 표기, 클라이언트 기반 프로그램 검색 정보 표시), legacy 단말의 과거 프로그램 재생 불가 수정, 카테고리 페이지 배너 썸네일 포커스 확대 방지 등 <code>VLTRANLAND</code> Jira 이슈가 반영되었고, 버전 1.1.76.1 갱신으로 마무리되었습니다.</p>
     <ul class="commits">
+      <li><span class="date">2026-06-30</span><span class="msg">update a version to 1.1.76.1 (d0b1fc7c)</span></li>
+      <li><span class="date">2026-06-30</span><span class="msg">[VLTRANLAND-1911] Client-Based Program Search Information Display Issue (b030de9b)</span></li>
+      <li><span class="date">2026-06-26</span><span class="msg">update a version to 1.1.76 (caaaaca9)</span></li>
+      <li><span class="date">2026-06-26</span><span class="msg">Merge branch 'sprint/LS0626/dev_release' (f84518a4)</span></li>
+      <li><span class="date">2026-06-26</span><span class="msg">[VLTRANLAND-1911] Client-Based Program Search Information Display Issue (42496a2e)</span></li>
+      <li><span class="date">2026-06-19</span><span class="msg">update a version to 1.1.75_LS0626_4 (6ddc0d15)</span></li>
+      <li><span class="date">2026-06-19</span><span class="msg">[VLTRANLAND-1918] Legacy: Some past programs don't play (cca4d4dd)</span></li>
+      <li><span class="date">2026-06-18</span><span class="msg">update a version to 1.1.75_LS0626_3 (3b2f311c)</span></li>
+      <li><span class="date">2026-06-17</span><span class="msg">[VLTRANLAND-1907] Long Ch name overflows on CH Info banner (0cf36175)</span></li>
+      <li><span class="date">2026-06-16</span><span class="msg">update a version to 1.1.75_LS0626_2 (65b912cb)</span></li>
+      <li><span class="date">2026-06-16</span><span class="msg">[VLTRANLAND-1900] Channel Number and Time Visibility Issue [VLTRANLAND-1898] Channel Info bar transparency problem (22ca8937)</span></li>
+      <li><span class="date">2026-06-09</span><span class="msg">update a version to 1.1.75_LS0626_1 (7b1edaab)</span></li>
+      <li><span class="date">2026-06-09</span><span class="msg">Merge branch 'sprint/LS0626/designchannelinfo' into sprint/LS0626/dev_release (ccee4c86)</span></li>
+      <li><span class="date">2026-06-09</span><span class="msg">[VLTRANLAND-1857] Design Revision for Channel List and Channel Info pop-up (a75d5538)</span></li>
+      <li><span class="date">2026-06-04</span><span class="msg">[VLTRANLAND-1853] Content names should be in Turkish in search results (f36f8fba)</span></li>
+      <li><span class="date">2026-06-04</span><span class="msg">[VLTRANLAND-1868] Banner thumbnails on category pages should not get bigger when focused (e4740136)</span></li>
       <li><span class="date">2026-05-20</span><span class="msg">update a version to 1.1.75 (d5641a2c)</span></li>
       <li><span class="date">2026-05-20</span><span class="msg">build: untrack generated CSS and .DS_Store (e5c9f0c6)</span></li>
-      <li><span class="date">2026-05-20</span><span class="msg">Merge branch 'sprint/LS0526/channellistfilter' (a043bf59)</span></li>
       <li><span class="date">2026-05-20</span><span class="msg">[VLTRANLAND-1845] Legacy : Live is starting stream behind the detail pages (3493535c)</span></li>
-      <li><span class="date">2026-05-20</span><span class="msg">[VLTRANLAND-1847] Legacy : Info banner moving problem (9f622513)</span></li>
-      <li><span class="date">2026-05-20</span><span class="msg">[VLTRANLAND-1844] Wrong Text in Watch process (e085d3a7)</span></li>
       <li><span class="date">2026-05-20</span><span class="msg">[VLTRANLAND-1797] Channel List Filtering Rule and Design Improvement (27ba00a6)</span></li>
-      <li><span class="date">2026-05-14</span><span class="msg">Merge branch 'sprint/LS0426/dev_release' and update a version to 1.1.74 (11a7c6cf)</span></li>
-      <li><span class="date">2026-05-14</span><span class="msg">Merge branch 'sprint/LS0526/textpluralform' into sprint/LS0426/dev_release (de42a810)</span></li>
-      <li><span class="date">2026-05-14</span><span class="msg">Merge branch 'sprint/LS0526/legacylivevideo' into sprint/LS0426/dev_release (22f49602)</span></li>
-      <li><span class="date">2026-05-11</span><span class="msg">fix minor (233cc4c5)</span></li>
-      <li><span class="date">2026-05-11</span><span class="msg">[VLTRANLAND-1818][VLTRANLAND-1819] Legacy: channel logo stretched in Guide, live video streaming with logo in TV Guide (62f7f66a)</span></li>
-      <li><span class="date">2026-05-07</span><span class="msg">[VLTRANLAND-1310] Recorded (kaydedildi) text should be Episodes (1b386589)</span></li>
-      <li><span class="date">2026-04-22</span><span class="msg">update a version to 1.1.73.5_LS0426_DEV_RELEASE_3 (32cfc1e3)</span></li>
-      <li><span class="date">2026-04-22</span><span class="msg">[VLTRANLAND-1779] resetScroll logic modify &amp; clear timer (2b902f9f)</span></li>
-      <li><span class="date">2026-04-22</span><span class="msg">[VLTRANLAND-1760] modify thumbnail longpress jumptime (f10533b0)</span></li>
-      <li><span class="date">2026-04-30</span><span class="msg">[VLTRANLAND-1789] fix percentData reference in IconTextProgressButton (d6e8f25e)</span></li>
-      <li><span class="date">2026-04-20</span><span class="msg">[VLTRANLAND-1730] modify continue button action (f84ba3d2)</span></li>
-      <li><span class="date">2026-04-23</span><span class="msg">[VLTRANLAND-1738] VOD remote control usage (VOD kumanda kullanımı) (f8bb6582)</span></li>
-      <li><span class="date">2026-04-22</span><span class="msg">update a version to 1.1.73.6 (b3ec4031)</span></li>
     </ul>
-    <p class="callout">이슈 트래커는 Jira 프로젝트 키 <code>VLTRANLAND</code>를 사용합니다. 스프린트 브랜치는 <code>sprint/LS0526/&lt;feature&gt;</code> 형태로, 단일 기능 브랜치는 <code>LSxxxx_&lt;feature&gt;</code> 형태로 운용됩니다.</p>
+    <p class="callout">이슈 트래커는 Jira 프로젝트 키 <code>VLTRANLAND</code>를 사용합니다. 스프린트 브랜치는 <code>sprint/LSxxxx/&lt;feature&gt;</code>(예: <code>sprint/LS0626/designchannelinfo</code>) 형태로, 단일 기능 브랜치는 <code>LSxxxx_&lt;feature&gt;</code> 형태로 운용됩니다.</p>
   </section>
 
   <section id="references">
