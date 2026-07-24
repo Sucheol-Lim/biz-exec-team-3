@@ -48,8 +48,8 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>이 기능은 화면이 아니라 <strong>개발 프로세스 자체를 코드로 만든 인프라</strong>입니다. 첫째 축은 Figma 매핑 파이프라인(<code>scripts/figma-mapping/</code>, Python·PAT REST 전용·MCP 불사용)입니다. <code>check-versions.py</code>가 디자인팀 공식 릴리즈 3파일(UI 시나리오 Flipbook · GUI · 공통 컴포넌트 GUI)의 version/lastModified를 스냅샷(<code>design/json_raw/.versions.json</code>)과 대조해 변경 여부를 exit code(0=변경 없음/1=변경/2=404/3=판단 불가)로 알려주고, 변경 시 <code>dump-sources.py</code>가 Flipbook 페이지별 JSON과 GUI depth-2 인벤토리를 <code>design/json_raw/</code>에 저장합니다. 이어서 <code>build-screen-map.py</code>가 Flipbook(시나리오) ↔ GUI 화면 매칭 정본 <code>design/screen-map.json</code>을 생성하는데, 사람 판정(수동 매칭·컴포넌트 참조·정책 재분류)은 <code>overrides.json</code>으로 분리·머지되어 재생성해도 큐레이션이 보존됩니다.</p>
-    <p>매핑 정본 위에서 <code>extract-behaviors.py</code>가 시나리오 프레임의 description 표를 구조화해 메뉴별 behavior 스펙(<code>design/behavior/{NN}-{menu}.json</code>)을 뽑고, <code>extract-policy-common.py</code>(00-policy/00-common)와 <code>link-policy-refs.py</code>(behavior ↔ 공통 정책 상호참조 링킹)가 뒤따릅니다. <code>gen-pixel-manifest.py</code>는 screen-map에서 GUI 노드를 조회해 픽셀 게이트 manifest 뼈대와 레퍼런스 PNG(REST 이미지 렌더)를 만들어 두 축을 연결합니다.</p>
+    <p>이 기능은 화면이 아니라 <strong>개발 프로세스 자체를 코드로 만든 인프라</strong>입니다. 첫째 축은 Figma 매핑 파이프라인(<code>scripts/figma-mapping/</code>, Python·PAT REST 전용·MCP 불사용)입니다. <code>check-versions.py</code>가 디자인팀 공식 릴리즈 3파일(UI 시나리오 Flipbook · GUI · 공통 컴포넌트 GUI)의 version/lastModified를 스냅샷(<code>design/json_raw/.versions.json</code>)과 대조해 변경 여부를 exit code(0=변경 없음/1=변경/2=404/3=판단 불가)로 알려주고, 변경 시 <code>dump-sources.py</code>가 Flipbook 페이지별 JSON과 GUI depth-2 인벤토리를 <code>design/json_raw/</code>에 저장합니다 — <code>--page</code> 옵션으로 특정 메뉴 페이지만 선택 덤프할 수 있고(파일 전체 version만 제공되는 Figma API 특성상 페이지 델타 감지는 불가능해 사람이 지정), 429 응답은 check-versions와 동일한 쿼터 소진 방어(Retry-After 60초 초과 시 즉시 중단)를 갖췄습니다. 이어서 <code>build-screen-map.py</code>가 Flipbook(시나리오) ↔ GUI 화면 매칭 정본 <code>design/screen-map.json</code>을 생성하는데, 사람 판정(수동 매칭·컴포넌트 참조·정책 재분류)은 <code>overrides.json</code>으로 분리·머지되어 재생성해도 큐레이션이 보존됩니다. 화면마다 <strong>renderKind 축</strong>(기본 assembly=공통 컴포넌트 조립 / bespoke=에디터·타임라인·캔버스류)이 기록되며, bespoke 의심 화면은 이름 사전으로 경고만 하고 확정은 overrides의 사람 판정에 맡깁니다. SECTION 안에 화면처럼 섞인 메뉴 스코프 정책 프레임(<code>menuPolicyFrames</code>)도 화면 버킷에서 분리됩니다.</p>
+    <p>매핑 정본 위에서 <code>extract-behaviors.py</code>가 시나리오 프레임의 description 표를 구조화해 메뉴별 behavior 스펙(<code>design/behavior/{NN}-{menu}.json</code>)을 뽑고, <code>extract-policy-common.py</code>(00-policy/00-common)와 <code>link-policy-refs.py</code>(behavior ↔ 공통 정책 상호참조 링킹)가 뒤따릅니다. 추출기는 v3/v4로 보강되어 각 row에 Figma 노드ID·그룹 앵커(row-title)를 부착하고 /guide 콜아웃 마커를 화면 요소와 z-order 히트테스트로 매핑한 <code>anchor</code>를 답니다 — Flipbook을 요구사항 지식그래프로 직렬화하는 <code>scripts/kg-extract/</code> 파이프라인의 REQ↔UI 요소 provenance 근거입니다. 분리된 메뉴 정책 프레임은 신설 <code>extract-menu-policy.py</code>가 <code>{NN}-{menu}-policy.json</code>으로 별도 추출합니다(link-policy-refs는 이 파일을 링킹 대상에서 제외). <code>gen-pixel-manifest.py</code>는 screen-map에서 GUI 노드를 조회해 픽셀 게이트 manifest 뼈대와 레퍼런스 PNG(REST 이미지 렌더)를 만들어 두 축을 연결하는데, <strong>renderKind로 분기</strong>합니다 — assembly는 프레임 PNG + 오버레이 중심이고, bespoke는 신설 <code>extract-elements.py</code>(GUI 노드 depth-8 심층조회 → 내부 element 실측 구조화)의 산출물이 없으면 즉시 FAIL하며, 있으면 manifest <code>elements[]</code>에 figmaNode·크기·색·radius·폰트 기대값을 자동 기입하고 렌더 DOM <code>selector</code>만 사람 몫으로 남깁니다(프레임 레벨 눈대중 재현이 만든 HL-004 드리프트 사고 재발 방지).</p>
     <p>둘째 축은 npm 스크립트로 실행하는 <strong>결정론적 품질 게이트</strong>(<code>scripts/*.mjs</code>, Node)입니다. <code>check:pixel</code>(L4)은 Playwright로 렌더 DOM의 크기·색·여백·radius·폰트를 실측해 Figma 실측 manifest와 1:1 대조하고 스크린샷·레퍼런스 PNG 오버레이 diff까지 수행합니다 — manifest나 레퍼런스가 없으면 "조용한 PASS" 없이 즉시 FAIL(exit 1)입니다(2026-06-18 썸네일 상세 추측 구현 사고 재발 방지). <code>check:pins</code>(L3)는 package.json 핵심 의존성 메이저 버전을 ADR 확정 핀과 대조해 임의 다운그레이드를 잡고(2026-06-05 TS6→5.9 거짓 다운그레이드 사고 재발 방지), <code>check:cssvars</code>(L3)는 fallback 없는 미정의 <code>var(--x)</code> 사용(토큰 리네임 낙오 회귀)을, <code>check:ownership</code>은 feature 브랜치의 담당 범위 침범을 검출합니다. <code>figma:tokens</code>는 <code>tokens.scss</code>와 Figma 변수의 드리프트를 리포트합니다(게이트 아님, 항상 exit 0).</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
@@ -69,6 +69,7 @@ sequenceDiagram
     participant DS as dump-sources.py
     participant BSM as build-screen-map.py
     participant EB as extract-behaviors.py 계열
+    participant EE as extract-elements.py
     participant GPM as gen-pixel-manifest.py
     participant PG as check-pixel-gate.mjs
     participant PW as Playwright (dev server)
@@ -77,27 +78,31 @@ sequenceDiagram
     CV->>FIGMA: GET /v1/files/{key}?depth=1 (공식 3파일)
     FIGMA-->>CV: name / version / lastModified
     CV-->>DEV: exit 1 (변경 있음 — 계열 표시)
-    DEV->>DS: dump-sources.py --only flipbook
+    DEV->>DS: dump-sources.py --only flipbook (--page 페이지 선택)
     DS->>FIGMA: 페이지별 nodes 조회 (N.xxx + Policy + Common)
     FIGMA-->>DS: 페이지 JSON
     DS->>DS: design/json_raw/ 저장 (gitignore 로컬 전용)
     DEV->>CV: check-versions.py --save (버전 스냅샷)
     DEV->>BSM: build-screen-map.py
-    BSM->>BSM: Flipbook↔GUI 매칭 + overrides.json 머지
-    BSM-->>DEV: design/screen-map.json (정본)
-    DEV->>EB: extract-behaviors → extract-policy-common → link-policy-refs
-    EB-->>DEV: design/behavior/NN-menu.json (+00-policy·00-common 상호참조)
+    BSM->>BSM: Flipbook↔GUI 매칭 + overrides.json 머지 (renderKind·메뉴정책 분리)
+    BSM-->>DEV: design/screen-map.json (정본) + bespoke 후보 경고
+    DEV->>EB: extract-behaviors → extract-policy-common → extract-menu-policy → link-policy-refs
+    EB-->>DEV: design/behavior/NN-menu.json (row nodeId·group·anchor + 정책 상호참조)
+    opt bespoke 화면 (renderKind=bespoke)
+        DEV->>EE: extract-elements.py VAMS-HL-004 — GUI 노드 depth-8 심층조회
+        EE-->>DEV: _slug-elements.json element 실측 (없으면 gen 단계 FAIL)
+    end
     DEV->>GPM: gen-pixel-manifest.py VAMS-TH-002
     GPM->>FIGMA: GET /v1/images (레퍼런스 PNG 렌더, scale=1)
     GPM-->>DEV: design/pixel-gate/slug.json 뼈대 + PNG
-    Note over DEV,GPM: expect 실측값은 Figma 실측으로만 채움 (추측 금지)
+    Note over DEV,GPM: expect는 Figma 실측만 — bespoke는 element 기대값 자동 기입, selector만 사람이 채움
     DEV->>PG: npm run check:pixel design/pixel-gate/slug.json
     PG->>PW: 라우트 진입 후 DOM 실측 (크기·색·여백·radius·폰트)
     PW-->>PG: 측정값 + 구현 스크린샷
     PG->>PG: manifest expect 1:1 대조 + PNG 오버레이 diff
     PG-->>DEV: PASS 또는 FAIL (exit 1)
       </div>
-      <p class="cap"><strong>흐름.</strong> 버전 확인 → 변경 계열만 선택 덤프 → 화면 매핑 정본 재생성(사람 큐레이션은 overrides로 보존) → behavior·정책 스펙 추출 → 픽셀 manifest 생성 → 픽셀 게이트 실측 대조로 이어집니다. 레퍼런스가 없으면 게이트는 통과 자체가 불가능합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 버전 확인 → 변경 계열(또는 <code>--page</code> 지정 페이지)만 선택 덤프 → 화면 매핑 정본 재생성(사람 큐레이션·renderKind 판정은 overrides로 보존) → behavior·정책 스펙 추출 → bespoke 화면은 element 실측 선행 → 픽셀 manifest 생성 → 픽셀 게이트 실측 대조로 이어집니다. 레퍼런스가 없으면 게이트는 통과 자체가 불가능합니다.</p>
     </div>
   </section>
 
@@ -117,24 +122,39 @@ classDiagram
         &lt;&lt;python&gt;&gt;
         -FLIPBOOK_KEY GUI_KEY COMP_KEY
         -RAW_DIR design/json_raw
+        -MAX_RETRY_WAIT 60초
         +--only flipbook·gui·component
+        +--page Flipbook 페이지 필터
     }
     class BuildScreenMap {
         &lt;&lt;python&gt;&gt;
         -OVERRIDES overrides.json
         -ALIASES 화면명 별칭 사전
         -OUT design/screen-map.json
+        +renderKind assembly·bespoke
+        +menuPolicies 화면 버킷 분리
+        +warn_bespoke_candidates()
     }
     class ExtractBehaviors {
         &lt;&lt;python&gt;&gt;
         -OUT_DIR design/behavior
         +visible false 서브트리 제외
         +description 표 구조화
+        +row nodeId·group 부착 (v3)
+        +콜아웃 anchor 히트테스트 (v4)
+    }
+    class ExtractElements {
+        &lt;&lt;python&gt;&gt;
+        +GUI 노드 depth-8 심층조회
+        +element 구조화 _elements.json
+        +contentData 반복 콘텐츠 마킹
     }
     class GenPixelManifest {
         &lt;&lt;python&gt;&gt;
         -OUT_DIR design/pixel-gate
-        +figmaNode 자동 기입
+        -MANIFEST_MAX_ELEMENTS 30
+        +renderKind 분기
+        +bespoke elements 자동 기입
         +레퍼런스 PNG REST 렌더
     }
     class CheckPixelGate {
@@ -159,7 +179,9 @@ classDiagram
     CheckVersions ..> DumpSources : 변경 감지 시 덤프 유도
     DumpSources --> BuildScreenMap : design/json_raw 제공
     BuildScreenMap --> ExtractBehaviors : screen-map.json 입력
+    BuildScreenMap --> ExtractElements : bespoke 화면 실측
     BuildScreenMap --> GenPixelManifest : GUI 노드 조회
+    ExtractElements --> GenPixelManifest : element 실측 제공
     GenPixelManifest --> CheckPixelGate : manifest·레퍼런스 PNG
     CheckStackPins ..> CheckPixelGate : 동일 게이트 체계 (L3·L4)
     CheckUndefinedCssVars ..> CheckPixelGate : 동일 게이트 체계 (L3·L4)
@@ -225,23 +247,40 @@ def fetch(key, token, retries=3):
         headers={'X-Figma-Token': token})
     # ... 429는 Retry-After 만큼 재시도, 60초 초과면 즉시 exit 3(판단 불가)</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>scripts/figma-mapping/gen-pixel-manifest.py</code> — renderKind=bespoke는 element 실측 없이 진행 불가</div>
+<pre><code>render_kind = target.get('renderKind', 'assembly')
+
+# bespoke = element 단위 실측 강제. extract-elements.py 산출물이 없으면 FAIL
+# (조용히 프레임 레벨로 강등 금지 — 그게 드리프트의 원인). PNG 조회(쿼터) 전에 검사.
+by_node = None
+if render_kind == 'bespoke':
+    by_node = load_elements(feature)
+    if by_node is None:
+        sys.exit(f"⛔ '{screen_id}'는 renderKind=bespoke인데 element 추출물이 없음:\n"
+                 f"   design/pixel-gate/_{feature}-elements.json\n"
+                 f"   → 먼저 실행: python3 scripts/figma-mapping/extract-elements.py {screen_id}\n"
+                 f"   (bespoke 화면은 프레임 레벨 대조로 부족 — element 실측 필수)")</code></pre>
+    </div>
   </section>
 
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/check-versions.py" target="_blank" rel="noopener">scripts/figma-mapping/check-versions.py</a><span class="src">공식 3파일 버전 확인 — 덤프 필요 여부를 exit code(0/1/2/3)로 판정, 쿼터 소진 방어</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/dump-sources.py" target="_blank" rel="noopener">scripts/figma-mapping/dump-sources.py</a><span class="src">공식 3파일을 PAT(REST)로 design/json_raw/에 덤프 — --only 계열 선택 덤프 지원</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/build-screen-map.py" target="_blank" rel="noopener">scripts/figma-mapping/build-screen-map.py</a><span class="src">Flipbook ↔ GUI 화면 매핑 정본 생성 — overrides.json 큐레이션 머지·별칭 사전</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/extract-behaviors.py" target="_blank" rel="noopener">scripts/figma-mapping/extract-behaviors.py</a><span class="src">시나리오 description 표 구조화 → design/behavior/{NN}-{menu}.json (QA 검증 반영 v2)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/dump-sources.py" target="_blank" rel="noopener">scripts/figma-mapping/dump-sources.py</a><span class="src">공식 3파일을 PAT(REST)로 design/json_raw/에 덤프 — --only 계열 · --page Flipbook 페이지 선택 덤프, 429 쿼터 방어</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/build-screen-map.py" target="_blank" rel="noopener">scripts/figma-mapping/build-screen-map.py</a><span class="src">Flipbook ↔ GUI 화면 매핑 정본 생성 — overrides.json 큐레이션 머지·별칭 사전·renderKind 판정(bespoke 후보 경고)·메뉴정책 프레임 분리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/extract-behaviors.py" target="_blank" rel="noopener">scripts/figma-mapping/extract-behaviors.py</a><span class="src">시나리오 description 표 구조화 → design/behavior/{NN}-{menu}.json (v3 row nodeId·group / v4 콜아웃 anchor 히트테스트)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/extract-policy-common.py" target="_blank" rel="noopener">scripts/figma-mapping/extract-policy-common.py</a><span class="src">Policy/Common 공통 정책 페이지 구조화 → 00-policy.json·00-common.json</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/link-policy-refs.py" target="_blank" rel="noopener">scripts/figma-mapping/link-policy-refs.py</a><span class="src">behavior ↔ 공통 정책 상호참조 링킹 (policyRefs / referencedBy, 멱등)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/gen-pixel-manifest.py" target="_blank" rel="noopener">scripts/figma-mapping/gen-pixel-manifest.py</a><span class="src">screen-map 기반 픽셀 게이트 manifest 뼈대 + 레퍼런스 PNG REST 렌더</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/extract-menu-policy.py" target="_blank" rel="noopener">scripts/figma-mapping/extract-menu-policy.py</a><span class="src">메뉴 스코프 정책 프레임 추출 → {NN}-{menu}-policy.json (menuPolicyFrames 판정분)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/link-policy-refs.py" target="_blank" rel="noopener">scripts/figma-mapping/link-policy-refs.py</a><span class="src">behavior ↔ 공통 정책 상호참조 링킹 (policyRefs / referencedBy, 멱등 — -policy.json은 제외)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/extract-elements.py" target="_blank" rel="noopener">scripts/figma-mapping/extract-elements.py</a><span class="src">bespoke 화면 element 심층 추출 — depth-8 노드 조회 → _slug-elements.json·measured.md</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-mapping/gen-pixel-manifest.py" target="_blank" rel="noopener">scripts/figma-mapping/gen-pixel-manifest.py</a><span class="src">screen-map 기반 픽셀 게이트 manifest 뼈대 + 레퍼런스 PNG REST 렌더 — renderKind 분기, bespoke elements[] 자동 기입</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/check-pixel-gate.mjs" target="_blank" rel="noopener">scripts/check-pixel-gate.mjs</a><span class="src">L4 픽셀 게이트 — Playwright DOM 실측 vs Figma manifest 1:1 대조 + 오버레이 diff</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/check-stack-pins.mjs" target="_blank" rel="noopener">scripts/check-stack-pins.mjs</a><span class="src">L3 스택 버전 핀 게이트 — ADR 확정 메이저 버전과 package.json 대조</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/check-undefined-css-vars.mjs" target="_blank" rel="noopener">scripts/check-undefined-css-vars.mjs</a><span class="src">L3 미정의 CSS 변수 게이트 — fallback 없는 var(--x) 사용 검출</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/check-ownership.mjs" target="_blank" rel="noopener">scripts/check-ownership.mjs</a><span class="src">feature 브랜치 변경 파일의 담당 범위 침범 검출 (--own / --branch 추정)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/design/pixel-gate/README.md" target="_blank" rel="noopener">design/pixel-gate/README.md</a><span class="src">픽셀 게이트 manifest 작성 가이드 — expect 값은 Figma 실측만, 추측 금지</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/design/pixel-gate/README.md" target="_blank" rel="noopener">design/pixel-gate/README.md</a><span class="src">픽셀 게이트 manifest 작성 가이드 — expect 값은 Figma 실측만(추측 금지), PAT REST 생성 절차(assembly/bespoke 분기) 포함</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="f07.html">‹ 공통 컴포넌트·디자인 시스템</a>

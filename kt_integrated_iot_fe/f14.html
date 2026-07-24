@@ -50,7 +50,7 @@
     <h2>기능 개요</h2>
     <p><code>ThemeCustomization</code>(<code>themes/index.tsx</code>)은 <code>ConfigContext</code>의 <code>mode</code>(라이트/다크)를 읽어 <code>createTheme</code>로 MUI 테마를 생성합니다. 색상은 <code>palette(mode)</code>, 글꼴·타이포는 <code>typography</code>, 컴포넌트 기본 스타일은 <code>getComponents(theme, mode)</code>로 분리해 주입합니다. 생성된 테마는 <code>ThemeProvider</code>로 전체 앱에 적용되고 <code>CssBaseline</code>로 기본 스타일을 초기화합니다.</p>
     <p>테마는 <code>mode</code>가 바뀔 때만 재생성되도록 <code>useMemo</code>로 메모이즈됩니다. <code>ThemeCustomization</code>은 <code>main.tsx</code>의 Provider 트리에서 <code>ConfigProvider</code>·<code>HeaderProvider</code> 아래에 위치해, 설정 상태가 테마에 즉시 반영됩니다. 사용자가 라이트/다크를 전환하면 지도 틴트 레이어(기능 02)나 로그인 로고(<code>getLogo(type, mode)</code>)처럼 모드에 의존하는 화면 요소도 함께 바뀝니다.</p>
-    <p>레이아웃·메뉴는 <code>config.ts</code> 상수가 결정합니다. <code>SITE_MENU</code>는 서비스 그룹(Air Map·AI산업안전DX·SafeMate·SMART GREEN·한전 AMI)별 하위 메뉴를 정의하고, <code>DRAWER_FULL_WIDTH</code>·<code>HEADER_HEIGHT</code>·<code>FOOTER_HEIGHT</code> 등 레이아웃 치수와 <code>GRID_LAYOUT_*</code> 위젯 격자 상수도 함께 둡니다. 테마 설정 화면(<code>pages/theme/ThemeSetting</code>)에서 외형 옵션을 조정할 수 있습니다.</p>
+    <p>레이아웃·메뉴는 <code>config.ts</code> 상수가 결정합니다. <code>SITE_MENU</code>는 서비스 그룹(Air Map·AI산업안전DX·SafeMate·SMART GREEN·한전 AMI)별 하위 메뉴를 정의하고, <code>DRAWER_FULL_WIDTH</code>·<code>HEADER_HEIGHT</code>·<code>FOOTER_HEIGHT</code> 등 레이아웃 치수와 <code>GRID_LAYOUT_*</code> 위젯 격자 상수도 함께 둡니다. AI산업안전DX 그룹은 <code>AIENVDX_SERVICE_TYPE_LIST</code>(산업대기질·자원순환·산업환경·탄소중립·제조공정)를 매핑해 같은 경로(<code>dx</code>)에 <code>serviceType</code>만 다른 5개 전환 메뉴로 확장되었습니다. 위젯 설정 메뉴(<code>widget-settings</code>)는 <code>WIDGET_SETTING_SERVICE_TYPES</code>(현재 제조공정 <code>ENVSMAT30203</code> 전용)와 판별 함수 <code>isWidgetSettingServiceType</code>으로 노출을 제어합니다. 테마 설정 화면(<code>pages/theme/ThemeSetting</code>)에서 외형 옵션을 조정할 수 있습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       palette·typography·components를 파일로 분리하고 <code>mode</code>를 인자로 받는 팩토리 형태로 둬서, 라이트/다크 두 모드를 같은 테마 구성으로 일관되게 생성합니다.
@@ -106,6 +106,8 @@ classDiagram
     }
     class config {
         +SITE_MENU
+        +AIENVDX_SERVICE_TYPE_LIST
+        +isWidgetSettingServiceType(serviceType)
         +DRAWER_FULL_WIDTH
         +HEADER_HEIGHT
         +GRID_LAYOUT_COLS
@@ -141,7 +143,7 @@ classDiagram
 }</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>src/config.ts</code> — 사이트별 메뉴와 레이아웃 상수</div>
+      <div class="sc"><code>src/config.ts</code> — 사이트별 메뉴와 레이아웃 상수 · 위젯 설정 노출 제어</div>
 <pre><code>export const HEADER_HEIGHT = 66;
 export const FOOTER_HEIGHT = 40;
 export const DRAWER_FULL_WIDTH = 270;
@@ -151,10 +153,19 @@ export const SITE_MENU = [
       { code: '001ENV301', realcode: '001ENV301', title: 'Air Map', path: 'air' },
       { code: 'GWACHEON', realcode: '001ENV301',
         title: '과천 관제 센터', path: 'gwacheon' } ] },
-  { title: 'AI산업안전DX', children: [ /* ... */ ] },
+  // AI산업안전DX — 같은 path(dx)에 serviceType만 다른 5개 전환 메뉴
+  { title: 'AI산업안전DX',
+    children: AIENVDX_SERVICE_TYPE_LIST.map((item) =&gt; ({
+      code: '001ENV302', realcode: '001ENV302',
+      title: item.label, path: 'dx', serviceType: item.id })) },
   { title: 'SafeMate', children: [ /* 4종 */ ] },
   // SMART GREEN / 한전 AMI ...
-];</code></pre>
+];
+
+// 위젯 설정(widget-settings) 메뉴 노출 — 현재 제조공정(ENVSMAT30203) 전용
+export const WIDGET_SETTING_SERVICE_TYPES = [AIDX_MANUFACTURING_PROC] as const;
+export const isWidgetSettingServiceType = (serviceType: string | null | undefined) =&gt;
+  WIDGET_SETTING_SERVICE_TYPES.some((type) =&gt; type === serviceType);</code></pre>
     </div>
   </section>
 

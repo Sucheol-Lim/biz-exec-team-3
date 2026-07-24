@@ -51,6 +51,7 @@
     <p>본 콘솔은 KT가 개별 운영하던 여러 IoT 서비스를 하나의 React SPA로 통합합니다. 어떤 서비스에 진입했는지는 URL 첫 세그먼트(<code>/:site</code>)로 결정되며, <code>config.ts</code>의 <code>SITE_LIST</code>가 각 서비스의 <code>path</code>(<code>air</code>, <code>dx</code>, <code>fire-detector</code>, <code>emergency-door</code>, <code>fire-monitoring</code>, <code>emergency-bell</code>, <code>ami</code>, <code>smart-green</code>, <code>gwacheon</code>)와 단위서비스코드(<code>code</code>/<code>realcode</code>)를 매핑합니다.</p>
     <p>라우터(<code>routes/route.tsx</code>)는 최상위 경로를 모두 <code>/:site</code>로 두고, <code>SiteGuard</code>가 URL의 <code>site</code>가 <code>SITE_LIST</code>에 존재하는지(<code>ALLOWED_SITE_PATHS</code>) 먼저 검사합니다. 유효하면 로그인 화면(<code>AuthLayout</code>) 또는 보호 화면(<code>ProtectedRoute</code> → <code>MainLayout</code>)으로 분기하고, 같은 화면 컴포넌트(예: <code>Home</code>, <code>Summary</code>, <code>HistoryMain</code>)가 세션의 <code>site.code</code>를 읽어 사이트별 위젯·테이블·차트를 다르게 렌더링합니다.</p>
     <p>로그인 시 선택한 사이트의 <code>realcode</code>는 세션에 저장되어 이후 모든 API 요청의 <code>unitServiceCode</code> 헤더로 주입됩니다. 즉 같은 코드베이스가 사이트 코드에 따라 데이터·메뉴·외형을 분기하는 멀티 테넌트 구조입니다.</p>
+    <p>헤더의 사이트 전환 메뉴(<code>SITE_MENU</code>)에서 AI산업안전DX는 <code>AIENVDX_SERVICE_TYPE_LIST</code>(산업대기질·자원순환·산업환경·탄소중립·제조공정)를 매핑해 <code>serviceType</code> 단위 하위 메뉴로 전개됩니다. 보호 라우트에는 위젯 설정 페이지(<code>widget-settings</code>)가 추가되었고, 접근 허용 서비스타입은 <code>WIDGET_SETTING_SERVICE_TYPES</code>·<code>isWidgetSettingServiceType</code>으로 중앙 관리합니다(현재 제조공정 전용). 한편 SMS 수신 동의 페이지(<code>/:site/sms-consent</code>)는 <code>SiteGuard</code>·<code>ProtectedRoute</code>를 타지 않는 독립 공개 라우트로 추가되었으며, 이때 <code>:site</code>는 사이트 코드가 아니라 이 페이지 전용 브랜드 키(air/safemate)로만 판별됩니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       과천 관제센터(<code>GWACHEON</code>)는 별도 <code>code</code>를 갖지만 <code>realcode</code>는 Air Map과 동일한 <code>001ENV301</code>입니다. 즉 데이터 출처는 Air Map과 같되 화면(특화 관제)만 분리한 진입점입니다.
@@ -82,6 +83,7 @@ sequenceDiagram
         SS--&gt;&gt;Page: site.code / realcode
         Page-&gt;&gt;Page: site.code 로 위젯·차트 분기 렌더
     end
+    Note over Router: /:site/sms-consent 는 SiteGuard 밖 독립 공개 라우트 (site=브랜드 키)
       </div>
       <p class="cap"><strong>흐름.</strong> URL 첫 세그먼트가 <code>SiteGuard</code>를 거쳐 검증되고, 통과하면 화면 컴포넌트가 세션의 <code>site.code</code>를 읽어 해당 서비스 전용 UI를 그립니다.</p>
     </div>
@@ -103,6 +105,9 @@ classDiagram
         +SITE_LIST List~SiteEntry~
         +SITE_CODES
         +SITE_MENU
+        +AIENVDX_SERVICE_TYPE_LIST
+        +WIDGET_SETTING_SERVICE_TYPES
+        +isWidgetSettingServiceType(serviceType)
         +SAFEMATE_CODES
         +USER_ROLES
     }
@@ -120,10 +125,15 @@ classDiagram
         +getSessionStorage(site)
         +render() Element
     }
+    class SmsConsentPage {
+        -brand SMS_CONSENT_BRAND
+        +render() Element
+    }
 
     config "1" o-- "many" SiteEntry : 정의
     ThemeRoutes --&gt; SiteGuard : site 최상위 경로
     ThemeRoutes ..&gt; config : ALLOWED_SITE_PATHS
+    ThemeRoutes --&gt; SmsConsentPage : 공개 라우트 (가드 미적용)
     SiteGuard --&gt; ProtectedRoute : 통과 시 위임
     ProtectedRoute --&gt; PageComponent : Outlet
     PageComponent ..&gt; config : SITE_CODES 분기
@@ -149,7 +159,21 @@ export const SITE_CODES = {
   DX: SITE_LIST.find((s) =&gt; s.path === 'dx')?.code || '',
   // ...
   GWACHEON: SITE_LIST.find((s) =&gt; s.path === 'gwacheon')?.code || '',
-} as const;</code></pre>
+} as const;
+
+// 헤더 사이트 전환 메뉴: AI산업안전DX 는 serviceType 하위 메뉴로 전개
+export const SITE_MENU = [
+  // ...
+  {
+    title: 'AI산업안전DX',
+    children: AIENVDX_SERVICE_TYPE_LIST.map((item) =&gt; ({
+      code: '001ENV302', realcode: '001ENV302',
+      title: item.label,      // 산업대기질/자원순환/산업환경/탄소중립/제조공정
+      path: 'dx', serviceType: item.id,
+    })),
+  },
+  // ...
+];</code></pre>
     </div>
     <div class="snippet">
       <div class="sc"><code>src/routes/route.tsx</code> — 모든 경로를 <code>/:site</code> 아래에 두는 가드</div>
@@ -164,15 +188,22 @@ const SiteGuard = ({ children }: { children: React.ReactNode }) =&gt; {
   return children;
 };
 
-// routes 최상위: { path: '/:site', element: &lt;SiteGuard&gt;&lt;Outlet /&gt;&lt;/SiteGuard&gt; }</code></pre>
+// routes 최상위: { path: '/:site', element: &lt;SiteGuard&gt;&lt;Outlet /&gt;&lt;/SiteGuard&gt; }
+
+// SMS 수신 동의 페이지: SiteGuard/ProtectedRoute 를 타지 않는 독립 공개 라우트
+{
+  path: '/:site/sms-consent',
+  element: &lt;SmsConsentPage /&gt;,
+},</code></pre>
     </div>
   </section>
 
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">SITE_LIST / SITE_CODES / SITE_MENU / SAFEMATE_CODES / USER_ROLES 정의</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">/:site 최상위 라우팅 · SiteGuard · 페이지 lazy 스플리팅</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">SITE_LIST / SITE_CODES / SITE_MENU(AIDX serviceType 전개) / WIDGET_SETTING_SERVICE_TYPES / USER_ROLES 정의</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">/:site 최상위 라우팅 · SiteGuard · widget-settings · sms-consent 공개 라우트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsConsent/index.tsx" target="_blank" rel="noopener">src/pages/smsConsent/index.tsx</a><span class="src">SMS 수신 동의 공개 페이지 · SMS_CONSENT_BRAND 로 :site 브랜드 키 판별</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/ProtectedRoute.tsx" target="_blank" rel="noopener">src/routes/ProtectedRoute.tsx</a><span class="src">세션 site.code 유무로 보호 화면 진입 판정</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/Home.tsx" target="_blank" rel="noopener">src/pages/home/Home.tsx</a><span class="src">site.code 로 위젯·지도 분기 렌더하는 대표 화면</span></li>
     </ul>

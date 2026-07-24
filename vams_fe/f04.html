@@ -50,7 +50,7 @@
     <h2>기능 개요</h2>
     <p>AI 자막 엔진(어뮤즈랩 협업 alfaeditor)이 생성한 자막을 운영자가 사람 검수로 다듬는 화면입니다. 자막 작업 목록(<code>SubtitleListPage</code>, LNB 하위 <code>/subtitle</code>)에서 행을 선택하면 <code>meta.layout:'bare'</code> 풀스크린 라우트 <code>/subtitle/:jobId/edit</code>의 <code>SubtitleEditPage</code>로 진입합니다. 화면은 헤더 / 자막 리스트 + 영상·편집 패인 / 하단 전폭 파형 타임라인 3구역으로 구성되며, Pinia setup 스토어 <code>subtitleEditor</code>가 <code>currentTimeMs</code>·<code>selectedLineId</code>·<code>playing</code>을 단일 진실로 삼아 리스트·영상·파형 3자를 동기화합니다. 모든 seek/선택은 <code>SyncSource</code>(list/video/waveform/find/keyboard 등) 소스 태그를 달아 무한 이벤트 루프를 차단합니다.</p>
     <p>진입 시 스토어 <code>init()</code>이 E7 점유 확인 → E1 콘텐츠 메타 → E4 임시저장 복구 순으로 alfaeditor API를 호출하고, 타인이 편집 중(RUNNING)이면 <code>sessionState='denied'</code>로 차단합니다. 편집 락은 WebSocket 세션(<code>useSubtitleSocket</code>, WS <code>/alti/socket</code>) 자체가 담당하며, 서버의 <code>temporary_storage</code> 메시지(5분 주기)가 자동 임시저장(E5)을 트리거합니다. 파형은 <code>useWaveform</code>이 wavesurfer.js + Regions 플러그인으로 라인 ↔ region을 양방향 동기화하고, 빈 구간 드래그로 새 자막 라인을 삽입할 수 있습니다. 편집 트랜잭션(텍스트 적용·타임코드 변경·분할/병합 등)은 <code>useEditHistory</code> 메멘토 스택(최대 100단계)에 적재되어 Ctrl+Z / Ctrl+Shift+Z로 undo/redo 됩니다.</p>
-    <p>편집 도구는 Subtitle Edit 기반 단축키(<code>useSubtitleShortcuts</code> — S 시작시간, D 종료시간, A/F 다음·이전 줄, Q/W 이전·다음 병합, Ctrl+R 자동 줄바꿈)와 찾기/이동·찾아 바꾸기·다중 바꾸기·선택해서 바꾸기·오류 일괄수정·간격 채우기·동기화 시프트·타임코드·색상/글꼴·다운로드(검수 전 SRT / 완료 SMI) 등 다이얼로그 18종 + 컨텍스트 메뉴·팝업으로 제공됩니다. KRCC 바꾸기/KT 포맷 변환(<code>useSubtitleTransform</code>)은 서버 왕복 없는 FE 정규식 연산이며 비가역(history 미적재) 정책입니다. 검수 완료 시 <code>requestLink()</code>가 <code>buildSmi()</code>로 완성 SMI 문자열을 만들어 E6로 최종 저장하고 작업 상태를 연동대기(W)로 전이합니다.</p>
+    <p>편집 도구는 Subtitle Edit 기반 단축키(<code>useSubtitleShortcuts</code> — S 시작시간, D 종료시간, A/F 다음·이전 줄, Q/W 이전·다음 병합, Ctrl+R 자동 줄바꿈)와 찾기/이동·찾아 바꾸기·다중 바꾸기·선택해서 바꾸기·오류 일괄수정·간격 채우기·동기화 시프트·타임코드·색상/글꼴·다운로드(검수 전 SRT / 완료 SMI) 등 다이얼로그 18종 + 컨텍스트 메뉴·팝업으로 제공됩니다. KRCC 바꾸기/KT 포맷 변환(<code>useSubtitleTransform</code>)은 서버 왕복 없는 FE 정규식 연산이며 비가역(history 미적재) 정책입니다 — KT 변환은 서식 태그(<code>&lt;b&gt;</code> 등)·<code>&lt;br&gt;</code>·공백을 lookahead 로 건너뛴 실질 문장 끝의 마침표·느낌표만 제거하고, 실행 확인·완료 팝업은 GUI 정본 <code>SubtitleAlertModal</code>(440px 가운데 정렬)로 띄우며 확인 팝업의 [자세히 보기] 링크가 변환 규칙 팝업(KtRuleDialog)을 겹쳐 열고 완료 팝업에 변경된 자막 개수를 표시합니다. 검수 완료 시 <code>requestLink()</code>가 <code>buildSmi()</code>로 완성 SMI 문자열을 만들어 E6로 최종 저장하고 작업 상태를 연동대기(W)로 전이합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트 — 대량 트랙 성능</div>
       700줄 이상 트랙에서 편집 1회마다 reactive 배열 deep watch가 CPU를 크게 점유하는 문제를, in-place 편집은 <code>linesRevision</code> 카운터로 얕게 트리거하고 삭제/삽입은 raw 배열에서 renumber 후 배열 참조를 1회만 재할당(reactive write n+1 → 1)하는 방식으로 해결했습니다. 또한 문자키 단축키는 <code>e.key</code> 대신 물리 키코드 <code>e.code</code>로 판정해 한국어 IME 상태에서도 동작합니다.
@@ -223,16 +223,21 @@ if (!ctrl &amp;&amp; !shift &amp;&amp; !alt) {
 }</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>src/features/subtitle/edit/composables/useSubtitleTransform.ts</code> — KT 포맷 변환 순수함수 (서버 왕복 없음)</div>
+      <div class="sc"><code>src/features/subtitle/edit/composables/useSubtitleTransform.ts</code> — KT 포맷 변환 순수함수 (서식 태그 대응 lookahead)</div>
 <pre><code>/**
  * applyKtFormatToLines: 각 라인 텍스트의 문장 끝 마침표·느낌표 일괄 제거.
  * 와이어 ST-007 §2 변환 규칙. 비가역 — history push 없음(아키 §4.4 정책).
+ *
+ * "문장 끝" = 뒤따르는 서식 닫힘태그(&lt;/b&gt; 등)·&lt;br&gt;·공백을 건너뛴 실질 문장의 끝.
+ * 단순 `$`(물리적 줄 끝)로는 `&lt;b&gt;문장.&lt;/b&gt;`의 마침표를 놓친다. lookahead 로
+ * 닫는 태그·공백을 소비하지 않고 그 앞의 [.!]만 제거한다. 물음표(?)는 보존.
  */
 export function applyKtFormatToLines(lines: SubtitleLine[]): {
   lines: SubtitleLine[]
   changedCount: number
 } {
-  const re = /[.!]+$/gm                      // 다중행 고려, 각 줄 끝의 [.!] 제거
+  // 다중행(m) 각 줄에서 실질 문장 끝의 연속 [.!] 제거. 뒤의 (공백|&lt;br&gt;|닫힘태그)*는 유지.
+  const re = /[.!]+(?=(?:\s|&lt;br\s*\/?&gt;|&lt;\/[^&gt;]+&gt;)*$)/gm
   let changedCount = 0
   const nextLines = lines.map((l) =&gt; {
     const next = l.text.replace(re, '')
@@ -254,7 +259,7 @@ export function applyKtFormatToLines(lines: SubtitleLine[]): {
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/composables/useSubtitleShortcuts.ts" target="_blank" rel="noopener">subtitle/edit/composables/useSubtitleShortcuts.ts</a><span class="src">단축키 디스패처 — 컨텍스트 3종 판정·S/D/A/F/Q/W·e.code 판정(IME 대응)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/composables/useEditHistory.ts" target="_blank" rel="noopener">subtitle/edit/composables/useEditHistory.ts</a><span class="src">undo/redo 메멘토 스택(최대 100단계) — 줄바꿈·KRCC/KT 변환은 미적재 정책</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/composables/useSubtitleSocket.ts" target="_blank" rel="noopener">subtitle/edit/composables/useSubtitleSocket.ts</a><span class="src">WS /alti/socket 세션 래퍼 — 세션=락·ping/pong·5분 자동저장 트리거·dev 타이머 폴백</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/composables/useSubtitleTransform.ts" target="_blank" rel="noopener">subtitle/edit/composables/useSubtitleTransform.ts</a><span class="src">KRCC 바꾸기 / KT 포맷 변환 — FE 정규식 순수함수, 비가역 정책</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/composables/useSubtitleTransform.ts" target="_blank" rel="noopener">subtitle/edit/composables/useSubtitleTransform.ts</a><span class="src">KRCC 바꾸기 / KT 포맷 변환 — FE 정규식 순수함수(서식 태그 lookahead), 비가역 정책 · 확인/완료/규칙 팝업 배선</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/queries.ts" target="_blank" rel="noopener">subtitle/edit/queries.ts</a><span class="src">alfaeditor 계약 E1/E4/E5/E6/E7/E8 fetch 함수 + queryKey — 식별자 (contentId, language)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/routes.ts" target="_blank" rel="noopener">subtitle/routes.ts</a><span class="src">자막 라우트 — 목록(/subtitle)과 bare 편집(/subtitle/:jobId/edit) 분리</span></li>
     </ul>

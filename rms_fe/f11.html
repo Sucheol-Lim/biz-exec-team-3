@@ -22,12 +22,12 @@
       <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
     </div>
     <h1>웹 터미널</h1>
-    <p class="one-liner">단말에 원격 셸을 연결하는 두 경로를 제공합니다. <code>pages/terminal</code>은 wetty(<code>REACT_APP_WEB_TERMINAL</code>)를 iframe으로 임베드하고, 디바이스 모달의 <code>terminalModal</code>은 <code>@xterm/xterm</code>으로 명령을 입력받아 <code>specialCommands('TERMINAL_COMMAND')</code>로 전송하고 결과를 SSE로 받습니다. OBE·TTG 타깃에서만 활성화됩니다.</p>
+    <p class="one-liner">단말에 원격 셸을 연결하는 두 경로를 제공합니다. <code>pages/terminal</code>은 wetty(<code>REACT_APP_WEB_TERMINAL</code>)를 iframe으로 임베드하고, 디바이스 모달의 <code>terminalModal</code>은 <code>@xterm/xterm</code>으로 명령을 입력받아 <code>specialCommands('TERMINAL_COMMAND')</code>로 전송하고 결과를 SSE로 받습니다. OBE·TTG·IBC 타깃에서만 활성화됩니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
       <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/terminal/terminal.tsx</code> · <code>pages/device/modal/terminalModal.tsx</code></div></div>
-      <div class="item"><div class="k">기능 맥락</div><div class="v">원격 셸 (OBE·TTG 전용)</div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">원격 셸 (OBE·TTG·IBC 전용)</div></div>
     </div>
   </div>
 </header>
@@ -48,7 +48,7 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>웹 터미널은 운영자가 브라우저에서 단말에 원격 셸을 붙이는 기능으로, <code>utils/env.ts</code>의 <code>modulePermissions.terminal</code>이 OBE 또는 TTG 타깃일 때만 활성화됩니다. 구현은 두 갈래입니다. 첫째, 독립 페이지 <code>pages/terminal/terminal.tsx</code>는 URL 쿼리의 <code>address</code>를 읽어 <code>REACT_APP_WEB_TERMINAL</code>(wetty) 주소를 <code>iframe</code>으로 임베드합니다. 즉 셸 세션 자체는 wetty 서버가 제공하고 RMS UI는 그 화면을 감싸기만 합니다.</p>
+    <p>웹 터미널은 운영자가 브라우저에서 단말에 원격 셸을 붙이는 기능으로, <code>utils/env.ts</code>의 <code>modulePermissions.terminal</code>이 OBE·TTG·IBC 타깃일 때만 활성화됩니다(IBC는 이상감지 모듈 도입과 함께 추가). 구현은 두 갈래입니다. 첫째, 독립 페이지 <code>pages/terminal/terminal.tsx</code>는 URL 쿼리의 <code>address</code>를 읽어 <code>REACT_APP_WEB_TERMINAL</code>(wetty) 주소를 <code>iframe</code>으로 임베드합니다. 즉 셸 세션 자체는 wetty 서버가 제공하고 RMS UI는 그 화면을 감싸기만 합니다.</p>
     <p>둘째, 디바이스 상세 모달 안의 <code>terminalModal.tsx</code>는 <code>@xterm/xterm</code> + <code>@xterm/addon-fit</code>으로 터미널 에뮬레이터를 직접 그립니다. 사용자가 한 줄을 입력해 엔터를 치면 <code>sendTerminal()</code>이 <code>DevicesApiManager.specialCommands(..., 'TERMINAL_COMMAND', { terminalCommand })</code>로 명령을 전송하고 <code>transactionId</code>를 받습니다. 명령 실행 결과는 <code>useSSEController</code>가 구독한 <code>/api/v1/notifications/subscribe</code> SSE의 <code>NOTIFICATION</code> 이벤트로 도착해 xterm에 출력됩니다. 응답이 지연되면 로딩 애니메이션을 돌리고, <code>REACT_APP_RMS_SSE_TIMEOUT</code> 초가 지나면 타임아웃 메시지를 표시합니다.</p>
     <div class="callout">
       <div class="ct">명령 전송과 결과 수신의 분리</div>
@@ -113,7 +113,7 @@ classDiagram
         +specialCommands(cb, id, type, params)
     }
     class modulePermissions {
-        +terminal (OBE || TTG)
+        +terminal (OBE, TTG, IBC)
     }
 
     TerminalModal --&gt; useSSEController : 결과 수신
@@ -157,7 +157,7 @@ const sendTerminal = (request: string) =&gt; {
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/device/modal/terminalModal.tsx" target="_blank" rel="noopener">pages/device/modal/terminalModal.tsx</a><span class="src">xterm 터미널 — 명령 전송(TERMINAL_COMMAND)·SSE 결과 수신·로딩/타임아웃</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/terminal/terminal.tsx" target="_blank" rel="noopener">pages/terminal/terminal.tsx</a><span class="src">독립 터미널 페이지 — wetty(WEB_TERMINAL) iframe 임베드</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/hooks/useSSEController.ts" target="_blank" rel="noopener">hooks/useSSEController.ts</a><span class="src">SSE 컨트롤러 — 터미널 결과(NOTIFICATION) 수신</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/utils/env.ts" target="_blank" rel="noopener">utils/env.ts</a><span class="src">modulePermissions.terminal — OBE/TTG 타깃 노출 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/utils/env.ts" target="_blank" rel="noopener">utils/env.ts</a><span class="src">modulePermissions.terminal — OBE/TTG/IBC 타깃 노출 분기</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

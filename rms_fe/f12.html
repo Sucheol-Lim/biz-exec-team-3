@@ -22,7 +22,7 @@
       <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
     </div>
     <h1>AI 챗봇</h1>
-    <p class="one-liner"><code>ChatPopup</code>이 사내 패키지 <code>@altimedia/rms-chatbot-ui</code>의 <code>ChatBot</code>을 마운트하고, <code>ChatContext</code>가 <code>registOnChatbot</code>/<code>sendToFrontend</code>로 챗봇과 프론트엔드 사이의 요청(<code>REQ_INFO</code>/<code>REQ_NAV</code>/<code>REQ_DEVICES</code>)·응답 전문을 중계합니다. <code>modulePermissions.chatbot</code>(<code>REACT_APP_CHATBOT=Y</code>) 사이트에서만 노출됩니다.</p>
+    <p class="one-liner"><code>ChatPopup</code>이 사내 패키지 <code>@altimedia/rms-chatbot-ui</code>의 <code>ChatBot</code>을 마운트하고, <code>ChatContext</code>가 <code>registOnChatbot</code>/<code>sendToFrontend</code>로 챗봇과 프론트엔드 사이의 요청(<code>REQ_INFO</code>/<code>REQ_NAV</code>/<code>REQ_DEVICES</code>/<code>REQ_OPEN_MODAL</code>)·응답 전문을 중계합니다. <code>modulePermissions.chatbot</code>(IBC 타깃 전용) 사이트에서만 노출됩니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
@@ -48,11 +48,11 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>AI 챗봇은 사내 패키지 <code>@altimedia/rms-chatbot-ui</code>(vendor 로컬 tgz)의 <code>ChatBot</code> 컴포넌트를 RMS 화면에 끼워 넣은 것입니다. <code>App.tsx</code>는 <code>modulePermissions.chatbot</code>(즉 <code>REACT_APP_CHATBOT=Y</code>)이고 로그인한 사용자가 있을 때만 챗봇 버튼을 노출하며, 버튼을 누르면 <code>ChatPopup</code>이 <code>ChatBot</code>을 렌더합니다. <code>ChatBot</code>은 <code>endpoint</code>/<code>apiKey</code>(<code>REACT_APP_CHATBOT_API*</code>)를 받아 백엔드 AI 에이전트와 통신합니다.</p>
-    <p>챗봇과 RMS 프론트엔드의 양방향 통신은 <code>ChatContext</code>가 중계합니다. <code>ChatPopup</code>은 마운트 시 <code>onRegister={registOnChatbot}</code>으로 챗봇 수신 콜백을 등록하고, 챗봇이 호스트에 보내는 메시지는 <code>onSendToHost={sendToFrontend}</code>로 전달됩니다. 요청 타입은 <code>REQ_INFO</code>(디바이스/사용자 정보 조회) · <code>REQ_NAV</code>(화면 네비게이션) · <code>REQ_DEVICES</code>(디바이스 정보 일괄 조회) 세 가지이며, <code>REQ_NAV</code>는 <code>nav</code> 값(<code>SCREEN_SHARE</code>·<code>INSTALL_PACKAGE</code>·<code>CLEAR_CACHE</code>·<code>NETWORK_STATUS</code>·<code>PACKET_CAPTURE</code>·<code>FIRM_OTA_UPDATE</code>·<code>TERMINAL_COMMAND</code>·<code>MESSAGE</code> 등)으로 화면 공유·앱 설치·펌웨어 OTA 같은 기능으로 분기합니다. <code>REQ_DEVICES</code>는 디바이스 모달 마운트 여부와 무관하게 <code>ChatProvider</code>가 <code>target</code>(단건 또는 목록)별로 <code>DevicesApiManager.getDeviceInfo</code>를 호출해 <code>deviceInfos</code> 배열로 일괄 응답합니다. 디바이스 모달이 떠 있지 않을 때 <code>REQ_INFO</code>는 세션 스토리지의 사용자/토큰 정보에 <code>sessionScope: 'general'</code>(디바이스 미선택 일반 세션)을 더해 직접 응답합니다.</p>
+    <p>AI 챗봇은 사내 패키지 <code>@altimedia/rms-chatbot-ui</code>(vendor 로컬 tgz)의 <code>ChatBot</code> 컴포넌트를 RMS 화면에 끼워 넣은 것입니다. <code>App.tsx</code>는 <code>modulePermissions.chatbot</code>(현재 <code>TARGET === 'IBC'</code> — 종전의 <code>REACT_APP_CHATBOT=Y</code> 환경변수 분기는 제거)이고 로그인한 사용자가 있으며 대시보드 상세 팝업 경로가 아닐 때만 챗봇 버튼을 노출하며, 버튼을 누르면 <code>ChatPopup</code>이 <code>ChatBot</code>을 렌더합니다. <code>ChatBot</code>은 <code>endpoint</code>/<code>apiKey</code>(<code>REACT_APP_CHATBOT_API*</code>)를 받아 백엔드 AI 에이전트와 통신합니다. 컴포넌트 트리에서는 <code>ChatProvider</code>가 <code>TaskProvider</code> 바깥(최상위)으로 이동해, <code>TaskContext</code>가 <code>useChat</code>의 <code>sendToChatbot</code>으로 디바이스 모달 열림/닫힘을 <code>DEVICE_MODAL_STATUS</code>(OPEN/CLOSE) 전문으로 챗봇에 통지합니다.</p>
+    <p>챗봇과 RMS 프론트엔드의 양방향 통신은 <code>ChatContext</code>가 중계합니다. <code>ChatPopup</code>은 마운트 시 <code>onRegister={registOnChatbot}</code>으로 챗봇 수신 콜백을 등록하고, 챗봇이 호스트에 보내는 메시지는 <code>onSendToHost={sendToFrontend}</code>로 전달됩니다. 요청 타입은 <code>REQ_INFO</code>(디바이스/사용자 정보 조회) · <code>REQ_NAV</code>(화면 네비게이션) · <code>REQ_DEVICES</code>(디바이스 정보 일괄 조회) · <code>REQ_OPEN_MODAL</code>(단말 관리 화면으로 이동해 디바이스 모달 오픈) 네 가지이며, <code>REQ_NAV</code>는 <code>nav</code> 값(<code>SCREEN_SHARE</code>·<code>APP_CONTROL</code>·<code>INSTALL_PACKAGE</code>·<code>CLEAR_CACHE</code>·<code>NETWORK_STATUS</code>·<code>PACKET_CAPTURE</code>·<code>FIRM_OTA_UPDATE</code>·<code>TERMINAL_COMMAND</code>·<code>MESSAGE</code> 등)으로 화면 공유·앱 설치·펌웨어 OTA 같은 기능으로 분기합니다. <code>REQ_DEVICES</code>는 디바이스 모달 마운트 여부와 무관하게 <code>ChatProvider</code>가 <code>target</code>(단건 또는 목록)별로 <code>DevicesApiManager.getDeviceInfo</code>를 호출해 <code>deviceInfos</code> 배열로 일괄 응답하고(target이 없으면 <code>No target</code> 회신), <code>REQ_OPEN_MODAL</code>은 <code>useNavigate</code>로 <code>/management/devices</code>에 <code>targetId</code> state를 실어 이동시킵니다. 디바이스 모달이 떠 있지 않을 때 <code>REQ_INFO</code>는 세션 스토리지의 사용자/토큰 정보에 <code>sessionScope: 'general'</code>(디바이스 미선택 일반 세션)과 <code>roleLevel</code>·<code>isConnected: false</code>·<code>isMine: false</code>를 더해 직접 응답합니다.</p>
     <div class="callout">
       <div class="ct">두 개의 콜백 ref</div>
-      <code>ChatContext</code>는 <code>chatbotRef</code>(챗봇 → FE 응답 수신)와 <code>frontendRef</code>(FE → 챗봇 요청 수신) 두 ref를 두어, 디바이스 모달이 마운트되었는지에 따라 요청을 모달이 처리할지 컨텍스트가 기본 응답할지 결정합니다. 단 <code>REQ_DEVICES</code>는 ref 분기보다 먼저 <code>ChatProvider</code>가 단독 처리하며, 모달 미마운트 시 나머지 요청에는 "Connection device modal is not mounted" 같은 결과를 회신합니다.
+      <code>ChatContext</code>는 <code>chatbotRef</code>(챗봇 → FE 응답 수신)와 <code>frontendRef</code>(FE → 챗봇 요청 수신) 두 ref를 두어, 디바이스 모달이 마운트되었는지에 따라 요청을 모달이 처리할지 컨텍스트가 기본 응답할지 결정합니다. 단 <code>REQ_DEVICES</code>·<code>REQ_OPEN_MODAL</code>은 ref 분기보다 먼저 <code>ChatProvider</code>가 단독 처리하며, 모달 미마운트 시 나머지 요청에는 "Connection device modal is not mounted" 같은 결과를 회신합니다. 반대로 <code>sendToChatbot</code>은 챗봇이 미마운트면 "Chatbot is not mounted"를 <code>frontendRef</code>로 되돌립니다.
     </div>
   </section>
 
@@ -69,7 +69,7 @@ sequenceDiagram
     participant API as DevicesApiManager
     participant SS as sessionStorage
 
-    OP-&gt;&gt;CP: 챗봇 열기 (CHATBOT=Y)
+    OP-&gt;&gt;CP: 챗봇 열기 (TARGET=IBC)
     CP-&gt;&gt;CC: onRegister → registOnChatbot(cb)
     OP-&gt;&gt;CP: 질의 입력
     CP-&gt;&gt;CC: onSendToHost → sendToFrontend(ChatRequestType)
@@ -79,16 +79,19 @@ sequenceDiagram
             API--&gt;&gt;CC: responseData (code 200000)
         end
         CC--&gt;&gt;CP: sendToChatbot(deviceInfos)
+    else REQ_OPEN_MODAL (모달 무관 직접 처리)
+        CC-&gt;&gt;FE: navigate('/management/devices', targetId)
     else frontendRef 등록됨 (모달 마운트)
         CC-&gt;&gt;FE: frontendRef(data)
         FE--&gt;&gt;CC: ChatResponseType (result/message/data)
     else REQ_INFO 기본 처리
-        CC-&gt;&gt;SS: user/accessToken/role/lang 조회
+        CC-&gt;&gt;SS: user/accessToken/role/roleLevel/lang 조회
         CC--&gt;&gt;CP: chatbotRef(sessionScope 'general')
     end
     Note over FE: REQ_NAV → nav 값으로 화면 공유/앱 설치/OTA 등 분기
+    Note over FE,CP: 디바이스 모달 OPEN/CLOSE 시 TaskContext가 DEVICE_MODAL_STATUS로 sendToChatbot 통지
       </div>
-      <p class="cap"><strong>흐름.</strong> 챗봇이 <code>sendToFrontend</code>로 요청을 보내면, <code>REQ_DEVICES</code>는 모달과 무관하게 <code>ChatProvider</code>가 <code>getDeviceInfo</code>를 target별로 호출해 <code>deviceInfos</code>로 응답합니다. 그 외에는 모달이 떠 있으면 <code>frontendRef</code>가 처리하고 아니면 <code>REQ_INFO</code>를 세션 정보(<code>sessionScope: 'general'</code>)로 직접 응답합니다. <code>REQ_NAV</code>는 <code>nav</code> 값으로 해당 기능 화면으로 네비게이션합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 챗봇이 <code>sendToFrontend</code>로 요청을 보내면, <code>REQ_DEVICES</code>는 모달과 무관하게 <code>ChatProvider</code>가 <code>getDeviceInfo</code>를 target별로 호출해 <code>deviceInfos</code>로 응답하고, <code>REQ_OPEN_MODAL</code>은 <code>navigate</code>로 단말 관리 화면에 <code>targetId</code>를 실어 이동시킵니다. 그 외에는 모달이 떠 있으면 <code>frontendRef</code>가 처리하고 아니면 <code>REQ_INFO</code>를 세션 정보(<code>sessionScope: 'general'</code>·<code>roleLevel</code> 포함)로 직접 응답합니다. <code>REQ_NAV</code>는 <code>nav</code> 값으로 해당 기능 화면으로 네비게이션합니다.</p>
     </div>
   </section>
 
@@ -105,6 +108,7 @@ classDiagram
     class ChatProvider {
         -chatbotRef
         -frontendRef
+        -navigate
         +registOnChatbot(cb)
         +registOnFrontend(cb)
         +sendToChatbot(data)
@@ -114,10 +118,15 @@ classDiagram
         +endpoint
         +apiKey
     }
+    class TaskProvider {
+        +openModal(data)
+        +closeModal(target)
+    }
     class ChatRequestType {
-        +type REQ_INFO|REQ_NAV|REQ_DEVICES
+        +type REQ_INFO|REQ_NAV|REQ_DEVICES|REQ_OPEN_MODAL
         +nav ChatNav
         +target number 단건·목록
+        +deviceId string
     }
     class ChatResponseType {
         +result
@@ -125,13 +134,21 @@ classDiagram
         +data ChatResponseData
         +deviceInfos
     }
+    class ChatResponseData {
+        +sessionScope device|general
+        +roleLevel
+        +isConnected
+        +isMine
+    }
 
     ChatPopup --&gt; ChatBot : 마운트
     ChatPopup --&gt; ChatProvider : useChat (regist/send)
+    TaskProvider ..&gt; ChatProvider : DEVICE_MODAL_STATUS 통지
     ChatProvider ..&gt; ChatRequestType : 수신
     ChatProvider ..&gt; ChatResponseType : 회신
+    ChatResponseType o-- ChatResponseData
       </div>
-      <p class="cap"><strong>관계.</strong> <code>ChatPopup</code>이 <code>ChatBot</code>을 마운트하고 <code>useChat</code>으로 <code>ChatProvider</code>에 콜백을 등록·전송합니다. 요청/응답은 <code>ChatRequestType</code>/<code>ChatResponseType</code> 전문으로 표준화되어 있습니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>ChatPopup</code>이 <code>ChatBot</code>을 마운트하고 <code>useChat</code>으로 <code>ChatProvider</code>에 콜백을 등록·전송합니다. 요청/응답은 <code>ChatRequestType</code>/<code>ChatResponseType</code> 전문으로 표준화되어 있고, <code>TaskProvider</code>는 디바이스 모달 열림/닫힘을 <code>DEVICE_MODAL_STATUS</code>로 챗봇에 통지합니다.</p>
     </div>
   </section>
 
@@ -153,8 +170,9 @@ return (
 );</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>contexts/ChatContext.tsx</code> — REQ_DEVICES 직접 처리 · 모달 미마운트 시 REQ_INFO 기본 응답</div>
+      <div class="sc"><code>contexts/ChatContext.tsx</code> — REQ_DEVICES/REQ_OPEN_MODAL 직접 처리 · 모달 미마운트 시 REQ_INFO 기본 응답</div>
 <pre><code>const sendToFrontend = (data: ChatRequestType) =&gt; {
+  log.debug('[sendToFrontend] ', data);
   if (data.type === 'REQ_DEVICES') {                                   // 모달 무관, ChatProvider 단독 처리
     const targets = Array.isArray(data?.target) ? data.target : data?.target != null ? [data.target] : [];
     targets.forEach((targetId) =&gt; {
@@ -166,6 +184,9 @@ return (
         }
       }, targetId);
     });
+    return;
+  } else if (data.type === 'REQ_OPEN_MODAL') {                         // 단말 관리 화면으로 이동해 모달 오픈
+    navigate('/management/devices', { state: { targetId: data.deviceId } });
     return;
   }
   if (frontendRef.current) { frontendRef.current?.(data); return; }   // 모달이 처리
@@ -179,6 +200,9 @@ return (
         accessToken: sessionStorage.getItem('accessToken') || '',
         user: user ? JSON.parse(user).username : '',
         role: sessionStorage.getItem('role') || '',
+        roleLevel: sessionStorage.getItem('roleLevel') || '',
+        isConnected: false,
+        isMine: false,
         lang: localStorage.getItem('language') || 'en'
       }
     });
@@ -193,9 +217,10 @@ return (
     <h2>관련 소스</h2>
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/chatbot/ChatPopup.tsx" target="_blank" rel="noopener">chatbot/ChatPopup.tsx</a><span class="src">챗봇 팝업 — @altimedia/rms-chatbot-ui ChatBot 마운트·콜백 연결</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/contexts/ChatContext.tsx" target="_blank" rel="noopener">contexts/ChatContext.tsx</a><span class="src">챗봇 중계 — registOnChatbot/registOnFrontend·sendToFrontend/sendToChatbot · REQ_DEVICES 직접 처리</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/types/chatbot.ts" target="_blank" rel="noopener">types/chatbot.ts</a><span class="src">ChatType(REQ_INFO/REQ_NAV/REQ_DEVICES)/ChatNav/ChatRequestType/ChatResponseType 전문 정의</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/App.tsx" target="_blank" rel="noopener">App.tsx</a><span class="src">modulePermissions.chatbot &amp;&amp; user 조건으로 챗봇 버튼 노출</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/contexts/ChatContext.tsx" target="_blank" rel="noopener">contexts/ChatContext.tsx</a><span class="src">챗봇 중계 — registOnChatbot/registOnFrontend·sendToFrontend/sendToChatbot · REQ_DEVICES/REQ_OPEN_MODAL 직접 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/types/chatbot.ts" target="_blank" rel="noopener">types/chatbot.ts</a><span class="src">ChatType(REQ_INFO/REQ_NAV/REQ_DEVICES/DEVICE_MODAL_STATUS/REQ_OPEN_MODAL)/ChatNav/ChatRequestType/ChatResponseType 전문 정의</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/contexts/TaskContext.tsx" target="_blank" rel="noopener">contexts/TaskContext.tsx</a><span class="src">디바이스 모달 OPEN/CLOSE를 DEVICE_MODAL_STATUS로 챗봇에 통지</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/App.tsx" target="_blank" rel="noopener">App.tsx</a><span class="src">modulePermissions.chatbot(IBC) &amp;&amp; user 조건으로 챗봇 버튼 노출 · ChatProvider 최상위 배치</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

@@ -49,8 +49,9 @@
   <section id="desc">
     <h2>기능 개요</h2>
     <p>과천 관제센터는 <code>config.ts</code>의 <code>SITE_LIST</code>에서 별도 <code>code: 'GWACHEON'</code>으로 정의되지만 <code>realcode</code>는 Air Map과 동일한 <code>001ENV301</code>입니다. 즉 데이터 출처(단위서비스코드)는 Air Map과 같으면서 측정망 운영용 화면만 분리한 진입점입니다. 경로는 <code>/gwacheon/...</code>으로 시작합니다.</p>
-    <p>특화 화면은 <code>pages/overview/gwacheon</code> 아래에 모여 있습니다. 통신 상태(<code>CommunicationStatus</code>/<code>CommunicationStatusDetail</code>), 미수신(<code>NoReception</code>/<code>NoReceptionDetail</code>), 센싱 오류(<code>SensingError</code>), 전송 실패(<code>TransmissionFailure</code>)가 라우트로 등록되어 있습니다. 각 화면은 디바이스 유형(실내·실외·청정기·악취/소음 등)·사업 유형(BIZ/CSV) 필터와 지역 검색을 제공합니다.</p>
-    <p>데이터는 <code>gwacheonApi</code>의 측정망 전용 엔드포인트(<code>gwacheon/summary</code>, <code>gwacheon/collection-status</code>, <code>gwacheon/reception-fault</code>, <code>gwacheon/sensing-error</code>, <code>gwacheon/transmission-error</code>)에서 조회합니다. 각 목록은 <code>download</code> 플래그로 같은 경로에 <code>.csv</code>를 붙여 CSV 다운로드를 겸하며, 미수신 화면은 <code>HandlerStatusModal</code>을 통한 조치 처리(<code>gwacheonApi.action</code> → <code>reception-fault/action</code>)를 함께 지원합니다. 통신 상태 상세 화면은 KT 지도(<code>ktGms.Map</code>)로 디바이스 위치를 표출하며, 줌·최대 줌은 <code>config.ts</code>의 공용 상수 <code>DEFAULT_MAP_CENTER</code>·<code>DEFAULT_MAX_ZOOM_LEVEL</code>을 사용합니다.</p>
+    <p>특화 화면은 <code>pages/overview/gwacheon</code> 아래에 모여 있습니다. 통신 상태(<code>CommunicationStatus</code>/<code>CommunicationStatusDetail</code>), 미수신(<code>NoReception</code>/<code>NoReceptionDetail</code>), 센싱 오류(<code>SensingError</code>), 전송 실패(<code>TransmissionFailure</code>)가 라우트로 등록되어 있습니다. 각 화면은 디바이스 유형(실내·실외·청정기·악취/소음 등)·사업 유형(BIZ/CSV) 필터와 지역(시도/군구/동) 검색을 제공하며, 지역 필터는 첫 항목을 자동 선택하지 않고 미선택(전체 조회) 상태로 시작합니다.</p>
+    <p>데이터는 <code>gwacheonApi</code>의 측정망 전용 엔드포인트(<code>gwacheon/summary</code>, <code>gwacheon/collection-status</code>, <code>gwacheon/reception-fault</code>, <code>gwacheon/sensing-error</code>, <code>gwacheon/transmission-error</code>)에서 조회합니다. 각 목록은 <code>download</code> 플래그로 같은 경로에 <code>.csv</code>를 붙여 CSV 다운로드를 겸하며, 미수신 화면은 <code>HandlerStatusModal</code>을 통한 조치 처리(<code>gwacheonApi.action</code> → <code>reception-fault/action</code>)를 함께 지원합니다. 조치상태(미조치/조치중/완료)·미조치사유(임시철거/장비이설/출입불가/기타)는 실제 운영 코드값으로 정의되어 있고, 미수신 상세 조회(<code>receptionFaultDetail</code>)는 응답의 <code>lastMeasuredDate</code>를 화면 필드 <code>updateDate</code>로 매핑해 정합성을 맞춥니다.</p>
+    <p>통신 상태 상세(<code>CommunicationStatusDetail</code>)는 목록 행 클릭 시 전달받은 <code>deviceId</code>(경로)·<code>serviceTargetId</code>(state)로 <code>gwacheonApi.collectionStatusDetail</code>을 호출해 제조사·국소명·모델명·운용센터·모국 ID·유지보수 담당 등 실제 장비 정보를 조회합니다(초기의 더미 데이터 표시에서 실 API 연동으로 전환). 담당자 이름·연락처는 <code>maskValue</code>로 마스킹하고, KT 지도(<code>ktGms.Map</code>)는 문자열 위경도를 숫자로 변환해 <code>[경도, 위도]</code> 순서의 center로 표출하며, 줌·최대 줌은 <code>config.ts</code>의 공용 상수 <code>DEFAULT_MAP_CENTER</code>·<code>DEFAULT_MAX_ZOOM_LEVEL</code>을 사용합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       과천을 별도 사이트 코드로 두어 권한 전환 제어(기능 11)에서 Air Map ↔ 과천 전환을 명시적으로 허용하면서, 실제 데이터는 같은 <code>realcode</code>로 일관되게 조회합니다.
@@ -68,22 +69,21 @@ sequenceDiagram
     participant API as gwacheonApi
     participant DL as downloadFileFromResponse
     participant Detail as CommunicationStatusDetail
-    participant ENV as aiEnvDxApi
 
-    CS-&gt;&gt;RQ: useQuery(필터: 디바이스/사업유형/지역)
+    CS-&gt;&gt;RQ: useQuery(필터: 디바이스/사업유형/지역 — 기본 전체)
     RQ-&gt;&gt;API: collectionStatus(params)
     API--&gt;&gt;CS: 통신 상태 목록
-    CS-&gt;&gt;Detail: 행 클릭 → detail/:id
-    Detail-&gt;&gt;ENV: serviceTargetDetail(id)
-    ENV--&gt;&gt;Detail: 서비스 대상 상세
-    Detail-&gt;&gt;Detail: ktGms.Map 렌더 (DEFAULT_MAP_CENTER 상수)
+    CS-&gt;&gt;Detail: 행 클릭 → detail/:deviceId (state에 serviceTargetId)
+    Detail-&gt;&gt;API: collectionStatusDetail(serviceTargetId, deviceId)
+    API--&gt;&gt;Detail: 장비 상세 (제조사·운용센터·유지보수 담당 등)
+    Detail-&gt;&gt;Detail: ktGms.Map 렌더 — center는 Number 변환한 (경도, 위도)
     opt CSV 다운로드
         CS-&gt;&gt;API: collectionStatus(params, download=true) → gwacheon/...csv
         API--&gt;&gt;DL: AxiosResponse(Blob)
         DL--&gt;&gt;CS: 파일 저장
     end
       </div>
-      <p class="cap"><strong>흐름.</strong> 측정망 특화 화면이 <code>gwacheonApi</code>로 통신 상태·오류 목록을 조회하고, 상세·CSV 다운로드·조치 처리를 제공합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 측정망 특화 화면이 <code>gwacheonApi</code>로 통신 상태·오류 목록을 조회하고, 상세는 목록 행의 <code>serviceTargetId</code>·<code>deviceId</code>로 <code>collectionStatusDetail</code>을 실 호출합니다. CSV 다운로드·조치 처리도 같은 API 모듈이 담당합니다.</p>
     </div>
   </section>
 
@@ -94,16 +94,18 @@ sequenceDiagram
 classDiagram
     class GwacheonPages {
         +CommunicationStatus
+        +CommunicationStatusDetail
         +NoReception
+        +HandlerStatusModal
         +SensingError
         +TransmissionFailure
     }
     class gwacheonApi {
         +summary(params, download)
         +collectionStatus(params, download)
-        +collectionStatusDetail(id, deviceId)
+        +collectionStatusDetail(serviceTargetId, deviceId)
         +receptionFault(params, download)
-        +receptionFaultDetail(id, deviceId)
+        +receptionFaultDetail(serviceTargetId, deviceId)
         +sensingError(params, download)
         +transmissionError(params, download)
         +action(params)
@@ -143,28 +145,56 @@ export const DEFAULT_MAX_ZOOM_LEVEL = 30;
 export const DEFAULT_MAP_CENTER = { lng: DEFAULT_LONGITUDE, lat: DEFAULT_LATITUDE, zoom: DEFAULT_ZOOM_LEVEL };</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>src/api/gwacheon.ts</code> — 측정망 전용 목록 + CSV 겸용 · 미수신 조치</div>
+      <div class="sc"><code>src/api/gwacheon.ts</code> — 측정망 전용 목록 + CSV 겸용 · 미수신 조치 · 상세 필드 매핑</div>
 <pre><code>export const gwacheonApi = {
   summary: (params, download?) =&gt;
     apiClient.get(`/bff/monitor/gwacheon/summary${download ? '.csv' : ''}`, { /* responseType blob */ }),
   sensingError: (params, download?) =&gt;
     apiClient.get(`/bff/monitor/gwacheon/sensing-error${download ? '.csv' : ''}`, { /* ... */ }),
-  transmissionError: (params, download?) =&gt;
-    apiClient.get(`/bff/monitor/gwacheon/transmission-error${download ? '.csv' : ''}`, { /* ... */ }),
   action: (params) =&gt;
     apiClient.post(`/bff/monitor/gwacheon/reception-fault/action`, { ...params }),  // 미수신 조치
+
+  receptionFaultDetail: async (serviceTargetId, deviceId) =&gt; {
+    const res = await apiClient.get(
+      `/bff/monitor/gwacheon/reception-fault/${serviceTargetId}/${deviceId}`,
+    );
+    if (res.data?.result) {  // 응답의 lastMeasuredDate를 화면 필드 updateDate로 매핑
+      const { lastMeasuredDate, ...rest } = res.data.result;
+      res.data.result = { ...rest, updateDate: lastMeasuredDate };
+    }
+    return res.data;
+  },
 };</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/overview/gwacheon/CommunicationStatusDetail.tsx</code> — 상세 실 API 연동 + 지도 좌표 변환</div>
+<pre><code>// 목록(CommunicationStatus) — 행 클릭 시 deviceId 경로 + row의 serviceTargetId를 state로 전달
+navigate(`/${site.path}/communication-status/detail/${encodeURIComponent(row.deviceId)}`, {
+  state: { ...searchParams, serviceTargetId: row.serviceTargetId },
+});
+
+// 상세 — 더미 데이터 대신 gwacheonApi.collectionStatusDetail 실 연동
+const res = await gwacheonApi.collectionStatusDetail(serviceTargetId + '', id + '');
+return res.result;   // manufacturer / deviceName / operationCenter / maint1 ...
+
+// 위경도는 문자열로 내려오므로 숫자로 변환하고, 지도 SDK는 [경도, 위도] 순서를 요구한다
+map.current = new ktGms.Map({
+  container: mapDOM.current,
+  zoom: DEFAULT_MAP_CENTER.zoom,
+  center: [Number(data.longitudeValue), Number(data.latitudeValue)],
+  ...
+});</code></pre>
     </div>
   </section>
 
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/overview/gwacheon/CommunicationStatus.tsx" target="_blank" rel="noopener">src/pages/overview/gwacheon/CommunicationStatus.tsx</a><span class="src">통신 상태 목록 · 디바이스/사업유형/지역 필터 · CSV</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/overview/gwacheon/CommunicationStatusDetail.tsx" target="_blank" rel="noopener">src/pages/overview/gwacheon/CommunicationStatusDetail.tsx</a><span class="src">디바이스 상세 · KT 지도(ktGms.Map) · DEFAULT_MAP_CENTER 상수 사용</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/overview/gwacheon/CommunicationStatus.tsx" target="_blank" rel="noopener">src/pages/overview/gwacheon/CommunicationStatus.tsx</a><span class="src">통신 상태 목록 · 지역 필터 기본 전체 · 행 클릭 시 deviceId·serviceTargetId 전달 · CSV</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/overview/gwacheon/CommunicationStatusDetail.tsx" target="_blank" rel="noopener">src/pages/overview/gwacheon/CommunicationStatusDetail.tsx</a><span class="src">gwacheonApi.collectionStatusDetail 실 연동 · maskValue 담당자 마스킹 · KT 지도 center [경도, 위도] 변환</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/overview/gwacheon/NoReception.tsx" target="_blank" rel="noopener">src/pages/overview/gwacheon/NoReception.tsx</a><span class="src">미수신 현황 · 조치 처리</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/overview/gwacheon/HandlerStatusModal.tsx" target="_blank" rel="noopener">src/pages/overview/gwacheon/HandlerStatusModal.tsx</a><span class="src">미수신 조치 모달 · gwacheonApi.action 호출</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/gwacheon.ts" target="_blank" rel="noopener">src/api/gwacheon.ts</a><span class="src">summary/collection-status/reception-fault/sensing-error/transmission-error</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/overview/gwacheon/HandlerStatusModal.tsx" target="_blank" rel="noopener">src/pages/overview/gwacheon/HandlerStatusModal.tsx</a><span class="src">미수신 조치 모달 · 조치상태(미조치/조치중/완료)·미조치사유 실 코드값 · gwacheonApi.action 호출</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/gwacheon.ts" target="_blank" rel="noopener">src/api/gwacheon.ts</a><span class="src">summary/collection-status/reception-fault/sensing-error/transmission-error · receptionFaultDetail updateDate 매핑</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">GWACHEON 진입점 정의(realcode 001ENV301 공유)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">communication-status / no-reception / sensing-error / transmission-failure 라우트</span></li>
     </ul>

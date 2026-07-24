@@ -49,10 +49,10 @@
   <section id="desc">
     <h2>기능 개요</h2>
     <p>이 기능은 두 화면으로 구성됩니다. 하나는 시스템 상태 화면(<code>dashboardSystem</code>)으로, RMS 서버 인프라 메트릭을 자체 차트로 그리는 대신 <code>REACT_APP_RMS_GRAFANA_URL</code>이 가리키는 Grafana(node-exporter) 대시보드를 <code>iframe</code>으로 임베드합니다. 컴포넌트 자체는 매우 얇아서, 메트릭 수집·시각화 책임을 Grafana에 위임하고 RMS UI는 메뉴 안에서 그 화면을 보여주는 역할만 합니다.</p>
-    <p>다른 하나는 Quick Operation 화면입니다. 라우트 진입점은 <code>quickOperationMain</code>으로, IBC 타깃(<code>modulePermissions.anomalyDetect</code>)에서는 이상 감지 화면(<code>anomalyDetect</code>)을, 그 외 타깃에서는 기존 <code>quickOperation</code>(현재 <code>component/</code> 하위로 이동)을 렌더합니다. URL 파라미터 <code>detectId</code>가 있으면 해당 단말 이름으로 검색을 프리필합니다. 운영자가 단말 목록에서 여러 행을 체크해 선택(<code>selectedRows</code>)한 뒤 전원/제어 명령을 내리면, <code>DevicesApiManager.commandDevices()</code>가 선택 단말 ID 배열과 명령 코드를 묶어 <code>/api/v1/multi-device-commands/devices</code>로 POST 합니다. 메시지 명령은 제목·본문 외에 표시 위치(<code>position</code>) 필드를, 잠금(LOCK) 명령은 잠금 사유(<code>lockScreenReason</code>) 필드를 함께 보낼 수 있습니다. 잠금 사유는 공통 컴포넌트 <code>LockReasonRadioGroup</code>에서 Illegal·Unactive·Suspended·IP Range·Model·ETC 중 선택하며, XLSmart 타깃에서는 Illegal 항목이 제외됩니다. 명령 진행 상태와 배포 현황은 <code>getQuickOperationStatus</code>·<code>getQuickOperationDistribution</code>로 폴링하며, 내가 보낸 명령 이력은 <code>MyCommandHistoryModal</code>로 확인합니다. 모달 관리(최소화·복원)는 <code>useTask</code> 컨텍스트가 담당합니다.</p>
+    <p>다른 하나는 Quick Operation 화면입니다. 라우트 진입점은 <code>quickOperationMain</code>으로, IBC 타깃(<code>modulePermissions.anomalyDetect</code>)에서는 AI Quick Operation(이상 감지) 화면을, 그 외 타깃에서는 기존 <code>quickOperation</code>(<code>component/</code> 하위)을 렌더합니다. 이상 감지 화면은 단일 파일(<code>component/anomalyDetect.tsx</code>)에서 <code>anomalyDetect/</code> 디렉토리 모듈(<code>index</code>·<code>TopRecurringIssues</code>·<code>IssueList</code>·<code>IssueSearch</code>·<code>AnomalyAccordionList</code> 등)로 개편되어 All/CPU/Memory/Network/Crash 탭과 반복 이슈 Top·이슈 목록 아코디언을 제공하고, 이슈별로 대상 단말을 골라(<code>SelectDevicesApplyModal</code>) 명령을 적용(<code>SendCommandModal</code>)하거나 중지(<code>StopCommandModal</code>)합니다. 탭별 건수 등 일부 데이터는 API 연동 전 목업으로 채워져 있으며(작업 진행 중), 종전의 <code>detectId</code> URL 프리필은 제거되었습니다. 운영자가 단말 목록에서 여러 행을 체크해 선택(<code>selectedRows</code>)한 뒤 전원/제어 명령을 내리면, <code>DevicesApiManager.commandDevices()</code>가 선택 단말 ID 배열과 명령 코드를 묶어 <code>/api/v1/multi-device-commands/devices</code>로 POST 합니다. 메시지 명령은 제목·본문 외에 표시 위치(<code>position</code>) 필드를, 잠금(LOCK) 명령은 잠금 사유(<code>lockScreenReason</code>) 필드를 함께 보낼 수 있습니다. 잠금 사유는 공통 컴포넌트 <code>LockReasonRadioGroup</code>에서 Illegal·Unactive·Suspended·IP Range·Model·ETC 중 선택하며, XLSmart 타깃에서는 Illegal 항목이 제외됩니다. 명령 진행 상태와 배포 현황은 <code>getQuickOperationStatus</code>·<code>getQuickOperationDistribution</code>로 폴링하며, 내가 보낸 명령 이력은 <code>MyCommandHistoryModal</code>로 확인합니다. 모달 관리(최소화·복원)는 <code>useTask</code> 컨텍스트가 담당하며, IBC 타깃(<code>modulePermissions.chatbot</code>)에서는 <code>TaskContext</code>의 <code>openModal</code>/<code>closeModal</code>/<code>minimize</code>가 <code>ChatContext.sendToChatbot</code>으로 <code>DEVICE_MODAL_STATUS</code>(OPEN/CLOSE) 이벤트를 보내 챗봇과 디바이스 모달 상태를 공유합니다.</p>
     <div class="callout">
       <div class="ct">단말 연결 선행 조건</div>
-      Quick Operation에서 일부 명령은 단말이 <code>CONNECTED</code> 상태일 때만 의미가 있습니다. 화면은 단말 섹션 상태를 확인해 연결되지 않은 경우 <code>createDeviceConnection</code>으로 connection을 먼저 시도한 뒤 명령을 전송하는 흐름을 가집니다.
+      Quick Operation에서 일부 명령은 단말이 <code>CONNECTED</code> 상태일 때만 의미가 있습니다. 화면은 단말 섹션 상태를 확인해 연결되지 않은 경우 <code>createDeviceConnection</code>으로 connection을 먼저 시도한 뒤 명령을 전송하는 흐름을 가집니다. 재연결 대기 시간과 폴링 주기는 <code>utils/constants.ts</code>의 <code>DEVICE_CONNECTION_TIME_LEFT</code>(30초)·<code>DEVICE_CONNECTION_COUNTDOWN_INTERVAL</code>(1초) 상수로 정리되었습니다.
     </div>
   </section>
 
@@ -101,7 +101,12 @@ classDiagram
         +render() 타깃별 분기
     }
     class AnomalyDetect {
-        -detectId 검색 프리필
+        -tabValue TabMode
+        +updateQuickOperationHeader()
+    }
+    class IssueList {
+        -anomalyList
+        -anomalyTotalPage
     }
     class QuickOperation {
         -selectedRows
@@ -119,8 +124,12 @@ classDiagram
     }
     class TaskContext {
         +openModal(ModalProps)
+        +closeModal(ModalProps)
         +minimize(ModalProps)
         +handleRestore(idx)
+    }
+    class ChatContext {
+        +sendToChatbot(ChatResponseType)
     }
     class MyCommandHistoryModal {
         +open
@@ -129,11 +138,14 @@ classDiagram
 
     QuickOperationMain --&gt; QuickOperation : 기본 타깃 렌더
     QuickOperationMain --&gt; AnomalyDetect : IBC(anomalyDetect 권한)
+    AnomalyDetect o-- IssueList : 탭별 이슈 목록
+    IssueList --&gt; DevicesApiManager : getQuickOperationList
     QuickOperation --&gt; DevicesApiManager : 명령/상태 호출
     QuickOperation --&gt; TaskContext : useTask 모달 관리
+    TaskContext ..&gt; ChatContext : DEVICE_MODAL_STATUS 통지 (IBC chatbot)
     QuickOperation o-- MyCommandHistoryModal : 이력 모달
       </div>
-      <p class="cap"><strong>관계.</strong> 라우트 진입점 <code>QuickOperationMain</code>이 타깃 권한에 따라 <code>QuickOperation</code> 또는 <code>AnomalyDetect</code>를 렌더하고, <code>QuickOperation</code>이 <code>DevicesApiManager</code>로 일괄 명령과 상태 폴링을 수행하며, <code>useTask</code>(TaskContext)로 모달 생명주기를 관리합니다. 시스템 화면은 Grafana iframe만 렌더하는 독립 컴포넌트입니다.</p>
+      <p class="cap"><strong>관계.</strong> 라우트 진입점 <code>QuickOperationMain</code>이 타깃 권한에 따라 <code>QuickOperation</code> 또는 <code>AnomalyDetect</code>(탭 + <code>IssueList</code> 아코디언)를 렌더하고, <code>QuickOperation</code>이 <code>DevicesApiManager</code>로 일괄 명령과 상태 폴링을 수행하며, <code>useTask</code>(TaskContext)로 모달 생명주기를 관리합니다. IBC 타깃에서는 <code>TaskContext</code>가 모달 열림/닫힘/최소화를 <code>ChatContext.sendToChatbot</code>으로 챗봇에 통지합니다. 시스템 화면은 Grafana iframe만 렌더하는 독립 컴포넌트입니다.</p>
     </div>
   </section>
 
@@ -163,6 +175,29 @@ classDiagram
   request('post', `/api/v1/multi-device-commands/devices`, callback, data);
 }</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>pages/monitoring/quickOperationMain.tsx</code> — IBC 타깃은 AI Quick Operation(이상 감지) 화면으로 분기</div>
+<pre><code>if (modulePermissions.anomalyDetect) {
+  return &lt;AnomalyDetect /&gt;;                                   // anomalyDetect/index.tsx (detectId 프리필 제거)
+} else {
+  return &lt;QuickOperation tabId={tabId} clickTime={clickTime} /&gt;;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>contexts/TaskContext.tsx</code> — IBC(chatbot 권한)에서 모달 상태를 챗봇에 통지</div>
+<pre><code>const openModal = (data: ModalProps) =&gt; {
+  if (modulePermissions.chatbot &amp;&amp; sendToChatbot) {
+    const result: ChatResponseType = {
+      type: 'DEVICE_MODAL_STATUS',
+      result: true,
+      message: 'OPEN',                       // closeModal/minimize 는 'CLOSE'
+      data: { id: data.id, deviceId: data.deviceId }
+    };
+    sendToChatbot(result);
+  }
+  // ...모달 스택 갱신
+};</code></pre>
+    </div>
   </section>
 
   <section id="sources">
@@ -171,9 +206,10 @@ classDiagram
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/dashboardSystem.tsx" target="_blank" rel="noopener">pages/monitoring/dashboardSystem.tsx</a><span class="src">시스템 상태 — Grafana(node-exporter) 대시보드 iframe 임베드</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/quickOperationMain.tsx" target="_blank" rel="noopener">pages/monitoring/quickOperationMain.tsx</a><span class="src">라우트 진입점 — anomalyDetect 권한에 따라 QuickOperation/AnomalyDetect 분기</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/component/quickOperation.tsx" target="_blank" rel="noopener">pages/monitoring/component/quickOperation.tsx</a><span class="src">Quick Operation 화면 — 단말 선택·일괄 명령·상태 폴링·명령 이력</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/component/anomalyDetect.tsx" target="_blank" rel="noopener">pages/monitoring/component/anomalyDetect.tsx</a><span class="src">이상 감지 화면 — IBC 타깃 전용, detectId 검색 프리필</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/anomalyDetect/index.tsx" target="_blank" rel="noopener">pages/monitoring/anomalyDetect/index.tsx</a><span class="src">이상 감지(AI Quick Operation) 화면 — IBC 타깃 전용, All/CPU/Memory/Network/Crash 탭 + TopRecurringIssues·IssueList</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/anomalyDetect/IssueList.tsx" target="_blank" rel="noopener">pages/monitoring/anomalyDetect/IssueList.tsx</a><span class="src">이슈 목록 아코디언 — SelectDevicesApplyModal·SendCommandModal·StopCommandModal 연동</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Devices.tsx" target="_blank" rel="noopener">_api/Devices.tsx</a><span class="src">commandDevices / getQuickOperationList / getQuickOperationStatus / createDeviceConnection</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/contexts/TaskContext.tsx" target="_blank" rel="noopener">contexts/TaskContext.tsx</a><span class="src">useTask — 명령 모달 열기/최소화/복원 관리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/contexts/TaskContext.tsx" target="_blank" rel="noopener">contexts/TaskContext.tsx</a><span class="src">useTask — 명령 모달 열기/닫기/최소화/복원 관리 + IBC 챗봇 DEVICE_MODAL_STATUS 통지</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

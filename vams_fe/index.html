@@ -205,7 +205,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/vams_fe" target="_blank" rel="noopener"><code>vams_fe</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/4212162576" target="_blank" rel="noopener">KT_VAMS 프로젝트 요약 (4212162576)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-07-10 · dd26012 Merge 'features/0702_posteredit_jh' (포스터 타이틀편집 후속)</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-07-24 · 6a40b1c 검수완료 Mint pill 정합 + 상태칩 proposal 종결</div></div>
       <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>vams-fe</code> / 0.0.0 (private, 개발 중)</div></div>
     </div>
   </div>
@@ -235,7 +235,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="ct">사업 맥락 (Confluence 근거)</div>
       발주는 KT — 콘텐츠(VOD) AI 운영 도메인이며 알티미디어가 수행(자막 엔진 등 일부 어뮤즈랩 협업)합니다. 상위 시스템 C-Cube가 콘텐츠 입수·로그인/권한 연계·최종 연동의 중심이고, VAMS는 그 사이의 운영 콘솔입니다. 마일스톤은 6월(포스터 엔진 배포·자막 프로토타입·썸네일 C-Cube 연동)과 10월(자막 상용 모델·10초 썸네일 통합)로 나뉩니다. Confluence 요약(2026-06-01 스냅샷)에는 11개 메뉴로 기재되어 있으나, 이후 Figma Flipbook v0.7에서 얼굴인식이 분리되어 현재 소스의 LNB는 12개 메뉴입니다(소스 우선).
     </div>
-    <p>사용자 권한은 일반운영자/중간관리자/시스템관리자 3계층(<code>useCan</code> 컴포저블로 판정)이며, 상태칩 7종(전체/대기/검수필요/실패/검수중/검수완료/연동완료)과 조회기간 최대 60일 등 공통 정책이 전 메뉴에 적용됩니다. 현재 LNB 12개 메뉴 중 <strong>대시보드·AI 포스터·AI 썸네일·AI 자막·구간마킹·설정 6개 도메인이 구현</strong>되어 있고, AI 개인화·AI Pick·AI 골라보기·얼굴인식·AI 하이라이트·모니터링은 메뉴 정의만 존재하는 구현 예정 상태입니다.</p>
+    <p>사용자 권한은 일반운영자/중간관리자/시스템관리자 3계층(<code>useCan</code> 컴포저블로 판정)이며, 상태칩 7종(전체/대기/검수필요/실패/검수중/검수완료/연동완료 — <code>domain/statusChip.ts</code> 공통 소스로 통합)과 조회기간 최대 60일 등 공통 정책이 전 메뉴에 적용됩니다. 현재 LNB 12개 메뉴 중 <strong>대시보드·AI 포스터·AI 썸네일·AI 자막·AI 하이라이트·AI 골라보기·구간마킹·설정 8개 도메인이 구현</strong>되어 있고, AI 개인화·AI Pick·얼굴인식·모니터링은 메뉴 정의만 존재하는 구현 예정 상태입니다.</p>
   </section>
 
   <section id="features">
@@ -245,7 +245,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <a class="card" href="f02.html"><div class="t">AI 포스터 검수·편집</div><div class="d">포스터 작업 목록 → 결과 이미지 검수·대표 선택 상세 → Konva 캔버스 기반 이미지·타이틀 편집기로 이어지는 워크플로입니다. 크롭·마스킹·업스케일과 스냅샷 기반 undo/redo(최대 50단계)를 제공하며, 타이틀 편집은 N객체 모델 기반의 오려두기/제거·다중선택을 지원합니다.</div></a>
       <a class="card" href="f03.html"><div class="t">AI 썸네일 검수</div><div class="d">구간 썸네일·10초 썸네일 검수 워크플로입니다. 목록에서 풀스크린 상세로 진입해 후보 검수·대표 지정·재생성을 수행합니다.</div></a>
       <a class="card" href="f04.html"><div class="t">AI 자막 편집기</div><div class="d">자막 작업 목록에서 풀스크린 편집기로 진입합니다. wavesurfer 파형 타임라인, 편집 단축키, KRCC/KT 변환, 찾기/바꾸기, 동기화 시프트 등 20종 이상의 편집 다이얼로그를 갖춘 본 과제 최대 규모 기능입니다.</div></a>
-      <a class="card" href="f05.html"><div class="t">구간마킹</div><div class="d">씬서치 샷 추출 결과 기반으로 인트로·등급고지·엔딩 구간을 확인·수정하는 화면입니다. 목록·상세 골격이 구현되어 있으며 상세 본문은 스텁 단계입니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">구간마킹</div><div class="d">씬서치 샷 추출 결과 기반으로 인트로·등급고지·엔딩 구간을 확인·수정하는 화면입니다. 상세 편집(프리뷰 구간재생·씬 퀵메뉴·헤더 액션)과 시리즈 목록 팝업, 상태칩 7종까지 구현되어 있습니다.</div></a>
       <a class="card" href="f06.html"><div class="t">설정 (관리자)</div><div class="d">탭 기반 설정 화면으로 작업 설정(WorkConfig)·사용자 권한(UserRole)·연동(Integration) 3개 탭을 제공합니다. 권한 3계층 정책과 연동됩니다.</div></a>
       <a class="card" href="f07.html"><div class="t">공통 컴포넌트·디자인 시스템</div><div class="d">base 13종 + composite 20여 종 + layout 4종의 공통 컴포넌트 라이브러리와 dev 전용 카탈로그(<code>/_catalog</code>)입니다. Figma 실측 토큰(<code>tokens.scss</code>)과 Reka UI 헤드리스 래퍼 전략을 따릅니다.</div></a>
       <a class="card" href="f08.html"><div class="t">Figma 연동·품질 게이트 파이프라인</div><div class="d">Figma 덤프→화면 매핑→behavior 스펙 동기화 파이프라인(<code>scripts/figma-mapping/</code>)과 픽셀 게이트(<code>check:pixel</code>)·스택 핀 대조(<code>check:pins</code>)·CSS 변수 검사 등 자동 검증 도구 체계입니다.</div></a>
@@ -268,9 +268,9 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
    ├─ main.ts               # 부트스트랩 (pinia→router→query→i18n, dev면 MSW 선기동)
    ├─ app/                  # 앱 셸·라우터·전역 스토어(menu/dialog/toast)·플러그인·runtimeConfig
    ├─ api/                  # http.ts(fetch 래퍼)·endpoints.ts(경로 상수)·adapters/(DTO→도메인)
-   ├─ domain/               # 도메인 모델·타입 (job, poster, thumbnail, subtitle, marking ...)
+   ├─ domain/               # 도메인 모델·타입 (job, poster, subtitle, marking, watchPick, highlight, statusChip ...)
    ├─ core/auth/            # authStore, MockAuthProvider
-   ├─ features/             # dashboard / poster / thumbnail / subtitle / segment-marking / settings
+   ├─ features/             # dashboard / poster / thumbnail / subtitle / highlight / watch-pick / segment-marking / settings
    ├─ shared/               # 공통 컴포넌트(base/composite/layout)·컴포저블·listQuery 스토어 팩토리
    ├─ mocks/                # MSW handlers·fixtures (dev 백엔드 목킹)
    ├─ dev/catalog/          # 컴포넌트 카탈로그 (dev 전용)
@@ -289,6 +289,8 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
           <tr><td><code>src/features/poster/stores/poster.store.ts</code></td><td><code>usePosterEditorStore</code> — 스냅샷 스택+커서 기반 undo/redo(최대 50단계 FIFO). 편집 도구·Konva·fetch를 import하지 않는 도구 불가지 원칙을 지킵니다.</td></tr>
           <tr><td><code>src/core/auth/authStore.ts</code></td><td><code>useAuthStore</code> — 라우터 가드에서 <code>bootstrap()</code> 1회 실행. 현재 <code>MockAuthProvider</code> 기반이며 C-Cube 로그인 연계를 전제로 추상화되어 있습니다.</td></tr>
           <tr><td><code>src/features/subtitle/edit/*</code></td><td>자막 편집기 모듈. <code>useWaveform</code>(wavesurfer)·<code>useSubtitleShortcuts</code>·<code>useSubtitleSocket</code>·<code>useEditHistory</code>·<code>useSubtitleParser</code> 등 컴포저블과 20종 이상의 편집 다이얼로그로 구성됩니다.</td></tr>
+          <tr><td><code>src/features/watch-pick/*</code></td><td>AI 골라보기 모듈(신규). 리스트 → 우측 상세패널 → 편집화면(타임라인·재생 엔진·클립 추가/제외/분할·undo/redo·로컬 스테이징)으로 구성되며, 실 BE 계약(v1.0.2)은 <code>adapters/watchPick·watchPickResult</code>에서 흡수합니다.</td></tr>
+          <tr><td><code>src/features/highlight/*</code></td><td>AI 하이라이트 모듈(신규). 목록·우측패널·업로드(HL-001~003)와 상세/편집 비디오 에디터(HL-004)로 구성되며, Figma 실측 기반 시각 정합을 거쳤습니다.</td></tr>
         </tbody>
       </table>
     </div>
@@ -316,7 +318,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
           <tr><td>오디오 파형</td><td>wavesurfer.js</td><td>^7.12</td><td>자막 편집기 파형 타임라인</td></tr>
           <tr><td>i18n</td><td>vue-i18n</td><td>^11</td><td>@internationalized/date 병용</td></tr>
           <tr><td>테스트</td><td>Vitest(browser) / Playwright / MSW</td><td>^4 / ^1 / ^2</td><td>컴포넌트 60+·E2E 시각/계약·API 목킹</td></tr>
-          <tr><td>품질 도구</td><td>ESLint / Prettier / lint-staged</td><td>^10 / ^3 / ^16</td><td>simple-git-hooks + 자체 게이트 스크립트 4종</td></tr>
+          <tr><td>품질 도구</td><td>ESLint / Prettier / lint-staged</td><td>^10 / ^3 / ^16</td><td>simple-git-hooks + 자체 게이트 스크립트 5종</td></tr>
           <tr><td>패키지 매니저</td><td>npm (Node 22 계열)</td><td>-</td><td>package-lock.json, 스택 버전 핀 게이트(<code>check:pins</code>)</td></tr>
         </tbody>
       </table>
@@ -374,7 +376,8 @@ npm run test:e2e      # Playwright E2E (시각·계약)
 npm run check:pins    # 기술 스택 버전 핀 대조
 npm run check:pixel   # Figma 실측 픽셀 게이트
 npm run check:cssvars # 미정의 CSS 변수 검사
-npm run check:ownership</code></pre>
+npm run check:ownership
+npm run check:policy-refs # 정책 근거(§ 참조) 게이트</code></pre>
     <p>환경 설정은 <code>.env</code> 파일 대신 <code>src/app/runtimeConfig.ts</code>가 단일 진입점입니다. 우선순위는 배포 후 교체 가능한 런타임 설정 <code>window.__VAMS_CONFIG__</code>(<code>public/config.js</code>) → 빌드 시 env(<code>VITE_API_DB_API</code>·<code>VITE_API_D_CMS</code>·<code>VITE_API_SERVER</code>·<code>VITE_API_V2</code>·<code>VITE_AUTH_MODE</code>·<code>VITE_ALFA_BASE</code>) → 기본 상대경로 순이며, 기본 인증 모드는 <code>mock</code>입니다. 정적 산출물(dist)을 폐쇄망 내부 nginx로 배포하는 것을 전제로 합니다.</p>
     <div class="callout warn">
       <div class="ct">주의</div>
@@ -384,23 +387,23 @@ npm run check:ownership</code></pre>
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>최근 작업은 두 흐름입니다. 하나는 포스터 타이틀 편집기 고도화로, 영역설정 후속 작업(G3a~G5b)에서 N객체 타이틀 모델·오려두기/제거·선택전환·다중선택을 구현하고(<code>titleObjects</code>·<code>regionRaster</code>·<code>sizePositionTool</code> 확장 + 브라우저 테스트 2종 추가) 관련 설계·계획 문서를 함께 정리했습니다. 다른 하나는 Figma 매핑 파이프라인 정식화(figma-mapping-sync 스킬, 디자인팀 공식 파일 체계 반영, 드라이런 결함 보정)와 media-feature-pipeline v2로 이어지는 개발 하네스 고도화입니다.</p>
+    <p>최근 작업(7/10~7/24, 약 120커밋)은 신규 도메인 2종 구현과 공통 정합이 병행된 흐름입니다. <strong>AI 골라보기(watch-pick)</strong>는 설계 문서 5종에서 출발해 리스트(Phase 1) → 우측 상세패널(Phase 2) → 편집화면(Phase 3a~3d — 타임라인·재생 엔진·클립 추가/제외/분할·undo/redo·로컬 스테이징·실 BE 계약 v1.0.2 어댑터 흡수)까지 완성됐고, <strong>AI 하이라이트</strong>는 목록·우측패널·업로드(1차)와 상세/편집 비디오 에디터(2차) 구현 후 Figma 실측 재정합을 거쳤습니다. 공통 축으로는 상태칩 노출 옵션의 공통 소스(<code>domain/statusChip.ts</code>) 전환과 StatusBadge dot/pill 정비(검수완료 Mint 별색), 디자인 토큰 팔레트 세대교체(vm0e→N6Lkk77) 정합, VModal·Badge·Card·VProgressBar 등 공통 컴포넌트 보강이 이뤄졌습니다. 그 밖에 구간마킹 시리즈 목록 팝업·상세 Phase B(프리뷰 구간재생·씬 퀵메뉴), 포스터 타이틀 편집 등록 활성화(투명 PNG)·편집결과 다운로드, 썸네일 작업유형 필터·편집모달 정합, 정책 근거 게이트(<code>check:policy-refs</code>) 신설이 있었습니다.</p>
     <ul class="commits">
-      <li><span class="date">2026-07-10</span><span class="msg">Merge branch 'features/0702_posteredit_jh' into develop</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">[Docs] 포스터 타이틀편집 영역설정 후속 설계·계획 문서 (G3a~G5b)</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">[Feature] 포스터 타이틀편집 영역설정 후속 — N객체 모델·오려두기/제거·선택전환·다중선택(G3a~G5b)</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">[Docs] Figma 매핑 파이프라인 팀 온보딩 proposal — 원인·해결 + 상황별 마이그레이션</span></li>
-      <li><span class="date">2026-07-09</span><span class="msg">[Fix] 드라이런(AI Pick Phase 0.5~2b)에서 발견된 스킬 결함 2건 보정</span></li>
-      <li><span class="date">2026-07-09</span><span class="msg">[Feature] media-feature-pipeline v2 — screen-map/behavior 산출물 연동</span></li>
-      <li><span class="date">2026-07-09</span><span class="msg">[Fix] 컴포넌트 UI(bP3f...) 추적 제외 — 공식 3파일 체계 확정</span></li>
-      <li><span class="date">2026-07-09</span><span class="msg">[Fix] overrides — 2026-07-09 디자인 릴리즈 반영 판정 3건</span></li>
-      <li><span class="date">2026-07-09</span><span class="msg">[Fix] check-versions — 플랜 쿼터 소진(거대 Retry-After) 무한대기 제거</span></li>
-      <li><span class="date">2026-07-09</span><span class="msg">[Fix] Figma 파일 정책 정정 — 디자인팀 공식 4파일 체계 반영</span></li>
-      <li><span class="date">2026-07-09</span><span class="msg">[Fix] figma-mapping 재실행 검증에서 발견된 견고성 결함 2건 보정</span></li>
-      <li><span class="date">2026-07-09</span><span class="msg">[Feature] figma-mapping-sync 스킬 — Figma 덤프→매핑→behavior 동기화 파이프라인 정식화</span></li>
-      <li><span class="date">2026-07-09</span><span class="msg">[Docs] Pretendard proposal 해결 처리 — 팀 합의 완료·develop 반영</span></li>
-      <li><span class="date">2026-07-09</span><span class="msg">[Fix] Pretendard self-host 번들 + 픽셀게이트 폰트로드 대기</span></li>
-      <li><span class="date">2026-07-08</span><span class="msg">Merge branch 'features/0708_subtitle_yw' into develop</span></li>
+      <li><span class="date">2026-07-24</span><span class="msg">[Fix] 검수완료 Mint pill 정합 + proposal 종결(정본 확인·갭① dot+pill 완료)</span></li>
+      <li><span class="date">2026-07-24</span><span class="msg">[Fix] 상태칩 공통소스 — 검수완료 Mint dot + I/T 필터-고아 정합 (proposal 2026-07-24)</span></li>
+      <li><span class="date">2026-07-24</span><span class="msg">[Feature] 공통 Card add 타일 + VProgressBar 신규 — Figma Card 갭 구현</span></li>
+      <li><span class="date">2026-07-24</span><span class="msg">[Fix] 디자인 토큰 — Figma N6Lkk77 팔레트 정합(Sky Blue↔Royal Blue 재정의 + 신규 3계열)</span></li>
+      <li><span class="date">2026-07-22</span><span class="msg">Merge branch 'features/0722_pickwatch_yw' into develop</span></li>
+      <li><span class="date">2026-07-22</span><span class="msg">[Refactor] 상태칩 옵션 공통소스 전환 — 썸네일·구간마킹·대시보드 (proposal 2026-07-13)</span></li>
+      <li><span class="date">2026-07-22</span><span class="msg">[Refactor] AI 골라보기 실 BE 계약(v1.0.2) 반영 — 어댑터 흡수 (Phase 3d-1)</span></li>
+      <li><span class="date">2026-07-21</span><span class="msg">[Feature] AI 골라보기 편집 실행취소/재실행 (Phase 3c-3)</span></li>
+      <li><span class="date">2026-07-21</span><span class="msg">[Feature] AI 하이라이트 2차 — 상세/편집 비디오 에디터(HL-004)</span></li>
+      <li><span class="date">2026-07-21</span><span class="msg">[Feature] AI 하이라이트 1차 — 목록·우측패널·업로드(HL-001/002/003)</span></li>
+      <li><span class="date">2026-07-21</span><span class="msg">[UI] 구간마킹 상태칩 6→7칩 — 검수완료 추가 (GUI·Policy PO-003 정합)</span></li>
+      <li><span class="date">2026-07-20</span><span class="msg">[Feature] AI 골라보기 편집 클립 추가·제외·분할 (Phase 3c-2)</span></li>
+      <li><span class="date">2026-07-15</span><span class="msg">[Feature] AI 골라보기 편집 타임라인·재생 엔진 (Phase 3b) — GUI 픽셀 정합</span></li>
+      <li><span class="date">2026-07-14</span><span class="msg">[Feature] 구간마킹 상세 Phase B — 프리뷰 구간재생·씬 퀵메뉴·헤더 액션 흐름</span></li>
+      <li><span class="date">2026-07-13</span><span class="msg">[Feature] AI 골라보기(watch-pick) 리스트 화면 Phase 1</span></li>
     </ul>
   </section>
 
@@ -422,7 +425,7 @@ npm run check:ownership</code></pre>
 <footer>
   <div class="wrap">
     이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
-    생성일 2026-07-10 · <a href="../index.html">전체 과제 목록으로</a>
+    생성일 2026-07-10 · 최종 갱신 2026-07-24 · <a href="../index.html">전체 과제 목록으로</a>
   </div>
 </footer>
 

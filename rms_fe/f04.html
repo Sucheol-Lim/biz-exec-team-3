@@ -49,10 +49,10 @@
   <section id="desc">
     <h2>기능 개요</h2>
     <p>VoC(Voice of Customer) 영역은 상담원이 자신의 응대 현황과 이력을 한 화면에서 확인하도록 돕습니다. 핵심 화면 <code>agentDevicelist.tsx</code> 상단 My VOC Overview 카드는 일/월 기간을 선택해 <code>VocApiManager.getVOCAgentOverview()</code>(<code>/api/v2/voc/agent/overview</code>)로 응대 요약을 받아, 총 처리 건수·평균 해결 시간·세션당 평균 명령 수를 <code>AgentDevicelistInfoButton</code> 위젯으로, 상위 이슈 유형(topIssueTypes)을 <code>CustomizedBarchart</code>로, 처리 현황(resolutionStatus)을 <code>ActiveDeviceDonutChart</code>로 시각화합니다.</p>
-    <p>하단 My VOC History 카드는 <code>getVOCHistory()</code>(<code>/api/v2/voc/history</code>, <code>agent</code>=로그인 clientId 필수)로 응대 이력 테이블을 채우고, 검색 조건을 이슈 유형으로 바꾸면 <code>getIssueList()</code>로 선택 목록을 불러옵니다. 이력 행을 클릭하면 <code>ConnectIssueReportViewModal</code>로 해당 연결의 이슈 리포트를 조회·수정하고, Initiate VOC Session 버튼으로 <code>InitiatedVOCSessionModal</code>을 열어 단말을 검색해 VoC 세션을 개시합니다. 그 외 VoC 대시보드 영역은 <code>VocApiManager</code>의 <code>voc-overview</code>/<code>voc-connection-status</code> 계열 엔드포인트로 활성 단말 수, 모델/OS 분포, 연결 사유 통계 등을 집계합니다.</p>
+    <p>하단 My VOC History 카드는 <code>getVOCHistory()</code>(<code>/api/v2/voc/history</code>, <code>agent</code>=로그인 clientId 필수)로 응대 이력 테이블을 채웁니다. Overview와 같은 일/월 기간 선택이 <code>from</code>/<code>to</code> 파라미터로 함께 전달되어 이력도 기간으로 필터링되며(일 모드는 <code>YYYYMMDD</code>, 월 모드는 월초~월말로 변환), 기간·모드를 바꾸면 페이지를 0으로 리셋한 뒤 재조회합니다. 검색 조건을 이슈 유형으로 바꾸면 <code>getIssueList()</code>로 선택 목록을 불러옵니다. 이력 행을 클릭하면 <code>ConnectIssueReportViewModal</code>로 해당 연결의 이슈 리포트를 조회·수정하고, Initiate VOC Session 버튼으로 <code>InitiatedVOCSessionModal</code>을 열어 단말을 검색해 VoC 세션을 개시합니다. 세션 개시 시 단말 재연결 대기는 <code>utils/constants.ts</code>의 <code>DEVICE_CONNECTION_TIME_LEFT</code>(30초)·<code>DEVICE_CONNECTION_COUNTDOWN_INTERVAL</code>(1초) 상수 기반 폴링으로 처리됩니다. 그 외 VoC 대시보드 영역은 <code>VocApiManager</code>의 <code>voc-overview</code>/<code>voc-connection-status</code> 계열 엔드포인트로 활성 단말 수, 모델/OS 분포, 연결 사유 통계 등을 집계합니다.</p>
     <div class="callout">
       <div class="ct">agent 파라미터</div>
-      VoC agent 화면에서는 이력 조회(<code>getVOCHistory</code>) 시 상담원(agent)을 필수 파라미터로 추가합니다(소스 주석 명시). 즉 같은 이력 조회 API라도 VoC agent 컨텍스트에서는 "누가 응대했는가"를 함께 식별합니다.
+      VoC agent 화면에서는 이력 조회(<code>getVOCHistory</code>) 시 상담원(agent)을 필수 파라미터로 추가하고(소스 주석 명시), 조회 기간(<code>from</code>/<code>to</code>)도 함께 전달합니다. 즉 같은 이력 조회 API라도 VoC agent 컨텍스트에서는 "누가, 어느 기간에 응대했는가"를 함께 식별합니다.
     </div>
   </section>
 
@@ -71,7 +71,7 @@ sequenceDiagram
     AG-&gt;&gt;ADL: VoC 화면 진입
     ADL-&gt;&gt;VM: getVOCAgentOverview(from, to)
     VM-&gt;&gt;BE: GET /api/v2/voc/agent/overview
-    ADL-&gt;&gt;VM: getVOCHistory(page, size, agent)
+    ADL-&gt;&gt;VM: getVOCHistory(page, size, agent, from, to)
     VM-&gt;&gt;BE: GET /api/v2/voc/history
     BE--&gt;&gt;ADL: 응대 통계·이력
     ADL-&gt;&gt;ADL: InfoButton/Bar/Donut 렌더
@@ -83,7 +83,7 @@ sequenceDiagram
     ADL-&gt;&gt;MOD: InitiatedVOCSessionModal 열기
     MOD-&gt;&gt;BE: 단말 검색 후 세션 개시
       </div>
-      <p class="cap"><strong>흐름.</strong> 화면 진입 시 상담원 응대 요약과 이력(agent 필수)을 조회해 위젯·차트·테이블로 표시하고, 이력 행에서 이슈 리포트를 확인하거나 <code>InitiatedVOCSessionModal</code>로 응대 세션을 시작합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 화면 진입 시 상담원 응대 요약과 이력(agent 필수·기간 from/to 포함)을 조회해 위젯·차트·테이블로 표시하고, 이력 행에서 이슈 리포트를 확인하거나 <code>InitiatedVOCSessionModal</code>로 응대 세션을 시작합니다.</p>
     </div>
   </section>
 
@@ -147,11 +147,13 @@ getVOCAgentOverview: (callback: CallbackFunction, from: string, to: string) =&gt
 },</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>pages/voc/agentDevicelist.tsx</code> — agent 필수 이력 조회와 VoC 세션 모달 트리거</div>
+      <div class="sc"><code>pages/voc/agentDevicelist.tsx</code> — agent·기간(from/to) 이력 조회와 VoC 세션 모달 트리거</div>
 <pre><code>const request = {
   page: page,
   size: rowsPerPage,
   agent: user?.clientId,
+  from: convertDateFormat2(startDate, dateMode === 'date' ? 'YYYYMMDD' : 'YYYYMM01'),
+  to: convertDateFormat2(endDate, dateMode === 'date' ? 'YYYYMMDD' : 'YYYYMM' + getLastDayOfMonth(endDate)),
   ...(searchItem?.id &amp;&amp; searchItem?.searchValue &amp;&amp; { [searchItem.id]: searchItem.searchValue })
 };
 VocApiManager.getVOCHistory((result, data) =&gt; { /* 응대 이력 테이블 */ }, request);

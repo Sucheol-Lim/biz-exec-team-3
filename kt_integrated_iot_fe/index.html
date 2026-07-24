@@ -205,7 +205,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3945988107" target="_blank" rel="noopener">KT IoT 통합 관제 (3945988107)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-07-10 · 4e572011 [KT - 이슈사항] 에어맵 마커 상세 더보기 오류 해결</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-07-24 · c534b354 [Fix] 조회기간 안내 문구가 flex 압박 시 사라지는 문제 수정</div></div>
       <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>kt_iot</code> / 0.0.1 (.env.prod VITE_VERSION)</div></div>
     </div>
   </div>
@@ -249,13 +249,13 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <a class="card" href="f05.html"><div class="t">통계 요약·분석</div><div class="d">Nivo·D3 차트로 측정소별 비교, 이벤트·디바이스 통계, AI산업안전DX 설비 이용률·자원환경, SMART GREEN 생육 디바이스 분석 등을 시각화합니다.</div></a>
       <a class="card" href="f06.html"><div class="t">이력 조회</div><div class="d">이벤트 발생 이력, 디바이스 제어·등록/삭제 이력, 문자 발송 이력 등을 조회하고 Content-Disposition 기반 파일 다운로드를 지원합니다.</div></a>
       <a class="card" href="f07.html"><div class="t">디바이스·서비스대상·구역 관리</div><div class="d">디바이스, 서비스 대상, 구역(Zone)을 목록·상세·등록·수정·삭제하는 관제용 관리 페이지를 제공합니다.</div></a>
-      <a class="card" href="f08.html"><div class="t">SMS 발송 및 알림 설정</div><div class="d">이벤트 대상에 대한 SMS 발송(sms-send)과 알림 설정(sms-alert-settings)을 운영합니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">SMS 발송 및 알림 설정</div><div class="d">이벤트 대상에 대한 SMS 발송(sms-send)과 알림 설정(sms-alert-settings)을 운영합니다. 수신자용 무인증 SMS 수신동의 페이지(sms-consent)도 제공합니다.</div></a>
       <a class="card" href="f09.html"><div class="t">AI 에이전트 대화</div><div class="d">WebSocket의 threadId·isActiveAgent 판별로 에이전트 응답을 분리 수신하며, aiagent 모달에서 스레드·메시지 기반 대화를 제공합니다.</div></a>
       <a class="card" href="f10.html"><div class="t">게시판·자료실·문의</div><div class="d">공지사항(notice), 자료실(resource), 문의(contact-us)를 목록·상세·편집 단위로 제공합니다. 자료실은 파일 확장자 제한 등 보안성 검증이 반영되어 있습니다.</div></a>
       <a class="card" href="f11.html"><div class="t">권한 기반 사이트 전환 제어</div><div class="d">SiteGuard·checkPermission이 권한 레벨에 따라 사이트 간 전환을 판정합니다. 부적합 접근 시 WebSocket 해제·세션 정리 후 로그인으로 이동합니다.</div></a>
       <a class="card" href="f12.html"><div class="t">보안 로그인·마스킹</div><div class="d">RSA(jsrsasign) 암호화와 Google reCAPTCHA v3 토큰 기반 로그인, 개인정보 마스킹/해제, OTP·비밀번호 변경 등 인증 모달을 제공합니다.</div></a>
       <a class="card" href="f13.html"><div class="t">과천 관제센터 특화 화면</div><div class="d">Air Map 하위 과천 진입점에 통신 상태·미수신·센싱 오류·전송 실패 등 측정망 운영 특화 화면을 별도로 제공합니다.</div></a>
-      <a class="card" href="f14.html"><div class="t">테마·레이아웃 커스터마이징</div><div class="d">MUI 테마(palette·typography) 커스터마이징과 사이트별 메뉴 구성, 화면 배경색·로고 설정 등 운영 환경에 맞춘 외형 조정을 지원합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">테마·레이아웃 커스터마이징</div><div class="d">MUI 테마(palette·typography) 커스터마이징과 사이트별 메뉴 구성, 화면 배경색·로고 설정, 위젯 설정 화면(widget-settings, 제조공정DX 전용) 등 운영 환경에 맞춘 외형 조정을 지원합니다.</div></a>
     </div>
   </section>
 
@@ -294,12 +294,12 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
         <thead><tr><th>모듈/파일</th><th>역할</th></tr></thead>
         <tbody>
           <tr><td><code>src/main.tsx</code></td><td>앱 부트스트랩. ReCaptcha → Config → Header → MUI 테마 → QueryClient → WebSocket → HomeMapState → DrawControl → BrowserRouter → AliveScope → ErrorDialog → Routes 순으로 Provider를 구성합니다. <code>Alt + V</code>로 버전/업데이트 일자를 표시합니다.</td></tr>
-          <tr><td><code>src/config.ts</code></td><td>사이트 목록(SITE_LIST), 메뉴(SITE_MENU), 권한(USER_ROLES), 레이아웃/그리드 상수, AI산업안전DX 서비스 타입 등 전역 상수를 정의합니다.</td></tr>
-          <tr><td><code>src/routes/route.tsx</code></td><td>모든 경로가 <code>/:site</code>로 시작. SiteGuard가 URL site 유효성과 권한 기반 전환 가능 여부(hasRole)를 검사하며 페이지는 전부 React.lazy로 스플리팅됩니다.</td></tr>
+          <tr><td><code>src/config.ts</code></td><td>사이트 목록(SITE_LIST), 메뉴(SITE_MENU), 권한(USER_ROLES), 레이아웃/그리드 상수, AI산업안전DX 서비스 타입 등 전역 상수를 정의합니다. AI산업안전DX 메뉴는 서비스 타입 5종(산업대기질·자원순환·산업환경·탄소중립·제조공정) 하위 메뉴로 분화되어 사이트 전환이 가능합니다.</td></tr>
+          <tr><td><code>src/routes/route.tsx</code></td><td>모든 경로가 <code>/:site</code>로 시작. SiteGuard가 URL site 유효성과 권한 기반 전환 가능 여부(hasRole)를 검사하며 페이지는 전부 React.lazy로 스플리팅됩니다. <code>/:site/sms-consent</code>는 SiteGuard·ProtectedRoute를 타지 않는 무인증 공개 라우트로 별도 등록됩니다.</td></tr>
           <tr><td><code>src/routes/ProtectedRoute.tsx</code></td><td>세션의 <code>site.code</code> 유무로 로그인 여부를 판단해 인증 후 화면(MainLayout)을 보호합니다.</td></tr>
           <tr><td><code>src/api/ApiClient.ts</code></td><td>Axios 인스턴스. baseURL은 <code>VITE_API_PATH</code>. 요청 시 accessToken을 Bearer로, realcode를 <code>unitServiceCode</code> 헤더로 주입. 401 시 세션 정리·로그인 리다이렉트, 그 외 에러는 공통 ErrorDialog 처리(<code>BPG-*</code> 업무 검증 에러는 서버 message를 그대로 노출).</td></tr>
           <tr><td><code>src/api/common.ts</code></td><td>로그인/로그아웃, RSA 키, ID/PW 찾기, 사용자 정보, 서비스 대상, WebSocket 구독 등 공통 API. 인증은 <code>bff/monitor/*</code> 경로, 로그인 시 <code>X-RECAPTCHA-TOKEN</code> 전송.</td></tr>
-          <tr><td>도메인 API 모듈</td><td><code>airmap.ts</code>·<code>ami.ts</code>·<code>safemate.ts</code>/<code>apiSafemate.ts</code>·<code>intFireDetector.ts</code>·<code>smartBell.ts</code>·<code>fireFacility.ts</code>·<code>rooftopDoor.ts</code>·<code>gwacheon.ts</code>·<code>smartGreen.ts</code>·<code>aiEnvDx.ts</code>·<code>device.ts</code>·<code>serviceTarget.ts</code>·<code>area.ts</code>·<code>board.ts</code>·<code>aiAgent.ts</code> 등 사이트·기능별로 분리.</td></tr>
+          <tr><td>도메인 API 모듈</td><td><code>airmap.ts</code>·<code>ami.ts</code>·<code>safemate.ts</code>/<code>apiSafemate.ts</code>·<code>intFireDetector.ts</code>·<code>smartBell.ts</code>·<code>fireFacility.ts</code>·<code>rooftopDoor.ts</code>·<code>gwacheon.ts</code>·<code>smartGreen.ts</code>·<code>aiEnvDx.ts</code>·<code>device.ts</code>·<code>serviceTarget.ts</code>·<code>area.ts</code>·<code>board.ts</code>·<code>aiAgent.ts</code>·<code>widgetSetting.ts</code> 등 사이트·기능별로 분리.</td></tr>
           <tr><td><code>src/contexts/WebSocketProvider.tsx</code></td><td>STOMP over WebSocket(brokerURL=<code>VITE_WEBSOCKET_SERVER</code>). 구독 큐 ID 수신·구독, GZIP 판별 후 pako 해제·JSON 파싱, threadId/isActiveAgent로 에이전트 응답·관제 이벤트 라우팅, 재연결·최대 5회 재시도.</td></tr>
           <tr><td>Context 모음</td><td>ConfigContext, HeaderProvider, HomeMapStateContext, DrawControlContext, MapControlContext, MarkerDialogContext, EventOccurrenceMarkersContext, AlarmProvider, ErrorDialogContext.</td></tr>
         </tbody>
@@ -343,7 +343,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
     <ol class="steps">
       <li><span class="st">앱 부트스트랩</span><span class="sd"><code>main.tsx</code>가 #root에 React 19 루트를 마운트하고 ReCaptcha·Config·Header·MUI 테마·QueryClient·WebSocket·HomeMapState·DrawControl·Router·AliveScope·ErrorDialog Provider 트리를 순서대로 구성합니다.</span></li>
       <li><span class="st">사이트 진입 · 가드 검사</span><span class="sd"><code>/:site</code> 경로로 진입하면 SiteGuard가 URL의 site가 SITE_LIST에 있는지, 세션 사이트와 이동 대상 간 전환이 권한 레벨상 허용되는지 검사합니다.</span></li>
-      <li><span class="st">로그인 (RSA + reCAPTCHA)</span><span class="sd">AuthLayout 아래 Login에서 RSA 키로 암호화한 자격증명과 reCAPTCHA v3 토큰(<code>X-RECAPTCHA-TOKEN</code>)을 <code>bff/monitor/token</code>으로 전송하고 accessToken·site 정보를 세션에 저장합니다.</span></li>
+      <li><span class="st">로그인 (RSA + reCAPTCHA + 약관 동의)</span><span class="sd">AuthLayout 아래 Login에서 RSA 키로 암호화한 자격증명과 reCAPTCHA v3 토큰(<code>X-RECAPTCHA-TOKEN</code>)을 <code>bff/monitor/token</code>으로 전송하고 accessToken·site 정보를 세션에 저장합니다. 약관 미동의 계정(<code>stipulationYn=N</code>)은 약관 동의(이용·수집이용·제3자 제공) 팝업과 동의 API 호출을 거쳐 재로그인해야 토큰이 발급됩니다.</span></li>
       <li><span class="st">보호 라우트 진입</span><span class="sd">ProtectedRoute가 세션 <code>site.code</code> 유무로 로그인 여부를 판단해 MainLayout 아래 보호된 화면으로 진입시킵니다. 이후 모든 API 요청은 Bearer 토큰과 <code>unitServiceCode</code> 헤더를 자동 주입합니다.</span></li>
       <li><span class="st">WebSocket 구독</span><span class="sd"><code>commonApi.subscription()</code>으로 큐 ID를 받아 세션에 저장한 뒤 STOMP 채널을 구독해 실시간 관제 이벤트 수신을 시작합니다.</span></li>
     </ol>
@@ -398,23 +398,23 @@ npm run release</code></pre>
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>최근 작업은 KT 이슈사항(Jira CTAASMIG) 대응이 중심입니다. 에어맵 쪽은 마커 상세 팝업 차트·툴팁 개선과 더보기 오류 해결, 측정소별 현황·종합분석 조회 버그 수정, 시연 대응 측정소 검색 기능이 처리되었고, AI산업안전DX 쪽은 설비상태 위젯의 프로퍼티 키·상태값 매핑과 배출 정보·전류 통계 API 파라미터 정비가 이어졌습니다. 그 사이에 로그인 415 응답 처리·아이디 마스킹 등 인증 보완, 오픈소스·보안 검증 취약점 조치(의존성 상향, DOMPurify 도입), GitHub Actions CI(빌드 산출물 Azure Blob 업로드) 구축이 진행되었습니다.</p>
+    <p>최근 한 달여(123 커밋)는 신규 화면 2종과 도메인별 안정화가 중심입니다. SMS 수신동의 공개 페이지(sms-consent — 안내/동의 완료/미동의 3화면, 무인증 라우트)와 제조공정DX 전용 위젯 설정 화면(widget-settings)이 신규 구현되었고, 로그인에 약관 동의 게이팅(미동의 시 약관 팝업 → 동의 API → 재로그인)이 추가되었습니다. 스마트그린은 생육 디바이스 분석 그래프 밴드 고정·수치 상태별 색상·위젯 반응형·조회 상태 보존 등 대량 개선이 있었고, 공기질 등급 색상 체계가 GRADE_CONFIG로 단일화되어 위젯 전반에 적용되었습니다. 그 밖에 과천관제센터 실시간 통신상태 조회 정합성 개선, 에어맵 마커 상세 그래프의 인접 국가관측망 비교 표시, AI산업안전DX 사이트 전환 메뉴 5종 분화, 기간 조회 90일 제한, axios·protobufjs 취약점 대응 버전 상향이 진행되었습니다.</p>
     <ul class="commits">
-      <li><span class="date">2026-07-10</span><span class="msg">[KT - 이슈사항] 에어맵 마커 상세 더보기 오류 해결</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">에어맵 위젯 시연용 크기, 위치 값 변경</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">커스텀 툴팁 레이어 z-index 상향</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">[KT - 이슈사항] 에어맵 마커 상세 팝업 차트 및 툴팁 개선</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">[KT - 이슈사항] 스마트 서치 최근 검색어 목록 업데이트 로직 개선</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">[KT-이슈사항] 설비상태 위젯 교반기 운전방향/전원/도어 상태값 라벨 매핑 수정</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">[KT-이슈사항] 산업환경DX 배출 정보 조회 API 서비스형태별 분리 대응</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">[KT-이슈사항] 산업대기질DX 배출/방지시설 전류 통계 API propertyName 수정</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">[KT-이슈사항] 설비상태 위젯 산업환경 설비 프로퍼티 키/상태값 매핑 수정</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">[KT-이슈사항] CTAASMIG-171 설비가동률분석 조회조건 변경 미반영 수정</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">[KT-이슈사항] 산업대기질 설비상태 온도 조회 키 수정 (temperature -&gt; prevtempt)</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">[KT-이슈사항] 고객문의 등록버튼 관리자 계정 미노출</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">[KT-이슈사항] 에어맵 시연 대응 측정소 검색 기능 구현</span></li>
-      <li><span class="date">2026-07-09</span><span class="msg">[KT-이슈사항] CTAASMIG-178 실외 측정 종합 호출 api 파라미터 수정</span></li>
-      <li><span class="date">2026-07-09</span><span class="msg">[KT-이슈사항] CTAASMIG-146 산업안전DX 마커 상세/설비현황 위젯 디바이스 이미지 조회 오류 수정</span></li>
+      <li><span class="date">2026-07-24</span><span class="msg">[Fix] 조회기간 안내 문구가 flex 압박 시 사라지는 문제 수정</span></li>
+      <li><span class="date">2026-07-24</span><span class="msg">[Feature] 기간 조회 달력 90일 제한 안내 문구 및 선택 제한 추가</span></li>
+      <li><span class="date">2026-07-24</span><span class="msg">[Feature] 스마트그린 수치 상태별 색상 적용 (기상정보/생육 위젯)</span></li>
+      <li><span class="date">2026-07-24</span><span class="msg">약관 동의한 경우만 토큰 발급 가능하도록 수정 (로그인 → 약관 동의 팝업 → 동의 API → 재로그인)</span></li>
+      <li><span class="date">2026-07-23</span><span class="msg">[Feature] 공기질 등급 색상 체계 전면 적용 (GRADE_CONFIG 단일화)</span></li>
+      <li><span class="date">2026-07-23</span><span class="msg">[Feature] AI DX 실외 기상정보/실내외 환경 위젯 수치 등급색 적용</span></li>
+      <li><span class="date">2026-07-22</span><span class="msg">axios, protobufjs 취약점 대응 버전 상향 (Dependabot alerts)</span></li>
+      <li><span class="date">2026-07-21</span><span class="msg">[AIRMAP] 마커 상세 서비스현황 그래프에 인접 국가관측망 비교 표시</span></li>
+      <li><span class="date">2026-07-21</span><span class="msg">[SMARTGREEN] 종합 현황 지도 목록 이동 후 조회 시 이전 골프장으로 되돌아가는 문제 수정</span></li>
+      <li><span class="date">2026-07-20</span><span class="msg">AI산업안전DX 사이트 전환 메뉴 추가 (산업대기질/자원순환/산업환경/탄소중립/제조공정)</span></li>
+      <li><span class="date">2026-07-16</span><span class="msg">[Feature] SMS 수신동의 화면에 sms-consent API 연동</span></li>
+      <li><span class="date">2026-07-15</span><span class="msg">[Feature] 에어맵 종합현황 KPI 카드 클릭 시 수신상태 필터 조회 연동</span></li>
+      <li><span class="date">2026-07-15</span><span class="msg">[과천관제센터] 실시간 통신 상태 현황 상세 조회 API 정합성 수정</span></li>
+      <li><span class="date">2026-07-14</span><span class="msg">[AIDX] 제조공정 위젯 설정 화면 신규 구현</span></li>
+      <li><span class="date">2026-07-07</span><span class="msg">[KT-이슈사항]SMS 수신 동의 페이지 신규 구현(개인정보 수집·이용 안내/동의 완료/미동의 3화면)</span></li>
     </ul>
   </section>
 

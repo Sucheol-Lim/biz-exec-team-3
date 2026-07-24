@@ -205,7 +205,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3771728412" target="_blank" rel="noopener">Confluence — RMS FE (3771728412)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-07-10 · 02700f13 connection command 보내고 성공까지 30초 기다림</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-07-24 · 76c9f59b Merge branch 'master' of https://bitbucket.org/altimedia/rms_fe</div></div>
       <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>mantis-react-ts</code> / package.json 1.2.0, 운영 빌드 2.2.26</div></div>
     </div>
   </div>
@@ -231,7 +231,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
     <h2>개요</h2>
     <p>RMS FrontEnd(<code>rms_fe</code>)는 Altimedia RMS(Remote Management System)의 관리자용 웹 UI입니다. 운영자가 브라우저로 접속해 현장에 배포된 다수의 Android 기반 셋톱박스(STB)/OTT 단말을 원격으로 모니터링하고 제어하는 단일 페이지 애플리케이션(SPA)입니다. 빌드 산출물은 정적 자원으로 패키징되어 <code>/rms-ui</code> 경로 하위에 배포되며, 사내 접속 URL은 <code>https://rms.altimedia.com/rms-ui/index.html</code>입니다.</p>
     <p>대상 사용자는 운영자 PC의 데스크톱 브라우저이며, 관리 대상은 Android STB/OTT 디바이스입니다. 화면은 모니터링 대시보드, VoC(고객 응대), 단말(Device) 관리, 앱(App) 관리, OTA(펌웨어) 관리, 관리자(Administrator) 설정, Master 정책, Workflow, 웹 터미널, AI 챗봇 등 운영자가 단말 생애주기 전반을 다룰 수 있도록 구성되어 있습니다.</p>
-    <p>이 프론트엔드는 단일 코드베이스를 여러 사이트에 공통 배포하는 멀티 타깃 구조입니다. <code>.env.*</code> 파일과 <code>src/utils/env.ts</code>의 <code>REACT_APP_TARGET</code> 값으로 사이트를 구분하며, 확인된 타깃은 <code>KT</code>, <code>OBE</code>, <code>TTG</code>, <code>XLSmart</code>, <code>IBC</code>, <code>GLOBAL</code>(기본값)입니다. 타깃별로 웹 터미널, 고급 메시지, 런처 리셋, WiFi 메뉴 노출, 위치 지도/네트워크 위젯, 챗봇 노출, 단말 식별자 필드(KT는 <code>deviceSiteId</code>, 그 외 <code>deviceId</code>) 등이 분기되며, XLSmart·IBC는 Illegal Devices 위젯과 KPI 위젯 5개(대시보드 cols 20) 레이아웃을 추가로 사용합니다. IBC 타깃에는 이상 감지(anomalyDetect) 모듈 분기가 추가되어 있습니다.</p>
+    <p>이 프론트엔드는 단일 코드베이스를 여러 사이트에 공통 배포하는 멀티 타깃 구조입니다. <code>.env.*</code> 파일과 <code>src/utils/env.ts</code>의 <code>REACT_APP_TARGET</code> 값으로 사이트를 구분하며, 확인된 타깃은 <code>KT</code>, <code>OBE</code>, <code>TTG</code>, <code>XLSmart</code>, <code>IBC</code>, <code>GLOBAL</code>(기본값)입니다. 타깃별로 웹 터미널, 고급 메시지, 런처 리셋, WiFi 메뉴 노출, 위치 지도/네트워크 위젯, 챗봇 노출, 단말 식별자 필드(KT는 <code>deviceSiteId</code>, 그 외 <code>deviceId</code>) 등이 분기되며, XLSmart는 Illegal Devices 위젯과 KPI 위젯 5개(대시보드 cols 20) 레이아웃을 추가로 사용합니다. IBC 타깃에는 이상 감지(anomalyDetect) 모듈·AI 챗봇·웹 터미널 분기가 활성화되어 있습니다.</p>
     <div class="callout">
       <div class="ct">단말 연동 기본 흐름</div>
       운영자가 Management 메뉴의 Excel import로 단말 정보를 서버에 등록한 뒤 단말을 부팅하면, 단말의 RMS Client가 등록 정보를 바탕으로 인증하고 상태/정보를 서버에 올립니다. Screen Share·Terminal 같은 실시간 기능은 단말이 accessToken을 받아 connection 된 상태에서만 동작합니다(Confluence "RMS FE 단말 연동 방법").
@@ -251,10 +251,10 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <a class="card" href="f08.html"><div class="t">관리자 · 역할(Role) 관리</div><div class="d">관리자 계정 등록/상세, 역할(Role) 기반 권한, 알림 설정(AlertSetting, 메일/OTT/Network Offline 알림 편집), 운영 이력(OperationHistory)을 관리합니다. KT 타깃은 LDAP 기반 가입 신청 승인/거절(Pending Approval) 탭을 별도 제공합니다.</div></a>
       <a class="card" href="f09.html"><div class="t">Master 정책 설정</div><div class="d">단말(STB)·앱 디바이스 정책을 등록·수정하는 Master 화면(<code>devicePolicyStb*</code>/<code>devicePolicyApp*</code>)으로 사이트 공통 정책을 정의합니다.</div></a>
       <a class="card" href="f10.html"><div class="t">실시간 원격 제어 · 화면 공유</div><div class="d">WebSocket 시그널 서버와 SSE로 단말 상태/이벤트를 수신하며 Screen Share, 원격 명령, 디바이스 모달 폴링(10초) 등 실시간 제어를 수행합니다.</div></a>
-      <a class="card" href="f11.html"><div class="t">웹 터미널</div><div class="d">@xterm/xterm 기반 웹 터미널(<code>pages/terminal</code>)로 단말에 원격 셸을 연결합니다(wetty 연동). OBE·TTG 타깃에서만 활성화됩니다.</div></a>
-      <a class="card" href="f12.html"><div class="t">AI 챗봇</div><div class="d">사내 패키지 <code>@altimedia/rms-chatbot-ui</code>를 연동한 챗봇 팝업입니다. 디바이스/사용자 정보 요청과 화면 공유·앱 설치·펌웨어 OTA 등으로의 네비게이션을 처리하며 <code>REACT_APP_CHATBOT=Y</code> 사이트에서만 노출됩니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">웹 터미널</div><div class="d">@xterm/xterm 기반 웹 터미널(<code>pages/terminal</code>)로 단말에 원격 셸을 연결합니다(wetty 연동). OBE·TTG·IBC 타깃에서만 활성화됩니다.</div></a>
+      <a class="card" href="f12.html"><div class="t">AI 챗봇</div><div class="d">사내 패키지 <code>@altimedia/rms-chatbot-ui</code>를 연동한 챗봇 팝업입니다. 디바이스/사용자 정보 요청과 화면 공유·앱 설치·펌웨어 OTA 등으로의 네비게이션을 처리하며 IBC 타깃에서만 노출됩니다.</div></a>
       <a class="card" href="f13.html"><div class="t">국제화(i18n)</div><div class="d">i18next/react-i18next로 다국어를 지원합니다. 로케일은 <code>en</code>·<code>fr</code>·<code>tr</code>·<code>du</code>가 포함되어 글로벌 사이트 대응이 가능합니다.</div></a>
-      <a class="card" href="f14.html"><div class="t">사이트별 기능 분기</div><div class="d"><code>REACT_APP_TARGET</code>에 따라 모듈 권한·위젯 권한·정책 주기·식별자 필드를 분기해 KT/OBE/TTG/XLSmart/GLOBAL을 한 코드베이스로 운영합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">사이트별 기능 분기</div><div class="d"><code>REACT_APP_TARGET</code>에 따라 모듈 권한·위젯 권한·정책 주기·식별자 필드를 분기해 KT/OBE/TTG/XLSmart/IBC/GLOBAL을 한 코드베이스로 운영합니다.</div></a>
     </div>
   </section>
 
@@ -308,6 +308,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
           <tr><td>인증·권한</td><td><code>src/contexts</code>, <code>utils/route-guard</code></td><td>JWTContext가 JWT 로그인/세션, PermissionContext+PermissionGuard가 역할(Role) 기반 화면 접근을 통제. 세션 타임아웃은 <code>REACT_APP_RMS_SESSION_TIMEOUT</code>(기본 30).</td></tr>
           <tr><td>사이트 분기</td><td><code>src/utils/env.ts</code></td><td><code>modulePermissions</code>(terminal, advancedMesage, launcherReset, chatbot, enbaleWifi, anomalyDetect), <code>widgetPermissions</code>(deviceLocationMap, deviceBrandModel, networkInterface, disableEditMode, illegalDevices, KPIWidgetCount, widgetCols), <code>adminPermissions</code>(KT 전용 pendingApprovalTab·LDAP 항목 등), <code>stpPolicyPeriodMin</code>, <code>ID_FIELD</code> 등을 타깃별로 분기.</td></tr>
           <tr><td>실시간 통신</td><td>WS / SSE</td><td>WebSocket 시그널 서버(<code>REACT_APP_SIGNAL_BE_WS</code>)와 SSE(<code>useSSEController</code>, <code>REACT_APP_RMS_SSE_TIMEOUT</code>)로 단말 상태·원격 제어 이벤트 수신.</td></tr>
+          <tr><td>이상 감지</td><td><code>src/pages/monitoring/anomalyDetect</code></td><td>IBC 타깃 전용 이상 감지 모듈. 기존 단일 컴포넌트(<code>monitoring/component/anomalyDetect.tsx</code>)에서 전용 디렉토리로 분리되어 Issue List/검색, Top Recurring Issues, 명령 전송·중지 모달, 대상 단말 선택/조회 모달로 구성되고, 대시보드 2depth(DashboardItemDetail)의 이상탐지·Issue History 모달과 연동.</td></tr>
           <tr><td>AI 챗봇</td><td><code>src/chatbot</code>, <code>contexts/ChatContext.tsx</code></td><td>사내 패키지 <code>@altimedia/rms-chatbot-ui</code>를 연동. <code>useChat</code>의 <code>registOnChatbot</code>/<code>sendToFrontend</code>로 챗봇과 요청/응답 전문을 주고받음(Confluence "RMS FE AI Agent").</td></tr>
         </tbody>
       </table>
@@ -340,7 +341,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
           <tr><td>인증</td><td>jsonwebtoken (JWT)</td><td>^9.0.0</td><td>토큰 sessionStorage 보관</td></tr>
           <tr><td>터미널</td><td>@xterm/xterm + addon-fit</td><td>^5.5.0</td><td>웹 터미널(wetty 연동)</td></tr>
           <tr><td>표/그리드/DnD</td><td>react-table / react-grid-layout / react-window / react-dnd</td><td>^7.8.0 / ^1.5.0 / —</td><td>드래그 가능한 대시보드 그리드</td></tr>
-          <tr><td>AI 챗봇</td><td>@altimedia/rms-chatbot-ui</td><td>0.1.35 (사내 tgz)</td><td><code>vendor/</code> 로컬 패키지</td></tr>
+          <tr><td>AI 챗봇</td><td>@altimedia/rms-chatbot-ui</td><td>0.1.42 (사내 tgz)</td><td><code>vendor/</code> 로컬 패키지</td></tr>
           <tr><td>기타</td><td>dayjs, lodash, notistack, framer-motion, loglevel, react-csv</td><td>—</td><td>유틸·스낵바·애니메이션</td></tr>
           <tr><td>코드 품질</td><td>ESLint / Prettier</td><td>^7 / ^2.7.1</td><td>eslint-config-react-app</td></tr>
           <tr><td>배포</td><td>Docker / Kubernetes(Helm) / nginx</td><td>node:20.11.1</td><td><code>infra/helm</code> (nginx·appicon·xlsmart 차트)</td></tr>
@@ -370,7 +371,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
 
     <h3>AI 챗봇을 통한 원격 작업</h3>
     <ol class="steps">
-      <li><span class="st">챗봇 채널 등록</span><span class="sd">ChatPopup이 <code>useChat</code>의 <code>registOnChatbot(receiveMsg)</code>로 챗봇 통신 채널을 등록합니다(챗봇은 <code>REACT_APP_CHATBOT=Y</code> 사이트에서만 노출).</span></li>
+      <li><span class="st">챗봇 채널 등록</span><span class="sd">ChatPopup이 <code>useChat</code>의 <code>registOnChatbot(receiveMsg)</code>로 챗봇 통신 채널을 등록합니다(챗봇은 IBC 타깃에서만 노출).</span></li>
       <li><span class="st">정보/네비게이션 요청</span><span class="sd"><code>sendToFrontend</code>로 ChatRequestType(type=REQ_INFO/REQ_NAV, nav, target)을 전달합니다. nav 값으로 화면 공유·앱 설치·캐시 삭제·네트워크 점검·패킷 캡쳐·펌웨어 OTA·터미널·메시지 등으로 분기합니다.</span></li>
       <li><span class="st">응답 처리</span><span class="sd">FE는 ChatResponseType(result, message, ChatResponseData)로 디바이스 연결 여부·소유 여부·accessToken·사용자/권한 정보를 회신하고, 해당 기능 화면으로 네비게이션합니다.</span></li>
     </ol>
@@ -417,23 +418,24 @@ yarn test                     # react-scripts test (CRA Jest)</code></pre>
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>최근 한 달(약 197커밋)은 XLSmart 상용 대응과 KT UI 검수 반영이 중심입니다. XLSmart용으로 설문(Survey) 등록·상세 화면, 대시보드 지도 필터·Illegal Devices 연계, HDMI Connection Status 위젯, 앱/펌웨어 설치의 restart·pause·stop 상태 제어를 반영하고 AWS 배포 차트(<code>infra/helm/xlsmart</code>, 구 <code>eks/</code> 이전)를 추가해 수차례 릴리즈했습니다. KT는 Role·App Policy·검색·명령 모달 등 GUI 검수 사항을 다듬고 2.2.26을 배포했습니다. 단말 잠금은 Locked Devices 탭·잠금 사유·목록 API로 확장되었고, 챗봇 UI 패키지는 0.1.10에서 0.1.35까지 연속 업데이트되며 REQ_DEVICES 처리 단일화와 REQ_INFO의 sessionScope 필드가 더해졌습니다. IBC 타깃용 이상 감지(anomalyDetect) 컴포넌트가 신설되었고, 대시보드·내비게이션의 불필요한 리렌더링을 줄이는 리팩토링(memo/useCallback)과 Quick Operation 화면 분리도 진행되었습니다.</p>
+    <p>최근 2주(약 81커밋)는 IBC 타깃의 이상 감지(anomalyDetect) 모듈 개편과 AI 기능 고도화, OBE·XLSmart 운영 대응이 중심입니다. 이상 감지는 단일 컴포넌트에서 전용 모듈(<code>pages/monitoring/anomalyDetect</code>)로 분리되어 Issue List/검색, Top Recurring Issues, 명령 전송·중지 모달, 대상 단말 선택/조회 모달이 신설되고 대시보드 2depth에 이상탐지·Issue History 모달이 연동되었습니다. AI Quick Operation 화면과 분석 버튼이 다듬어지고 챗봇 UI 패키지는 0.1.36에서 0.1.42까지 연속 업데이트되었으며, 챗봇 노출·웹 터미널 권한이 <code>REACT_APP_CHATBOT</code> 변수 대신 IBC 타깃 분기로 정리되었습니다. OBE는 standbyReboot(대기모드 재부팅) 설정, Bluetooth 삭제 버튼, HDR 세팅, VoC History 기간 필터를 반영했고, XLSmart는 App Policy를 App Exception List로 개편하고 device policy에 Reboot Automation을 추가했습니다. 그 외 목록 정렬 기본값(등록일 내림차순) 등 CustomTable 정비, 타임아웃/인터벌 상수화, 4개 언어 로케일 갱신, 벨기에/EU 앱 아이콘 25종 추가가 진행되었습니다.</p>
     <ul class="commits">
-      <li><span class="date">2026-07-10</span><span class="msg">connection command 보내고 성공까지 30초 기다림 (02700f13)</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">[XLSmart] add widget icon color 수정 (40f7c986)</span></li>
-      <li><span class="date">2026-07-10</span><span class="msg">챗봇 UI 패키지 0.1.35 으로 업데이트 (a2d0160b)</span></li>
-      <li><span class="date">2026-07-09</span><span class="msg">챗봇 UI 패키지 0.1.34 으로 업데이트 (218b3506)</span></li>
-      <li><span class="date">2026-07-09</span><span class="msg">[Feature] 챗봇 REQ_INFO 응답에 sessionScope 필드 추가 (대시보드 일반 세션 지원) (acf87025)</span></li>
-      <li><span class="date">2026-07-09</span><span class="msg">xl 릴리즈 (9b8398ea)</span></li>
-      <li><span class="date">2026-07-08</span><span class="msg">챗봇 UI 패키지 0.1.33 으로 업데이트 (7dc2c7ed)</span></li>
-      <li><span class="date">2026-07-08</span><span class="msg">refactor(AppControl): 불필요한 리렌더링 방지 (memo, useCallback) (9cc3730b)</span></li>
-      <li><span class="date">2026-07-08</span><span class="msg">fix(NavCollapse): Popper anchor 위치 오류 수정 (e164481c)</span></li>
-      <li><span class="date">2026-07-08</span><span class="msg">refactor(NavCollapse): 불필요한 리렌더링 방지 (memo, useCallback, useMemo) (8a1d5bdb)</span></li>
-      <li><span class="date">2026-07-08</span><span class="msg">refactor(dashboardDetail/Modal): 불필요한 리렌더링 방지 (useCallback) (ee4080c8)</span></li>
-      <li><span class="date">2026-07-08</span><span class="msg">refactor(dashboardRms): 불필요한 리렌더링 방지 (useCallback, useMemo) (6bb67911)</span></li>
-      <li><span class="date">2026-07-08</span><span class="msg">App list 모달에서 펼침 버튼 수정 (4a150c2e)</span></li>
-      <li><span class="date">2026-07-08</span><span class="msg">[XLsmart] 중복된 코드 제거및 재조회기능 추가. (c4ec39f1)</span></li>
-      <li><span class="date">2026-07-07</span><span class="msg">챗봇 UI 패키지 0.1.32 으로 업데이트 (a9e61811)</span></li>
+      <li><span class="date">2026-07-24</span><span class="msg">AI Quick Operation 분석 버튼 추가 (17e8b619)</span></li>
+      <li><span class="date">2026-07-24</span><span class="msg">[OBE] standbyRebootEnabled 컬럼 반영및 search 처리, 불필요한 파라미터 제거. (ce1892e7)</span></li>
+      <li><span class="date">2026-07-24</span><span class="msg">Device List, Lock Device list 에 registration date 를 내림차순 디폴트로 지정 (95c31195)</span></li>
+      <li><span class="date">2026-07-24</span><span class="msg">대쉬보드 2depth 의 테이블에 디폴트 sort 옵션 추가 (7b7fa4c3)</span></li>
+      <li><span class="date">2026-07-23</span><span class="msg">챗봇 UI 패키지 0.1.42 으로 업데이트 (aa7ba305)</span></li>
+      <li><span class="date">2026-07-23</span><span class="msg">Issue list 디자인 수정 (5f5e17af)</span></li>
+      <li><span class="date">2026-07-22</span><span class="msg">[OBE] standbyReboot api 반영. (bd3c7f7b)</span></li>
+      <li><span class="date">2026-07-22</span><span class="msg">이상탐지 모달에 검색 조건 수정 (6f66572a)</span></li>
+      <li><span class="date">2026-07-21</span><span class="msg">Reboot Automation 기능추가. (14dbce4d)</span></li>
+      <li><span class="date">2026-07-21</span><span class="msg">[OBE] bluetooth delete button 추가 (94d2a9e8)</span></li>
+      <li><span class="date">2026-07-21</span><span class="msg">[OBE] VoC History List 조회 기간(from/to) 필터 추가 (dd59b3cc)</span></li>
+      <li><span class="date">2026-07-20</span><span class="msg">[XLSmart]App Exception 검색 필터 All 옵션 추가 및 다국어 empty 문구 추가 (f4c67bf6)</span></li>
+      <li><span class="date">2026-07-16</span><span class="msg">앱 아이콘 25종 추가 (벨기에/EU 스트리밍 + Android TV 시스템 앱) (2da48407)</span></li>
+      <li><span class="date">2026-07-15</span><span class="msg">[XLSmart]App Policy &gt; App Exception list 로 변경 (edaba4ff)</span></li>
+      <li><span class="date">2026-07-14</span><span class="msg">2depth 에 이상탐지 기능 추가 (b9c2f89a)</span></li>
+      <li><span class="date">2026-07-13</span><span class="msg">refactor: 타임아웃/인터벌 값 상수화 (constants.ts 확장) (b6f67cf8)</span></li>
     </ul>
   </section>
 
@@ -455,8 +457,8 @@ yarn test                     # react-scripts test (CRA Jest)</code></pre>
 
 <footer>
   <div class="wrap">
-    이 문서는 저장소 소스 코드(브랜치 <code>master</code>, 기준 커밋 <code>02700f13</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
-    생성일 2026-06-05 · 갱신일 2026-07-13 · <a href="../index.html">전체 과제 목록으로</a>
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>, 기준 커밋 <code>76c9f59b</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · 갱신일 2026-07-24 · <a href="../index.html">전체 과제 목록으로</a>
   </div>
 </footer>
 

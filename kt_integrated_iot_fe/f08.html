@@ -50,8 +50,8 @@
     <h2>기능 개요</h2>
     <p>SMS 발송 화면(<code>pages/smsSend/index.tsx</code>)은 SMS 수신 대상자를 목록·검색·등록·수정·삭제합니다. 대상자 조회는 <code>safemateApi.smsControl()</code>·<code>smsControlServiceTarget()</code>로, 등록/수정/삭제는 <code>registerSmsUser</code>·<code>updateSmsUser</code>·<code>deleteSmsUser</code>로 처리합니다. 발송 설정은 <code>updateSmsControlSetting</code>으로 사용자별 설정을 저장합니다. 검색은 이름·전화번호 필터를 지원하고, 테이블(<code>SmsSendTable</code>)에서 대상자 행을 선택해 수정 다이얼로그를 엽니다.</p>
     <p>개인정보(전화번호 등)는 기본적으로 마스킹되어 표시되며, 마스킹 해제는 별도 인증 모달(<code>ChangeMask</code>)을 거칩니다. 최근 KT 보안성 검증 반영으로 일부 사이트에서 마스킹 해제 버튼이 미노출 처리되었습니다.</p>
-    <p>알림 설정 화면(<code>pages/smsAlarm/index.tsx</code>)은 세션 <code>site.code</code>로 분기하며, 현재 Air Map(<code>SITE_CODES.AIRMAP</code>)에 대해 공기질 알림 SMS 설정(<code>AirMapAlarm</code>)을 제공합니다. 설정 조회·저장·측정소 목록은 <code>airmapApi</code>의 <code>push/sms/setting</code> 계열 엔드포인트(<code>getSmsSettings</code>·<code>saveSmsSettings</code>·<code>getSmsSettingDevices</code> 등)로 처리합니다. 라우팅상 발송은 <code>/:site/sms-send</code>, 알림 설정은 <code>/:site/sms-alert-settings</code>로 진입합니다.</p>
-    <p>최근 KT 이슈 대응으로 알림 설정 저장 시 기준 측정소 <code>deviceId</code>를 함께 전송하고, 측정소 목록 조회에 서버 페이지네이션(<code>page</code>·<code>size</code>)이 적용되었습니다. 사용초과비율 사용 시 기준 측정소를 선택하지 않고 저장하면 "측정소를 선택해주세요." 안내 팝업(<code>StationSelectAlertPopup</code>)이 표시됩니다.</p>
+    <p>알림 설정 화면(<code>pages/smsAlarm/index.tsx</code>)은 세션 <code>site.code</code>로 분기하며, 현재 Air Map(<code>SITE_CODES.AIRMAP</code>)에 대해 공기질 알림 SMS 설정(<code>AirMapAlarm</code>)을 제공합니다. 설정 조회·저장·초기화와 측정소·수신자 목록은 <code>airmapApi</code>의 <code>push/sms/setting</code> 계열 엔드포인트(<code>getSmsSettingDetail</code>·<code>saveSmsSettings</code>·<code>resetSmsSetting</code>·<code>getSmsSettingDevices</code>·<code>getSmsReceivers</code>·<code>saveSmsReceiver</code> 등)로 처리합니다. 라우팅상 발송은 <code>/:site/sms-send</code>, 알림 설정은 <code>/:site/sms-alert-settings</code>로 진입합니다.</p>
+    <p><code>AirMapAlarm</code>은 공통 SMS 설정을 formik + Yup 폼으로 관리하며 저장 클릭 시점에만 검증합니다. SMS 발송 여부가 OFF면 나머지 필수값 검증을 생략해 OFF 상태 저장을 허용하고, ON일 때는 발송시간(평일/주말)·발신자 번호·발송 시작/종료 시간·재전송 주기·항목별 임계치/템플릿을 검증해 누락 항목을 <code>RequiredFieldAlertPopup</code>에 표시합니다. 저장 시 측정소를 선택하지 않았거나, 기준 측정소 사용 초과 비율 사용 시 기준 측정소가 없으면 <code>StationSelectAlertPopup</code>이 표시됩니다. 설정 초기화는 <code>resetSmsSetting</code> API와 연동됩니다. 하단의 측정소별 알림 수신 설정은 측정소 목록을 서버 페이지네이션(<code>page</code>·<code>size</code>)으로 조회하고, 측정소 선택 시 <code>getSmsReceivers</code>로 수신자 목록을 불러와 수신자(측정소당 최대 10명, 초과 시 <code>MaxReceiverAlertPopup</code>)별 SMS·미세/초미세먼지·온도·습도 수신 여부를 편집한 뒤 <code>saveSmsReceiver</code>로 템플릿 시퀀스와 함께 저장합니다. 서버가 오류 <code>resultCode</code>를 반환하면 <code>ServerMessageAlertPopup</code>으로 서버 메시지를 노출합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       대상자 등록·수정은 다이얼로그(<code>SmsTargetRegisterDialog</code>/<code>SmsTargetModifyDialog</code>)로 분리해, 목록 화면은 조회·검색에 집중하고 입력 검증은 다이얼로그에서 처리합니다.
@@ -69,6 +69,8 @@ sequenceDiagram
     participant API as safemateApi (sms-control)
     participant Dlg as SmsTargetRegister/Modify
     participant Mask as ChangeMask 모달
+    participant Alarm as AirMapAlarm (pages/smsAlarm)
+    participant AApi as airmapApi (push/sms/setting)
 
     Send-&gt;&gt;RQ: useQuery(smsControl 대상자)
     RQ-&gt;&gt;API: GET safemate/sms-control
@@ -83,8 +85,21 @@ sequenceDiagram
     opt 발송 설정
         Send-&gt;&gt;API: updateSmsControlSetting(id, params)
     end
+
+    Alarm-&gt;&gt;AApi: getSmsSettingDetail / getSmsSettingDevices(page,size)
+    AApi--&gt;&gt;Alarm: 공통 설정 + 측정소 목록
+    Alarm-&gt;&gt;Alarm: handleSave() — formik/Yup 검증 (OFF면 검증 생략)
+    alt 측정소·기준 측정소·필수값 누락
+        Alarm-&gt;&gt;Alarm: StationSelect / RequiredField 팝업 표시
+    else 검증 통과
+        Alarm-&gt;&gt;AApi: saveSmsSettings(smsSendStatus Y/N, 임계치·템플릿)
+    end
+    opt 측정소별 수신자 설정
+        Alarm-&gt;&gt;AApi: getSmsReceivers(alarmId)
+        Alarm-&gt;&gt;AApi: saveSmsReceiver(수신자 최대 10명 + 템플릿 시퀀스)
+    end
       </div>
-      <p class="cap"><strong>흐름.</strong> 발송 대상자를 조회·검색하고, 다이얼로그로 등록/수정하며, 마스킹 해제는 인증 모달을 거칩니다. 알림 설정 화면은 사이트별로 별도 분기됩니다.</p>
+      <p class="cap"><strong>흐름.</strong> 발송 대상자를 조회·검색하고, 다이얼로그로 등록/수정하며, 마스킹 해제는 인증 모달을 거칩니다. 알림 설정 화면(<code>AirMapAlarm</code>)은 공통 설정을 formik으로 검증 후 저장하고, 측정소별 수신자 설정을 별도로 저장합니다.</p>
     </div>
   </section>
 
@@ -117,22 +132,41 @@ classDiagram
         +renderSitePage(site.code)
     }
     class AirMapAlarm {
+        -formik SmsAlarmSettings
+        -selectedStation
+        -baseStation
         +handleSave()
-        +executeSave()
+        +executeReset()
+        +handleStationSave()
+        +executeStationSave()
     }
     class airmapApi {
-        +getSmsSettings(params)
+        +getSmsSettingDetail(params)
         +saveSmsSettings(data)
+        +resetSmsSetting(params)
         +getSmsSettingDevices(params)
+        +getSmsReceivers(params)
+        +saveSmsReceiver(data)
+        +deleteSmsReceiver(params)
+        +resetSmsReceivers(params)
+    }
+    class SmsAlarmPopups {
+        +RequiredFieldAlertPopup
+        +SaveConfirmPopup
+        +ResetConfirmPopup
+        +StationSelectAlertPopup
+        +MaxReceiverAlertPopup
+        +ServerMessageAlertPopup
     }
 
     SmsSend ..&gt; safemateApi : 대상자 CRUD
     SmsSend --&gt; SmsTargetDialog : 등록/수정
     SmsSend ..&gt; ChangeMask : 마스킹 해제
     AirMapAlarmPage --&gt; AirMapAlarm : AIRMAP 분기
-    AirMapAlarm ..&gt; airmapApi : 알림 설정 조회·저장
+    AirMapAlarm ..&gt; airmapApi : 알림 설정·수신자 조회/저장/초기화
+    AirMapAlarm ..&gt; SmsAlarmPopups : 확인·안내 팝업
       </div>
-      <p class="cap"><strong>관계.</strong> <code>SmsSend</code>가 <code>safemateApi</code>의 sms-control 엔드포인트로 대상자를 관리하고, 마스킹 해제는 <code>ChangeMask</code>가 담당합니다. 알림 설정은 <code>AirMapAlarmPage</code>가 사이트 분기 후 <code>AirMapAlarm</code>이 <code>airmapApi</code>의 push/sms/setting 엔드포인트로 조회·저장합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>SmsSend</code>가 <code>safemateApi</code>의 sms-control 엔드포인트로 대상자를 관리하고, 마스킹 해제는 <code>ChangeMask</code>가 담당합니다. 알림 설정은 <code>AirMapAlarmPage</code>가 사이트 분기 후 <code>AirMapAlarm</code>이 <code>airmapApi</code>의 push/sms/setting 엔드포인트로 공통 설정과 측정소별 수신자를 조회·저장·초기화하며, 확인/안내 팝업은 <code>SmsAlarmPopups</code> 모음이 담당합니다.</p>
     </div>
   </section>
 
@@ -162,25 +196,54 @@ classDiagram
 // title: `${headerServiceTarget?.serviceTargetName} 공기질 알림 SMS 설정`</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>src/pages/smsAlarm/AirMapAlarm.tsx</code> — 기준 측정소 검증·deviceId 포함 저장</div>
-<pre><code>// 저장 핸들러 (필수값 유효성 검증 후 저장 확인 팝업 표시)
-const handleSave = () =&gt; {
-  // 기준 측정소 사용 초과 비율 사용 시에만 측정소 선택 필요 안내 팝업 표시
-  if (settings.useBaseStationRatio &amp;&amp; !baseStation) {
+      <div class="sc"><code>src/pages/smsAlarm/AirMapAlarm.tsx</code> — 저장 검증(formik/Yup)과 smsSendStatus Y/N 저장</div>
+<pre><code>// 저장 핸들러 — 측정소·기준 측정소 확인 후 formik 필수값 검증
+const handleSave = async () =&gt; {
+  if (!selectedStation) {
     setStationSelectPopupOpen(true);
     return;
   }
-  // ...필수값 검증 후 setSaveConfirmPopupOpen(true)
+  if (settings.smsEnabled &amp;&amp; settings.useBaseStationRatio &amp;&amp; !baseStation) {
+    setStationSelectPopupOpen(true);
+    return;
+  }
+
+  const errors = await formik.validateForm();
+  if (Object.keys(errors).length &gt; 0) {
+    formik.setErrors(errors);
+    setMissingFields(/* SETTINGS_ERROR_PATHS 순서로 Yup 메시지 수집 */);
+    setRequiredFieldPopupOpen(true);
+    return;
+  }
+  setSaveConfirmPopupOpen(true);
 };
 
-// 저장 실행 — 기준 측정소 deviceId 포함
+// formik onSubmit — 저장 실행
 await airmapApi.saveSmsSettings({
   serviceTargetId: headerServiceTarget?.serviceTargetId || '',
-  deviceId: baseStation?.id || '',
-  smsSendStatus: settings.smsEnabled ? 'ON' : 'OFF',
+  deviceId: selectedStation?.id || '',
+  smsSendStatus: values.smsEnabled ? 'Y' : 'N',
   sendDayType,
-  senderPhoneNumber: settings.senderNumber,
-  // ...발송 시간·재전송 주기·임계치·템플릿
+  senderPhoneNumber: values.senderNumber,
+  sendStartTime: values.sendTimeRange.start,
+  sendEndTime: values.sendTimeRange.end,
+  resendIntervalMin: values.resendInterval,
+  usageOverRate: values.usageRatio,
+  // ...pm10/pm25/온도/습도 임계치(LimitRate)·템플릿(Template)
+});</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/smsAlarm/AirMapAlarm.tsx</code> — SMS OFF면 필수값 검증 생략(OFF 상태 저장 허용)</div>
+<pre><code>// 공통 SMS 설정 스키마
+// SMS 발송 여부가 OFF면 나머지 값을 입력할 수 없으므로 필수값 검증도 하지 않는다
+const settingsValidationSchema = Yup.object({
+  smsEnabled: Yup.boolean(),
+  senderNumber: Yup.string().when('smsEnabled', {
+    is: true,
+    then: (schema) =&gt; schema.required('발신자 번호').matches(PHONE_NUMBER_REGEX, '발신자 번호'),
+    otherwise: (schema) =&gt; schema,
+  }),
+  // sendDays·sendTimeRange·resendInterval·usageRatio·messages(임계치/템플릿)도 동일 패턴
 });</code></pre>
     </div>
   </section>
@@ -191,8 +254,8 @@ await airmapApi.saveSmsSettings({
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsSend/index.tsx" target="_blank" rel="noopener">src/pages/smsSend/index.tsx</a><span class="src">SMS 발송 대상자 목록·검색·등록/수정/삭제</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/safemate.ts" target="_blank" rel="noopener">src/api/safemate.ts</a><span class="src">safemate/sms-control 대상자·설정 API</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsAlarm/index.tsx" target="_blank" rel="noopener">src/pages/smsAlarm/index.tsx</a><span class="src">사이트별 공기질 알림 SMS 설정 분기</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsAlarm/AirMapAlarm.tsx" target="_blank" rel="noopener">src/pages/smsAlarm/AirMapAlarm.tsx</a><span class="src">공기질 알림 SMS 설정 본문 — 측정소 페이지네이션·deviceId 저장</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsAlarm/SmsAlarmPopups.tsx" target="_blank" rel="noopener">src/pages/smsAlarm/SmsAlarmPopups.tsx</a><span class="src">저장/초기화 확인·측정소 선택 안내 등 팝업 모음</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsAlarm/AirMapAlarm.tsx" target="_blank" rel="noopener">src/pages/smsAlarm/AirMapAlarm.tsx</a><span class="src">공기질 알림 SMS 설정 본문 — formik/Yup 검증·측정소별 수신자 설정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsAlarm/SmsAlarmPopups.tsx" target="_blank" rel="noopener">src/pages/smsAlarm/SmsAlarmPopups.tsx</a><span class="src">저장/초기화 확인·필수값 누락·측정소 선택·서버 메시지 안내 팝업 모음</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/airmap.ts" target="_blank" rel="noopener">src/api/airmap.ts</a><span class="src">airmap push/sms/setting 조회·저장·측정소 목록 API</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modal/auth/ChangeMask.tsx" target="_blank" rel="noopener">src/modal/auth/ChangeMask.tsx</a><span class="src">개인정보 마스킹 해제 인증 모달</span></li>
     </ul>

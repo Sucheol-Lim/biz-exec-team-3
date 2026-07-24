@@ -50,7 +50,8 @@
     <h2>기능 개요</h2>
     <p>세 게시판 도메인은 동일한 목록/상세/편집 패턴으로 구성됩니다. 공지(<code>/notice</code> → <code>NoticeList/Detail/Edit</code>), 자료실(<code>/resource</code> → <code>ResourceList/Detail/Edit</code>), 문의(<code>/contact-us</code> → <code>ContactUsList/Detail/Edit</code> + <code>Reply</code>)입니다. 데이터는 <code>boardApi</code>의 공통 게시판 엔드포인트(<code>/bff/monitor/boards/*</code>)와 도메인별 엔드포인트(<code>boards/notice</code>, <code>boards/resources</code>)를 사용합니다.</p>
     <p>첨부 파일은 <code>boardApi.uploadFile()</code>/<code>fileList()</code>/<code>downloadFile()</code>/<code>deleteFile()</code>로 관리합니다. 업로드 UI는 공통 컴포넌트 <code>CustomFile</code>이 담당하는데, <code>accept</code>에 지정된 확장자 목록과 실제 파일 확장자를 대조해 허용되지 않으면 입력을 비우고 선택을 취소합니다. 용량은 <code>limitSize</code>를 초과하면 경고 모달(<code>Alarm</code>)을 띄웁니다.</p>
-    <p>최근 KT 보안성 검증 반영으로 자료실에서 허용하지 않는 확장자 업로드 시 노출되던 alert 문구가 제거되는 등 첨부 처리 정책이 강화되었습니다. 문의(Q&amp;A)는 운영자가 답변(<code>Reply</code>)을 등록하는 흐름을 포함하며, 문의 목록의 등록 버튼은 <code>hasRole()</code> 권한 판정으로 고객(서비스 고객) 계정에서만 노출되고 관제요원 이상 관리자 계정에서는 숨겨집니다.</p>
+    <p>자료실 편집(<code>ResourceEdit</code>)은 SMART GREEN 병해충 도감 성격의 확장 필드(영문명·기주식물·증상·병해충 발생 현황·방제 방법 등)를 다루며, 저장은 <code>smartGreenApi.postResource()</code>/<code>putResource()</code>(<code>/bff/monitor/boards/resources</code>)로 처리합니다. 대표 사진은 base64 인라인 전송이 아니라 <code>commonApi.uploadFiles()</code>로 먼저 업로드한 뒤 반환된 파일 ID를 <code>thumbnailImage</code>로 전달하는 방식이며, 수정 진입 시 확장 필드는 상세 응답의 <code>extendedData</code>(snake_case 컬럼 <code>english_name</code>·<code>host_plant</code> 등)와 매칭해 채웁니다.</p>
+    <p>최근 KT 보안성 검증 반영으로 자료실에서 허용하지 않는 확장자 업로드 시 노출되던 alert 문구가 제거되는 등 첨부 처리 정책이 강화되었습니다. 문의(Q&amp;A)는 운영자가 답변(<code>Reply</code>)을 등록하는 흐름을 포함하며, 문의 목록의 등록 버튼은 <code>hasRole()</code> 권한 판정으로 고객(서비스 고객) 계정에서만 노출되고 관제요원 이상 관리자 계정에서는 숨겨집니다. 문의 목록의 조회 버튼은 선택한 필터·정렬·조회기간을 초기화하지 않고 그대로 조회하도록 개선되었고, 기본 조회기간(최근 1주)도 모듈 로드 시점이 아닌 호출 시점 기준으로 계산(<code>getDefaultDateRange()</code>)하도록 수정되었습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       확장자 검증을 업로드 공통 컴포넌트(<code>CustomFile</code>)에 두어 자료실·문의·기타 첨부가 동일한 보안 정책을 공유합니다. 검증 실패 시 입력 <code>value</code>를 비워 잘못된 파일이 폼에 남지 않게 합니다.
@@ -66,24 +67,26 @@ sequenceDiagram
     participant List as ResourceList / NoticeList
     participant Edit as ResourceEdit
     participant CF as CustomFile
-    participant API as boardApi
+    participant API as boardApi / smartGreenApi
     participant BFF as BFF /bff/monitor/boards
 
     List-&gt;&gt;API: list(params)
     API-&gt;&gt;BFF: GET boards / boards/resources
     BFF--&gt;&gt;List: 게시글 목록
     List-&gt;&gt;Edit: 편집 진입
+    Edit-&gt;&gt;API: getResourceDetail(id) (수정 시 extendedData 매칭)
     Edit-&gt;&gt;CF: 파일 선택
     CF-&gt;&gt;CF: accept 확장자 검사 + limitSize 검사
     alt 허용 안 됨
         CF--&gt;&gt;Edit: 선택 취소(value 비움)
     else 허용
-        Edit-&gt;&gt;API: uploadFile(file) + 본문 저장
-        API-&gt;&gt;BFF: POST boards/resources
+        Edit-&gt;&gt;API: uploadFiles(대표사진·첨부) 후 fileId 획득
+        Edit-&gt;&gt;API: postResource / putResource (thumbnailImage·fileId 포함)
+        API-&gt;&gt;BFF: POST/PUT boards/resources
         BFF--&gt;&gt;Edit: 저장 결과
     end
       </div>
-      <p class="cap"><strong>흐름.</strong> 목록·편집 화면이 게시판 API로 글을 관리하고, 첨부는 <code>CustomFile</code>이 확장자·용량을 먼저 검증한 뒤 업로드합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 목록·편집 화면이 게시판 API로 글을 관리하고, 첨부는 <code>CustomFile</code>이 확장자·용량을 먼저 검증합니다. 대표 사진·첨부는 파일 업로드로 ID를 먼저 받은 뒤 본문 저장 payload(<code>thumbnailImage</code>·<code>fileId</code>)에 실어 보냅니다.</p>
     </div>
   </section>
 
@@ -107,6 +110,11 @@ classDiagram
         +downloadFile(seq)
         +deleteFile(fileId)
     }
+    class smartGreenApi {
+        +getResourceDetail(seq)
+        +postResource(params)
+        +putResource(seq, params)
+    }
     class CustomFile {
         -accept
         -limitSize
@@ -117,10 +125,11 @@ classDiagram
     }
 
     BoardPage ..&gt; boardApi : 게시글/첨부 CRUD
+    BoardPage ..&gt; smartGreenApi : 자료실 저장(thumbnailImage)
     BoardPage o-- CustomFile : 첨부 입력
     CustomFile ..&gt; Alarm : 용량 초과 시
       </div>
-      <p class="cap"><strong>관계.</strong> 게시판 화면이 <code>boardApi</code>로 글·첨부를 관리하고, 첨부 입력은 <code>CustomFile</code>이 확장자/용량을 검증합니다.</p>
+      <p class="cap"><strong>관계.</strong> 게시판 화면이 <code>boardApi</code>로 글·첨부를 관리하고, 자료실 등록·수정은 <code>smartGreenApi</code>(postResource/putResource)를 사용합니다. 첨부 입력은 <code>CustomFile</code>이 확장자/용량을 검증합니다.</p>
     </div>
   </section>
 
@@ -153,6 +162,23 @@ delete: (boardSequence) =&gt; apiClient.delete(`/bff/monitor/boards/${boardSeque
 downloadFile: (fileItemSequence, config) =&gt; apiClient.get(`/bff/monitor/files/download/${fileItemSequence}`, { /* ... */ }),</code></pre>
     </div>
     <div class="snippet">
+      <div class="sc"><code>src/pages/resource/ResourceEdit.tsx</code> — 대표 사진 파일 업로드 → thumbnailImage</div>
+<pre><code>// 사진 업로드
+let imageFileId: string | null = null;
+if (values.imageFile) {
+  const imageUploadResult = await uploadFileMutation.mutateAsync(values.imageFile);
+  imageFileId = imageUploadResult.result?.fileId || null;
+}
+// ...
+if (imageFileId) {
+  payload.thumbnailImage = imageFileId; // 대표 사진 첨부파일 ID
+}
+if (attachmentFileId) {
+  payload.fileId = attachmentFileId;    // 첨부파일 ID
+}
+resourceMutation.mutate(payload);        // regist → postResource / 수정 → putResource</code></pre>
+    </div>
+    <div class="snippet">
       <div class="sc"><code>src/pages/contactUs/ContactUsList.tsx</code> — 등록 버튼 권한 제어</div>
 <pre><code>button={
   // 고객(serviceClient) 레벨에서만 등록 버튼 노출
@@ -173,7 +199,8 @@ downloadFile: (fileItemSequence, config) =&gt; apiClient.get(`/bff/monitor/files
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/board.ts" target="_blank" rel="noopener">src/api/board.ts</a><span class="src">공지/자료실/문의 게시판 · 첨부 업로드·다운로드 API</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/search/CustomFile.tsx" target="_blank" rel="noopener">src/components/search/CustomFile.tsx</a><span class="src">첨부 확장자·용량 검증 공통 컴포넌트</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/ResourceEdit.tsx" target="_blank" rel="noopener">src/pages/resource/ResourceEdit.tsx</a><span class="src">자료실 편집 · CustomFile 적용</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/ResourceEdit.tsx" target="_blank" rel="noopener">src/pages/resource/ResourceEdit.tsx</a><span class="src">자료실 편집 · extendedData 매칭 · thumbnailImage 업로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/smartGreen.ts" target="_blank" rel="noopener">src/api/smartGreen.ts</a><span class="src">자료실 등록/수정 postResource·putResource (thumbnailImage·fileId)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/contactUs/ContactUsList.tsx" target="_blank" rel="noopener">src/pages/contactUs/ContactUsList.tsx</a><span class="src">문의 목록 · hasRole 기반 등록 버튼 노출 제어</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/contactUs/Reply.tsx" target="_blank" rel="noopener">src/pages/contactUs/Reply.tsx</a><span class="src">문의 답변 등록</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">notice / resource / contact-us 라우트</span></li>
