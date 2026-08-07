@@ -20,7 +20,7 @@ assets/                 # 공유 자산
 ## 로컬에서 보기
 
 ```bash
-cd project-docs
+cd project-intro
 python3 -m http.server 8000
 # → http://127.0.0.1:8000/
 ```
