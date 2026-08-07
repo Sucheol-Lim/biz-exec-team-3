@@ -22,11 +22,11 @@
       <span class="badge gray">웹 관제 콘솔 (React SPA)</span>
     </div>
     <h1>지도형 대시보드</h1>
-    <p class="one-liner">KT 자체 지도 SDK(<code>kt-map-sdk-js</code>)로 디바이스·시설물·이벤트 마커를 지도에 표출하고, 마커 다이얼로그·그리기(Draw) 컨트롤·도면 뷰어를 제공하는 메인 관제 화면입니다.</p>
+    <p class="one-liner">KT 자체 지도 SDK(<code>kt-map-sdk-js</code>)로 디바이스·시설물·이벤트 마커를 지도 스타일당 하나로 통합된 소스에 올려 동종/이종 클러스터로 표출하고, 마커 다이얼로그·그리기(Draw) 컨트롤·도면 뷰어를 제공하는 메인 관제 화면입니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
-      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/home/Home.tsx</code> · <code>map/</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/home/Home.tsx</code> · <code>utils/MapUtils.ts</code></div></div>
       <div class="item"><div class="k">기능 맥락</div><div class="v">지도 뷰(viewType 'M') 메인 화면</div></div>
     </div>
   </div>
@@ -50,10 +50,13 @@
     <h2>기능 개요</h2>
     <p><code>Home</code> 화면은 <code>viewType</code>이 <code>'M'</code>(Map)일 때 지도형 대시보드를 렌더링합니다. <code>ktGms.Map</code> 인스턴스를 <code>useRef</code>로 보관하고, <code>VITE_KT_MAP_API_KEY</code>를 Bearer 토큰으로 넘겨 지도를 초기화합니다(<code>maxZoom</code>은 <code>DEFAULT_MAX_ZOOM_LEVEL</code>, <code>geolocateControl</code>은 비활성). 지도 스타일(<code>styledata</code>) 로드 시 라이트 모드면 틴트 레이어를 추가하고 불필요한 POI 레이어를 필터링합니다.</p>
     <p>서비스 대상(<code>headerServiceTarget</code>)이 바뀌면 <code>HomeMapState</code>에 좌표·줌을 저장해 <code>flyTo</code>로 이동시킵니다. 좌표·줌 값은 <code>parseFloatLatData</code>/<code>parseFloatLngData</code>/<code>parseFloatZoomData</code>로 파싱하고, 값이 없거나 잘못되면 공용 상수 <code>DEFAULT_MAP_CENTER</code>로 fallback합니다. 마커 검색(<code>MarkerSearch</code>)으로 받은 <code>markerList</code>는 <code>MarkerStateHandler</code>가 감시하여, 특정 디바이스로 이동(<code>flyTo</code>)하거나 범위에 맞춰(<code>fitBounds</code>) 카메라를 옮기고, 필요 시 마커 다이얼로그(<code>openMarkerDialog</code>)를 띄웁니다. Air Map에서는 지역(시/도·시군구·읍면동) 선택 시 해당 영역의 측정기가 모두 보이도록 <code>fitBounds</code>로 자동 이동하며, 마커 상세 팝업의 시간대별 차트는 응답 <code>date</code> 기준으로 축을 구성하고 데이터 없는 시간은 막대를 표시하지 않습니다. 검색 셀렉트의 기본값은 Air Map·DX·SafeMate에 더해 과천 관제센터(<code>GWACHEON</code>)도 '전체'로 초기화하고, SMART GREEN은 코스 선택 여부와 무관하게 항상 전체로 초기화합니다.</p>
-    <p>지도 위에는 <code>MapControllers</code>(줌 슬라이더·그리기 컨트롤 — GPS 현재 위치 버튼은 임시 미노출), <code>MapToolbar</code>(지도/도면 전환, 커버리지·플래그 토글)가 오버레이됩니다. 플래그 토글 목록(<code>isSpread</code>)은 Air Map에서 기본 펼침 상태로 시작하고, 커버리지 버튼에는 "커버리지" 툴팁이 붙습니다. Air Map 플래그 종류는 실외 측정소·악취 측정소·국가 측정망 3종만 노출하며(실내 측정소·기상 관측망·기상 장치는 비노출 처리), 등급 범례 색상은 <code>airQuality</code>의 <code>GRADE_CONFIG</code> 공용 상수로 통일했습니다. 그리기 기능은 전역 <code>DrawControlContext</code>가 <code>ktGms.control.DrawControl</code> 인스턴스를 보관해 폴리곤·라인 그리기 모드를 제어합니다. 도면 모드에서는 <code>DrawingViewer</code>가 시설 도면 위에 마커를 표시합니다.</p>
+    <p>마커 표출 구조는 <strong>지도 스타일당 소스 1개</strong>로 통합되었습니다. 이전에는 마커 종류·등급별로 소스와 레이어를 나눴는데, 그러면 클러스터링도 그 단위로 갈려 종류가 다른 마커가 한 클러스터로 묶이지 않습니다. 지금은 <code>getMarkerSourceId(mapStyle)</code>이 반환하는 <code>markers-{mapStyle}</code> 소스 하나에 모든 마커를 <code>buildMarkerPoints()</code>로 넣고, 종류·등급은 feature 속성(<code>flagId</code>/<code>flagIndex</code>, <code>levelId</code>/<code>levelIndex</code>)으로 구분합니다. 소스의 <code>clusterProperties</code>가 <code>minFlag</code>/<code>maxFlag</code>/<code>minLevel</code>/<code>maxLevel</code>을 집계하고, <code>isUniformCluster()</code>가 이 값들로 동종(종류·등급이 모두 단일)과 이종(종류나 등급이 다름)을 판별합니다. 클러스터 반경(<code>CLUSTER_RADIUS</code>)은 통합 이후 뭉침이 심해져 50에서 25픽셀로 낮췄고, 개수 표기는 <code>CLUSTER_COUNT_MAX</code>를 넘으면 <code>99+</code>로 줄입니다.</p>
+    <p>통합 소스 위에는 레이어 3종(<code>-point</code> 개별 마커, <code>-uniform</code> 동종 클러스터, <code>-mixed</code> 이종 클러스터)만 붙습니다. <code>icon-image</code>가 data-driven 표현식이라 종류·등급마다 레이어를 만들 필요가 없고, 필터는 전부 표현식 문법으로 통일해야 합니다(레거시 필터와 섞이면 <code>['get', ...]</code>이 속성 키로 해석되며 조용히 깨집니다). 동종 클러스터는 기존 합성 이미지(깃발 + 우상단 뱃지)를, 이종 클러스터는 깃발 없이 최악 등급색 마커 위 가운데에 총 개수를 흰 글자·같은 색 halo로 굵게 표시합니다. 클러스터 툴팁(<code>getOnClusterMouseEnterListener</code>)은 <code>getClusterLeaves</code>로 최대 <code>TOOLTIP_MAX_ITEMS</code>개를 받아 등급 심각도 내림차순 → 종류 → 이름 순으로 정렬하고, 이종 클러스터일 때만 항목 앞에 마커 유형 아이콘을 덧붙입니다. 이때 이종 여부는 leaves 표본이 아니라 클러스터 집계값으로 판정합니다(leaves로 세면 "등급만 다른" 이종을 놓칩니다).</p>
+    <p>지도 위에는 <code>MapControllers</code>(줌 슬라이더·그리기 컨트롤 — GPS 현재 위치 버튼은 임시 미노출), <code>MapToolbar</code>(지도/도면 전환, 커버리지·플래그 토글)가 오버레이됩니다. 줌 슬라이더는 핸들 조작 시 좌측에 현재 줌 레벨을 툴팁으로 노출하고(<code>valueLabelDisplay="auto"</code>), 플래그 토글 목록(<code>isSpread</code>)은 이제 전 사이트에서 기본 펼침으로 시작하며, 커버리지 버튼에는 "커버리지" 툴팁이 붙습니다. 마커 타입 on/off는 더 이상 레이어 <code>visibility</code>로 처리하지 않습니다 — 클러스터 개수와 동종/이종 판별이 소스 레벨에서 계산되므로 레이어만 숨기면 꺼진 종류가 카운트에 남기 때문에, 표시 대상만 모아 <code>updateMarkerSourceData()</code>로 소스 데이터를 다시 넣습니다. Air Map 플래그 종류는 실외 측정소·악취 측정소·국가 측정망 3종만 노출하며, 등급 범례 색상은 <code>airQuality</code>의 <code>GRADE_CONFIG</code> 공용 상수로 통일했습니다. 그리기 기능은 전역 <code>DrawControlContext</code>가 <code>ktGms.control.DrawControl</code> 인스턴스를 보관해 폴리곤·라인 그리기 모드를 제어하고, 도면 모드에서는 <code>DrawingViewer</code>가 시설 도면 위에 마커를 표시합니다.</p>
+    <p>마커 검색(<code>MarkerSearch</code>)의 조회 함수는 자동 갱신용 <code>createAutoRefreshQueryOptions</code> 팩토리로 재작성되어, 화면 조회(foreground)와 5분 주기 배경 갱신(background)이 같은 <code>fetchMarkerList</code>를 공유합니다. background에서는 <code>requestMode: 'background'</code>·<code>skipError</code>·타임아웃을 붙이고, Air Map 등급 병합(<code>postDeviceLatestData</code>)이 실패하면 등급 없는 마커로 기존 캐시를 덮어쓰지 않도록 그대로 reject합니다. 지역·구역 셀렉트 변경 시에는 <code>postponeAutoRefresh()</code>로 진행 중인 유휴 타이머를 미룹니다. 과천 관제센터는 시/도 미선택(전체) 상태에서도 <code>areaId</code>를 생략해 전체 마커를 조회하도록 가드를 걷어냈습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
-      한전 AMI(<code>SITE_CODES.AMI</code>)는 지도 표출 대상이 아니어서 지도 DOM과 마커 검색을 렌더링하지 않고 카드형 화면으로만 동작합니다.
+      한전 AMI(<code>SITE_CODES.AMI</code>)는 지도 표출 대상이 아니어서 지도 DOM과 마커 검색을 렌더링하지 않고 카드형 화면으로만 동작합니다. 한편 등급 심각도 인덱스는 <code>getSiteFlagLevel()</code> 배열 순서를 그대로 쓰므로, 클러스터 대표 등급을 <code>max</code>로 뽑으려면 배열이 반드시 심각도 오름차순이어야 합니다.
     </div>
   </section>
 
@@ -66,7 +69,9 @@ sequenceDiagram
     participant Home as Home (pages/home)
     participant SDK as ktGms.Map (kt-map-sdk-js)
     participant Search as MarkerSearch
-    participant MSH as MarkerStateHandler
+    participant MU as MapUtils
+    participant Src as GeoJSONSource markers-style
+    participant Bar as MapToolbar
     participant MC as useMapControl
     participant Dlg as MarkerDialogList
 
@@ -75,17 +80,26 @@ sequenceDiagram
     SDK--&gt;&gt;Home: on('styledata') → addTintLayer / filterPoiLayers
     Home-&gt;&gt;Search: serviceTargetId 전달
     Search--&gt;&gt;Home: setMarkerList(markers)
-    opt AIRMAP 지역 선택 (시/도·시군구·읍면동)
-        Search-&gt;&gt;Home: onFlyToLocation / onFlyToBounds → HomeMapState 갱신
+    Home-&gt;&gt;MU: loadSources / loadLayers (flagData, site, mapStyle)
+    MU-&gt;&gt;Src: buildMarkerPoints + clusterProperties(min/maxFlag, min/maxLevel)
+    MU-&gt;&gt;SDK: addLayer point / uniform / mixed (표현식 필터)
+    opt 마커 타입 on/off
+        Bar-&gt;&gt;MU: updateMarkerSourceData(visibleKeys)
+        MU-&gt;&gt;Src: setData(재계산된 point 배열)
+        Src--&gt;&gt;SDK: 클러스터 개수·동종 이종 재판정
     end
-    Home-&gt;&gt;MSH: markerList + mapState 전달
-    MSH-&gt;&gt;SDK: flyTo / fitBounds (카메라 이동)
+    opt 클러스터 hover
+        SDK-&gt;&gt;MU: mouseenter (uniform 또는 mixed 레이어)
+        MU-&gt;&gt;Src: getClusterLeaves(clusterId, TOOLTIP_MAX_ITEMS)
+        Src--&gt;&gt;MU: leaves
+        MU--&gt;&gt;SDK: 등급 정렬 목록 InfoWindow (이종이면 유형 아이콘 포함)
+    end
     opt 마커 모달 요청
-        MSH-&gt;&gt;MC: openMarkerDialog(properties, coordinates)
+        MU-&gt;&gt;MC: openMarkerDialog(properties, coordinates)
         MC-&gt;&gt;Dlg: 마커 요약/상세 다이얼로그 표시
     end
       </div>
-      <p class="cap"><strong>흐름.</strong> 지도 초기화 후 마커 검색 결과가 <code>MarkerStateHandler</code>로 전달되어 카메라를 이동시키고, 선택된 마커는 다이얼로그로 상세를 표시합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 지도 초기화 후 마커가 통합 소스 하나에 적재되고, 레이어 3종이 클러스터 집계값으로 개별·동종·이종을 나눠 그립니다. 타입 토글은 레이어 가시성이 아니라 소스 데이터 재적재로 반영되며, 클러스터 hover 시 <code>getClusterLeaves</code>로 구성 마커를 툴팁에 나열합니다.</p>
     </div>
   </section>
 
@@ -104,9 +118,33 @@ classDiagram
         +useEffect() void
     }
     class MarkerSearch {
+        +fetchMarkerList(mode, signal)
         +setMarkerList()
         +onFlyToLocation()
         +onFlyToBounds()
+    }
+    class MapUtils {
+        +getMarkerSourceId(mapStyle)
+        +buildMarkerPoints(flagData, site, visibleKeys)
+        +addSource(mapRef, flagData, site, mapStyle)
+        +addLayer(mapRef, flagData, site, mapStyle)
+        +updateMarkerSourceData(mapRef, flagData, site, mapStyle, visibleKeys)
+        +isUniformCluster(props)
+        +getLevelIndex(levelId, site)
+        +getFlagIndex(flagId, flagData)
+        +getTooltipIcon(flagId, levelId)
+    }
+    class MarkerSource {
+        +cluster
+        +clusterRadius CLUSTER_RADIUS
+        +clusterProperties minFlag maxFlag minLevel maxLevel
+        +setData(points)
+        +getClusterLeaves(id, limit, offset, cb)
+    }
+    class MapToolbar {
+        -isSpread
+        -flagVisibility
+        +toggleFlag(key)
     }
     class MapControlProvider {
         +openMarkerDialog()
@@ -130,8 +168,12 @@ classDiagram
     MarkerStateHandler --&gt; KtGmsMap : flyTo / fitBounds
     MarkerStateHandler ..&gt; MapControlProvider : openMarkerDialog
     Home ..&gt; DrawControlContext : 그리기 컨트롤
+    MapControlProvider --&gt; MapUtils : 소스 이미지 레이어 적재
+    MapUtils --&gt; MarkerSource : 생성 및 setData
+    MapToolbar ..&gt; MapUtils : updateMarkerSourceData(visibleKeys)
+    MapUtils ..&gt; MapControlProvider : 클러스터 항목 클릭 시 openMarkerDialog
       </div>
-      <p class="cap"><strong>관계.</strong> <code>Home</code>이 <code>ktGms.Map</code> 인스턴스를 소유하고, 검색·카메라 이동·마커 다이얼로그·그리기 컨트롤이 각각 분리된 컴포넌트/컨텍스트로 협력합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>Home</code>이 <code>ktGms.Map</code> 인스턴스를 소유하고, 마커 소스·레이어·클러스터 처리는 <code>MapUtils</code>가 전담합니다. <code>MapToolbar</code>의 타입 토글도 레이어가 아니라 <code>MapUtils</code>를 거쳐 소스 데이터로 반영됩니다.</p>
     </div>
   </section>
 
@@ -196,6 +238,87 @@ onFlyToBounds?.([
 ]);</code></pre>
     </div>
     <div class="snippet">
+      <div class="sc"><code>src/utils/MapUtils.ts</code> — 지도 스타일당 1개 소스 + 동종/이종 판별용 클러스터 집계</div>
+<pre><code>/** 마커 소스 ID. 종류·등급 구분 없이 지도 스타일당 하나만 만든다. */
+export const getMarkerSourceId = (mapStyle: 'normal' | 'satellite' | 'hybrid') =&gt;
+  `markers-${mapStyle}`;
+
+/** 동종 = 종류·등급이 모두 단일. 종류가 다르거나 등급(색)이 다르면 이종. */
+export const isUniformCluster = (props: any) =&gt;
+  props?.minFlag === props?.maxFlag &amp;&amp; props?.minLevel === props?.maxLevel;
+
+const newSource = new ktGms.source.GeoJSONSource(sourceId, {
+  data: buildMarkerPoints(flagData, site, visibleKeys),
+  cluster: enableCluster,
+  clusterRadius: CLUSTER_RADIUS,   // 통합 후 뭉침이 심해져 50 → 25px
+  clusterMaxZoom: 18,
+  // clusterMinPoints는 지정하지 않는다 — SDK가 this.maxzoom에 잘못 대입하는 버그가 있다.
+  clusterProperties: {
+    minFlag:  ['min', ['get', 'flagIndex']],
+    maxFlag:  ['max', ['get', 'flagIndex']],
+    minLevel: ['min', ['get', 'levelIndex']],
+    maxLevel: ['max', ['get', 'levelIndex']],
+  },
+} as any);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/utils/MapUtils.ts</code> — 통합 소스에 붙는 레이어 3종의 표현식 필터</div>
+<pre><code>// ① 개별 마커 — 클러스터되지 않은 feature
+{ filter: ['!', ['has', 'point_count']] }
+
+// ② 동종 클러스터 — 종류·등급이 모두 단일 (깃발 + 우상단 개수 뱃지)
+{ filter: ['all',
+  ['has', 'point_count'],
+  ['==', ['get', 'minFlag'],  ['get', 'maxFlag']],
+  ['==', ['get', 'minLevel'], ['get', 'maxLevel']],
+]}
+
+// ③ 이종 클러스터 — 종류나 등급이 다름 (최악 등급색 마커 + 가운데 총 개수)
+{ filter: ['all',
+  ['has', 'point_count'],
+  ['any',
+    ['!=', ['get', 'minFlag'],  ['get', 'maxFlag']],
+    ['!=', ['get', 'minLevel'], ['get', 'maxLevel']],
+  ],
+]}
+
+// 99개 초과 시 '99+'로 줄여 뱃지 폭을 넘지 않게 한다
+const clusterCountTextField = [
+  'case', ['&gt;', ['get', 'point_count'], CLUSTER_COUNT_MAX],
+  `${CLUSTER_COUNT_MAX}+`, ['to-string', ['get', 'point_count']],
+];</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/components/map/toolbar/MapToolbar.tsx</code> — 타입 on/off 는 레이어 가시성이 아니라 소스 재적재</div>
+<pre><code>// 레이어 visibility로 끄면 안 된다. 마커 소스가 지도 스타일당 1개로 통합돼 있고
+// 클러스터 개수·동종/이종 판별이 소스 레벨에서 계산되므로, 레이어만 숨기면
+// 꺼진 종류가 카운트에 그대로 남고 동종이어야 할 클러스터가 이종으로 판정된다.
+useEffect(() =&gt; {
+  if (!mapRef.current) return;
+
+  const visibleKeys = Object.keys(flagData).filter((key) =&gt; flagVisibility[key] !== false);
+  updateMarkerSourceData(mapRef, flagData, site, mapStyle, visibleKeys);
+}, [flagVisibility, flagData, mapStyle]);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/utils/MapUtils.ts</code> — 클러스터 툴팁: 집계값으로 이종 판별 후 정렬</div>
+<pre><code>source.getClusterLeaves(clusterId, TOOLTIP_MAX_ITEMS, 0, (leaves: any) =&gt; {
+  // 이종 클러스터에서만 아이콘을 붙인다. 동종은 마커 아이콘과 중복이라 이름만 표시한다.
+  // 판별은 클러스터 집계값으로 한다 — leaves는 종류만 알 수 있어 "등급만 다른"
+  // 이종을 놓치고, TOOLTIP_MAX_ITEMS개만 가져와 표본이 한쪽에 몰릴 수 있다.
+  const isMixed = !isUniformCluster(features[0].properties);
+
+  // getClusterLeaves는 순서를 보장하지 않는다. 등급 심각도 ↓ → 종류 → 이름 순 정렬
+  const sorted = [...leaves].sort((a: any, b: any) =&gt; {
+    const p = a.properties ?? {}, q = b.properties ?? {};
+    return (q.levelIndex ?? 0) - (p.levelIndex ?? 0)
+      || (p.flagIndex ?? 0) - (q.flagIndex ?? 0)
+      || String(p.name ?? '').localeCompare(String(q.name ?? ''));
+  });
+  // isMixed 이면 getTooltipIcon(flagId, levelId) 로 항목 앞에 유형 아이콘을 붙인다
+});</code></pre>
+    </div>
+    <div class="snippet">
       <div class="sc"><code>src/utils/MapUtils.ts</code> — Air Map 등급 범례 색상을 공용 GRADE_CONFIG로 통일</div>
 <pre><code>import { GRADE_CONFIG } from '@/utils/airQuality';
 
@@ -213,11 +336,14 @@ const AirmapFlagLevel: FlagDataLevel[] = [
     <h2>관련 소스</h2>
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/Home.tsx" target="_blank" rel="noopener">src/pages/home/Home.tsx</a><span class="src">ktGms.Map 초기화 · 마커 카메라 이동 · 오버레이 구성</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/MarkerSearch.tsx" target="_blank" rel="noopener">src/pages/home/MarkerSearch.tsx</a><span class="src">마커 검색 · Air Map 지역 선택 시 fitBounds 자동 이동</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/MarkerSearch.tsx" target="_blank" rel="noopener">src/pages/home/MarkerSearch.tsx</a><span class="src">마커 검색(foreground/background 공유 fetchMarkerList) · Air Map 지역 선택 시 fitBounds 자동 이동 · 과천 전체 조회</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/contexts/DrawControlContext.tsx" target="_blank" rel="noopener">src/contexts/DrawControlContext.tsx</a><span class="src">ktGms.control.DrawControl 보관 · startDraw / drawShape</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/map/toolbar/MapToolbar.tsx" target="_blank" rel="noopener">src/components/map/toolbar/MapToolbar.tsx</a><span class="src">지도/도면 전환 · 커버리지 툴팁 · Air Map 기본 펼침 플래그 토글</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/map/toolbar/MapToolbar.tsx" target="_blank" rel="noopener">src/components/map/toolbar/MapToolbar.tsx</a><span class="src">지도/도면 전환 · 커버리지 토글 · 전 사이트 기본 펼침 · updateMarkerSourceData 기반 타입 on/off</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/map/controller/MapControllers.tsx" target="_blank" rel="noopener">src/components/map/controller/MapControllers.tsx</a><span class="src">줌 슬라이더 · 조작 시 현재 줌 레벨 툴팁(valueLabelDisplay)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/contexts/MapControlContext.tsx" target="_blank" rel="noopener">src/contexts/MapControlContext.tsx</a><span class="src">소스/이미지/레이어 적재 순서 제어 · 클러스터 클릭 시 통합 sourceId 사용</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/markerDialog/MarkerDialogList.tsx" target="_blank" rel="noopener">src/components/markerDialog/MarkerDialogList.tsx</a><span class="src">마커 요약/상세 다이얼로그 렌더</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/MapUtils.ts" target="_blank" rel="noopener">src/utils/MapUtils.ts</a><span class="src">플래그 정의(Air Map 3종 노출) · GRADE_CONFIG 등급 색상 · addTintLayer / filterPoiLayers · 좌표 fallback 유틸</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/markerDialog/airmap/DetailDialogAirmap.tsx" target="_blank" rel="noopener">src/components/markerDialog/airmap/DetailDialogAirmap.tsx</a><span class="src">Air Map 마커 상세 차트 · makeGradeBarColor 로 막대 값별 등급색 · lineColors 지정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/MapUtils.ts" target="_blank" rel="noopener">src/utils/MapUtils.ts</a><span class="src">통합 마커 소스·레이어 3종·클러스터 집계(min/maxFlag·min/maxLevel) · 이종 클러스터 이미지/툴팁 아이콘 · 플래그 정의 · GRADE_CONFIG 등급 색상 · addTintLayer / filterPoiLayers</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

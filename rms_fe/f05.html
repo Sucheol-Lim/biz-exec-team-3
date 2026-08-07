@@ -48,8 +48,12 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>단말 관리(Management)는 RMS 운영의 기반이 되는 영역입니다. <code>managementDevices</code>/<code>devicelist</code>가 <code>DevicesApiManager.getList()</code>(<code>/api/v1/devices</code>)로 단말 목록을 조회하고, <code>deviceDetailInfo</code>/<code>deviceEdit</code>가 <code>getDetail</code>·<code>update</code>(<code>/api/v1/devices/:id/update</code>)로 상세 조회와 편집을 처리합니다. 그룹은 <code>groups</code>/<code>groupEdit</code>가 <code>getGroupList</code>·<code>changeGroup</code>·<code>moveDevices</code> 등으로 단말을 그룹 단위로 묶어 운영하고, 단말 정책은 <code>devicePolicy</code>가 <code>getPolicyList</code>(<code>/api/v1/device-policies</code>)로 STB Policy를 다루며, 정책 목록에 재부팅 자동화(<code>standbyRebootEnabled</code>, Reboot Automation) 컬럼이 추가되고 검색 옵션이 <code>management.searchOption.ts</code>의 <code>getDevicePolicySearchOptionList</code>로 분리되어 임계치·자동 실행과 함께 재부팅 자동화 On/Off 검색을 지원합니다. 단말 관리 탭 컨테이너(<code>managementDevices.tsx</code>)에는 Locked Devices 탭이 추가되어 Device List · Locked Devices · Command History · (OBE/TTG 한정) Advance Search 구성이 되었고, 같은 탭을 다시 클릭하면 <code>refreshKey</code>를 증가시켜 하위 컴포넌트의 <code>key</code>를 바꿔 리마운트하는 방식으로 목록을 새로고침합니다. Locked Devices 탭(<code>lockDevices.tsx</code>)은 <code>getLockedDeviceList</code>가 <code>lockScreenEnable: true</code> 파라미터로 <code>/api/v1/devices</code>를 조회해 화면 잠금된 단말만 보여주고, 선택 단말 일괄 삭제(<code>deleteBulk</code>)와 잠금 단말 Excel 일괄 등록을 지원합니다. Device List와 마찬가지로 잠금 단말 목록도 등록일(<code>createdAt</code>) 내림차순이 기본 정렬로 지정되어 최근 등록 단말부터 표시되고, 단말 연결 대기 카운트다운 값은 <code>utils/constants.ts</code>의 상수(<code>DEVICE_CONNECTION_TIME_LEFT</code>·<code>DEVICE_CONNECTION_COUNTDOWN_INTERVAL</code>)로 정리되었습니다.</p>
-    <p>대량 등록은 Excel import로 이뤄집니다. <code>deviceImportDialog</code>가 <code>downloadExcel('/api/v1/devices/download-upload-template', ...)</code>로 템플릿을 내려주고, 운영자가 작성한 파일을 <code>FormData</code>에 담아 <code>uploadDeviceExcelFileResult</code>로 <code>multipart/form-data</code> 전송합니다. 이렇게 서버에 단말 정보가 등록되면, 단말 부팅 시 RMS Client가 해당 정보로 인증하고 목록/상세에 연동 단말로 나타납니다. 잠금 단말 등록 시에는 같은 다이얼로그가 <code>type="lock"</code>으로 열려 공용 컴포넌트 <code>LockReasonRadioGroup</code>에서 고른 잠금 사유를 <code>lockScreenReason</code>으로 <code>FormData</code>에 함께 첨부합니다. 단말·그룹 일괄 명령 API(<code>commandDevices</code>·<code>commandDevicesAll</code>·<code>commandDeviceGroups</code> 등)의 <code>CommandType</code>에는 잠금 사유(<code>lockScreenReason</code>) 필드가 있어, LOCK 명령 시 명령 모달에서 선택한 사유(Illegal·Unactive·Suspended·IP Range·Model·ETC, XLSmart 타깃은 Illegal 제외)가 함께 전송됩니다. 또한 연결 단말 실시간 제어 명령 <code>controlCommand</code>(<code>/api/v1/device-connections/:id/commands/control</code>)에 <code>DELETE_BLUETOOTH</code> 명령 타입이 추가되어, OBE 단말 상세의 블루투스 삭제 버튼(<code>device/comp/bluetoothBox.tsx</code>)이 삭제할 기기 <code>address</code>를 함께 전송합니다.</p>
+    <p>단말 관리(Management)는 RMS 운영의 기반이 되는 영역입니다. <code>managementDevices</code>/<code>devicelist</code>가 <code>DevicesApiManager.getList()</code>(<code>/api/v1/devices</code>)로 단말 목록을 조회하고, <code>deviceDetailInfo</code>/<code>deviceEdit</code>가 <code>getDetail</code>·<code>update</code>(<code>/api/v1/devices/:id/update</code>)로 상세 조회와 편집을 처리합니다. 그룹은 <code>groups</code>/<code>groupEdit</code>가 <code>getGroupList</code>·<code>changeGroup</code>·<code>moveDevices</code> 등으로 단말을 그룹 단위로 묶어 운영하고, 단말 정책은 <code>devicePolicy</code>가 <code>getPolicyList</code>(<code>/api/v1/device-policies</code>)로 STB Policy를 다루며, 정책 목록에 재부팅 자동화(<code>standbyRebootEnabled</code>, Reboot Automation) 컬럼이 추가되고 검색 옵션이 <code>management.searchOption.ts</code>의 <code>getDevicePolicySearchOptionList</code>로 분리되어 임계치·자동 실행과 함께 재부팅 자동화 On/Off 검색을 지원합니다. 단말 관리 탭 컨테이너(<code>managementDevices.tsx</code>)에는 Locked Devices 탭이 추가되어 Device List · Locked Devices · Command History · (OBE/TTG 한정) Advance Search 구성이 되었고, 같은 탭을 다시 클릭하면 <code>refreshKey</code>를 증가시켜 하위 컴포넌트의 <code>key</code>를 바꿔 리마운트하는 방식으로 목록을 새로고침합니다. Locked Devices 탭(<code>lockDevices.tsx</code>)은 <code>getLockedDeviceList</code>가 <code>lockScreenEnable: true</code> 파라미터로 <code>/api/v1/devices</code>를 조회해 화면 잠금된 단말만 보여주고, 선택 단말 일괄 삭제(<code>deleteBulk</code>)와 잠금 단말 Excel 일괄 등록을 지원합니다. Device List와 마찬가지로 잠금 단말 목록도 등록일(<code>createdAt</code>) 내림차순이 기본 정렬로 지정되어 최근 등록 단말부터 표시됩니다. 단말 행을 클릭했을 때의 재연결 대기 처리는 목록 화면에서 걷어냈습니다. <code>devices.tsx</code>·<code>lockDevices.tsx</code> 모두 <code>DEVICE_CONNECTION</code> 명령을 보낸 뒤 30초 카운트다운과 <code>getDetail</code> 폴링을 돌리던 블록이 삭제되고, 대신 <code>isCommandSent: true</code>를 실은 모달 정보를 <code>useTask().openDeviceDetailModal()</code>(구 <code>openModal</code>)에 넘겨 상세 모달을 먼저 엽니다. 이후 폴링·연결 생성과 "다른 사용자가 연결 중" 안내는 모달 본체(<code>pages/device/detailWrapper.tsx</code>)가 담당하며, 조작 가능 여부도 호출부가 계산하던 <code>isMine</code> 대신 모달이 <code>lastConnectUserId</code>와 로그인 사용자를 비교한 <code>isConnectedByMe</code>로 판정합니다.</p>
+
+    <p>단말 목록의 컬럼 설정도 개편되었습니다. 컬럼 선택 모달(<code>components/ColumnModal.tsx</code>)이 항목을 하드코딩 배열로 들고 있던 방식을 버리고 <code>getDevicesColumns()</code>가 정의한 컬럼 중 <code>isColumnModalItem</code>이 붙은 것만 골라 목록을 만들며, 표시 순서는 현재 적용된 컬럼 순서를 먼저 따르고 미체크 항목을 뒤에 이어 붙입니다. 테이블은 <code>ModalTable</code>에서 react-dnd 기반 <code>SortableModalTable</code>로 교체되어 행을 끌어 순서를 바꿀 수 있고, <code>isDefault</code> 컬럼은 <code>disabled</code>로 내려가 dim 처리되어 해제·이동이 막힙니다. 저장된 컬럼 ID 배열은 <code>devices.tsx</code>의 <code>buildOrderedColumns()</code>가 읽어 체크박스·번호 같은 구조 컬럼을 앞에 두고 나머지를 저장 순서대로 재배열합니다(종전 <code>updateChecked</code>는 체크 여부만 반영했습니다). 컬럼 정의에서는 MAC 주소 컬럼이 등록일 뒤로 자리를 옮겼습니다.</p>
+
+    <p>단말 편집 화면(<code>deviceEdit.tsx</code>)의 그룹 지정 UI도 바뀌었습니다. 전체 그룹을 <code>getGroupListAll</code>로 한 번에 내려받아 긴 체크박스 표를 그리던 방식에서, <code>getGroupList(0, 10000, name)</code>로 검색어 기준 조회를 하고 상단에 검색창·새로고침 버튼을 두는 방식으로 정리되었습니다. 검색 결과가 바뀌어도 선택이 사라지지 않도록 화면에 보이는 <code>selectedRows</code>와 별개로 <code>checkedGroups</code>가 세션 동안의 선택 전체를 유지하며, 선택한 그룹은 <code>components/SelectedChipsDropdown.tsx</code> 칩 드롭다운에 모여 개별 삭제할 수 있습니다. 저장 시 <code>groupIds</code>도 <code>checkedGroups</code>에서 만들어집니다. 아울러 타깃 분기가 훅(<code>hooks/useTarget.ts</code>, 삭제됨)에서 <code>utils/env.ts</code>의 <code>IS_KT</code>/<code>isTarget</code>과 <code>components/TargetGuard.tsx</code>로 일원화되어, KT 전용 SAID 입력이나 TTG 전용 MAC 입력은 <code>&lt;TargetGuard only="KT"&gt;</code> 형태로 감싸 노출을 제어합니다. 그룹 상세 조회(<code>_api/deviceGroupApi.ts</code>의 <code>fetchGroupDetail</code>)는 응답 코드가 <code>200000</code>이 아니면 예외를 던져 실패를 실제 에러로 다루도록 보강되었습니다.</p>
+    <p>대량 등록은 Excel import로 이뤄집니다. <code>deviceImportDialog</code>가 <code>downloadExcel('/api/v1/devices/download-upload-template', ...)</code>로 템플릿을 내려주고, 운영자가 작성한 파일을 <code>FormData</code>에 담아 <code>uploadDeviceExcelFileResult</code>로 <code>multipart/form-data</code> 전송합니다. 이렇게 서버에 단말 정보가 등록되면, 단말 부팅 시 RMS Client가 해당 정보로 인증하고 목록/상세에 연동 단말로 나타납니다. 잠금 단말 등록 시에는 같은 다이얼로그가 <code>type="lock"</code>으로 열려 공용 컴포넌트 <code>LockReasonRadioGroup</code>에서 고른 잠금 사유를 <code>lockScreenReason</code>으로 <code>FormData</code>에 함께 첨부합니다. 단말·그룹 일괄 명령 API(<code>commandDevices</code>·<code>commandDevicesAll</code>·<code>commandDeviceGroups</code> 등)의 <code>CommandType</code>에는 잠금 사유(<code>lockScreenReason</code>) 필드가 있어, LOCK 명령 시 명령 모달에서 선택한 사유(Illegal·Unactive·Suspended·IP Range·Model·ETC, XLSmart 타깃은 Illegal 제외)가 함께 전송됩니다. 메시지 명령 입력(<code>components/MessageInput.tsx</code>)에서는 유튜브 타입(<code>YOUTUBE</code>)을 고르면 메시지 크기·표시 위치·자동 닫힘 항목이 화면에서 감춰지고 <code>CommandModal</code>의 전송 payload에서도 <code>sizeMsg</code>·<code>position</code>·<code>autoClose</code>가 빠지며, 영상(<code>VIDEO</code>) 타입 파일 업로드에는 권장 해상도 안내 문구(<code>addSubDesc</code>)가 덧붙습니다. 또한 연결 단말 실시간 제어 명령 <code>controlCommand</code>(<code>/api/v1/device-connections/:id/commands/control</code>)에 <code>DELETE_BLUETOOTH</code> 명령 타입이 추가되어, OBE 단말 상세의 블루투스 삭제 버튼(<code>device/comp/bluetoothBox.tsx</code>)이 삭제할 기기 <code>address</code>를 함께 전송합니다.</p>
     <div class="callout">
       <div class="ct">사이트별 식별자 필드</div>
       <code>utils/env.ts</code>의 <code>ID_FIELD</code>는 KT 타깃이면 <code>deviceSiteId</code>, 그 외에는 <code>deviceId</code>로 분기됩니다(<code>useRegionalId</code>). 같은 단말 화면도 KT에서는 지역 식별자 기준으로 표시·검색됩니다.
@@ -65,6 +69,7 @@ sequenceDiagram
     participant OP as 운영자 (Browser)
     participant ID as deviceImportDialog.tsx
     participant DL as managementDevices / devicelist
+    participant DE as deviceEdit.tsx
     participant DM as DevicesApiManager (_api/Devices)
     participant BE as RMS BE 서버
     participant STB as 단말 (RMS Client)
@@ -81,11 +86,18 @@ sequenceDiagram
     DL-&gt;&gt;DM: getList(page, size, search)
     DM-&gt;&gt;BE: GET /api/v1/devices
     BE--&gt;&gt;DL: 단말 목록 (연동 단말 포함)
-    OP-&gt;&gt;DL: 단말 편집 저장
-    DL-&gt;&gt;DM: update(data)
+    OP-&gt;&gt;DL: 컬럼 설정 저장 (드래그 정렬)
+    DL-&gt;&gt;DL: buildOrderedColumns(columnsList, ids)
+    OP-&gt;&gt;DE: 단말 편집 진입
+    DE-&gt;&gt;DM: getGroupList(0, 10000, name)
+    DM-&gt;&gt;BE: GET 그룹 목록 (검색어 기준)
+    BE--&gt;&gt;DE: 그룹 목록
+    DE-&gt;&gt;DE: checkedGroups 유지 · SelectedChipsDropdown 표시
+    OP-&gt;&gt;DE: 저장
+    DE-&gt;&gt;DM: update({ ..., groupIds: checkedGroups })
     DM-&gt;&gt;BE: POST /devices/:id/update
       </div>
-      <p class="cap"><strong>흐름.</strong> Excel 템플릿을 받아 작성·업로드하면 <code>FormData</code>로 일괄 등록되고, 단말이 부팅·인증하면 목록에 나타납니다. 상세 편집은 <code>update</code>로 서버에 저장됩니다.</p>
+      <p class="cap"><strong>흐름.</strong> Excel 템플릿을 받아 작성·업로드하면 <code>FormData</code>로 일괄 등록되고, 단말이 부팅·인증하면 목록에 나타납니다. 목록 컬럼은 드래그로 정렬한 순서가 저장되어 <code>buildOrderedColumns()</code>로 복원되고, 편집 화면의 그룹 지정은 검색 기반 조회 + <code>checkedGroups</code> 누적 선택으로 이뤄져 <code>update</code>에 <code>groupIds</code>로 실려 저장됩니다.</p>
     </div>
   </section>
 
@@ -106,7 +118,21 @@ classDiagram
         +deleteDevices()
     }
     class DeviceEdit {
+        -checkedGroups
+        +searchGroupList(query)
+        +onRemoveGroup(id)
         +onSubmit()
+    }
+    class SelectedChipsDropdown {
+        +items
+        +onRemove(id)
+    }
+    class ColumnModal {
+        +changeColumn(ids)
+    }
+    class SortableModalTable {
+        +moveRow(dragIndex, hoverIndex)
+        +onCheck(idx)
     }
     class Groups {
         +getGroupList()
@@ -131,11 +157,14 @@ classDiagram
     ManagementDevices --&gt; DevicesApiManager : 목록 조회
     LockDevices --&gt; DevicesApiManager : 잠금 단말 조회·삭제
     LockDevices --&gt; DeviceImportDialog : type lock 열기
-    DeviceEdit --&gt; DevicesApiManager : 상세 조회·수정
+    DeviceEdit --&gt; DevicesApiManager : 상세 조회·수정·그룹 검색
+    DeviceEdit o-- SelectedChipsDropdown : 선택 그룹 칩 표시·삭제
+    ManagementDevices o-- ColumnModal : 컬럼 설정
+    ColumnModal o-- SortableModalTable : 드래그 정렬 목록
     Groups --&gt; DevicesApiManager : 그룹·이동
     DevicePolicy --&gt; DevicesApiManager : 단말 정책 조회
       </div>
-      <p class="cap"><strong>관계.</strong> Management 하위 화면들이 모두 <code>DevicesApiManager</code> 한 객체를 공유해 단말·잠금 단말·그룹·정책·Excel 업로드를 처리합니다. 도메인은 분리되지만 API 게이트웨이는 하나입니다.</p>
+      <p class="cap"><strong>관계.</strong> Management 하위 화면들이 모두 <code>DevicesApiManager</code> 한 객체를 공유해 단말·잠금 단말·그룹·정책·Excel 업로드를 처리합니다. 도메인은 분리되지만 API 게이트웨이는 하나입니다. 여기에 컬럼 설정(<code>ColumnModal</code>+<code>SortableModalTable</code>)과 그룹 선택(<code>SelectedChipsDropdown</code>)이 화면 전용 UI 컴포넌트로 분리되어 붙습니다.</p>
     </div>
   </section>
 
@@ -179,6 +208,53 @@ controlCommand: (callback, id, commandType, params?) =&gt; {
   request('post', `/api/v1/device-connections/${id}/commands/control`, callback, data);
 }</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>pages/management/devices.tsx</code> · <code>components/ColumnModal.tsx</code> — 저장된 컬럼 순서대로 재배열 (구 updateChecked 대체)</div>
+<pre><code>// ids 순서(컬럼 설정 모달에서 드래그로 정렬한 순서)대로 컬럼을 재배열한다.
+// 체크박스/no 처럼 컬럼 모달에 노출되지 않는 고정 컬럼은 원래 순서를 유지한다.
+const buildOrderedColumns = (columns: DeviceColumn[], ids: string[]): DeviceColumn[] =&gt; {
+  const structuralDefaults = columns.filter((col) =&gt; col.isDefault &amp;&amp; !col.isColumnModalItem);
+  const columnMap = new Map(columns.map((col) =&gt; [col.id, col]));
+  const orderedModalItems = ids
+    .map((id) =&gt; columnMap.get(id))
+    .filter((col): col is DeviceColumn =&gt; Boolean(col))
+    .map((col) =&gt; ({ ...col, checked: true }));
+
+  return [...structuralDefaults, ...orderedModalItems];
+};
+
+// ColumnModal: 하드코딩 배열 대신 컬럼 정의에서 모달 항목을 만들고, 기본 컬럼은 disabled 로 dim 처리
+const modalItems = getDevicesColumns(t, null, null, null).filter((col) =&gt; col.isColumnModalItem);
+const tempList = [...ordered, ...remaining].map((data) =&gt; ({
+  id: data.id, label: data.label,
+  checked: column.some((col) =&gt; col.id === data.id),
+  disabled: data.isDefault
+}));</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>pages/management/deviceEdit.tsx</code> — 검색 기반 그룹 조회 + 검색 결과 밖 선택 유지</div>
+<pre><code>// rows/selectedRows는 검색 결과에 따라 매번 새로 채워지므로, 현재 화면에 보이는 항목의
+// 체크 상태만 반영하고 화면 밖으로 필터링된 항목의 체크 상태는 그대로 유지한다
+useEffect(() =&gt; {
+  setCheckedGroups((prev) =&gt; {
+    const visibleIds = new Set(selectedRows.map((row) =&gt; row.id));
+    const retained = prev.filter((group) =&gt; !visibleIds.has(group.id));
+    const fromVisible = selectedRows.filter((row) =&gt; row.checked);
+    return [...retained, ...fromVisible];
+  });
+}, [selectedRows]);
+
+const searchGroupList = async (query: string) =&gt; {
+  await DevicesApiManager.getGroupList((result, data) =&gt; { /* checked 계산 후 setRows */ }, 0, 10000, name);
+};
+
+&lt;SelectedChipsDropdown
+  items={checkedGroups.map((group) =&gt; ({ id: group.id, label: group.groupId }))}
+  title={t('ms:label.device_groups_selected', { count: checkedGroups.length })}
+  onRemove={onRemoveGroup}
+/&gt;
+// 저장 시: (param as any).groupIds = checkedGroups.map((group) =&gt; group.id);</code></pre>
+    </div>
   </section>
 
   <section id="sources">
@@ -188,7 +264,13 @@ controlCommand: (callback, id, commandType, params?) =&gt; {
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/managementDevices.tsx" target="_blank" rel="noopener">pages/management/managementDevices.tsx</a><span class="src">단말 관리 탭 컨테이너 — Locked Devices 탭 포함, 탭 재클릭 시 refreshKey 기반 key 리마운트 새로고침</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/lockDevices.tsx" target="_blank" rel="noopener">pages/management/lockDevices.tsx</a><span class="src">잠금 단말(Locked Devices) 탭 — getLockedDeviceList 조회·일괄 삭제·잠금 단말 Excel 등록·등록일 내림차순 기본 정렬</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/LockReasonRadioGroup.tsx" target="_blank" rel="noopener">components/LockReasonRadioGroup.tsx</a><span class="src">잠금 사유 라디오 그룹 — 명령 모달·잠금 단말 등록 다이얼로그에서 공용</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/deviceEdit.tsx" target="_blank" rel="noopener">pages/management/deviceEdit.tsx</a><span class="src">단말 편집 — getDetail·update</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/deviceEdit.tsx" target="_blank" rel="noopener">pages/management/deviceEdit.tsx</a><span class="src">단말 편집 — getDetail·update, 그룹 검색 조회(getGroupList)·checkedGroups 누적 선택·TargetGuard 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/SelectedChipsDropdown.tsx" target="_blank" rel="noopener">components/SelectedChipsDropdown.tsx</a><span class="src">선택 그룹 칩 드롭다운 — 선택 개수 표시·개별 제거</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/components/ColumnModal.tsx" target="_blank" rel="noopener">pages/management/components/ColumnModal.tsx</a><span class="src">컬럼 설정 모달 — 컬럼 정의(isColumnModalItem)에서 항목 생성, 기본 컬럼 disabled 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/components/SortableModalTable.tsx" target="_blank" rel="noopener">pages/management/components/SortableModalTable.tsx</a><span class="src">react-dnd 드래그 정렬 모달 테이블 — 고정(disabled) 행은 이동 불가</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/devices.tsx" target="_blank" rel="noopener">pages/management/devices.tsx</a><span class="src">단말 목록 — buildOrderedColumns 컬럼 순서 복원, 행 클릭 시 isCommandSent 위임(30초 폴링 제거)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/components/MessageInput.tsx" target="_blank" rel="noopener">pages/management/components/MessageInput.tsx</a><span class="src">메시지 명령 입력 — YOUTUBE 타입에서 크기·위치·자동 닫힘 숨김, VIDEO 권장 해상도 안내</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/deviceGroupApi.ts" target="_blank" rel="noopener">_api/deviceGroupApi.ts</a><span class="src">fetchGroupDetail — 응답 코드가 200000이 아니면 예외로 처리</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/groups.tsx" target="_blank" rel="noopener">pages/management/groups.tsx</a><span class="src">단말 그룹 관리 — 그룹 목록·이동</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/devicePolicy.tsx" target="_blank" rel="noopener">pages/management/devicePolicy.tsx</a><span class="src">단말 정책(STB Policy) 조회 — standbyRebootEnabled 검색 파라미터 반영</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/management/management.searchOption.ts" target="_blank" rel="noopener">pages/management/management.searchOption.ts</a><span class="src">getDevicePolicySearchOptionList — 단말 정책 검색 옵션 분리(재부팅 자동화 포함)</span></li>

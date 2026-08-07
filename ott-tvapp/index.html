@@ -205,8 +205,8 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/ott-tvapp" target="_blank" rel="noopener"><code>ott-tvapp</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3726868749" target="_blank" rel="noopener">마르시스 (Confluence)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>android14/marusys</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-07-10 · 09c25f88 [fixed] Check in / out 시 Device HTML CEC off 하도록 수정</div></div>
-      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>com.kctvjeju.tvapp</code> / 3.14.55</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-08-03 · 219a5fa6 [fixed] 3.14.56</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>com.kctvjeju.tvapp</code> / 3.14.56</div></div>
     </div>
   </div>
 </header>
@@ -273,7 +273,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
 ├── gradlew / gradlew.bat     # Gradle Wrapper (8.10.2)
 └── app/
     ├── build.gradle          # 앱 모듈 빌드 (flavor/buildType/의존성 정의)
-    ├── version.properties    # MAJOR=3 / MINOR=14 / POINT=55
+    ├── version.properties    # MAJOR=3 / MINOR=14 / POINT=56
     ├── signkey/              # 플랫폼 서명 키 (default_platform.jks)
     ├── libs/                 # 임베드 AAR/JAR (ott 플레이어, mgmt, nativewrapper, ietp)
     └── src/main/
@@ -413,9 +413,9 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
     <h3>환경 설정 · 산출물</h3>
     <ul>
       <li>서버 주소(SDP/UIM/PUSH/RESOLVER/HLS/NMS/INBAND 등)는 <code>app/build.gradle</code>의 <code>buildConfigField</code>로 정의되어 <code>BuildConfig</code>에 주입됩니다.</li>
-      <li>버전은 <code>app/version.properties</code>의 <code>MAJOR.MINOR.POINT</code>(현재 3.14.55)로 산정됩니다.</li>
+      <li>버전은 <code>app/version.properties</code>의 <code>MAJOR.MINOR.POINT</code>(현재 3.14.56)로 산정됩니다.</li>
       <li>3rd Party 앱 허용 목록은 <code>app/src/main/assets/app_packages.properties</code>에 normal/hotel/ott 모드별로 정의됩니다.</li>
-      <li>산출물 APK 기본 파일명은 <code>tvapp-MARUSYS-b0&lt;BUILD_NUMBER&gt;-&lt;version&gt;</code> 형태입니다(<code>BUILD_NUMBER</code> 미설정 시 기본 45, versionCode 기본 1001).</li>
+      <li>산출물 APK 기본 파일명은 <code>tvapp-MARUSYS-b0&lt;BUILD_NUMBER&gt;-&lt;version&gt;</code> 형태입니다(<code>BUILD_NUMBER</code> 미설정 시 기본 46, versionCode 기본 1001).</li>
     </ul>
     <div class="callout warn">
       <div class="ct">참고</div>
@@ -425,8 +425,9 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>최근 작업은 Android 14 / 마르시스 단말 정합 이후의 안정화 단계로, 버전 3.14.55 기준 운영 시나리오 보완이 이어지고 있습니다. 호텔 체크인/체크아웃 시 단말 초기화 과정에 HDMI CEC를 끄는 처리(<code>SDP</code>·<code>Push</code>)가 추가되었고, 키즈 모드 판별 로직(<code>ProfileUtils</code>)이 API 33+ profile 확인·reflection·사용자 제한(restrictions) 검사 등 다단계로 보강되었습니다. 그 밖에 플레이어 라이브러리(AAR) 로그 활성화 갱신, livePlayer 재생성 등 재생 안정성 보강, Google 계정 추가/삭제 시나리오, 호텔 welcome 화면 처리 등이 주를 이룹니다.</p>
+    <p>최근 작업은 Android 14 / 마르시스 단말 정합 이후의 안정화 단계에 있습니다. 2026-08-03 커밋에서 <code>app/version.properties</code>의 <code>POINT</code>가 55에서 56으로, <code>app/build.gradle</code>의 <code>buildnumber</code> 기본값이 45에서 46으로 올라가 릴리스 버전이 <strong>3.14.56</strong>으로 갱신되었습니다. 기능 로직 변경 없이 버전 정보만 반영한 릴리스 커밋입니다. 직전 구간에서는 호텔 체크인/체크아웃 시 단말 초기화 과정에 HDMI CEC를 끄는 처리(<code>SDP</code>·<code>Push</code>)가 추가되었고, 키즈 모드 판별 로직(<code>ProfileUtils</code>)이 API 33+ profile 확인·reflection·사용자 제한(restrictions) 검사 등 다단계로 보강되었습니다. 그 밖에 플레이어 라이브러리(AAR) 로그 활성화 갱신, livePlayer 재생성 등 재생 안정성 보강, Google 계정 추가/삭제 시나리오, 호텔 welcome 화면 처리 등이 주를 이룹니다.</p>
     <ul class="commits">
+      <li><span class="date">2026-08-03</span><span class="msg">[fixed] 3.14.56</span></li>
       <li><span class="date">2026-07-10</span><span class="msg">[fixed] Check in / out 시 Device HTML CEC off 하도록 수정.</span></li>
       <li><span class="date">2026-07-10</span><span class="msg">[fixed] kids 모드 수정.</span></li>
       <li><span class="date">2026-06-09</span><span class="msg">[fixed] code 정리</span></li>
@@ -441,7 +442,6 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <li><span class="date">2026-05-27</span><span class="msg">[fixed] Log 출력 설정시 log 나오록 설정. 호텔 welcome 화면 시 iframe 받도록 수정.</span></li>
       <li><span class="date">2026-05-27</span><span class="msg">[fixed] Log 출력 설정시 log 나오록 설정.</span></li>
       <li><span class="date">2026-05-27</span><span class="msg">[fixed] Player Debug 모드에서도 Log을 활성화 할수 있게 함.</span></li>
-      <li><span class="date">2026-05-13</span><span class="msg">[fixed] code 정리</span></li>
     </ul>
   </section>
 

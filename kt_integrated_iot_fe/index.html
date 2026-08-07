@@ -205,8 +205,8 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3945988107" target="_blank" rel="noopener">KT IoT 통합 관제 (3945988107)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-07-24 · c534b354 [Fix] 조회기간 안내 문구가 flex 압박 시 사라지는 문제 수정</div></div>
-      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>kt_iot</code> / 0.0.1 (.env.prod VITE_VERSION)</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-08-07 · 8ffaf142 Merge branch 'fix/20260807-airmon-marker-list-without-sido' into main</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>kt_iot</code> / 0.0.1 (.env.prd VITE_VERSION)</div></div>
     </div>
   </div>
 </header>
@@ -267,8 +267,8 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
 ├─ vite.config.ts          # Vite 설정 (모드별 빌드, geoanalysis 워커 복사, zip 패킹)
 ├─ tsconfig*.json          # TS 설정 (app/node 분리, @/* → src/* 별칭)
 ├─ eslint.config.js / .prettierrc
-├─ .github/workflows/      # GitHub Actions CI (fe-ci-upload-blob.yml — 빌드 산출물 Blob 업로드)
-├─ .env.local/.dev/.sandbox/.prod  # 환경 변수 (API·WebSocket 주소, 지도·reCAPTCHA 키 등)
+├─ .github/workflows/      # GitHub Actions CI (ci-dev.yml / ci-main.yml — 빌드 산출물 Blob 업로드 + Trivy 스캔)
+├─ .env.local/.dev/.sandbox/.prd  # 환경 변수 (API·WebSocket 주소, 지도·reCAPTCHA 키, 자동 갱신 플래그 등)
 ├─ scripts/clearViteCache.js
 ├─ public/                 # 정적 자원 (kt.svg, 빌드 시 복사되는 assets/worker-*)
 ├─ uml/                    # 서비스별 UML 문서 (airmap, ami, common, dx, gwacheon, safemate, smartgreen)
@@ -281,12 +281,13 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
    ├─ pages/               # 화면 (사이트·기능별 페이지, React.lazy 코드 스플리팅)
    ├─ components/          # 재사용 컴포넌트 (chart, map, table, widget, markerDialog, search ...)
    ├─ modal/               # 모달 (auth, search, aiagent, Alarm, CommonModal, ErrorDialog)
+   ├─ modules/autoRefresh/ # 자동 갱신 모듈 (Boundary·Route·policy·logger·QueryOptions factory)
    ├─ contexts/            # Context Provider (Config, Header, WebSocket, HomeMapState, DrawControl ...)
    ├─ hooks/               # 커스텀 훅 (차트, 검색, 즐겨찾기, 지도 컨트롤, 날짜 등)
    ├─ api/                 # ApiClient(Axios) + 도메인별 호출 모듈
    ├─ themes/              # MUI 테마 커스터마이징 (palette, typography, components)
-   ├─ types/               # 타입 정의 (api.d.ts, config, theme, widget, favorite ...)
-   ├─ utils/               # 유틸 (util, rsa, MapUtils, localStorage, airQuality ...)
+   ├─ types/               # 타입 정의 (api.d.ts, react-query.d.ts, config, theme, widget, favorite ...)
+   ├─ utils/               # 유틸 (util, rsa, MapUtils, localStorage, airQuality, token, smartGreenTargetScope ...)
    └─ assets/              # 이미지·맵 리소스 (메뉴 아이콘 SVG 등)</pre>
     <h3>주요 모듈 · 클래스</h3>
     <div class="table-wrap">
@@ -294,8 +295,10 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
         <thead><tr><th>모듈/파일</th><th>역할</th></tr></thead>
         <tbody>
           <tr><td><code>src/main.tsx</code></td><td>앱 부트스트랩. ReCaptcha → Config → Header → MUI 테마 → QueryClient → WebSocket → HomeMapState → DrawControl → BrowserRouter → AliveScope → ErrorDialog → Routes 순으로 Provider를 구성합니다. <code>Alt + V</code>로 버전/업데이트 일자를 표시합니다.</td></tr>
-          <tr><td><code>src/config.ts</code></td><td>사이트 목록(SITE_LIST), 메뉴(SITE_MENU), 권한(USER_ROLES), 레이아웃/그리드 상수, AI산업안전DX 서비스 타입 등 전역 상수를 정의합니다. AI산업안전DX 메뉴는 서비스 타입 5종(산업대기질·자원순환·산업환경·탄소중립·제조공정) 하위 메뉴로 분화되어 사이트 전환이 가능합니다.</td></tr>
-          <tr><td><code>src/routes/route.tsx</code></td><td>모든 경로가 <code>/:site</code>로 시작. SiteGuard가 URL site 유효성과 권한 기반 전환 가능 여부(hasRole)를 검사하며 페이지는 전부 React.lazy로 스플리팅됩니다. <code>/:site/sms-consent</code>는 SiteGuard·ProtectedRoute를 타지 않는 무인증 공개 라우트로 별도 등록됩니다.</td></tr>
+          <tr><td><code>src/config.ts</code></td><td>사이트 목록(SITE_LIST), 메뉴(SITE_MENU), 권한(USER_ROLES), 레이아웃/그리드 상수, AI산업안전DX 서비스 타입 등 전역 상수를 정의합니다. AI산업안전DX 메뉴는 서비스 타입 5종(산업대기질·자원순환·산업환경·탄소중립·제조공정)에 유형 미지정을 뜻하는 '전체'(<code>AIDX_ALL_SERVICE_TYPE</code>) 항목이 더해진 하위 메뉴로 분화됩니다. 로그인 화면 하단 문의처는 <code>LOGIN_CONTACT_INFO</code>에 사이트 코드별로 정의합니다.</td></tr>
+          <tr><td><code>src/routes/route.tsx</code></td><td>모든 경로가 <code>/:site</code>로 시작. SiteGuard가 URL site 유효성과 권한 기반 전환 가능 여부(hasRole)를 검사하며 페이지는 전부 React.lazy로 스플리팅됩니다. <code>/:site/sms-consent</code>는 SiteGuard·ProtectedRoute를 타지 않는 무인증 공개 라우트로 별도 등록됩니다. Home·Overview 라우트는 <code>AutoRefreshRoute</code>로 감싸 자동 갱신 스코프(<code>home</code>/<code>overview</code>)를 지정합니다. 사이트 URL 세그먼트는 <code>airbiz</code>(Air Map)·<code>factorydx</code>(AI산업안전DX)·<code>airmon</code>(과천 관제센터)로 변경되었습니다.</td></tr>
+          <tr><td><code>src/modules/autoRefresh/</code></td><td>유휴 상태 자동 데이터 갱신 모듈. <code>policy.ts</code>가 활성화 플래그(<code>VITE_AUTO_REFRESH_ENABLED</code>)·주기 5분·요청 타임아웃 30초를 정의하고, <code>AutoRefreshRoute</code>가 <code>{sitePath}:{scope}</code> key로 <code>AutoRefreshBoundary</code>를 재마운트합니다. Boundary는 disposed/paused/hidden/offline/사이트 동기화 여부를 검사해 백그라운드 재조회를 수행하고 commit 가드로 캐시 반영을 판정합니다. <code>createAutoRefreshQueryOptions</code>는 foreground·background가 동일 fetcher를 공유하도록 강제하며, <code>useAutoRefreshActivity</code>는 postpone/pause/resume 제어를 제공합니다.</td></tr>
+          <tr><td><code>src/types/react-query.d.ts</code></td><td>TanStack React Query의 <code>Register.queryMeta</code>를 모듈 확장해 <code>autoRefresh</code> 메타(scope·backgroundFetch)를 타입 수준에서 등록합니다.</td></tr>
           <tr><td><code>src/routes/ProtectedRoute.tsx</code></td><td>세션의 <code>site.code</code> 유무로 로그인 여부를 판단해 인증 후 화면(MainLayout)을 보호합니다.</td></tr>
           <tr><td><code>src/api/ApiClient.ts</code></td><td>Axios 인스턴스. baseURL은 <code>VITE_API_PATH</code>. 요청 시 accessToken을 Bearer로, realcode를 <code>unitServiceCode</code> 헤더로 주입. 401 시 세션 정리·로그인 리다이렉트, 그 외 에러는 공통 ErrorDialog 처리(<code>BPG-*</code> 업무 검증 에러는 서버 message를 그대로 노출).</td></tr>
           <tr><td><code>src/api/common.ts</code></td><td>로그인/로그아웃, RSA 키, ID/PW 찾기, 사용자 정보, 서비스 대상, WebSocket 구독 등 공통 API. 인증은 <code>bff/monitor/*</code> 경로, 로그인 시 <code>X-RECAPTCHA-TOKEN</code> 전송.</td></tr>
@@ -318,9 +321,9 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
           <tr><td>언어</td><td>TypeScript</td><td>~5.8.3</td><td>strict, noUnusedLocals/Parameters, 타깃 ES2022</td></tr>
           <tr><td>UI 프레임워크</td><td>React / React DOM</td><td>^19.1.1</td><td>SPA, React.lazy 코드 스플리팅</td></tr>
           <tr><td>빌드 도구</td><td>Vite</td><td>^7.3.5</td><td>@vitejs/plugin-react, vite-plugin-svgr, vite-plugin-zip-pack, ESM</td></tr>
-          <tr><td>라우팅</td><td>React Router DOM</td><td>^7.15.0</td><td>모든 경로 <code>/:site</code> 세그먼트 시작</td></tr>
+          <tr><td>라우팅</td><td>React Router DOM</td><td>^7.15.0</td><td>모든 경로 <code>/:site</code> 세그먼트 시작. <code>overrides</code>로 <code>react-router</code>는 8.3.0 고정</td></tr>
           <tr><td>상태 관리</td><td>Redux Toolkit</td><td>^2.9.0</td><td>클라이언트 상태</td></tr>
-          <tr><td>데이터 패칭</td><td>TanStack React Query</td><td>^5.90.2</td><td>retry:0, refetchOnWindowFocus:false (+devtools)</td></tr>
+          <tr><td>데이터 패칭</td><td>TanStack React Query</td><td>^5.90.2</td><td>retry:0, refetchOnWindowFocus:false (+devtools). queryMeta를 <code>autoRefresh</code>로 모듈 확장</td></tr>
           <tr><td>상태 보존</td><td>react-activation</td><td>^0.13.4</td><td>KeepAlive(AliveScope) 페이지 전환 보존</td></tr>
           <tr><td>UI 컴포넌트</td><td>MUI / Ant Design / Emotion</td><td>MUI ^7.3.2, antd ^6.0.0</td><td>Pretendard 폰트, MUI 테마 커스터마이징</td></tr>
           <tr><td>차트/시각화</td><td>Nivo / D3</td><td>Nivo ^0.99.0, d3 ^7.9.0</td><td>bar/line/pie 등</td></tr>
@@ -361,6 +364,18 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <li><span class="st">파일 다운로드</span><span class="sd">이력·통계 다운로드 요청은 <code>downloadFileFromResponse</code>가 Content-Disposition 헤더를 해석해 파일로 저장합니다.</span></li>
       <li><span class="st">오류 처리</span><span class="sd">401이면 세션을 비우고 <code>/:site/login</code>으로 리다이렉트하며, 그 외 오류는 공통 ErrorDialog(네트워크 오류 status 999)로 표시합니다.</span></li>
     </ol>
+    <h3>4. 유휴 자동 갱신 (auto-refresh)</h3>
+    <ol class="steps">
+      <li><span class="st">Boundary 마운트</span><span class="sd">Home·Overview 라우트를 감싼 <code>AutoRefreshRoute</code>가 <code>{sitePath}:{scope}</code>를 key로 <code>AutoRefreshBoundary</code>를 마운트합니다. 사이트가 바뀌면 key가 바뀌어 Boundary가 통째로 재마운트되고 새 타이머가 시작됩니다.</span></li>
+      <li><span class="st">타이머 예약</span><span class="sd">기본 5분(<code>AUTO_REFRESH_INTERVAL_MS</code>) 주기로 다음 실행을 예약합니다. 폐기(disposed)·일시정지(paused)·문서 비가시(hidden)·오프라인·세션 사이트 불일치 중 하나라도 해당하면 예약을 건너뜁니다.</span></li>
+      <li><span class="st">사용자 활동 반영</span><span class="sd">조회 조건 변경 등 사용자 활동이 있으면 <code>useAutoRefreshActivity</code>의 <code>postponeAutoRefresh</code>로 다음 실행 시각을 미루고, 위젯 편집모드처럼 갱신이 곤란한 구간은 <code>pauseAutoRefresh</code>/<code>resumeAutoRefresh</code>로 멈췄다 재개합니다.</span></li>
+      <li><span class="st">토큰 갱신 후 백그라운드 조회</span><span class="sd">실행 시점에 세션 스냅샷(userId·accessToken·refreshToken)을 확인해 <code>commonApi.refreshToken</code>으로 토큰을 갱신한 뒤, 활성 Query의 <code>meta.autoRefresh.backgroundFetch</code>를 호출해 화면 로딩 표시 없이 데이터를 다시 가져옵니다.</span></li>
+      <li><span class="st">commit 가드</span><span class="sd">응답 도착 시 폐기·일시정지·pause 세대 불일치·사이트 불일치·Query 인스턴스 교체·비활성 Query·foreground 조회 진행 중·조회 시작 이후 dataUpdateCount 변동을 순서대로 검사해, 하나라도 걸리면 결과를 버리고 캐시를 덮어쓰지 않습니다.</span></li>
+    </ol>
+    <div class="callout">
+      <div class="ct">비활성화 스위치</div>
+      자동 갱신은 <code>VITE_AUTO_REFRESH_ENABLED</code> 환경 변수가 <code>'true'</code>일 때만 동작합니다. 플래그가 꺼져 있거나 Boundary 밖에서 호출돼도 <code>useAutoRefreshActivity</code>는 항상 no-op 기본값을 돌려주므로 호출부는 분기 없이 동일하게 작성합니다.
+    </div>
   </section>
 
   <section id="build">
@@ -388,33 +403,33 @@ npm run clean:vite       # scripts/clearViteCache.js 실행
 
 # release 빌드 (log/live 플래그 조합 4종 순차 생성 → release/*.zip)
 npm run release</code></pre>
-    <p>환경 설정은 <code>.env.local</code>·<code>.env.sandbox</code>(ENV_NAME <code>local</code>) / <code>.env.dev</code>·<code>.env.prod</code>(ENV_NAME <code>testbed</code>) 4종에서 <code>VITE_API_PATH</code>(REST API), <code>VITE_WEBSOCKET_SERVER</code>(STOMP WebSocket), <code>VITE_KT_MAP_API_KEY</code>(지도 SDK 키), <code>VITE_RECAPTCHA_SITE_KEY</code>, <code>VITE_API_SESSION_TIMEOUT</code>, 버전·업데이트 일자 등을 정의합니다. <code>VITE_ENV_NAME === 'local'</code>이면 라우팅에 개발용 가이드 화면(Guide)이 추가됩니다.</p>
-    <p>산출물 형태는 <code>vite.config.ts</code>가 command(serve/build)와 mode에 따라 분기합니다. <code>mode === 'release'</code>일 때 esbuild minify·CSS 단일 번들·vite-plugin-zip-pack으로 <code>release/</code>에 <code>YYYYMMDD_&lt;APP_NAME&gt;_&lt;VERSION&gt;_&lt;NETWORK&gt;_&lt;LOG_LEVEL&gt;_.zip</code> 형태로 패킹합니다. CLI 인자 <code>log</code>/<code>live</code>로 로그 레벨(DEBUG/INFO)과 네트워크 환경(Prod/Stag)을 주입합니다. geoanalysis 워커 파일은 빌드 시 <code>public/assets</code> · <code>dist/assets</code>로 복사됩니다. 2026-06부터는 GitHub Actions CI(<code>.github/workflows/fe-ci-upload-blob.yml</code>)가 Azure Key Vault에서 시크릿을 받아 빌드 후 산출물을 Azure Blob Storage에 업로드합니다.</p>
+    <p>환경 설정은 <code>.env.local</code>·<code>.env.sandbox</code>(ENV_NAME <code>local</code>) / <code>.env.dev</code>(ENV_NAME <code>testbed</code>) / <code>.env.prd</code>(ENV_NAME <code>prd</code>, API <code>https://biz.airmap.kt.com</code>) 4종에서 <code>VITE_API_PATH</code>(REST API), <code>VITE_WEBSOCKET_SERVER</code>(STOMP WebSocket), <code>VITE_KT_MAP_API_KEY</code>(지도 SDK 키), <code>VITE_RECAPTCHA_SITE_KEY</code>, <code>VITE_API_SESSION_TIMEOUT</code>, <code>VITE_AUTO_REFRESH_ENABLED</code>(유휴 자동 갱신 on/off), 버전·업데이트 일자 등을 정의합니다. <code>VITE_ENV_NAME === 'local'</code>이면 라우팅에 개발용 가이드 화면(Guide)이 추가됩니다. 기존 <code>.env.prod</code>는 <code>.env.prd</code>로 이름과 값이 정리되면서 <code>VITE_WEBSOCKET_SERVER</code> 항목이 빠졌습니다.</p>
+    <p>산출물 형태는 <code>vite.config.ts</code>가 command(serve/build)와 mode에 따라 분기합니다. <code>mode === 'release'</code>일 때 esbuild minify·CSS 단일 번들·vite-plugin-zip-pack으로 <code>release/</code>에 <code>YYYYMMDD_&lt;APP_NAME&gt;_&lt;VERSION&gt;_&lt;NETWORK&gt;_&lt;LOG_LEVEL&gt;_.zip</code> 형태로 패킹합니다. CLI 인자 <code>log</code>/<code>live</code>로 로그 레벨(DEBUG/INFO)과 네트워크 환경(Prod/Stag)을 주입합니다. geoanalysis 워커 파일은 빌드 시 <code>public/assets</code> · <code>dist/assets</code>로 복사됩니다. GitHub Actions CI는 브랜치별로 <code>ci-dev.yml</code>(dev push)과 <code>ci-main.yml</code>(main push)로 분리되어 있으며, Azure Key Vault에서 사내 Nexus 자격증명을 받아 <code>npm ci</code> → <code>vite build --mode prd -- log=false live=true</code> 빌드 후 산출물 zip과 Trivy 스캔용 번들을 Azure Blob Storage(컨테이너 <code>prd</code>)에 업로드하고, 후속 <code>trivy</code> 잡에서 취약점 스캔을 수행합니다.</p>
     <div class="callout warn">
       <div class="ct">주의</div>
-      <code>build:prod</code> 스크립트는 <code>node scripts/zip.js</code>를 호출하지만 현재 저장소에는 <code>scripts/zip.js</code>가 없어(존재 파일은 <code>clearViteCache.js</code>뿐) 그대로 실행 시 실패합니다(확인 필요). 또한 <code>package.json</code>의 description·main·homepage 등 일부 메타와 <code>README.md</code>는 Vite React 템플릿 기본값이 남아 있어 실제 프로젝트 내용과 일치하지 않습니다.
+      <code>build:prod</code> 스크립트는 <code>vite build --mode prod</code> 뒤에 <code>node scripts/zip.js</code>를 호출하지만, 현재 저장소에는 <code>scripts/zip.js</code>가 없고(존재 파일은 <code>clearViteCache.js</code>뿐) <code>.env.prod</code>도 <code>.env.prd</code>로 이름이 바뀌어 <code>prod</code> 모드로는 운영 환경 변수가 로드되지 않습니다(확인 필요 — CI는 <code>--mode prd</code>를 사용합니다). 또한 <code>package.json</code>의 description·main·homepage 등 일부 메타와 <code>README.md</code>는 Vite React 템플릿 기본값이 남아 있어 실제 프로젝트 내용과 일치하지 않습니다.
     </div>
   </section>
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>최근 한 달여(123 커밋)는 신규 화면 2종과 도메인별 안정화가 중심입니다. SMS 수신동의 공개 페이지(sms-consent — 안내/동의 완료/미동의 3화면, 무인증 라우트)와 제조공정DX 전용 위젯 설정 화면(widget-settings)이 신규 구현되었고, 로그인에 약관 동의 게이팅(미동의 시 약관 팝업 → 동의 API → 재로그인)이 추가되었습니다. 스마트그린은 생육 디바이스 분석 그래프 밴드 고정·수치 상태별 색상·위젯 반응형·조회 상태 보존 등 대량 개선이 있었고, 공기질 등급 색상 체계가 GRADE_CONFIG로 단일화되어 위젯 전반에 적용되었습니다. 그 밖에 과천관제센터 실시간 통신상태 조회 정합성 개선, 에어맵 마커 상세 그래프의 인접 국가관측망 비교 표시, AI산업안전DX 사이트 전환 메뉴 5종 분화, 기간 조회 90일 제한, axios·protobufjs 취약점 대응 버전 상향이 진행되었습니다.</p>
+    <p>2026-07-24 ~ 2026-08-07(175 커밋, 병합 제외 125 커밋)은 자동 갱신 모듈 도입과 운영 배포 준비가 중심입니다. 가장 큰 변화는 <code>src/modules/autoRefresh/</code> 신설로, Home·Overview 화면이 유휴 5분마다 토큰 갱신과 함께 백그라운드로 데이터를 다시 가져오고 위젯 편집모드·사용자 활동 시에는 pause/postpone으로 미루도록 정리되었습니다. 사이트 URL 세그먼트가 운영 규칙에 맞춰 <code>air→airbiz</code>·<code>dx→factorydx</code>·<code>gwacheon→airmon</code>으로 변경되었고, AI산업안전DX 유형 드롭다운에 '전체' 항목이 추가되었습니다. 지도 쪽은 마커 소스를 통합해 서로 다른 유형·등급이 한 클러스터에 묶이는 이종 클러스터 표시와 툴팁 아이콘이 도입되며 <code>MapUtils.ts</code>가 크게 개편되었습니다. 그 밖에 상태별 색상 범례 위젯(<code>status_color_legend</code>) 추가와 등급색 체계 확대 적용, 국가관측망·스마트그린·산업환경DX CSV 다운로드 구현 및 수정, 로그인 화면 문의처·개인정보 처리방침 링크·과천 전용 GUI 적용, 비밀번호 변경 흐름(재사용 441·반복 실패 429 안내) 정비, 한전 AMI 회선 처리 현황의 한전본부 필터를 <code>KEPCO_HQ</code> 공통코드 조회로 전환하는 작업이 진행되었습니다. 배포 측면에서는 <code>.env.prod</code>가 운영 프로필 <code>.env.prd</code>로 정리되고 CI 워크플로가 <code>ci-dev.yml</code>·<code>ci-main.yml</code>로 재편되었습니다.</p>
     <ul class="commits">
-      <li><span class="date">2026-07-24</span><span class="msg">[Fix] 조회기간 안내 문구가 flex 압박 시 사라지는 문제 수정</span></li>
-      <li><span class="date">2026-07-24</span><span class="msg">[Feature] 기간 조회 달력 90일 제한 안내 문구 및 선택 제한 추가</span></li>
-      <li><span class="date">2026-07-24</span><span class="msg">[Feature] 스마트그린 수치 상태별 색상 적용 (기상정보/생육 위젯)</span></li>
-      <li><span class="date">2026-07-24</span><span class="msg">약관 동의한 경우만 토큰 발급 가능하도록 수정 (로그인 → 약관 동의 팝업 → 동의 API → 재로그인)</span></li>
-      <li><span class="date">2026-07-23</span><span class="msg">[Feature] 공기질 등급 색상 체계 전면 적용 (GRADE_CONFIG 단일화)</span></li>
-      <li><span class="date">2026-07-23</span><span class="msg">[Feature] AI DX 실외 기상정보/실내외 환경 위젯 수치 등급색 적용</span></li>
-      <li><span class="date">2026-07-22</span><span class="msg">axios, protobufjs 취약점 대응 버전 상향 (Dependabot alerts)</span></li>
-      <li><span class="date">2026-07-21</span><span class="msg">[AIRMAP] 마커 상세 서비스현황 그래프에 인접 국가관측망 비교 표시</span></li>
-      <li><span class="date">2026-07-21</span><span class="msg">[SMARTGREEN] 종합 현황 지도 목록 이동 후 조회 시 이전 골프장으로 되돌아가는 문제 수정</span></li>
-      <li><span class="date">2026-07-20</span><span class="msg">AI산업안전DX 사이트 전환 메뉴 추가 (산업대기질/자원순환/산업환경/탄소중립/제조공정)</span></li>
-      <li><span class="date">2026-07-16</span><span class="msg">[Feature] SMS 수신동의 화면에 sms-consent API 연동</span></li>
-      <li><span class="date">2026-07-15</span><span class="msg">[Feature] 에어맵 종합현황 KPI 카드 클릭 시 수신상태 필터 조회 연동</span></li>
-      <li><span class="date">2026-07-15</span><span class="msg">[과천관제센터] 실시간 통신 상태 현황 상세 조회 API 정합성 수정</span></li>
-      <li><span class="date">2026-07-14</span><span class="msg">[AIDX] 제조공정 위젯 설정 화면 신규 구현</span></li>
-      <li><span class="date">2026-07-07</span><span class="msg">[KT-이슈사항]SMS 수신 동의 페이지 신규 구현(개인정보 수집·이용 안내/동의 완료/미동의 3화면)</span></li>
+      <li><span class="date">2026-08-07</span><span class="msg">[Fix] 과천 관제센터 시/도 미선택 상태에서 마커가 조회되지 않던 문제</span></li>
+      <li><span class="date">2026-08-07</span><span class="msg">[Fix] 과천관제센터 로그인 GUI 적용</span></li>
+      <li><span class="date">2026-08-06</span><span class="msg">[Fix] 한전본부(KEPCO_HQ) detail-codes 응답 필드명 불일치로 hqId 필터가 undefined로 빠지던 문제 수정</span></li>
+      <li><span class="date">2026-08-06</span><span class="msg">[Feature] 지도 마커 소스 통합 및 이종 클러스터 표시</span></li>
+      <li><span class="date">2026-08-06</span><span class="msg">[Fix] 비밀번호 변경 시 이전 비밀번호 재사용(441) 안내 팝업 추가</span></li>
+      <li><span class="date">2026-08-06</span><span class="msg">[Fix] 설비가동률분석 조회기간 무제한으로 인한 504 타임아웃 방지</span></li>
+      <li><span class="date">2026-08-05</span><span class="msg">[Fix] 한전AMI 로그인 화면에 개인정보 처리방침 링크 노출</span></li>
+      <li><span class="date">2026-08-04</span><span class="msg">[Feature] 국가관측망 현황 CSV 다운로드 구현</span></li>
+      <li><span class="date">2026-08-03</span><span class="msg">한전 AMI 메뉴 항목(현황, 배전선로 작업현황) 재노출</span></li>
+      <li><span class="date">2026-08-03</span><span class="msg">[UI] 에어맵 국가관측망 막대 그래프 값 기반 등급 색상 적용</span></li>
+      <li><span class="date">2026-07-30</span><span class="msg">[Feature] AI산업안전DX 유형 드롭다운에 '전체' 항목 추가</span></li>
+      <li><span class="date">2026-07-30</span><span class="msg">[Fix] 자동 조회 연계 토큰 갱신 추가</span></li>
+      <li><span class="date">2026-07-29</span><span class="msg">[Feature] 로그인 화면 하단에 이메일 문의·기업고객센터 안내 추가</span></li>
+      <li><span class="date">2026-07-28</span><span class="msg">[Fix] Air Map/AI산업안전DX URL 경로 변경 (air-&gt;airbiz, dx-&gt;factorydx)</span></li>
+      <li><span class="date">2026-07-24</span><span class="msg">[Feature] Home·Overview 유휴 자동 갱신 적용</span></li>
     </ul>
   </section>
 

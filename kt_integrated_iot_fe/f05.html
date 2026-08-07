@@ -50,7 +50,11 @@
     <h2>기능 개요</h2>
     <p><code>Summary</code> 화면(<code>pages/summary/index.tsx</code>)은 세션의 <code>site.code</code>에 따라 사이트별 요약 컴포넌트(<code>airmap/DashBoard</code>, <code>aidx/Overall</code>, SafeMate 4종, <code>smartgreen/overall</code>)를 분기 렌더링합니다. 추가 분석 화면으로 AI산업안전DX 설비 이용률(<code>EquipmentUtilization</code>)·자원환경(<code>ResourceEnvironment</code>), SMART GREEN 생육 디바이스 분석(<code>GrowthDevice</code>), 측정소 분석(<code>StationAnalysis</code>) 등이 라우팅에 등록되어 있습니다. Air Map 종합분석(<code>airmap/DashBoard</code>)은 측정위치별·미세/초미세먼지 측정기 위치별·한달 기준값별·시간대별·주의지역 Top5 분석 유형을 제공하며, 조회 월 기준으로 <code>startDate</code>/<code>endDate</code>를 산출해 <code>airmapApi.getAreaAnalytics</code>를 호출합니다. 페이지 최초 진입 시 기본 조건(실외 측정위치별 분석)으로 자동 조회하며, Worst5 화면에서 전달된 state가 있으면 해당 설치유형·주제를 반영합니다. 주제(segment)·전월 대비 옵션 변경 시에는 현재 피커에서 선택한 조회 월을 <code>queryMonth</code>에 다시 반영해 이전 검색의 월이 남는 문제를 방지합니다. 전국 측정소 서비스대상(<code>AIRMAPNATIONAL</code>)에서는 지역·구역 조회를 중단하고 안내 문구를 표시합니다.</p>
     <p>차트는 <code>components/chart</code> 아래의 Nivo 래퍼들(<code>NivoStackedBarChart</code>, <code>NivoGroupedBarChart</code>, <code>NivoLineChart</code>, <code>NivoPie</code>, <code>NivoComposedChart</code> 등)을 사용합니다. 각 래퍼는 <code>@nivo/bar</code>·<code>@nivo/line</code> 등의 <code>Responsive*</code> 컴포넌트를 감싸고, <code>useChartBar</code>·<code>useChartLine</code>·<code>useChartTheme</code> 훅으로 데이터 가공과 라이트/다크 테마를 적용합니다. <code>useChartBar</code>는 데이터와 <code>keys</code>·<code>groupMode</code>로 Y축 최대/최소값·눈금(<code>tickValues</code>)·마진을 계산하며, 선택 인자 <code>minMaxValue</code>로 Y축이 최소한 기준선 값까지는 포함하도록 보장해 기준선이 차트 밖으로 벗어나는 것을 방지합니다. 막대 차트의 막대·툴팁은 <code>CustomBar</code>·<code>CustomTooltipLayer</code> 커스텀 레이어로 렌더링하며, 게이지·일부 커스텀 시각화에는 D3가 함께 쓰입니다.</p>
+    <p>막대 렌더링은 스택 세그먼트 가독성을 중심으로 재편되었습니다. 전체 합 대비 값이 극단적으로 작으면 세그먼트 높이가 1px 미만이 되어 보이지 않는데, 높이만 키우면 이웃 세그먼트를 덮어버립니다. 그래서 <code>CustomBar</code>는 스택 순서(<code>stackKeys</code>)를 받아 기준선(값 0의 y좌표)에서부터 아래 세그먼트들의 <em>보정된</em> 높이를 누적해 자기 위치를 다시 계산하고, 각 세그먼트에 <code>minSegmentHeight</code>만큼의 최소 높이를 보장합니다(<code>NivoStackedBarChart</code> 기본값 3px). 값이 0인 세그먼트는 렌더링되지 않으므로 맨 아래 판정과 누적 계산에서 모두 제외하며, 둥근 모서리 반지름은 막대 높이(양끝 둥근 세그먼트는 절반)로 제한해 경로가 스스로 교차하며 형태가 깨지는 것을 막습니다. 높이 보정 때문에 막대와 hover 영역이 어긋나므로 막대 <code>path</code>는 <code>pointerEvents: 'none'</code>으로 두고 툴팁은 <code>CustomBarTooltipLayer</code>의 투명 hover 영역이 전담하며, <code>fullColumnHover</code>로 hover 영역을 컬럼 전체 높이까지 넓혔습니다.</p>
+    <p>색상 전달 규약도 정리되었습니다. <code>CustomTooltipLayer</code>는 막대 색을 더 이상 <code>chartColors</code> 배열에서 인덱싱하지 않고 Nivo가 계산한 <code>bar.color</code>를 그대로 쓰며, 라인 시리즈 색만 <code>lineColors</code>로 받습니다. <code>NivoComposedChart</code>의 <code>chartColors</code>는 배열뿐 아니라 막대별로 색을 계산하는 함수도 받을 수 있게 되었고, 함수를 넘긴 경우 배열 인덱싱이 불가능하므로 <code>resolvedLineColors</code>가 <code>lineColors</code> → 기본색 순으로 폴백합니다. 값 기반 등급색은 <code>airQualityGrade</code>의 <code>makeGradeBarColor(grade, fallback)</code>가 만들어 주며, Air Map 마커 상세 차트가 이를 사용합니다. 측정 항목 키를 화면 표시명으로 바꾸는 <code>PROPERTY_LABELS</code>·<code>getPropertyLabel()</code>도 함께 추가되어 API 원본 키(<code>temp</code>/<code>humi</code>/<code>PM2.5</code> 등)가 화면에 그대로 노출되지 않습니다.</p>
     <p>데이터는 React Query로 도메인 API(예: <code>rooftopDoorApi</code>, <code>intFireDetectorApi</code>, <code>airmap</code>·<code>smartGreen</code> 모듈 등)에서 조회합니다. AI산업안전DX 설비가동률분석(<code>EquipmentUtilization</code>)은 서비스대상을 <code>FIXED_SERVICE_TARGET_ID('KT')</code>로 고정해 조회하고, 조회 기간 기본값은 <code>getDefaultDateRange()</code>로 호출 시점에 산출하며(모듈 로드 시점에 고정되던 dayjs 버그 수정), 조회 버튼 클릭 시 <code>searchTrigger</code>를 queryKey에 포함해 파라미터 변경 여부와 무관하게 항상 재요청합니다. 요약 화면의 다운로드 버튼은 <code>downloadFileFromResponse</code>로 Content-Disposition 기반 CSV 저장을 수행합니다.</p>
+    <p>기간 조회에는 공용 상한이 도입되었습니다. <code>utils/dateRange</code>의 <code>DATE_RANGE_LIMIT_DAYS</code>(90일)를 <code>CustomRangePicker</code>의 <code>maxRangeDays</code>로 넘겨 달력에서 그 이상 선택을 막고, <code>SearchItemBox</code>의 <code>notice</code>에 <code>dateRangeLimitNotice()</code> 문구를 함께 노출합니다. 조회기간 무제한으로 504 타임아웃이 나던 AI산업안전DX 설비가동률분석과, SMART GREEN 생육 디바이스 분석·종합현황 화면에 적용되었습니다. CSV 다운로드는 화면 페이지네이션과 무관하게 항상 전체를 받도록 <code>page: 0</code>·<code>size: MAX_DATA_ROW</code>로 통일했습니다.</p>
+    <p>SMART GREEN 분석 화면들은 날짜·기간 단위를 바꿀 때 <code>applied</code> 상태를 부분 갱신하던 방식을 버리고, 조회 버튼과 동일한 정규화를 거친 <code>draft</code> 전체를 한 번에 적용합니다. 이전에는 아직 조회를 누르지 않은 골프장·코스·홀 선택이 반영되지 않은 채로 조회가 나가 화면 표시와 실제 조회 대상이 어긋났습니다. 데이터가 없을 때의 안내는 인라인 문구 대신 공용 <code>EmptyState</code> 컴포넌트로 교체되었습니다. AI산업안전DX 자원환경 분석의 '지역' 옵션은 구역 목록(<code>commonApi.areaList</code>) 대신 시/도 단위(<code>regionsApi.getUnitSido</code>)로 바뀌었고, 선택값을 API 규격에 맞춰 <code>sidoNm</code>으로 그대로 전달합니다. 서비스대상이 '전체'인 경우에는 현재 서비스 형태에 속한 대상들의 시/도를 모아 중복 제거 후 노출합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       차트 데이터 가공 로직을 <code>useChartBar</code>/<code>useChartLine</code> 훅으로 분리해, 동일한 Nivo 래퍼를 여러 사이트·지표에서 재사용합니다. 라벨 한글화는 <code>labelMap</code>으로 키→라벨 매핑을 주입합니다.
@@ -103,6 +107,37 @@ classDiagram
         +indexBy
         +keys
         +labelMap
+        +minSegmentHeight
+        +fullColumnHover
+    }
+    class NivoComposedChart {
+        +barKeys
+        +lineKeys
+        +chartColors
+        +lineColors
+        +minSegmentHeight
+        +resolvedLineColors
+    }
+    class CustomBar {
+        +stackKeys
+        +minBarHeight
+        +minSegmentHeight
+        +isBottomBar
+        +isRoundedBothEnds
+    }
+    class CustomBarTooltipLayer {
+        +lineKeys
+        +lineColors
+        +fullColumnHover
+    }
+    class airQualityGrade {
+        +normalizePropertyKey(property)
+        +getPropertyLabel(property)
+        +makeGradeBarColor(grade, fallback)
+    }
+    class dateRange {
+        +DATE_RANGE_LIMIT_DAYS
+        +dateRangeLimitNotice(days)
     }
     class useChartBar {
         +useChartBar(data, keys, groupMode, minMaxValue)
@@ -124,10 +159,16 @@ classDiagram
     Summary --&gt; NivoStackedBarChart : 차트 렌더
     NivoStackedBarChart ..&gt; useChartBar : 데이터 가공
     NivoStackedBarChart ..&gt; useChartTheme : 테마 적용
+    NivoStackedBarChart --&gt; CustomBar : barComponent(stackKeys, minSegmentHeight)
+    NivoStackedBarChart --&gt; CustomBarTooltipLayer : hover 영역 및 툴팁
+    NivoComposedChart --&gt; CustomBar : 스택 세그먼트 보정 공유
+    NivoComposedChart --&gt; CustomBarTooltipLayer : lineColors 전달
+    NivoComposedChart ..&gt; airQualityGrade : makeGradeBarColor 로 값별 등급색
+    Summary ..&gt; dateRange : 조회기간 90일 상한
     Summary ..&gt; DomainApi : 통계 조회
     Summary ..&gt; ApiClient : CSV 다운로드
       </div>
-      <p class="cap"><strong>관계.</strong> <code>Summary</code>가 도메인 API로 통계를 받아 Nivo 래퍼로 그리고, 데이터 가공·테마는 차트 훅이 담당합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>Summary</code>가 도메인 API로 통계를 받아 Nivo 래퍼로 그리고, 데이터 가공·테마는 차트 훅이 담당합니다. 막대 형상 보정과 툴팁 hover 영역은 <code>CustomBar</code>·<code>CustomBarTooltipLayer</code>가 나눠 맡고, 색은 시리즈 고정색과 값 기반 등급색 두 방식을 모두 지원합니다.</p>
     </div>
   </section>
 
@@ -148,8 +189,80 @@ interface NivoStackedBarChartProps {
   chartColors?: string[];
   labelMap?: { [key: string]: string }; // 키를 한글 라벨로 매핑
   maxValueScale?: number; // 최대값 스케일 조정 비율
+  minSegmentHeight?: number; // 값이 작은 스택 세그먼트가 보장받는 최소 높이(px)
+  fullColumnHover?: boolean; // 툴팁 hover 영역을 컬럼 전체 높이로 확장
   valueSuffix?: string; // 값 뒤에 표시할 단위 (예: '%', '건', '개')
-}</code></pre>
+}
+
+// 기본값: 값이 작아도 최소 3px는 보이도록 / 보정으로 막대와 hover 영역이 어긋나므로 컬럼 전체 hover
+minSegmentHeight = 3,
+fullColumnHover = true,
+
+barComponent={(props: any) =&gt; (
+  &lt;CustomBar {...props} groupMode="stacked" maxBarWidth={maxBarWidth}
+    stackKeys={keys} minSegmentHeight={minSegmentHeight} /&gt;
+)}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/components/chart/CustomBar.tsx</code> — 스택 최소 세그먼트 높이 보정</div>
+<pre><code>// 전체 합 대비 값이 극단적으로 작으면 세그먼트 높이가 1px 미만이 되어 보이지 않는다.
+// 높이만 키우면 이웃 세그먼트를 덮어버리므로, 기준선(값 0의 y좌표)에서부터
+// 아래쪽 세그먼트들의 '보정된' 높이를 누적해 자기 위치를 다시 계산한다.
+if (isStackMode &amp;&amp; isStacked &amp;&amp; !isNegative &amp;&amp; minSegmentHeight &gt; 0
+    &amp;&amp; stackKeys &amp;&amp; myStackIndex &gt;= 0 &amp;&amp; barValue &gt; 0 &amp;&amp; height &gt; 0) {
+  const pxPerUnit = height / barValue;        // nivo가 계산한 스케일 역산
+
+  let rawHeightBelow = 0;                     // 아래 세그먼트들의 원래 높이 합
+  let adjustedHeightBelow = 0;                // 보정 후 높이 합
+  for (let i = 0; i &lt; myStackIndex; i++) {
+    const value = Number(propData?.[stackKeys[i]]) || 0;
+    if (value &lt;= 0) continue;                 // 렌더링되지 않으므로 자리도 차지하지 않는다
+    rawHeightBelow += value * pxPerUnit;
+    adjustedHeightBelow += Math.max(value * pxPerUnit, minSegmentHeight);
+  }
+
+  const baseline = y + height + rawHeightBelow;
+  actualHeight = Math.max(height, minSegmentHeight);
+  adjustedY = baseline - adjustedHeightBelow - actualHeight;
+}
+
+// 반지름이 높이보다 크면 경로가 스스로 교차해 형태가 깨진다
+const maxRadius = isRoundedBothEnds ? actualHeight / 2 : actualHeight;
+const radius = Math.max(0, Math.min(barWidth / 3, maxRadius));
+if (actualHeight &lt;= 0) return null;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/components/chart/NivoComposedChart.tsx</code> — 값 기반 막대색 지원과 라인색 분리</div>
+<pre><code>// 배열이면 [막대..., 라인...] 순서의 고정색, 함수이면 막대별로 색을 계산(값 기반 등급색 등).
+chartColors: string[] | ((bar: any) =&gt; string);
+lineColors?: string[];   // 미지정 시 chartColors 배열에서 barKeys 이후 구간을 사용
+
+const resolvedLineColors = useMemo(() =&gt; {
+  if (lineColors) return lineColors;
+  // 함수(막대별 값 기반 색)이면 배열 인덱싱이 불가능하므로 기본색으로 폴백한다
+  if (typeof chartColors === 'function') return lineKeys.map(() =&gt; DEFAULT_LINE_COLOR);
+  return lineKeys.map((_, index) =&gt; chartColors[(barKeys.length + index) % chartColors.length]);
+}, [lineColors, chartColors, lineKeys, barKeys.length]);
+
+// src/utils/airQualityGrade.tsx — 막대 '값'의 등급 색을 반환하는 함수를 만든다
+export const makeGradeBarColor =
+  (grade: string | GradeFn | undefined, fallback: string) =&gt;
+  (bar: { value?: number | null }): string =&gt; { /* ... */ };</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/utils/dateRange.ts</code> — 조회기간 90일 공용 상한</div>
+<pre><code>/** 기간 조회 달력에서 선택 가능한 최대 기간(일) */
+export const DATE_RANGE_LIMIT_DAYS = 90;
+
+/** 기간 조회 달력 우측에 노출하는 안내 문구 */
+export const dateRangeLimitNotice = (days: number = DATE_RANGE_LIMIT_DAYS) =&gt;
+  `최대 ${days}일까지 조회가 가능합니다.`;
+
+// 호출부 (설비가동률분석 · 스마트그린 생육/종합 분석)
+&lt;SearchItemBox title={'조회기간'} height={'40px'} notice={dateRangeLimitNotice()}&gt;
+  &lt;CustomRangePicker dateRange={dateRange} setDateRange={setDateRange}
+    maxRangeDays={DATE_RANGE_LIMIT_DAYS} /&gt;
+&lt;/SearchItemBox&gt;</code></pre>
     </div>
     <div class="snippet">
       <div class="sc"><code>src/hooks/useChartBar.ts</code> — 기준선 하한 보장(minMaxValue)</div>
@@ -231,11 +344,18 @@ const search = () =&gt; {
     <h2>관련 소스</h2>
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/index.tsx" target="_blank" rel="noopener">src/pages/summary/index.tsx</a><span class="src">사이트별 요약 컴포넌트 분기 · CSV 다운로드</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/chart/NivoStackedBarChart.tsx" target="_blank" rel="noopener">src/components/chart/NivoStackedBarChart.tsx</a><span class="src">@nivo/bar 래퍼 · labelMap 한글화</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/chart/NivoStackedBarChart.tsx" target="_blank" rel="noopener">src/components/chart/NivoStackedBarChart.tsx</a><span class="src">@nivo/bar 래퍼 · labelMap 한글화 · minSegmentHeight / fullColumnHover 기본값</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/chart/CustomBar.tsx" target="_blank" rel="noopener">src/components/chart/CustomBar.tsx</a><span class="src">스택 최소 세그먼트 높이 보정 · 반지름 클램프 · pointerEvents 제거</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/chart/CustomTooltipLayer.tsx" target="_blank" rel="noopener">src/components/chart/CustomTooltipLayer.tsx</a><span class="src">투명 hover 영역 · lineColors 로 라인 시리즈 색만 수신</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/chart/NivoComposedChart.tsx" target="_blank" rel="noopener">src/components/chart/NivoComposedChart.tsx</a><span class="src">막대+라인 복합 차트 · chartColors 함수 지원 · resolvedLineColors 폴백</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/airQualityGrade.tsx" target="_blank" rel="noopener">src/utils/airQualityGrade.tsx</a><span class="src">makeGradeBarColor(값별 등급색) · getPropertyLabel / PROPERTY_LABELS</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/dateRange.ts" target="_blank" rel="noopener">src/utils/dateRange.ts</a><span class="src">DATE_RANGE_LIMIT_DAYS(90) · dateRangeLimitNotice 안내 문구</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/hooks/useChartBar.ts" target="_blank" rel="noopener">src/hooks/useChartBar.ts</a><span class="src">막대 차트 데이터 가공 훅</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/hooks/useChartTheme.ts" target="_blank" rel="noopener">src/hooks/useChartTheme.ts</a><span class="src">Nivo 라이트/다크 테마 훅</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/airmap/DashBoard.tsx" target="_blank" rel="noopener">src/pages/summary/airmap/DashBoard.tsx</a><span class="src">Air Map 종합분석 — 분석 유형·조회 월 파라미터 · CSV 다운로드</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/aidx/EquipmentUtilization.tsx" target="_blank" rel="noopener">src/pages/summary/aidx/EquipmentUtilization.tsx</a><span class="src">AI산업안전DX 설비 이용률 분석 화면</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/aidx/EquipmentUtilization.tsx" target="_blank" rel="noopener">src/pages/summary/aidx/EquipmentUtilization.tsx</a><span class="src">AI산업안전DX 설비 이용률 분석 화면 · 조회기간 90일 제한(504 타임아웃 방지)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/aidx/ResourceEnvironment.tsx" target="_blank" rel="noopener">src/pages/summary/aidx/ResourceEnvironment.tsx</a><span class="src">자원환경 분석 · 지역 옵션을 시/도(regionsApi.getUnitSido)로 전환, sidoNm 파라미터</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/smartgreen/growthDevice/index.tsx" target="_blank" rel="noopener">src/pages/summary/smartgreen/growthDevice/index.tsx</a><span class="src">SMART GREEN 생육 디바이스 분석 · draft 전체 반영 · EmptyState · 기간 상한</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

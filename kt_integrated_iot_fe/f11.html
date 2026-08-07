@@ -26,8 +26,8 @@
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
-      <div class="item"><div class="k">핵심 함수</div><div class="v"><code>SiteGuard</code> · <code>checkPermission</code> · <code>hasRole</code></div></div>
-      <div class="item"><div class="k">기능 맥락</div><div class="v">USER_ROLES 5단계 · 라우팅 가드</div></div>
+      <div class="item"><div class="k">핵심 함수</div><div class="v"><code>SiteGuard</code> · <code>checkPermission</code> · <code>hasRole</code> · <code>getMenuList</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">USER_ROLES 5단계 · 라우팅 가드 · 메뉴 노출 제한</div></div>
     </div>
   </div>
 </header>
@@ -51,8 +51,10 @@
     <p>사용자 권한은 <code>USER_ROLES</code> 5단계입니다. 인덱스 0(서비스 고객)부터 4(플랫폼 관리자)까지이며, <code>hasRole(targetLevel)</code>이 세션 사용자(<code>user.userRoleId</code>)의 권한 인덱스가 목표 레벨 이상인지 판정합니다. 즉 <code>hasRole(4)</code>는 플랫폼 관리자, <code>hasRole(3)</code>은 서비스 관리자 이상을 의미합니다.</p>
     <p><code>SiteGuard</code>는 라우팅 최상위(<code>/:site</code>)에서 먼저 URL의 <code>site</code>가 <code>ALLOWED_SITE_PATHS</code>에 있는지 확인합니다. 다음으로 현재 세션 사이트(<code>currentSite</code>)와 이동 대상 사이트(<code>target</code>)를 <code>checkPermission</code>에 넘겨 전환 가능 여부를 판정합니다. 같은 사이트로의 이동이거나 대상이 없으면 항상 허용합니다.</p>
     <p><code>checkPermission</code> 규칙은 다음과 같습니다. 플랫폼 관리자(<code>hasRole(4)</code>)는 모든 전환을 허용합니다. 서비스 관리자(<code>hasRole(3)</code>)는 Air Map ↔ 과천, SafeMate 4종 상호 간 전환만 허용하고 그 외는 거부합니다. 나머지 권한은 다른 사이트로의 전환을 허용하지 않습니다. 판정이 부적합(<code>!isValidAccess</code>)이면 <code>useEffect</code>에서 WebSocket을 <code>disconnect()</code>하고 <code>sessionStorage.clear()</code>한 뒤 <code>/:urlSite/login</code>으로 리다이렉트합니다.</p>
-    <p>사이트 전환 메뉴 정의(<code>SITE_MENU</code>)에서 AI산업안전DX는 <code>AIENVDX_SERVICE_TYPE_LIST</code> 기반 5개 서비스 유형(산업대기질·자원순환·산업환경·탄소중립·제조공정) 하위 메뉴로 확장되었습니다. 다섯 항목 모두 같은 사이트 코드(<code>001ENV302</code>)를 쓰므로 <code>checkPermission</code>에서는 동일 사이트 이동으로 항상 허용되고, 실제 구분은 각 메뉴의 <code>serviceType</code> 값으로 이뤄집니다. 서비스 유형 단위 접근 제한도 config에 추가되어, 위젯 설정 화면은 <code>isWidgetSettingServiceType()</code>(현재 제조공정 <code>ENVSMAT30203</code>만 허용) 판정을 따릅니다.</p>
-    <p>가드 적용 범위의 예외도 있습니다. SMS 수신동의 페이지(<code>/:site/sms-consent</code>)는 로그인과 무관하게 접근해야 하는 공개 페이지라, <code>SiteGuard</code>·<code>ProtectedRoute</code> 트리 밖의 독립 형제 라우트로 배치되어 전환 판정을 타지 않습니다.</p>
+    <p>사이트 진입 경로(<code>SITE_LIST[].path</code>)는 운영 반영 과정에서 <code>air</code>→<code>airbiz</code>, <code>dx</code>→<code>factorydx</code>, <code>gwacheon</code>→<code>airmon</code>으로 변경되었습니다. <code>SITE_CODES</code>가 <code>SITE_LIST.find((s) =&gt; s.path === ...)</code>로 사이트 코드를 역참조하는 구조라 경로 상수 변경이 곧 코드 매핑에 직결됩니다. 사이트 코드(<code>001ENV301</code> 등)와 <code>realcode</code>는 그대로이므로 <code>checkPermission</code> 판정 규칙 자체는 변하지 않습니다.</p>
+    <p>사이트 전환 메뉴 정의(<code>SITE_MENU</code>)에서 AI산업안전DX는 <code>AIENVDX_SERVICE_TYPE_LIST</code> 기반 5개 서비스 유형(산업대기질·자원순환·산업환경·탄소중립·제조공정)에 더해, 유형 필터를 해제하는 <code>전체</code> 항목(<code>AIDX_ALL_SERVICE_TYPE = 'ALL'</code>)이 앞에 추가되어 6개 하위 메뉴가 되었습니다. 여섯 항목 모두 같은 사이트 코드(<code>001ENV302</code>)를 쓰므로 <code>checkPermission</code>에서는 동일 사이트 이동으로 항상 허용되고, 실제 구분은 각 메뉴의 <code>serviceType</code> 값으로 이뤄집니다. 서비스 유형 단위 접근 제한도 config에 있어, 위젯 설정 화면은 <code>isWidgetSettingServiceType()</code>(현재 제조공정 <code>ENVSMAT30203</code>만 허용) 판정을 따릅니다.</p>
+    <p>사이트 전환 이후의 화면 노출은 메뉴 단계에서 한 번 더 권한으로 걸러집니다. <code>getMenuList(siteCode, serviceType)</code>는 AI산업안전DX에서 서비스 고객(<code>!hasRole(1)</code>)일 때 종합 현황·서비스대상 관리·디바이스 관리 메뉴를 만들지 않고, 구역 관리는 제조공정(<code>AIDX_MANUFACTURING_PROC</code>)에서만 예외적으로 노출합니다. 한전 AMI는 KT 요청으로 주석 처리돼 있던 현황(<code>overview</code>)·배전선로 작업현황(<code>amiLineTaskStatus</code>) 메뉴가 다시 노출되도록 복구되었습니다.</p>
+    <p>가드 적용 범위의 예외도 있습니다. SMS 수신동의 페이지(<code>/:site/sms-consent</code>)는 로그인과 무관하게 접근해야 하는 공개 페이지라, <code>SiteGuard</code>·<code>ProtectedRoute</code> 트리 밖의 독립 형제 라우트로 배치되어 전환 판정을 타지 않습니다. 반대로 가드를 통과한 뒤에는 Home·Overview 라우트가 <code>AutoRefreshRoute</code>(scope <code>home</code>/<code>overview</code>)로 한 겹 더 감싸집니다. 이 컴포넌트는 <code>useParams()</code>의 <code>site</code>를 <code>key</code>에 넣어, 사이트가 바뀌면 자동 갱신 바운더리가 통째로 재마운트되고 새 타이머가 현재 시각부터 다시 시작하도록 합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       세션 정리와 WebSocket 해제를 부적합 접근 시 즉시 수행해, 권한 없는 다른 사이트의 실시간 채널·토큰이 남지 않도록 합니다. 보호 진입 자체는 별도로 <code>ProtectedRoute</code>가 세션 <code>site.code</code> 유무로 한 번 더 가립니다.
@@ -71,8 +73,10 @@ sequenceDiagram
     participant Role as hasRole
     participant WS as WebSocketProvider
     participant SS as sessionStorage
+    participant AR as AutoRefreshRoute
+    participant Menu as getMenuList
 
-    U-&gt;&gt;Guard: /:site 경로로 전환
+    U-&gt;&gt;Guard: /:site 경로로 전환 (airbiz / factorydx / airmon / ami ...)
     Guard-&gt;&gt;Guard: ALLOWED_SITE_PATHS.includes(site)?
     Guard-&gt;&gt;CP: checkPermission(target, currentSite)
     CP-&gt;&gt;Role: hasRole(4) / hasRole(3)
@@ -83,11 +87,15 @@ sequenceDiagram
         Guard-&gt;&gt;SS: sessionStorage.clear()
         Guard--&gt;&gt;U: Navigate(/:urlSite/login)
     else 적합
-        Guard--&gt;&gt;U: children 렌더 허용
+        Guard-&gt;&gt;AR: Home / Overview 진입 (scope home · overview)
+        AR-&gt;&gt;AR: key = site + scope 로 Boundary 재마운트
+        Guard-&gt;&gt;Menu: getMenuList(siteCode, serviceType)
+        Menu-&gt;&gt;Role: hasRole(1) — 서비스 고객 여부
+        Menu--&gt;&gt;U: 권한별로 걸러진 메뉴 렌더
     end
     Note over U,Guard: 예외 · /:site/sms-consent 공개 라우트는 SiteGuard 트리 밖(가드 미적용)
       </div>
-      <p class="cap"><strong>흐름.</strong> 전환 시 <code>SiteGuard</code>가 권한을 판정하고, 부적합하면 WebSocket·세션을 정리한 뒤 로그인으로 보냅니다. SMS 수신동의 페이지는 가드 밖 독립 라우트라 이 판정을 거치지 않습니다.</p>
+      <p class="cap"><strong>흐름.</strong> 전환 시 <code>SiteGuard</code>가 권한을 판정하고, 부적합하면 WebSocket·세션을 정리한 뒤 로그인으로 보냅니다. 통과하면 Home·Overview는 <code>AutoRefreshRoute</code>가 사이트 단위로 재마운트하고, 메뉴는 <code>getMenuList</code>가 권한·서비스 유형으로 한 번 더 걸러 렌더합니다. SMS 수신동의 페이지는 가드 밖 독립 라우트라 이 판정을 거치지 않습니다.</p>
     </div>
   </section>
 
@@ -119,14 +127,25 @@ classDiagram
     class ProtectedRoute {
         +site.code 유무 판정
     }
+    class AutoRefreshRoute {
+        +scope home·overview
+        +key sitePath와 scope 조합
+    }
+    class getMenuList {
+        +getMenuList(siteCode, serviceType)
+        +isServiceClient 서비스 고객 여부
+    }
 
     SiteGuard --&gt; checkPermission : 전환 판정
     checkPermission --&gt; hasRole : 권한 레벨
     hasRole ..&gt; USER_ROLES : 인덱스 비교
     SiteGuard ..&gt; useWebSocket : 부적합 시 해제
     SiteGuard --&gt; ProtectedRoute : 통과 시 보호 진입
+    ProtectedRoute --&gt; AutoRefreshRoute : Home·Overview 감싸기
+    ProtectedRoute ..&gt; getMenuList : 권한별 메뉴 구성
+    getMenuList ..&gt; hasRole : 서비스 고객 판정
       </div>
-      <p class="cap"><strong>관계.</strong> <code>SiteGuard</code>가 <code>checkPermission</code>·<code>hasRole</code>로 전환을 판정하고, 부적합 시 WebSocket을 끊으며, 적합하면 <code>ProtectedRoute</code> 보호 진입으로 넘깁니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>SiteGuard</code>가 <code>checkPermission</code>·<code>hasRole</code>로 전환을 판정하고, 부적합 시 WebSocket을 끊으며, 적합하면 <code>ProtectedRoute</code> 보호 진입으로 넘깁니다. 그 안에서 Home·Overview는 <code>AutoRefreshRoute</code>가 사이트 단위로 감싸고, 메뉴는 <code>getMenuList</code>가 권한으로 다시 걸러냅니다.</p>
     </div>
   </section>
 
@@ -157,12 +176,66 @@ useEffect(() =&gt; {
 if (!isValidAccess) return &lt;Navigate to={`/${urlSite}/login`} replace /&gt;;</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>src/routes/route.tsx</code> — 가드 밖 공개 라우트 (SMS 수신동의)</div>
+      <div class="sc"><code>src/config.ts</code> — 사이트 진입 경로 변경(코드·realcode는 유지)</div>
+<pre><code>export const SITE_LIST = [
+  { code: '001ENV301', realcode: '001ENV301', title: 'Air Map', path: 'airbiz' },        // 구 air
+  { code: '001ENV302', realcode: '001ENV302', title: 'AI산업안전DX', path: 'factorydx' }, // 구 dx
+  // ...
+  { code: 'GWACHEON', realcode: '001ENV301', title: 'Air Map',
+    subTitle: '과천 관제센터', path: 'airmon' },                                          // 구 gwacheon
+];
+
+// SITE_CODES 는 path 로 SITE_LIST 를 역참조하므로 경로 변경이 코드 매핑에 직결된다
+export const SITE_CODES = {
+  AIRMAP: SITE_LIST.find((s) =&gt; s.path === 'airbiz')?.code || '',
+  DX: SITE_LIST.find((s) =&gt; s.path === 'factorydx')?.code || '',
+  GWACHEON: SITE_LIST.find((s) =&gt; s.path === 'airmon')?.code || '',
+} as const;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/layout/menu/menuItems.tsx</code> — 서비스 고객 권한의 DX 메뉴 노출 제한 · AMI 메뉴 재노출</div>
+<pre><code>case SITE_CODES.DX: {
+  // 서비스 고객(serviceClient)은 종합 현황·서비스대상 관리·디바이스 관리를 노출하지 않는다.
+  // 구역 관리는 제조공정에서만 예외적으로 노출한다.
+  const isServiceClient = !hasRole(1);
+  const hideZonesForServiceClient = isServiceClient &amp;&amp; serviceType !== AIDX_MANUFACTURING_PROC;
+
+  if (!isServiceClient) menuList[1].children?.push(overview);
+  // ...
+  if (!isServiceClient) menuList[4].children?.push(serviceTargets);
+  if (!hideZonesForServiceClient) menuList[4].children?.push(zones);
+  if (!isServiceClient) menuList[4].children?.push(devices);
+  if (isWidgetSettingServiceType(serviceType)) menuList[4].children?.push(widgetSetting);
+  break;
+}
+case SITE_CODES.AMI:
+  menuList[1].children?.push(overview);            // KT 미노출 요청으로 주석 처리됐던 항목 복구
+  menuList[1].children?.push(amiLineTaskStatus);
+  break;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/routes/route.tsx</code> · <code>src/modules/autoRefresh/AutoRefreshRoute.tsx</code> — 가드 밖 공개 라우트 + 통과 후 자동 갱신 바운더리</div>
 <pre><code>// SMS 수신 동의 페이지: SiteGuard/ProtectedRoute를 타지 않는 독립 공개 라우트
 {
   path: '/:site/sms-consent',
   element: &lt;SmsConsentPage /&gt;,
-},</code></pre>
+},
+
+// 가드를 통과한 Home·Overview 는 AutoRefreshRoute 로 한 겹 더 감싼다
+{ index: true, element: (
+    &lt;AutoRefreshRoute scope="home"&gt;&lt;Home /&gt;&lt;/AutoRefreshRoute&gt;
+  ) },
+
+// route site(:site)가 바뀌면 key가 바뀌어 Boundary가 통째로 재마운트되고 새 타이머를 시작한다
+const AutoRefreshRoute = ({ scope, children }: AutoRefreshRouteProps) =&gt; {
+  const { site } = useParams();
+  const sitePath = site ?? '';
+  return (
+    &lt;AutoRefreshBoundary key={`${sitePath}:${scope}`} sitePath={sitePath} scope={scope}&gt;
+      {children}
+    &lt;/AutoRefreshBoundary&gt;
+  );
+};</code></pre>
     </div>
   </section>
 
@@ -171,7 +244,9 @@ if (!isValidAccess) return &lt;Navigate to={`/${urlSite}/login`} replace /&gt;;<
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">SiteGuard · checkPermission · sms-consent 공개 라우트 · 부적합 시 disconnect/세션 정리</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/util.ts" target="_blank" rel="noopener">src/utils/util.ts</a><span class="src">hasRole(targetLevel) · USER_ROLES 인덱스 비교</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">USER_ROLES 5단계 · SITE_CODES · SITE_MENU 서비스 유형(serviceType) · isWidgetSettingServiceType</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">USER_ROLES 5단계 · SITE_LIST 경로(airbiz/factorydx/airmon) · SITE_CODES · SITE_MENU serviceType · AIDX_ALL_SERVICE_TYPE · isWidgetSettingServiceType</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/menu/menuItems.tsx" target="_blank" rel="noopener">src/layout/menu/menuItems.tsx</a><span class="src">getMenuList — 서비스 고객 권한의 DX 메뉴 노출 제한 · AMI 현황/배전선로 작업현황 재노출</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modules/autoRefresh/AutoRefreshRoute.tsx" target="_blank" rel="noopener">src/modules/autoRefresh/AutoRefreshRoute.tsx</a><span class="src">가드 통과 후 Home·Overview를 사이트 단위 key로 감싸는 자동 갱신 바운더리</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/ProtectedRoute.tsx" target="_blank" rel="noopener">src/routes/ProtectedRoute.tsx</a><span class="src">세션 site.code 유무로 보호 화면 진입 판정</span></li>
     </ul>
     <div class="sibling-nav">

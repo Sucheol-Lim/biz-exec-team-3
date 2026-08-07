@@ -22,12 +22,12 @@
       <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
     </div>
     <h1>실시간 원격 제어 · 화면 공유</h1>
-    <p class="one-liner"><code>screenShareModal</code>이 WebSocket 시그널 서버와 <code>RTCPeerConnection</code>(TURN)으로 단말 화면을 WebRTC 스트리밍하고, <code>useSSEController</code>가 단말 상태 이벤트를 SSE로 구독해 디바이스 모달을 실시간 갱신합니다.</p>
+    <p class="one-liner"><code>screenShareModal</code>이 WebSocket 시그널 서버와 <code>RTCPeerConnection</code>(TURN, 도메인 이중화)으로 단말 화면을 WebRTC 스트리밍하고, <code>useSSEController</code>가 단말 상태 이벤트를 SSE로 구독해 디바이스 상세 모달(<code>pages/device/detailWrapper.tsx</code>)을 실시간 갱신합니다. 모달의 제어 가능 여부는 <code>TaskContext</code>가 들고 있는 연결 정보와 마지막 접속자 비교로 판정합니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
-      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>deviceDetailModal/screenShare/screenShareModal.tsx</code></div></div>
-      <div class="item"><div class="k">기능 맥락</div><div class="v">WebRTC 화면 공유 · SSE 상태 구독</div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/device/detailWrapper.tsx</code> · <code>pages/device/modal/screenShareModal.tsx</code> · <code>contexts/TaskContext.tsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">WebRTC 화면 공유 · SSE 상태 구독 · 원격 명령</div></div>
     </div>
   </div>
 </header>
@@ -48,11 +48,17 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>실시간 원격 제어는 두 채널을 함께 씁니다. 첫째는 화면 공유(Screen Share)로, 디바이스 상세 모달에서 운영자가 화면 공유를 누르면 <code>DevicesApiManager.specialCommands(..., 'SCREEN_SHARE')</code>가 호출되어 서버로부터 <code>channelId</code>를 받습니다. 이 채널 ID로 <code>screenShareModal</code>이 <code>REACT_APP_SIGNAL_BE_WS</code> WebSocket에 접속하고, <code>RTCPeerConnection</code>(TURN 서버 <code>turn:&lt;domain&gt;:3478</code>)을 만들어 시그널링(<code>join</code>/<code>offer</code>/<code>answer</code>/<code>ice-candidate</code>)을 거쳐 단말의 화면 스트림을 WebRTC로 수신합니다. 수신한 <code>MediaStream</code>은 비디오 엘리먼트에 바인딩되며 캡처/리코딩도 지원합니다.</p>
-    <p>둘째는 상태 구독(SSE)으로, <code>useSSEController</code>가 <code>/api/v1/notifications/subscribe</code>에 <code>EventSourcePolyfill</code>로 연결해 <code>NOTIFICATION</code> 이벤트를 받습니다. 디바이스 상세 모달은 이 SSE 메시지로 단말 연결/상태 변화를 실시간 반영하고, 보조적으로 폴링도 사용합니다(개발 이력에서 디바이스 모달 폴링 주기를 5초에서 10초로 조정). 연결되지 않은 단말은 모달이 dim 처리되어 원격 명령이 막히고, 필요 시 <code>createDeviceConnection</code>으로 connection을 먼저 맺습니다. 원격 명령 페이로드 타입(<code>_api/Devices.tsx</code>의 <code>CommandType</code>)의 단말 잠금(LOCK_DEVICE) 사유 필드는 <code>lockScreenReason</code>으로 정리되어, 잠금 시 공용 컴포넌트 <code>LockReasonRadioGroup</code>(<code>getLockReasons</code>)에서 선택한 사유(Illegal·Unactive·Suspended·IP Range·Model·ETC, XLSmart는 Illegal 제외)가 명령과 함께 전송됩니다. 제어 명령 계열(<code>controlCommand</code>, <code>/device-connections/:id/commands/control</code>)에는 <code>DELETE_BLUETOOTH</code>가 추가되어(OBE 대응), 디바이스 상세의 Bluetooth 박스(<code>bluetoothBox.tsx</code>)에서 페어링된 기기의 <code>address</code>를 담아 삭제 명령을 보내고 결과는 <code>transactionId</code>가 일치하는 SSE 메시지로 수신해 화면을 갱신합니다.</p>
+    <p>실시간 원격 제어의 진입점은 작업 표시줄(<code>components/TaskBar.tsx</code>)이 띄우는 디바이스 상세 모달 <code>pages/device/detailWrapper.tsx</code>이고, 그 안의 명령 패널(<code>pages/device/commands.tsx</code>)이 원격 명령을 발행합니다. 첫째 채널은 화면 공유(Screen Share)로, 운영자가 화면 공유를 누르면(단말이 잠금 상태면 먼저 잠금 안내 모달) <code>DevicesApiManager.specialCommands(..., 'SCREEN_SHARE')</code>가 호출되어 서버로부터 <code>channelId</code>를 받습니다. 이 채널 ID로 <code>screenShareModal</code>이 <code>REACT_APP_SIGNAL_BE_WS</code> WebSocket에 접속하고, <code>RTCPeerConnection</code>을 만들어 시그널링(<code>join</code>/<code>offer</code>/<code>answer</code>/<code>ice-candidate</code>)을 거쳐 단말의 화면 스트림을 WebRTC로 수신합니다. TURN 서버는 <code>REACT_APP_WEBSOCKET_DOMAIN</code> 외에 보조 도메인 <code>REACT_APP_WEBSOCKET_DOMAIN2</code>가 설정된 사이트(XLSmart prod)에서는 두 개를 <code>iceServers</code>에 함께 등록해 이중화되며, 리모컨 UI는 <code>isTarget('TTG')</code> 여부로 <code>RemoconTTG</code>/<code>Remocon</code>이 갈립니다. 수신한 <code>MediaStream</code>은 비디오 엘리먼트에 바인딩되며 캡처/리코딩도 지원합니다.</p>
+    <p>둘째는 상태 구독(SSE)으로, <code>useSSEController</code>가 <code>/api/v1/notifications/subscribe</code>에 <code>EventSourcePolyfill</code>로 연결해 <code>NOTIFICATION</code> 이벤트를 받습니다. 디바이스 상세 모달은 이 SSE 메시지로 단말 연결/상태 변화를 실시간 반영하고, 보조적으로 1분 주기 <code>getDeviceInfo</code> 재조회도 겁니다. 연결되지 않았거나 내가 잡은 연결이 아니면 명령 패널이 dim 처리되어 원격 명령이 막히고, 필요 시 <code>createDeviceConnection</code>으로 connection을 먼저 맺습니다. 원격 명령 페이로드 타입(<code>_api/Devices.tsx</code>의 <code>CommandType</code>)의 단말 잠금(LOCK_DEVICE) 사유 필드는 <code>lockScreenReason</code>으로 정리되어, 잠금 시 공용 컴포넌트 <code>LockReasonRadioGroup</code>(<code>getLockReasons</code>)에서 선택한 사유(Illegal·Unactive·Suspended·IP Range·Model·ETC, XLSmart는 Illegal 제외)가 명령과 함께 전송됩니다. 제어 명령 계열(<code>controlCommand</code>, <code>/device-connections/:id/commands/control</code>)에는 <code>DELETE_BLUETOOTH</code>가 추가되어(OBE 대응), 디바이스 상세의 Bluetooth 박스(<code>bluetoothBox.tsx</code>)에서 페어링된 기기의 <code>address</code>를 담아 삭제 명령을 보내고 결과는 <code>transactionId</code>가 일치하는 SSE 메시지로 수신해 화면을 갱신합니다.</p>
+    <p>제어 가능 여부 판정 시나리오가 정리되었습니다. 예전에는 모달을 열기 전에 계산한 <code>isMine</code> 프로퍼티를 그대로 내려받았지만, 지금은 모달이 뜬 뒤 <code>getDeviceInfo</code> 응답의 <code>lastConnectUserId</code>와 로그인 사용자(<code>useAuth().userInfo.id</code>)를 비교해 <code>isConnectedByMe</code>를 세웁니다. Controllable/View Only 뱃지, 탭 이동 시 변경사항 경고, 새로고침 버튼의 동작(<code>refreshDevice</code> 또는 단순 <code>getDeviceInfo</code>)이 모두 이 값을 기준으로 하며, 첫 조회에서 이미 다른 사용자가 연결 중이면 사용 중 안내 모달(<code>md:device_in_use_modal</code>)을 띄웁니다. 모달 제목의 단말 ID도 사이트 분기 유틸 대신 <code>ID_FIELD</code>(KT는 <code>deviceSiteId</code>, 그 외 <code>deviceId</code>)로 뽑습니다.</p>
+    <p>연결 명령을 먼저 보내고 상세 모달을 여는 경로를 위해 <code>isCommandSent</code> 폴링이 추가되었습니다. 오프라인으로 보이는 단말을 목록에서 클릭하면 <code>commandDevices(..., 'DEVICE_CONNECTION')</code>을 먼저 던지고 <code>isCommandSent: true</code>로 모달을 여는데(<code>pages/management/devices.tsx</code> 등), 이 플래그가 서 있으면 1초 간격으로 최대 20회 <code>getDetail</code>을 호출해, 단말이 다른 사용자에게 <code>CONNECTED</code>된 경우에는 폴링을 끝내고, <code>STANDBY</code>로 돌아오면 <code>createDeviceConnection</code>으로 연결을 새로 만든 뒤 <code>TaskContext</code>의 <code>updateCurrDeviceDetailModalConnectionId</code>로 현재 모달의 <code>connectionId</code>·상태를 갱신하고 정보를 다시 읽습니다. 폴링 중에는 새로고침 버튼 자리에 진행 표시가 나옵니다. <code>TaskContext</code> 자체도 디바이스 상세 모달 전용임이 드러나도록 <code>modals</code>→<code>deviceDetailModals</code>, <code>currModal</code>→<code>currDeviceDetailModal</code>, <code>openModal</code>/<code>closeModal</code>→<code>openDeviceDetailModal</code>/<code>closeDeviceDetailModal</code>로 이름이 정리되었고, 닫기·작업 제거 시 <code>isConnected</code> 조건 없이 <code>connectionId</code>만 있으면 <code>closeDeviceIssueReport</code>를 호출하며 콜백에 <code>connectionId</code>·<code>currSectionStatus</code>를 넘겨 호출 측이 뒷정리를 할 수 있게 했습니다.</p>
+    <div class="callout">
+      <div class="ct">명령 모달 정비</div>
+      앱 제어 확인 모달(<code>RequestedModal</code>)은 <code>isLoading</code> 동안 실행/취소 버튼을 비활성화하고 실행 버튼에 스피너를 띄워 중복 요청을 막습니다. 메시지 전송 모달(<code>messageModal</code>)은 YOUTUBE 타입일 때 <code>screenSize</code>·<code>position</code>·<code>autoClose</code>를 보내지 않고 <code>url</code>만 전달하도록 페이로드를 분기했고, 패킷 캡처 모달(<code>PacketModal</code>)은 응답 <code>payload.duration</code>이 없으면 캡처 진행 상태를 <code>false</code>로 되돌려 잘못된 진행 표시가 남지 않게 했습니다.
+    </div>
     <div class="callout">
       <div class="ct">connection 선행 + dim 처리</div>
-      Screen Share·Terminal 등 실시간 기능은 단말이 connection 된 상태(<code>currSectionStatus</code> CONNECTED)에서만 동작합니다. 디바이스 모달은 <code>isConnected</code>와 편집 권한(<code>isPermission.isEdit</code>)을 보고 dim 여부를 결정하며, dim 상태에서 화면 공유를 누르면 토스트로 막습니다.
+      Screen Share·Terminal 등 실시간 기능은 단말이 connection 된 상태(<code>currSectionStatus</code> CONNECTED)에서만 동작합니다. 명령 패널은 <code>isConnected</code>와 <code>isMine</code>(= 상위의 <code>isConnectedByMe</code>)을 보고 dim 여부를 결정합니다.
     </div>
   </section>
 
@@ -63,16 +69,29 @@
 sequenceDiagram
     autonumber
     participant OP as 운영자 (Browser)
-    participant DD as deviceDetail.tsx
+    participant TB as TaskBar / TaskContext
+    participant DW as detailWrapper.tsx
+    participant CMD as commands.tsx
     participant DM as DevicesApiManager
     participant SS as screenShareModal.tsx
     participant WS as Signal 서버 (WebSocket)
     participant STB as 단말 (RMS Client)
 
-    OP-&gt;&gt;DD: 화면 공유 클릭
-    DD-&gt;&gt;DM: specialCommands(id, 'SCREEN_SHARE')
-    DM--&gt;&gt;DD: channelId
-    DD-&gt;&gt;SS: 모달 열기 (channelId)
+    OP-&gt;&gt;TB: 단말 행 클릭 (openDeviceDetailModal)
+    TB-&gt;&gt;DW: 상세 모달 열기 (connectionId, isCommandSent)
+    DW-&gt;&gt;DM: getDeviceInfo(id)
+    DM--&gt;&gt;DW: lastConnectUserId / isConnected
+    DW-&gt;&gt;DW: isConnectedByMe 판정 (Controllable 또는 View Only)
+    opt isCommandSent 폴링 (1초 x 20회)
+        DW-&gt;&gt;DM: getDetail(id)
+        DM--&gt;&gt;DW: status STANDBY
+        DW-&gt;&gt;DM: createDeviceConnection(id)
+        DW-&gt;&gt;TB: updateCurrDeviceDetailModalConnectionId(connectionId)
+    end
+    OP-&gt;&gt;CMD: 화면 공유 클릭
+    CMD-&gt;&gt;DM: specialCommands(id, 'SCREEN_SHARE')
+    DM--&gt;&gt;CMD: channelId
+    CMD-&gt;&gt;SS: 모달 열기 (channelId)
     SS-&gt;&gt;WS: new WebSocket(SIGNAL_BE_WS)
     SS-&gt;&gt;WS: send {type: join, channelId}
     WS-&gt;&gt;STB: device-joined 통지
@@ -85,7 +104,7 @@ sequenceDiagram
     STB--&gt;&gt;SS: ontrack → MediaStream
     SS-&gt;&gt;SS: 비디오 렌더 / 녹화
       </div>
-      <p class="cap"><strong>흐름.</strong> 화면 공유 명령으로 채널을 받고, WebSocket 시그널링(join → offer/answer → ICE)을 거쳐 WebRTC <code>ontrack</code>으로 단말 화면 스트림을 수신·표시합니다. 단말 상태 변화는 별도 SSE(<code>useSSEController</code>)로 갱신됩니다.</p>
+      <p class="cap"><strong>흐름.</strong> 상세 모달은 열린 뒤 단말 정보를 받아 제어 가능 여부를 판정하고, 연결 명령이 선행된 경우 STANDBY 전환을 폴링해 연결을 새로 맺습니다. 이어 화면 공유 명령으로 채널을 받고 WebSocket 시그널링(join → offer/answer → ICE)을 거쳐 WebRTC <code>ontrack</code>으로 단말 화면 스트림을 수신·표시합니다. 단말 상태 변화는 별도 SSE(<code>useSSEController</code>)로 갱신됩니다.</p>
     </div>
   </section>
 
@@ -94,12 +113,26 @@ sequenceDiagram
     <div class="diagram">
       <div class="mermaid">
 classDiagram
-    class DeviceDetail {
-        -isDimmed
-        -channelValue
-        +handleScreenShareOpen()
-        +connect()
-        +disconnect()
+    class TaskProvider {
+        +deviceDetailModals
+        +currDeviceDetailModal
+        +openDeviceDetailModal(data)
+        +closeDeviceDetailModal(target)
+        +updateCurrDeviceDetailModalConnectionId(connectionId)
+    }
+    class DetailWrapper {
+        -isConnected
+        -isConnectedByMe
+        -isCommandSentPolling
+        -openAlarm
+        +getDeviceInfo(isReload)
+        +refreshDevice(isAll)
+    }
+    class Commands {
+        -isDim
+        -channelId
+        +handleSubCommandClick(item)
+        +doAction(command)
     }
     class ScreenShareModal {
         -socketRef WebSocket
@@ -118,24 +151,33 @@ classDiagram
         +specialCommands(cb, id, type, params)
         +controlCommand(cb, id, type, params)
         +createDeviceConnection(cb, id)
+        +getDeviceInfo(cb, id)
+        +getDetail(cb, id)
     }
 
-    DeviceDetail o-- ScreenShareModal : 화면 공유 모달
-    DeviceDetail --&gt; useSSEController : 상태 이벤트 구독
-    DeviceDetail --&gt; DevicesApiManager : SCREEN_SHARE / connection
-    ScreenShareModal --&gt; DevicesApiManager : 채널 기반 시그널
+    TaskProvider o-- DetailWrapper : 현재 상세 모달
+    DetailWrapper o-- Commands : 명령 패널
+    Commands o-- ScreenShareModal : 화면 공유 모달
+    DetailWrapper --&gt; useSSEController : 상태 이벤트 구독
+    DetailWrapper --&gt; DevicesApiManager : 단말 정보·연결 생성
+    Commands --&gt; DevicesApiManager : SCREEN_SHARE 채널 요청
       </div>
-      <p class="cap"><strong>관계.</strong> <code>DeviceDetail</code>이 화면 공유 모달과 SSE 구독을 소유하고, <code>ScreenShareModal</code>은 WebSocket+<code>RTCPeerConnection</code>으로 WebRTC 스트림을 처리합니다. 명령/연결은 <code>DevicesApiManager</code>를 거칩니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>TaskProvider</code>가 현재 열린 디바이스 상세 모달을 들고, <code>DetailWrapper</code>가 SSE 구독·연결 상태 판정·명령 선행 폴링을 담당하며, 실제 명령은 <code>Commands</code> 패널이 발행합니다. <code>ScreenShareModal</code>은 WebSocket+<code>RTCPeerConnection</code>으로 WebRTC 스트림을 처리하고, 명령/연결은 모두 <code>DevicesApiManager</code>를 거칩니다.</p>
     </div>
   </section>
 
   <section id="code">
     <h2>핵심 코드</h2>
     <div class="snippet">
-      <div class="sc"><code>deviceDetailModal/screenShare/screenShareModal.tsx</code> — WebSocket + WebRTC(TURN) 초기화·시그널 분기</div>
+      <div class="sc"><code>pages/device/modal/screenShareModal.tsx</code> — WebSocket + WebRTC(TURN 이중화) 초기화·시그널 분기</div>
 <pre><code>socketRef.current = new WebSocket(wss_url);  // REACT_APP_SIGNAL_BE_WS
+const domain = process.env.REACT_APP_WEBSOCKET_DOMAIN;
+const domain2 = process.env.REACT_APP_WEBSOCKET_DOMAIN2;   // 보조 TURN (XLSmart prod)
 webRTC.current = new RTCPeerConnection({
-  iceServers: [{ username: 'rms', credential: '****', urls: [`turn:${domain}:3478`] }]
+  iceServers: [{
+    username: 'rms', credential: '****',
+    urls: domain2 ? [`turn:${domain}:3478`, `turn:${domain2}:3478`] : [`turn:${domain}:3478`]
+  }]
 });
 socketRef.current.onmessage = async function (msg) {
   let message = JSON.parse(msg.data);
@@ -149,27 +191,97 @@ socketRef.current.onmessage = async function (msg) {
 webRTC.current.ontrack = (ev) =&gt; { remoteVideoRef.current.srcObject = ev.streams[0]; };</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>components/deviceDetailModal/deviceDetail.tsx</code> — SSE 구독 + 화면 공유 채널 획득</div>
+      <div class="sc"><code>pages/device/detailWrapper.tsx</code> — SSE 구독 + 모달이 뜬 뒤 제어 가능 여부 판정</div>
 <pre><code>const { connect, disconnect, message } = useSSEController({
   url: `${process.env.REACT_APP_RMS_BE_SERVER_URL}/api/v1/notifications/subscribe`,
   eventType: 'NOTIFICATION',
-  headers: { authorization: sessionStorage.getItem('accessToken') ?? '' }
+  headers: { authorization: sessionStorage.getItem('accessToken') ?? '' },
+  onError: (e) =&gt; { console.error('[SSE] Error:', e); }
 });
 
-const handleScreenShareOpen = () =&gt; {
-  if (isDimmed) { toast(`check currSectionStatus = ${currSectionStatus}`, { variant: 'error' }); return; }
-  DevicesApiManager.specialCommands((result, data, code, message) =&gt; {
-    if (message === 'OK' &amp;&amp; data?.channelId) { setChannelValue(data.channelId); setScreenShareOpen(true); }
-  }, id, 'SCREEN_SHARE');
+const getDeviceInfo = (isReload?: boolean) =&gt; {
+  DevicesApiManager.getDeviceInfo((result, data, code, message) =&gt; {
+    if (result &amp;&amp; code === '200000') {
+      const isMine = data.lastConnectUserId === userInfo.id;      // 모달이 뜬 뒤 판정
+      if (deviceCallCountRef.current === 0 &amp;&amp; data.isConnected &amp;&amp; !isMine) {
+        setOpenAlarm(true);                                        // 다른 사용자가 사용 중 안내
+      }
+      setConnectedByMe(isMine);
+      setDetailTitleId(data[ID_FIELD]);                            // KT: deviceSiteId, 그 외: deviceId
+    }
+    deviceCallCountRef.current = deviceCallCountRef.current + 1;
+  }, id);
 };</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>pages/device/detailWrapper.tsx</code> — 연결 명령 선행 시 STANDBY 전환 폴링 후 connection 생성</div>
+<pre><code>useEffect(() =&gt; {
+  if (!isCommandSent) return;
+  setIsCommandSentPolling(true);
+
+  let count = 0;
+  const interval = setInterval(() =&gt; {
+    count += 1;
+    if (count &gt;= 20) { clearInterval(interval); setIsCommandSentPolling(false); }
+
+    DevicesApiManager.getDetail((result, data) =&gt; {
+      if (!result || !data) return;
+
+      if (data.status === DEVICE_SECTION_STATUS.CONNECTED &amp;&amp;
+          data.modifiedBy !== sessionStorage.getItem('clientId')) {
+        clearInterval(interval); setIsCommandSentPolling(false); return;   // 타인이 잡은 연결
+      }
+
+      if (data.status === DEVICE_SECTION_STATUS.STANDBY) {
+        clearInterval(interval); setIsCommandSentPolling(false);
+        DevicesApiManager.createDeviceConnection((result, connectionData) =&gt; {
+          if (result &amp;&amp; connectionData?.id) {
+            updateCurrDeviceDetailModalConnectionId(connectionData.id);    // TaskContext 갱신
+            getDeviceInfo();
+          }
+        }, id);
+      }
+    }, id);
+  }, 1000);
+
+  return () =&gt; { clearInterval(interval); setIsCommandSentPolling(false); };
+}, [isCommandSent, id, updateCurrDeviceDetailModalConnectionId]);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>contexts/TaskContext.tsx</code> — 디바이스 상세 모달 전용 상태로 이름 정리 + connectionId 갱신</div>
+<pre><code>const [deviceDetailModals, setDeviceDetailModals] = useState&lt;ModalProps[]&gt;([]);
+const [currDeviceDetailModal, setCurrDeviceDetailModal] = useState&lt;ModalProps | null&gt;(null);
+
+const closeDeviceDetailModal = (target: ModalProps) =&gt; {
+  if (target?.connectionId) {                       // isConnected 조건 제거
+    VocApiManager.closeDeviceIssueReport(() =&gt; {
+      target.callback(target?.connectionId, target?.currSectionStatus);
+    }, target?.connectionId);
+  }
+  setCurrDeviceDetailModal(null);
+};
+
+const updateCurrDeviceDetailModalConnectionId = useCallback((connectionId: number) =&gt; {
+  setCurrDeviceDetailModal((prev) =&gt;
+    prev ? { ...prev, connectionId, isCommandSent: false, currSectionStatus: DEVICE_SECTION_STATUS.CONNECTED } : prev
+  );
+}, []);</code></pre>
     </div>
   </section>
 
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/deviceDetailModal/screenShare/screenShareModal.tsx" target="_blank" rel="noopener">components/deviceDetailModal/screenShare/screenShareModal.tsx</a><span class="src">화면 공유 — WebSocket 시그널·RTCPeerConnection(TURN)·ontrack</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/deviceDetailModal/deviceDetail.tsx" target="_blank" rel="noopener">components/deviceDetailModal/deviceDetail.tsx</a><span class="src">디바이스 모달 — SSE 구독·화면 공유 채널 획득·dim 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/device/modal/screenShareModal.tsx" target="_blank" rel="noopener">pages/device/modal/screenShareModal.tsx</a><span class="src">화면 공유 — WebSocket 시그널·RTCPeerConnection(TURN 이중화)·ontrack·isTarget 리모컨 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/device/detailWrapper.tsx" target="_blank" rel="noopener">pages/device/detailWrapper.tsx</a><span class="src">디바이스 상세 모달 — SSE 구독·isConnectedByMe 판정·사용 중 안내·isCommandSent 폴링</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/device/commands.tsx" target="_blank" rel="noopener">pages/device/commands.tsx</a><span class="src">명령 패널 — doAction으로 SCREEN_SHARE 채널 요청·명령별 모달 분기·dim 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/contexts/TaskContext.tsx" target="_blank" rel="noopener">contexts/TaskContext.tsx</a><span class="src">상세 모달 전역 상태 — deviceDetailModals·updateCurrDeviceDetailModalConnectionId</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/TaskBar.tsx" target="_blank" rel="noopener">components/TaskBar.tsx</a><span class="src">작업 표시줄 — 최소화된 모달 복원·DetailWrapper 렌더(isCommandSent 전달)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/types/task.ts" target="_blank" rel="noopener">types/task.ts</a><span class="src">ModalProps·TaskContextType — isMine 제거·isCommandSent 추가·callback 인자 확장</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/device/modal/RequestedModal.tsx" target="_blank" rel="noopener">pages/device/modal/RequestedModal.tsx</a><span class="src">앱 제어 확인 모달 — isLoading 동안 버튼 비활성·스피너</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/device/modal/messageModal.tsx" target="_blank" rel="noopener">pages/device/modal/messageModal.tsx</a><span class="src">메시지 전송 모달 — YOUTUBE 타입 시 screenSize/position/autoClose 미전송</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/device/modal/PacketModal.tsx" target="_blank" rel="noopener">pages/device/modal/PacketModal.tsx</a><span class="src">패킷 캡처 모달 — payload.duration 부재 시 캡처 상태 해제</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/deviceDetailModal/deviceDetail.tsx" target="_blank" rel="noopener">components/deviceDetailModal/deviceDetail.tsx</a><span class="src">(별도 경로) deviceDetailInfo 화면이 쓰는 구 디바이스 상세 모달</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/hooks/useSSEController.ts" target="_blank" rel="noopener">hooks/useSSEController.ts</a><span class="src">SSE 컨트롤러 — EventSourcePolyfill·NOTIFICATION 구독·connect/disconnect</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Devices.tsx" target="_blank" rel="noopener">_api/Devices.tsx</a><span class="src">specialCommands(SCREEN_SHARE) / controlCommand(DELETE_BLUETOOTH·address) / createDeviceConnection · CommandType의 잠금 사유 필드 lockScreenReason</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/device/comp/bluetoothBox.tsx" target="_blank" rel="noopener">pages/device/comp/bluetoothBox.tsx</a><span class="src">Bluetooth 박스 — DELETE_BLUETOOTH 명령 전송·transactionId 매칭 SSE 갱신</span></li>

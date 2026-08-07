@@ -1,0 +1,370 @@
+<!doctype html>
+<!-- vams_fe · 얼굴인식 검수·편집 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>얼굴인식 검수·편집 — vams_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">VAMS 고도화 (Video Asset Management System FE)</a><span class="sep">›</span>
+      <span class="here">얼굴인식 검수·편집</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">관리자 웹앱 (Vue 3 SPA)</span>
+    </div>
+    <h1>얼굴인식 검수·편집</h1>
+    <p class="one-liner">AI 얼굴인식 엔진이 영상에서 검출한 인물 얼굴을 운영자가 검수하는 화면입니다. 공통 리스트 패턴 목록(FC-001)과 우측 상세패널(FC-002), 배역 인식 목록 모달(FC-003)을 거쳐 bare 풀스크린 상세(FC-004)에서 배역 칩·검출 썸네일 그리드·대표 이미지 아코디언을 다루고, 상세 분석 결과 모달(FC-005)에서 인물 재지정과 대표 영역 드래그 지정을 수행합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/vams_fe" target="_blank" rel="noopener"><code>vams_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트·화면</div><div class="v"><code>src/features/face-recognition/</code> — 목록·상세·분석 모달 + <code>edit/</code> 로컬 스테이징</div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">LNB 13개 메뉴 중 구현 11개 도메인의 하나 · 신규 추가된 AI 기능 영역 5종 중 인물 축</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ VAMS 고도화</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>얼굴인식은 콘텐츠 영상에서 검출된 인물 얼굴을 배역(인물)별로 정리하고, AI가 잘못 묶은 얼굴을 운영자가 바로잡는 메뉴입니다. 목록(<code>FaceRecognitionListPage</code>)은 전 메뉴 공통 리스트 패턴을 따르되 <code>serviceType: 'CI'</code>를 고정 주입하고, 완결여부 3택1 필터를 feature-local ref로 유지해 공용 <code>listQuery</code> 스토어를 침범하지 않습니다(<code>completedYn</code>은 페이지에서 머지). 정렬은 상태칩이 <code>all</code>이 아닐 때 <code>PRIORITY</code>를 <code>LATEST</code>로 강등하는 공통 가드를 그대로 씁니다. 우측 <code>FaceRecognitionDetailPanel</code>이 행 요약을 보여주고, [검수] CTA가 AppShell 밖 <strong>bare 풀스크린 라우트</strong> <code>/face-recognition/:jobId</code>로 진입시킵니다. 목록 상단에서는 콘텐츠를 횡단하는 전역 배역 조회 모달(<code>FaceRoleListModal</code>, FC-003)을 열 수 있으며, 이 모달은 <code>keyword</code>에만 의존하는 별도 쿼리 축(<code>faceRecognitionKeys.roles</code>)을 씁니다.</p>
+    <p>상세 화면(<code>FaceRecognitionDetailPage</code>)은 두 축의 쿼리로 구성됩니다. 헤더 breadcrumb(장르·콘텐츠명)용 <code>fetchFaceRecognitionDetail</code>과, 화면 본문 3개 섹션(배역 칩 행 · 검출 썸네일 그리드 · 대표 이미지 아코디언)의 단일 소스인 <code>fetchFaceRecognitionResult</code>입니다. 후자는 <strong>최초 fetch 로더 전용</strong>으로만 쓰입니다 — <code>staleTime: Infinity</code> + <code>refetchOnMount/WindowFocus: false</code>로 두고, 성공하면 <code>store.hydrate()</code>가 결과를 Pinia 스토어로 1회 이관합니다. 이후 렌더 소스는 오직 <code>store.result</code>이며, 대표/후보 토글·인물 재지정·대표 영역 지정은 전부 <strong>로컬 스테이징(네트워크 0)</strong>으로 처리하고 BE 쓰기는 헤더 [저장] 한 경로로 모읍니다. 썸네일 제어(<code>FaceSizeControl</code>)로 검출 얼굴 크기를 조절하거나 "결과만 보기"를 토글할 수 있습니다.</p>
+    <p>편집 상태는 <code>faceRecognitionEdit</code> 스토어가 <code>shallowRef</code>로 소유합니다. 결과 그래프가 불변(immutable)이라 deep reactivity가 필요 없고, 루트 참조만 갈아끼우면 파생 computed가 전부 갱신되기 때문입니다. 그래서 <code>isDirty</code>는 <code>result !== baselineResult</code> 참조 비교 O(1)로 판정되고, 이 판정이 성립하려면 <code>faceResultMutations.ts</code>의 모든 transform이 불변이면서 no-op일 때 인자를 <strong>그대로</strong> 반환해야 합니다(위반 시 헛 dirty). 실행취소·재실행은 이 불변성 덕에 루트 참조 스냅샷 스택으로 충분해 클론 없이 O(1) push/pop이며, 상한은 50단계(<code>FACE_HISTORY_LIMIT</code>)로 초과분은 가장 오래된 이력부터 버립니다. 모든 편집은 <code>commit()</code> 단일 관문을 지나므로 필터칩·스크롤·모달 열기 같은 보기 상태는 구조적으로 이력에 기록되지 않습니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트 — 저장 후 캐시 승격</div>
+      저장 성공 시 <code>store.applySaved(r)</code>로 baseline을 승격하는 것만으로는 부족합니다. result 쿼리가 <code>staleTime: Infinity</code>이고 언마운트 시 스토어가 리셋되므로, <code>qc.setQueryData</code>로 캐시까지 함께 승격하지 않으면 <strong>저장 → 목록 복귀 → gcTime 내 재진입</strong> 시 저장 이전 스냅샷으로 다시 hydrate되어 편집이 사라진 것처럼 보입니다. 실제로 리뷰에서 MAJOR로 잡혀 수정된 결함입니다.
+    </div>
+    <div class="callout">
+      <div class="ct">참고 — 계약 상태</div>
+      <code>FACE_API</code>의 경로는 아직 전부 [추정]입니다. API 리스트 v1.0.3에서 얼굴인식 시트가 4종 → 11종으로 확장되며 교체 블로커 2건이 해소됐고 상세 결과 저장(FC-9 PATCH)은 여전히 API 부재(FC-I4)로 표시되어, 저장은 Mock 로컬 반영 수준입니다. 실 계약 확정 시 <code>endpoints.ts</code>와 어댑터 2지점만 교체하도록 격리해 두었습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant USR as 운영자
+    participant PAGE as FaceRecognitionDetailPage (bare)
+    participant Q as queries.ts / vue-query
+    participant ST as faceRecognitionEdit (Pinia)
+    participant MU as faceResultMutations
+    participant MODAL as FaceAnalysisModal (FC-005)
+    participant DRAG as useRepRegionDrag
+
+    USR-&gt;&gt;PAGE: 목록 [검수] → /face-recognition/:jobId
+    PAGE-&gt;&gt;Q: fetchFaceRecognitionDetail(jobId) — 헤더 breadcrumb 축
+    PAGE-&gt;&gt;Q: fetchFaceRecognitionResult(jobId) — staleTime Infinity(로더 전용)
+    Q--&gt;&gt;PAGE: FaceRecognitionResult (roles · detections · repImagePairs)
+    PAGE-&gt;&gt;ST: hydrate(jobId, result) — 1회 이관, hydratedJobId 가드
+    Note over PAGE,ST: 이후 렌더 소스는 store.result 뿐
+
+    USR-&gt;&gt;PAGE: 썸네일 카드 [후보로 지정]
+    PAGE-&gt;&gt;ST: setCandidateLocal(detectionId)
+    ST-&gt;&gt;MU: setCandidate(result, id) — 불변 transform
+    MU--&gt;&gt;ST: next (no-op이면 동일 참조)
+    ST-&gt;&gt;ST: commit(next) — undo 스택 push · redo 초기화
+
+    USR-&gt;&gt;PAGE: 썸네일 카드 클릭 → 상세 분석 결과 모달
+    PAGE-&gt;&gt;MODAL: open (detection · reassignCandidates)
+    USR-&gt;&gt;DRAG: 장면 이미지 위 드래그 (대표 영역)
+    DRAG--&gt;&gt;MODAL: squareFromAnchor / moveBox → FaceBox(정규화)
+    USR-&gt;&gt;MODAL: 인물 선택 후 [적용]
+    MODAL--&gt;&gt;PAGE: apply(personId, repRegion) — 네트워크 0
+    PAGE-&gt;&gt;ST: applyAnalysisLocal(detectionId, personId, repRegion)
+    ST-&gt;&gt;MU: reassignDetection + setRepRegion (1 transform = 1 이력)
+
+    USR-&gt;&gt;PAGE: 헤더 [저장] (isDirty)
+    PAGE-&gt;&gt;Q: saveFaceRecognitionResult(jobId, toFaceRecognitionResultSave(result))
+    Q--&gt;&gt;PAGE: {code, message}
+    PAGE-&gt;&gt;ST: applySaved(result) — baseline 승격
+    PAGE-&gt;&gt;Q: qc.setQueryData(keys.result(jobId), result) — 캐시도 승격
+      </div>
+      <p class="cap"><strong>흐름.</strong> 진입 시 결과를 스토어로 1회 이관한 뒤, 모든 편집은 순수 transform → <code>commit()</code> 경로로 로컬에만 반영됩니다. 분석 모달의 인물 재지정과 대표 영역은 한 payload로 묶여 원자 반영되고, 네트워크 왕복은 헤더 [저장] 1회뿐입니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class FaceRecognitionListPage {
+        serviceType CI 고정
+        완결여부 3택1 필터 feature-local
+        배역 인식 목록 모달 트리거
+    }
+    class FaceRecognitionDetailPage {
+        +jobId string
+        +onCandidateToggle(detectionId)
+        +onOpenAnalysis(detectionId)
+        +onApplyAnalysis(payload)
+        +onSave()
+        +onReset()
+    }
+    class FaceRecognitionEditStore {
+        &lt;&lt;pinia store&gt;&gt;
+        +result shallowRef
+        +baselineResult shallowRef
+        +isDirty bool
+        +canUndo · canRedo bool
+        +hydrate(jobId, result)
+        +commit(next)
+        +undo() · redo()
+        +applyAnalysisLocal(id, personId, region)
+        +applySaved(result)
+        +resetToBaseline()
+    }
+    class FaceResultMutations {
+        &lt;&lt;pure module&gt;&gt;
+        +setRepresentative(result, id)
+        +setCandidate(result, id)
+        +reassignDetection(result, id, personId)
+        +setRepRegion(result, id, box)
+    }
+    class FaceAnalysisModal {
+        +detection FaceDetection
+        +candidates FaceReassignCandidate
+        +apply(FaceAnalysisApplyPayload)
+        +select-detection(detectionId)
+    }
+    class UseRepRegionDrag {
+        &lt;&lt;composable&gt;&gt;
+        +region FaceBox
+        +squareFromAnchor(anchor, point, aspect)
+        +moveBox(box, point, grab)
+        +MIN_REGION_SIZE 0.05
+    }
+    class FaceBoxLabel {
+        &lt;&lt;pure module&gt;&gt;
+        +wrapRoleLabel(name, maxChars)
+        +resolveFaceLabelPlacement(input)
+        +faceLabelStyle(box, placement)
+    }
+    class FaceDetectionGrid {
+        +title · detections
+        +candidate(detectionId)
+        +open-analysis(detectionId)
+    }
+    class FaceRepImageAccordion
+    class FaceSizeControl {
+        검출 얼굴크기 조절
+        결과만 보기 토글
+    }
+    class FaceRoleListModal {
+        FC-003 전역 배역 조회
+        keyword 단일 의존 쿼리축
+    }
+    class FaceRecognitionResult {
+        +roles
+        +detections
+        +repImagePairs
+    }
+    class FaceDetection {
+        +detectionId
+        +personId · reassignedPersonId
+        +cardState
+        +repRegion FaceBox
+    }
+
+    FaceRecognitionListPage --&gt; FaceRecognitionDetailPage : goReview (route state)
+    FaceRecognitionListPage --&gt; FaceRoleListModal : 전역 배역 조회
+    FaceRecognitionDetailPage --&gt; FaceRecognitionEditStore : 렌더 소스 · 편집 위임
+    FaceRecognitionDetailPage --&gt; FaceDetectionGrid
+    FaceRecognitionDetailPage --&gt; FaceRepImageAccordion
+    FaceRecognitionDetailPage --&gt; FaceSizeControl
+    FaceRecognitionDetailPage --&gt; FaceAnalysisModal : 카드 클릭 시 오픈
+    FaceAnalysisModal --&gt; UseRepRegionDrag : 대표 영역 포인터 조작
+    FaceAnalysisModal ..&gt; FaceBoxLabel : 박스 라벨 배치
+    FaceRecognitionEditStore --&gt; FaceResultMutations : 불변 transform 호출
+    FaceRecognitionEditStore ..&gt; FaceRecognitionResult
+    FaceRecognitionResult o-- FaceDetection
+      </div>
+      <p class="cap"><strong>관계.</strong> 스토어는 순수 transform 모듈만 호출하고, DOM·네트워크는 전혀 모릅니다. 포인터 기하(<code>useRepRegionDrag</code>)와 라벨 배치(<code>faceBoxLabel</code>)는 Vue 무결합 순수 함수로 분리되어 유닛 테스트 대상이 됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/features/face-recognition/edit/stores/faceRecognitionEdit.ts</code> — 편집 커밋 단일 관문과 50단계 이력</div>
+<pre><code>/** 이력 최대 단계 — 정본 §6 "기본 50단계". 초과 시 가장 오래된 이력부터 제거. */
+export const FACE_HISTORY_LIMIT = 50
+
+/** dirty — 참조 비교 O(1). */
+const isDirty = computed&lt;boolean&gt;(() =&gt; result.value !== baselineResult.value)
+
+/**
+ * 편집 커밋 단일 관문 — result 교체 + 이력 기록을 한 곳에 모은다.
+ * no-op(next === 현재)이면 result 참조도 이력도 건드리지 않는다(헛 dirty·헛 이력 방지).
+ */
+function commit(next: FaceRecognitionResult): void {
+  const r = result.value
+  if (!r || next === r) return
+  const prev = undoStack.value
+  // §6 초과 처리: 가장 오래된 이력부터 제거(신규 1칸 확보).
+  undoStack.value =
+    prev.length &gt;= FACE_HISTORY_LIMIT
+      ? [...prev.slice(prev.length - FACE_HISTORY_LIMIT + 1), r]
+      : [...prev, r]
+  redoStack.value = []
+  result.value = next
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/face-recognition/edit/faceResultMutations.ts</code> — no-op이면 인자를 그대로 반환하는 불변 transform</div>
+<pre><code>/** idx 위치의 detection만 교체한 새 배열(불변) — 다른 항목은 참조 그대로 유지. */
+function replaceAt(detections: FaceDetection[], idx: number, next: FaceDetection): FaceDetection[] {
+  const out = [...detections]
+  out[idx] = next
+  return out
+}
+
+export function setRepresentative(
+  result: FaceRecognitionResult,
+  detectionId: string,
+): FaceRecognitionResult {
+  const idx = findIndex(result, detectionId)
+  if (idx === -1) return result                      // no-op(없는 detectionId)
+  const d = result.detections[idx]!
+  if (d.cardState === 'representative') return result // no-op(이미 대표)
+  return {
+    ...result,
+    detections: replaceAt(result.detections, idx, { ...d, cardState: 'representative' }),
+  }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/face-recognition/composables/useRepRegionDrag.ts</code> — 종횡비 보정된 정사각 영역 계산</div>
+<pre><code>/** 최소 영역 크기(정규화) — 이보다 작으면 "클릭 오조작"으로 보고 그리기를 폐기한다. */
+export const MIN_REGION_SIZE = 0.05
+
+/**
+ * 정규화 좌표에서 w === h 는 컨테이너가 정사각일 때만 시각적 정사각이다.
+ * 장면 이미지는 658×370(≈16:9)이므로 변의 길이를 x-정규화 단위로 계산하고
+ * 높이는 size × aspect 로 환산한다. aspect = 1 이면 기존 동작으로 축퇴한다.
+ */
+export function squareFromAnchor(anchor: Point, point: Point, aspect = 1): FaceBox {
+  const dx = point.x - anchor.x
+  const dy = point.y - anchor.y
+  const towardRight = dx &gt;= 0
+  const towardBottom = dy &gt;= 0
+  // 진행 방향으로 남은 여유 — y축 여유도 x-정규화 단위로 환산해 비교한다.
+  const roomX = towardRight ? 1 - anchor.x : anchor.x
+  const roomY = (towardBottom ? 1 - anchor.y : anchor.y) / aspect
+  const size = Math.min(Math.max(Math.abs(dx), Math.abs(dy) / aspect), roomX, roomY)
+  const height = size * aspect
+  return {
+    x: towardRight ? anchor.x : anchor.x - size,
+    y: towardBottom ? anchor.y : anchor.y - height,
+    w: size,
+    h: height,
+  }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/face-recognition/pages/FaceRecognitionDetailPage.vue</code> — 저장 후 baseline·캐시 동시 승격</div>
+<pre><code>async function onSave(): Promise&lt;void&gt; {
+  if (!store.isDirty || savePending.value) return
+  const r = store.result
+  if (!r) return
+  savePending.value = true
+  try {
+    const payload = toFaceRecognitionResultSave(r)
+    await saveFaceRecognitionResult(jobId.value, payload)
+    store.applySaved(r)   // 응답이 {code,message}뿐 — 저장 직전 로컬 result를 baseline으로 승격
+    // ⚠️ 캐시도 함께 승격해야 한다. result 쿼리는 staleTime: Infinity + refetchOnMount: false 라
+    // 이 줄이 없으면 저장 → 목록 복귀 → (gcTime 내) 재진입 시 저장 이전 스냅샷으로 다시 hydrate 된다.
+    qc.setQueryData(faceRecognitionKeys.result(jobId.value), r)
+    toast.success({ messageKey: 'faceRecognition.detail.toast.saveOk' })
+  } catch (e) {
+    toast.error({ messageKey: 'faceRecognition.detail.toast.saveFail' })
+  } finally {
+    savePending.value = false
+  }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/face-recognition/faceBoxLabel.ts</code> — 검출 박스 라벨 2축 독립 배치</div>
+<pre><code>/**
+ * 라벨 배치 판정. 기본은 좌하단이며, 넘칠 때만 반대편으로 뒤집는다("라벨이 잘리면 안됨").
+ *  - 하단 넘침: box.bottom + labelH &gt; containerH → above
+ *  - 우측 넘침: box.left  + labelW &gt; containerW → right
+ * 컨테이너/라벨 실측이 0(미렌더·측정 전)이면 판정을 보류하고 기본값을 돌려준다.
+ */
+export function resolveFaceLabelPlacement(input: FaceLabelPlacementInput): FaceLabelPlacement {
+  const { box, containerWidth, containerHeight, labelWidth, labelHeight } = input
+  const placement: FaceLabelPlacement = { vertical: 'below', horizontal: 'left' }
+  if (containerWidth &lt;= 0 || containerHeight &lt;= 0) return placement
+
+  if (labelHeight &gt; 0 &amp;&amp; (box.y + box.h) * containerHeight + labelHeight &gt; containerHeight) {
+    placement.vertical = 'above'
+  }
+  if (labelWidth &gt; 0 &amp;&amp; box.x * containerWidth + labelWidth &gt; containerWidth) {
+    placement.horizontal = 'right'
+  }
+  return placement
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/pages/FaceRecognitionListPage.vue" target="_blank" rel="noopener">features/face-recognition/pages/FaceRecognitionListPage.vue</a><span class="src">목록(FC-001) — 공통 리스트 패턴 + 완결여부 필터·배역 인식 목록 모달 트리거</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/pages/FaceRecognitionDetailPage.vue" target="_blank" rel="noopener">features/face-recognition/pages/FaceRecognitionDetailPage.vue</a><span class="src">bare 풀스크린 상세(FC-004) — 2축 쿼리·hydrate·저장/초기화·실행취소/재실행 배선</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/edit/stores/faceRecognitionEdit.ts" target="_blank" rel="noopener">features/face-recognition/edit/stores/faceRecognitionEdit.ts</a><span class="src">편집 스토어 — shallowRef 로컬 스테이징 · commit 단일 관문 · 50단계 undo/redo</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/edit/faceResultMutations.ts" target="_blank" rel="noopener">features/face-recognition/edit/faceResultMutations.ts</a><span class="src">순수 불변 transform 4종 — 대표/후보 지정 · 인물 재지정 · 대표 영역</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/components/FaceAnalysisModal.vue" target="_blank" rel="noopener">features/face-recognition/components/FaceAnalysisModal.vue</a><span class="src">상세 분석 결과 모달(FC-005) — 인물 재지정 + 대표 영역을 한 payload로 [적용]</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/composables/useRepRegionDrag.ts" target="_blank" rel="noopener">features/face-recognition/composables/useRepRegionDrag.ts</a><span class="src">대표 영역 드래그 — 정사각 영역 그리기/이동/리사이즈 순수 기하 + 포인터 상태</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/faceBoxLabel.ts" target="_blank" rel="noopener">features/face-recognition/faceBoxLabel.ts</a><span class="src">검출 박스 라벨 규칙 — 10자 개행 · 상하/좌우 2축 독립 배치 · CSS 환산</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/components/FaceDetectionGrid.vue" target="_blank" rel="noopener">features/face-recognition/components/FaceDetectionGrid.vue</a><span class="src">검출 썸네일 그리드 — 헤더(제목+개수)·카드 목록, 필터링은 페이지 책임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/components/FaceSizeControl.vue" target="_blank" rel="noopener">features/face-recognition/components/FaceSizeControl.vue</a><span class="src">썸네일 제어 — 검출 얼굴 크기 조절 · 결과만 보기 토글</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/components/FaceRoleListModal.vue" target="_blank" rel="noopener">features/face-recognition/components/FaceRoleListModal.vue</a><span class="src">배역 인식 목록 모달(FC-003) — 콘텐츠 횡단 전역 인물 조회(keyword 단일 축)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/queries.ts" target="_blank" rel="noopener">features/face-recognition/queries.ts</a><span class="src">queryKey 전략(list/detail/roles/result) · toListQuery · 저장 mutation fn</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/routes.ts" target="_blank" rel="noopener">features/face-recognition/routes.ts</a><span class="src">라우트 — 목록(AppShell children) · 상세(top-level bare, props true)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/endpoints.ts" target="_blank" rel="noopener">api/endpoints.ts</a><span class="src"><code>FACE_API</code> — 목록/상세/연동/재처리/배역/결과 조회·저장(계약 [추정] 주석 포함)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f08.html">‹ Figma 연동·품질 게이트 파이프라인</a>
+      <a href="index.html#features">기능 목록</a>
+      <a href="f10.html">AI 골라보기 (Watch Pick) ›</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">VAMS 고도화 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

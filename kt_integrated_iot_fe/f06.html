@@ -26,8 +26,8 @@
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
-      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/history</code> · <code>ApiClient.downloadFileFromResponse</code></div></div>
-      <div class="item"><div class="k">기능 맥락</div><div class="v">사이트별 이력 화면 분기</div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/history</code> · <code>ApiClient.downloadFileFromResponse</code> · <code>utils/dateRange.ts</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">사이트별 이력 화면 분기 · CSV/첨부 다운로드</div></div>
     </div>
   </div>
 </header>
@@ -51,9 +51,11 @@
     <p>이력 화면(<code>pages/history/HistoryMain.tsx</code>)은 세션 <code>site.code</code>로 SafeMate 4종 등 사이트별 이력 컴포넌트(<code>HistoryFire</code>, <code>HistoryBell</code>, <code>HistoryMonitor</code>, <code>HistoryRoof</code>)를 분기 렌더합니다. 각 이력 화면은 기간·서비스대상·검색어 등 필터를 받아 도메인 API로 페이지네이션 조회를 수행합니다. 이벤트 발생 이력은 <code>logEventApi.eventList()</code> 같은 로그 엔드포인트로 가져오고, 디바이스 제어/등록/삭제 이력과 문자 발송 이력도 각 도메인 모듈에서 제공합니다.</p>
     <p>모든 요청은 <code>ApiClient</code>의 요청 인터셉터가 Bearer 토큰과 <code>unitServiceCode</code> 헤더를 자동 주입합니다. 로그인 직후처럼 세션에 <code>site</code>가 아직 없으면 URL 첫 경로 세그먼트로 <code>SITE_LIST</code>를 조회해(<code>resolveUnitServiceCodeFromPath</code>) <code>unitServiceCode</code>를 한 번 더 보정합니다. 조회된 이력은 테이블로 렌더링되며, 다운로드 버튼은 <code>responseType: 'blob'</code>으로 요청한 응답을 <code>downloadFileFromResponse</code>에 넘깁니다. 이 함수는 응답의 <code>content-disposition</code> 헤더에서 <code>filename*=UTF-8''</code> 또는 <code>filename="..."</code> 패턴을 정규식으로 파싱해 실제 파일명을 추출하고, 없으면 fallback 파일명을 사용합니다.</p>
     <p>추출된 파일명으로 임시 <code>a</code> 엘리먼트를 만들어 <code>URL.createObjectURL</code> 링크를 클릭시킨 뒤, 즉시 제거하고 <code>revokeObjectURL</code>로 자원을 해제합니다. 즉 별도 다운로드 라이브러리 없이 브라우저 기본 동작으로 파일을 저장합니다.</p>
+    <p>조회 기간은 공용 상수 <code>utils/dateRange.ts</code>의 <code>DATE_RANGE_LIMIT_DAYS</code>(90일)로 제한하고, 기간 선택기 옆에 <code>dateRangeLimitNotice()</code> 안내 문구를 노출합니다. 국가관측망 현황(<code>NationalNetworkStatus</code>), 스마트그린 생육·디바이스 이력(<code>GrowthHistory</code>·<code>DeviceHistory</code>) 등이 <code>maxRangeDays</code>로 이 상수를 공유해, 서버에서 기간 초과 오류를 받기 전에 화면 단에서 먼저 막습니다. 스마트그린 이력 화면의 기간 단위는 <code>DAY</code>/<code>WEEK</code>/<code>MONTH</code>/<code>INSTALLED</code>(설치일 직접 선택)로 통일되었고, 조회·다운로드가 같은 검색 조건(서비스대상·디바이스)을 쓰도록 <code>applied</code> 상태를 통째로 교체하는 방식으로 정리되었습니다.</p>
+    <p>CSV 다운로드 경로도 화면별로 정비되었습니다. 국가관측망 현황은 <code>buildLogsParams()</code>로 조회·다운로드 파라미터 생성을 한곳에 모아 페이징만 다르게(<code>MAX_DATA_ROW</code>, page 0) 넘기며, 조회 전에는 <code>downloadDisabled</code>로 버튼을 잠급니다. Air Map 측정소별 현황·공기질 비교는 swagger 규격에 맞춘 전용 엔드포인트(<code>airmapDeviceCollectionsLogsDownload</code>, <code>airmapDeviceCollectionsLogsCompareDownload</code> — <code>.../air-quality-compare.csv</code>)로 분리했고, AI산업안전DX 설비 이력은 <code>facilityAnalyzeList</code> 대신 <code>facilityHistoryList</code>(<code>.../collection/facility/logs.csv</code>)를 호출하도록 교체되었습니다. 전문가 분석 보고서 다운로드는 존재하지 않는 목록 CSV 경로 대신 첨부 파일 흐름(<code>boardApi.fileList(fileId)</code> → <code>downloadFile(fileItemSequence)</code> → <code>downloadFileFromResponse</code>)으로 바뀌어, 원본 파일명(<code>originalName</code>)으로 저장하고 첨부가 없으면 안내 팝업을 띄웁니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
-      파일명 한글이 깨지지 않도록 <code>filename*=UTF-8''</code>(RFC 5987) 형태를 우선 매칭합니다. 다운로드 결과 자체에는 공통 에러 다이얼로그를 띄우지 않도록 호출부에서 <code>skipError</code>를 함께 쓰기도 합니다. 또한 조회 기간 초과(<code>BPG-4006</code>/<code>BPG-4007</code>/<code>BPG-4008</code>) 같은 <code>BPG-*</code> 업무 검증 에러는 <code>ApiClient</code> 응답 인터셉터가 서버 <code>message</code>를 그대로 에러 다이얼로그에 노출합니다.
+      파일명 한글이 깨지지 않도록 <code>filename*=UTF-8''</code>(RFC 5987) 형태를 우선 매칭합니다. <code>ApiClient</code> 응답 인터셉터는 최근 두 가지가 바뀌었습니다. TanStack Query가 화면 이탈·Query 교체 시 <code>AbortSignal</code>로 취소한 요청은 <code>axios.isCancel</code>로 걸러 오류 팝업을 띄우지 않고 취소 상태를 그대로 전달하며, <code>skipError</code> 요청의 조기 <code>reject</code>는 제거되어 <code>skipError</code>라도 401 인증 오류 처리(세션 정리 후 로그인 이동)는 반드시 통과합니다. 조회 기간 초과(<code>BPG-4006</code>/<code>BPG-4007</code>/<code>BPG-4008</code>) 같은 <code>BPG-*</code> 업무 검증 에러는 서버 <code>message</code>를 그대로 에러 다이얼로그에 노출합니다.
     </div>
   </section>
 
@@ -65,24 +67,34 @@ sequenceDiagram
     autonumber
     participant H as HistoryMain
     participant Page as 사이트별 이력 화면
+    participant DR as dateRange 상수
     participant RQ as React Query
     participant API as 도메인/logEvent API
     participant DL as downloadFileFromResponse
     participant Browser as 브라우저
 
     H-&gt;&gt;Page: site.code 로 이력 컴포넌트 선택
+    Page-&gt;&gt;DR: maxRangeDays = DATE_RANGE_LIMIT_DAYS (90일)
+    DR--&gt;&gt;Page: dateRangeLimitNotice() 안내 문구
     Page-&gt;&gt;RQ: useQuery(필터: 기간/대상/검색)
-    RQ-&gt;&gt;API: GET 이력(page,size)
+    RQ-&gt;&gt;API: GET 이력(page,size, signal)
     API--&gt;&gt;Page: 이력 rows
     Page--&gt;&gt;H: 테이블 렌더
-    opt 다운로드
-        Page-&gt;&gt;API: GET 이력(responseType blob)
+    opt CSV 다운로드 (조회 후에만 활성)
+        Page-&gt;&gt;API: buildLogsParams(MAX_DATA_ROW, 0) + download 플래그
         API--&gt;&gt;DL: AxiosResponse(Blob, content-disposition)
         DL-&gt;&gt;DL: filename 정규식 파싱
         DL-&gt;&gt;Browser: a.click() → 파일 저장 → revokeObjectURL
     end
+    opt 첨부 파일 다운로드 (전문가 분석 보고서)
+        Page-&gt;&gt;API: boardApi.fileList(fileId)
+        API--&gt;&gt;Page: fileItemSequence, originalName
+        Page-&gt;&gt;API: boardApi.downloadFile(fileItemSequence)
+        API--&gt;&gt;DL: Blob 응답
+        DL-&gt;&gt;Browser: originalName 으로 저장
+    end
       </div>
-      <p class="cap"><strong>흐름.</strong> 사이트별 이력 화면이 필터로 이력을 조회·표시하고, 다운로드 시 Blob 응답의 Content-Disposition을 파싱해 파일로 저장합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 사이트별 이력 화면이 90일 기간 제한 안에서 이력을 조회·표시하고, CSV는 조회 조건 전체를 다시 요청해 Content-Disposition으로 저장합니다. 첨부 파일은 목록 CSV가 아니라 <code>fileList</code> → <code>downloadFile</code> 경로로 원본 파일을 받습니다.</p>
     </div>
   </section>
 
@@ -101,8 +113,25 @@ classDiagram
         +download()
     }
     class logEventApi {
-        +eventList(serviceTargetId)
+        +eventList(serviceTargetId, options)
         +eventLevel()
+        +eventWeather(targetId, deviceType, areaId, options)
+    }
+    class dateRange {
+        +DATE_RANGE_LIMIT_DAYS
+        +dateRangeLimitNotice(days)
+    }
+    class deviceApi {
+        +airmapDeviceCollectionsLogs(params, download)
+        +airmapDeviceCollectionsLogsDownload(params)
+        +airmapDeviceCollectionsLogsCompareDownload(params)
+    }
+    class aiEnvDxApi {
+        +facilityHistoryList(params, download)
+    }
+    class boardApi {
+        +fileList(fileId)
+        +downloadFile(fileItemSequence)
     }
     class ApiClient {
         +interceptors.request
@@ -112,9 +141,13 @@ classDiagram
 
     HistoryMain --&gt; SiteHistory : site.code 분기
     SiteHistory ..&gt; logEventApi : 이벤트 이력 조회
+    SiteHistory ..&gt; dateRange : 조회기간 90일 제한
+    SiteHistory ..&gt; deviceApi : 측정 이력·CSV
+    SiteHistory ..&gt; aiEnvDxApi : 설비 이력·CSV
+    SiteHistory ..&gt; boardApi : 보고서 첨부 다운로드
     SiteHistory ..&gt; ApiClient : Blob 다운로드
       </div>
-      <p class="cap"><strong>관계.</strong> <code>HistoryMain</code>이 사이트별 이력 화면으로 분기하고, 각 화면은 로그/도메인 API로 조회하며 다운로드는 공통 <code>downloadFileFromResponse</code>를 사용합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>HistoryMain</code>이 사이트별 이력 화면으로 분기하고, 각 화면은 로그/도메인 API로 조회합니다. 기간 제한은 <code>utils/dateRange.ts</code> 상수를 공유하며, CSV는 도메인 API의 <code>download</code> 플래그, 첨부 파일은 <code>boardApi</code>를 거쳐 모두 공통 <code>downloadFileFromResponse</code>로 저장됩니다.</p>
     </div>
   </section>
 
@@ -148,6 +181,90 @@ classDiagram
   return &lt;&gt;&lt;/&gt;;
 };</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>src/api/ApiClient.ts</code> — 취소 요청 무시 · skipError 여도 401 처리는 통과</div>
+<pre><code>apiClient.interceptors.response.use(
+  (res) =&gt; res,
+  (error) =&gt; {
+    // TanStack Query가 화면 이탈·Query 교체 시 AbortSignal로 취소한 요청은
+    // 서비스 장애가 아니므로 오류 팝업을 표시하지 않고 취소 상태를 그대로 전달한다.
+    if (axios.isCancel(error)) {
+      return Promise.reject(error);
+    }
+
+    const skipError = error.config?.skipError;
+    const status = error?.response?.status ?? error?.status;
+
+    // skipError 요청도 401 인증 오류 처리는 통과해야 하므로 기존 조기 반환은 제거
+
+    if (status === 401) {
+      const firstSegment = location.pathname.split('/')[1];
+      sessionStorage.clear();
+      window.location.href = `${location.origin}/${firstSegment}/login`;
+    }
+
+    if (!openErrorDialog || skipError) return Promise.reject(error);
+    // ... BPG-* 업무 검증 에러는 서버 message 그대로 노출
+  },
+);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/nationalNetwork/airmapAir/NationalNetworkStatus.tsx</code> — 조회/다운로드 파라미터 일원화</div>
+<pre><code>// 조회/다운로드가 동일한 검색 조건을 쓰도록 파라미터 생성을 한 곳으로 모은다.
+// (다운로드는 현재 페이지가 아니라 조회 조건 전체를 받아야 하므로 size/page만 다르게 넘긴다)
+const buildLogsParams = (size: number, page: number): DeviceCollectionsLogsRequest =&gt; { /* ... */ };
+
+const downloadMutation = useMutation({
+  mutationFn: async () =&gt;
+    deviceApi.airmapDeviceCollectionsLogs(buildLogsParams(MAX_DATA_ROW, 0), true),
+  onSuccess: (res) =&gt;
+    downloadFileFromResponse(res, `national_network_${new Date().toISOString().slice(0, 10)}.csv`),
+});
+
+&lt;NormalTable
+  download={{ title: 'CSV 다운로드', func: () =&gt; downloadMutation.mutate() }}
+  // 조회 전에는 측정소가 확정되지 않아 서버가 조건 없는 전체 조회를 하게 되므로 막는다.
+  downloadDisabled={!isSearched || downloadMutation.isPending}
+/&gt;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/expertAnalysis/airmap/ExpertAnalysis.tsx</code> — 목록 CSV 대신 첨부 파일 다운로드</div>
+<pre><code>// fileId → fileList로 첨부 목록 조회 → fileItemSequence별 blob 다운로드
+const downloadMutation = useMutation({
+  mutationFn: async (rows: BoardVO[]) =&gt; {
+    let downloaded = 0;
+    for (const row of rows) {
+      if (!row.fileId) continue;
+      const listRes = await boardApi.fileList(row.fileId);
+      const fileItems = listRes?.result?.rows ?? [];
+      for (const item of fileItems) {
+        if (!item?.fileItemSequence) continue;
+        const blobRes = await boardApi.downloadFile(item.fileItemSequence);
+        downloadFileFromResponse(blobRes, item.originalName || item.name || row.title);
+        downloaded += 1;
+      }
+    }
+    return downloaded;
+  },
+  onSuccess: (downloaded: number) =&gt; {
+    if (downloaded === 0) showAlert('선택한 보고서에 첨부된 파일이 없습니다.');
+  },
+  onError: () =&gt; showAlert('다운로드에 실패했습니다.'),
+});</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/utils/dateRange.ts</code> — 조회기간 제한 공용 상수</div>
+<pre><code>/** 기간 조회 달력에서 선택 가능한 최대 기간(일) */
+export const DATE_RANGE_LIMIT_DAYS = 90;
+
+/** 기간 조회 달력 우측에 노출하는 안내 문구 */
+export const dateRangeLimitNotice = (days: number = DATE_RANGE_LIMIT_DAYS) =&gt;
+  `최대 ${days}일까지 조회가 가능합니다.`;
+
+// 사용 예 (GrowthHistory / DeviceHistory / NationalNetworkStatus)
+// &lt;SearchItemBox notice={dateRangeLimitNotice()}&gt;
+//   &lt;CustomRangePicker maxRangeDays={DATE_RANGE_LIMIT_DAYS} ... /&gt;</code></pre>
+    </div>
   </section>
 
   <section id="sources">
@@ -155,7 +272,13 @@ classDiagram
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/history/HistoryMain.tsx" target="_blank" rel="noopener">src/pages/history/HistoryMain.tsx</a><span class="src">site.code 기반 사이트별 이력 화면 분기</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/ApiClient.ts" target="_blank" rel="noopener">src/api/ApiClient.ts</a><span class="src">downloadFileFromResponse · Content-Disposition 파일명 파싱</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/logEvent.ts" target="_blank" rel="noopener">src/api/logEvent.ts</a><span class="src">이벤트 발생/레벨 로그 조회</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/logEvent.ts" target="_blank" rel="noopener">src/api/logEvent.ts</a><span class="src">이벤트 발생/레벨/기상 로그 조회 (ApiRequestOptions 지원)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/dateRange.ts" target="_blank" rel="noopener">src/utils/dateRange.ts</a><span class="src">조회기간 90일 제한 상수·안내 문구</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/nationalNetwork/airmapAir/NationalNetworkStatus.tsx" target="_blank" rel="noopener">src/pages/nationalNetwork/airmapAir/NationalNetworkStatus.tsx</a><span class="src">국가관측망 현황 조회 · CSV 다운로드(buildLogsParams·downloadDisabled)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/expertAnalysis/airmap/ExpertAnalysis.tsx" target="_blank" rel="noopener">src/pages/expertAnalysis/airmap/ExpertAnalysis.tsx</a><span class="src">전문가 분석 보고서 목록 · 첨부 파일 순차 다운로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/overview/aidx/EquipmentHistory.tsx" target="_blank" rel="noopener">src/pages/overview/aidx/EquipmentHistory.tsx</a><span class="src">AI산업안전DX 설비 이력 · facilityHistoryList CSV</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/overview/smartgreen/growthDevice/DeviceHistory.tsx" target="_blank" rel="noopener">src/pages/overview/smartgreen/growthDevice/DeviceHistory.tsx</a><span class="src">스마트그린 디바이스 이력 · 기간 단위(INSTALLED)·다운로드 파라미터 정합</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/device.ts" target="_blank" rel="noopener">src/api/device.ts</a><span class="src">AirMap 측정 이력 CSV/xlsx 다운로드 엔드포인트 (swagger 규격 정합)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/DownloadButton.tsx" target="_blank" rel="noopener">src/components/DownloadButton.tsx</a><span class="src">다운로드 트리거 공통 버튼</span></li>
     </ul>
     <div class="sibling-nav">

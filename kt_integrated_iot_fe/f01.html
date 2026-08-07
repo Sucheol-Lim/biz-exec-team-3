@@ -48,13 +48,14 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>본 콘솔은 KT가 개별 운영하던 여러 IoT 서비스를 하나의 React SPA로 통합합니다. 어떤 서비스에 진입했는지는 URL 첫 세그먼트(<code>/:site</code>)로 결정되며, <code>config.ts</code>의 <code>SITE_LIST</code>가 각 서비스의 <code>path</code>(<code>air</code>, <code>dx</code>, <code>fire-detector</code>, <code>emergency-door</code>, <code>fire-monitoring</code>, <code>emergency-bell</code>, <code>ami</code>, <code>smart-green</code>, <code>gwacheon</code>)와 단위서비스코드(<code>code</code>/<code>realcode</code>)를 매핑합니다.</p>
+    <p>본 콘솔은 KT가 개별 운영하던 여러 IoT 서비스를 하나의 React SPA로 통합합니다. 어떤 서비스에 진입했는지는 URL 첫 세그먼트(<code>/:site</code>)로 결정되며, <code>config.ts</code>의 <code>SITE_LIST</code>가 각 서비스의 <code>path</code>(<code>airbiz</code>, <code>factorydx</code>, <code>fire-detector</code>, <code>emergency-door</code>, <code>fire-monitoring</code>, <code>emergency-bell</code>, <code>ami</code>, <code>smart-green</code>, <code>airmon</code>)와 단위서비스코드(<code>code</code>/<code>realcode</code>)를 매핑합니다. Air Map·AI산업안전DX·과천 관제센터의 URL 세그먼트는 각각 <code>air</code>→<code>airbiz</code>, <code>dx</code>→<code>factorydx</code>, <code>gwacheon</code>→<code>airmon</code>으로 변경되었고, <code>SITE_CODES</code>·<code>SITE_MENU</code>·화면 내 <code>navigate()</code> 경로가 모두 새 <code>path</code>를 기준으로 재정렬되었습니다.</p>
     <p>라우터(<code>routes/route.tsx</code>)는 최상위 경로를 모두 <code>/:site</code>로 두고, <code>SiteGuard</code>가 URL의 <code>site</code>가 <code>SITE_LIST</code>에 존재하는지(<code>ALLOWED_SITE_PATHS</code>) 먼저 검사합니다. 유효하면 로그인 화면(<code>AuthLayout</code>) 또는 보호 화면(<code>ProtectedRoute</code> → <code>MainLayout</code>)으로 분기하고, 같은 화면 컴포넌트(예: <code>Home</code>, <code>Summary</code>, <code>HistoryMain</code>)가 세션의 <code>site.code</code>를 읽어 사이트별 위젯·테이블·차트를 다르게 렌더링합니다.</p>
     <p>로그인 시 선택한 사이트의 <code>realcode</code>는 세션에 저장되어 이후 모든 API 요청의 <code>unitServiceCode</code> 헤더로 주입됩니다. 즉 같은 코드베이스가 사이트 코드에 따라 데이터·메뉴·외형을 분기하는 멀티 테넌트 구조입니다.</p>
-    <p>헤더의 사이트 전환 메뉴(<code>SITE_MENU</code>)에서 AI산업안전DX는 <code>AIENVDX_SERVICE_TYPE_LIST</code>(산업대기질·자원순환·산업환경·탄소중립·제조공정)를 매핑해 <code>serviceType</code> 단위 하위 메뉴로 전개됩니다. 보호 라우트에는 위젯 설정 페이지(<code>widget-settings</code>)가 추가되었고, 접근 허용 서비스타입은 <code>WIDGET_SETTING_SERVICE_TYPES</code>·<code>isWidgetSettingServiceType</code>으로 중앙 관리합니다(현재 제조공정 전용). 한편 SMS 수신 동의 페이지(<code>/:site/sms-consent</code>)는 <code>SiteGuard</code>·<code>ProtectedRoute</code>를 타지 않는 독립 공개 라우트로 추가되었으며, 이때 <code>:site</code>는 사이트 코드가 아니라 이 페이지 전용 브랜드 키(air/safemate)로만 판별됩니다.</p>
+    <p>헤더의 사이트 전환 메뉴(<code>SITE_MENU</code>)에서 AI산업안전DX는 <code>AIENVDX_SERVICE_TYPE_LIST</code>(산업대기질·자원순환·산업환경·탄소중립·제조공정)를 매핑해 <code>serviceType</code> 단위 하위 메뉴로 전개됩니다. 여기에 유형을 좁혀 보던 중 최초 로그인 직후처럼 전체를 총괄하는 상태로 되돌아가기 위한 '전체' 항목이 추가되었습니다. 이 상태는 실제 <code>SVC_TYPE</code> 값과 겹치지 않는 <code>AIDX_ALL_SERVICE_TYPE</code>(<code>'ALL'</code>)로 표현하고, 사이드바 서브타이틀·브라우저 탭 제목 등의 라벨은 <code>getDxServiceTypeLabel()</code>이 일괄 변환합니다. 보호 라우트에는 위젯 설정 페이지(<code>widget-settings</code>)가 추가되었고, 접근 허용 서비스타입은 <code>WIDGET_SETTING_SERVICE_TYPES</code>·<code>isWidgetSettingServiceType</code>으로 중앙 관리합니다(현재 제조공정 전용). 한편 SMS 수신 동의 페이지(<code>/:site/sms-consent</code>)는 <code>SiteGuard</code>·<code>ProtectedRoute</code>를 타지 않는 독립 공개 라우트로 추가되었으며, 이때 <code>:site</code>는 사이트 코드가 아니라 이 페이지 전용 브랜드 키(air/safemate)로만 판별됩니다.</p>
+    <p>보호 라우트 중 홈(<code>index</code>·<code>home</code>)과 종합현황(<code>overview</code>)은 화면 컴포넌트를 <code>AutoRefreshRoute</code>로 감싸 자동 갱신 바운더리 안에 둡니다. <code>AutoRefreshRoute</code>는 <code>useParams()</code>로 읽은 <code>:site</code>와 스코프를 합친 <code>`${sitePath}:${scope}`</code>를 <code>key</code>로 써서, 사이트가 바뀌면 하위 <code>AutoRefreshBoundary</code>가 통째로 재마운트되고 새 주기 타이머가 현재 시각 기준으로 다시 시작됩니다. 즉 사이트 분기 구조가 자동 갱신 수명주기의 경계까지 그대로 정의합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
-      과천 관제센터(<code>GWACHEON</code>)는 별도 <code>code</code>를 갖지만 <code>realcode</code>는 Air Map과 동일한 <code>001ENV301</code>입니다. 즉 데이터 출처는 Air Map과 같되 화면(특화 관제)만 분리한 진입점입니다.
+      과천 관제센터(<code>GWACHEON</code>)는 별도 <code>code</code>를 갖지만 <code>realcode</code>는 Air Map과 동일한 <code>001ENV301</code>입니다. 즉 데이터 출처는 Air Map과 같되 화면(특화 관제)만 분리한 진입점이며, URL 세그먼트만 <code>airmon</code>으로 분리되어 있습니다.
     </div>
   </section>
 
@@ -68,24 +69,27 @@ sequenceDiagram
     participant Router as ThemeRoutes (route.tsx)
     participant Guard as SiteGuard
     participant Cfg as config.ts (SITE_LIST)
-    participant Page as 화면 컴포넌트 (Home/Summary)
+    participant ARR as AutoRefreshRoute
+    participant Page as 화면 컴포넌트 (Home/Overview)
     participant SS as sessionStorage
 
-    U-&gt;&gt;Router: /:site/home 진입
+    U-&gt;&gt;Router: /:site/home 진입 (site=airbiz 등)
     Router-&gt;&gt;Guard: site 파라미터 전달
     Guard-&gt;&gt;Cfg: ALLOWED_SITE_PATHS.includes(site)
     Cfg--&gt;&gt;Guard: 유효 여부
     alt 미등록 site
         Guard--&gt;&gt;U: Error 화면
     else 유효 site
-        Guard-&gt;&gt;Page: children 렌더 허용
+        Guard-&gt;&gt;ARR: children 렌더 허용
+        ARR-&gt;&gt;ARR: key = sitePath:scope 로 Boundary 마운트
+        ARR-&gt;&gt;Page: children 렌더
         Page-&gt;&gt;SS: getSessionStorage('site')
         SS--&gt;&gt;Page: site.code / realcode
         Page-&gt;&gt;Page: site.code 로 위젯·차트 분기 렌더
     end
     Note over Router: /:site/sms-consent 는 SiteGuard 밖 독립 공개 라우트 (site=브랜드 키)
       </div>
-      <p class="cap"><strong>흐름.</strong> URL 첫 세그먼트가 <code>SiteGuard</code>를 거쳐 검증되고, 통과하면 화면 컴포넌트가 세션의 <code>site.code</code>를 읽어 해당 서비스 전용 UI를 그립니다.</p>
+      <p class="cap"><strong>흐름.</strong> URL 첫 세그먼트가 <code>SiteGuard</code>를 거쳐 검증되고, 홈·종합현황은 <code>AutoRefreshRoute</code>를 한 겹 더 지나 자동 갱신 바운더리 안에서 렌더됩니다. 화면 컴포넌트는 세션의 <code>site.code</code>를 읽어 해당 서비스 전용 UI를 그립니다.</p>
     </div>
   </section>
 
@@ -106,9 +110,12 @@ classDiagram
         +SITE_CODES
         +SITE_MENU
         +AIENVDX_SERVICE_TYPE_LIST
+        +AIDX_ALL_SERVICE_TYPE
+        +getDxServiceTypeLabel(serviceType)
         +WIDGET_SETTING_SERVICE_TYPES
         +isWidgetSettingServiceType(serviceType)
         +SAFEMATE_CODES
+        +LOGIN_CONTACT_INFO
         +USER_ROLES
     }
     class ThemeRoutes {
@@ -119,6 +126,11 @@ classDiagram
         +render() Element
     }
     class ProtectedRoute {
+        +render() Element
+    }
+    class AutoRefreshRoute {
+        -scope AutoRefreshScope
+        +useParams() site
         +render() Element
     }
     class PageComponent {
@@ -135,10 +147,12 @@ classDiagram
     ThemeRoutes ..&gt; config : ALLOWED_SITE_PATHS
     ThemeRoutes --&gt; SmsConsentPage : 공개 라우트 (가드 미적용)
     SiteGuard --&gt; ProtectedRoute : 통과 시 위임
-    ProtectedRoute --&gt; PageComponent : Outlet
+    ProtectedRoute --&gt; AutoRefreshRoute : home / overview 라우트
+    AutoRefreshRoute --&gt; PageComponent : Boundary 하위 children
+    ProtectedRoute --&gt; PageComponent : 그 외 Outlet
     PageComponent ..&gt; config : SITE_CODES 분기
       </div>
-      <p class="cap"><strong>관계.</strong> <code>config</code>가 사이트 메타 목록을 보유하고, <code>ThemeRoutes</code>가 이를 근거로 <code>SiteGuard</code>를 통해 분기합니다. 각 화면은 <code>SITE_CODES</code> 상수로 사이트별 동작을 결정합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>config</code>가 사이트 메타 목록을 보유하고, <code>ThemeRoutes</code>가 이를 근거로 <code>SiteGuard</code>를 통해 분기합니다. 홈·종합현황만 <code>AutoRefreshRoute</code>를 한 겹 더 거치며, 각 화면은 <code>SITE_CODES</code> 상수로 사이트별 동작을 결정합니다.</p>
     </div>
   </section>
 
@@ -147,30 +161,42 @@ classDiagram
     <div class="snippet">
       <div class="sc"><code>src/config.ts</code> — 사이트 목록과 코드 상수 정의</div>
 <pre><code>export const SITE_LIST = [
-  { code: '001ENV301', realcode: '001ENV301', title: 'Air Map', path: 'air' },
-  { code: '001ENV302', realcode: '001ENV302', title: 'AI산업안전DX', path: 'dx' },
+  { code: '001ENV301', realcode: '001ENV301', title: 'Air Map', path: 'airbiz' },
+  { code: '001ENV302', realcode: '001ENV302', title: 'AI산업안전DX', path: 'factorydx' },
   { code: '001SAF100', realcode: '001SAF100', title: 'SafeMate', subTitle: '지능형 화재 감지기', path: 'fire-detector' },
   // ... SafeMate 4종 / 한전 AMI / SMART GREEN ...
-  { code: 'GWACHEON', realcode: '001ENV301', title: 'Air Map', subTitle: '과천 관제센터', path: 'gwacheon' },
+  { code: 'GWACHEON', realcode: '001ENV301', title: 'Air Map', subTitle: '과천 관제센터', path: 'airmon' },
 ];
 
 export const SITE_CODES = {
-  AIRMAP: SITE_LIST.find((s) =&gt; s.path === 'air')?.code || '',
-  DX: SITE_LIST.find((s) =&gt; s.path === 'dx')?.code || '',
+  AIRMAP: SITE_LIST.find((s) =&gt; s.path === 'airbiz')?.code || '',
+  DX: SITE_LIST.find((s) =&gt; s.path === 'factorydx')?.code || '',
   // ...
-  GWACHEON: SITE_LIST.find((s) =&gt; s.path === 'gwacheon')?.code || '',
+  GWACHEON: SITE_LIST.find((s) =&gt; s.path === 'airmon')?.code || '',
 } as const;
 
-// 헤더 사이트 전환 메뉴: AI산업안전DX 는 serviceType 하위 메뉴로 전개
+// AI산업안전DX 유형 미지정('전체'). 실제 SVC_TYPE 값과 겹치지 않아야 한다
+export const AIDX_ALL_SERVICE_TYPE = 'ALL';
+
+export const getDxServiceTypeLabel = (serviceType?: string | null): string =&gt; {
+  if (serviceType === AIDX_ALL_SERVICE_TYPE) return '전체';
+  return AIENVDX_SERVICE_TYPE_LIST.find((item) =&gt; item.id === serviceType)?.label ?? '';
+};
+
+// 헤더 사이트 전환 메뉴: AI산업안전DX 는 '전체' + serviceType 하위 메뉴로 전개
 export const SITE_MENU = [
   // ...
   {
     title: 'AI산업안전DX',
-    children: AIENVDX_SERVICE_TYPE_LIST.map((item) =&gt; ({
-      code: '001ENV302', realcode: '001ENV302',
-      title: item.label,      // 산업대기질/자원순환/산업환경/탄소중립/제조공정
-      path: 'dx', serviceType: item.id,
-    })),
+    children: [
+      { code: '001ENV302', realcode: '001ENV302', title: '전체',
+        path: 'factorydx', serviceType: AIDX_ALL_SERVICE_TYPE },
+      ...AIENVDX_SERVICE_TYPE_LIST.map((item) =&gt; ({
+        code: '001ENV302', realcode: '001ENV302',
+        title: item.label,      // 산업대기질/자원순환/산업환경/탄소중립/제조공정
+        path: 'factorydx', serviceType: item.id,
+      })),
+    ],
   },
   // ...
 ];</code></pre>
@@ -194,15 +220,40 @@ const SiteGuard = ({ children }: { children: React.ReactNode }) =&gt; {
 {
   path: '/:site/sms-consent',
   element: &lt;SmsConsentPage /&gt;,
-},</code></pre>
+},
+
+// MainLayout 하위: 홈·종합현황은 자동 갱신 바운더리로 감싼다
+{ index: true,        element: &lt;AutoRefreshRoute scope="home"&gt;&lt;Home /&gt;&lt;/AutoRefreshRoute&gt; },
+{ path: 'home',       element: &lt;AutoRefreshRoute scope="home"&gt;&lt;Home /&gt;&lt;/AutoRefreshRoute&gt; },
+{ path: 'overview',   children: [
+  { index: true,      element: &lt;AutoRefreshRoute scope="overview"&gt;&lt;Overview /&gt;&lt;/AutoRefreshRoute&gt; },
+  // detail/:serviceTargetId/:modelId/:lineNumber 등 하위는 바운더리 밖
+]},</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/modules/autoRefresh/AutoRefreshRoute.tsx</code> — <code>:site</code> 변경 시 바운더리 재마운트</div>
+<pre><code>// route site(:site)가 바뀌면 key가 바뀌어 AutoRefreshBoundary가 통째로 재마운트되고,
+// 새 Boundary가 현재 시각 기준 새 5분 timer를 시작한다.
+const AutoRefreshRoute = ({ scope, children }: AutoRefreshRouteProps) =&gt; {
+  const { site } = useParams();
+  const sitePath = site ?? '';
+
+  return (
+    &lt;AutoRefreshBoundary key={`${sitePath}:${scope}`} sitePath={sitePath} scope={scope}&gt;
+      {children}
+    &lt;/AutoRefreshBoundary&gt;
+  );
+};</code></pre>
     </div>
   </section>
 
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">SITE_LIST / SITE_CODES / SITE_MENU(AIDX serviceType 전개) / WIDGET_SETTING_SERVICE_TYPES / USER_ROLES 정의</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">/:site 최상위 라우팅 · SiteGuard · widget-settings · sms-consent 공개 라우트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">SITE_LIST(airbiz/factorydx/airmon) / SITE_CODES / SITE_MENU(AIDX '전체' + serviceType 전개) / AIDX_ALL_SERVICE_TYPE · getDxServiceTypeLabel / WIDGET_SETTING_SERVICE_TYPES / USER_ROLES</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">/:site 최상위 라우팅 · SiteGuard · home/overview 의 AutoRefreshRoute 래핑 · widget-settings · sms-consent 공개 라우트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modules/autoRefresh/AutoRefreshRoute.tsx" target="_blank" rel="noopener">src/modules/autoRefresh/AutoRefreshRoute.tsx</a><span class="src">sitePath:scope key 로 AutoRefreshBoundary 재마운트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/Sidebar.tsx" target="_blank" rel="noopener">src/layout/Sidebar.tsx</a><span class="src">AIDX '전체'(AIDX_ALL_SERVICE_TYPE) 선택 처리 · getDxServiceTypeLabel 로 서브타이틀 표기</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsConsent/index.tsx" target="_blank" rel="noopener">src/pages/smsConsent/index.tsx</a><span class="src">SMS 수신 동의 공개 페이지 · SMS_CONSENT_BRAND 로 :site 브랜드 키 판별</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/ProtectedRoute.tsx" target="_blank" rel="noopener">src/routes/ProtectedRoute.tsx</a><span class="src">세션 site.code 유무로 보호 화면 진입 판정</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/Home.tsx" target="_blank" rel="noopener">src/pages/home/Home.tsx</a><span class="src">site.code 로 위젯·지도 분기 렌더하는 대표 화면</span></li>

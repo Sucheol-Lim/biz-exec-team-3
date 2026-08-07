@@ -51,9 +51,11 @@
     <p>관리 페이지는 세 도메인으로 나뉩니다. 디바이스(<code>/devices</code> → <code>DeviceList</code> · <code>DeviceRegisterList</code> · <code>DeviceDetail</code> · <code>DeviceEdit</code>), 서비스 대상(<code>/service-targets</code> → <code>ServiceTargetList/Detail/Edit</code>), 구역(<code>/zones</code> → <code>ZoneList/Detail/Edit</code>)입니다. 라우팅은 각 도메인마다 목록(index), 상세(<code>detail/:id</code>), 편집(<code>edit/:id</code>) 패턴으로 통일되어 있습니다. 같은 라우트 트리에는 이후 위젯 설정 화면(<code>widget-settings</code>)과, <code>SiteGuard</code>를 거치지 않는 독립 공개 라우트인 SMS 수신동의 페이지(<code>/:site/sms-consent</code>)가 추가되었습니다.</p>
     <p>API는 BFF의 <code>/bff/monitor/*</code> 경로를 사용합니다. 디바이스는 <code>deviceApi.deviceList()</code>/<code>deviceDetail()</code>/<code>deleteDevice()</code>, 구역은 <code>commonApi</code>의 <code>areaList</code>/<code>areaDetail</code>/<code>registArea</code>/<code>editArea</code>/<code>deleteArea</code> 및 구역-디바이스 연동(<code>areaDeviceList</code>/<code>areaDeviceRegist</code>/<code>areaDeviceDelete</code> — 목록은 페이지·검색 타입·키워드 파라미터를 지원), 서비스 대상은 <code>serviceTargets</code>/<code>serviceTargetDetail</code>/<code>deleteServiceTarget</code>이 담당합니다. 마커 설정은 <code>areaMarkersList</code>/<code>areaMarkersUpsert</code>로 구역 단위 마커를 관리합니다. <code>deviceApi</code>에는 관리 CRUD 외에 위젯·현황용 조회(통신상태 수신 현황 <code>connectionStatusReceived</code>, 탄소중립 일별 수거 중량 <code>collWeight</code>/<code>collReduceWeight</code>)가, <code>commonApi</code>에는 사용자 약관 동의(<code>updateUserStipulation</code>)와 무인증 공개 페이지에서 호출하는 SMS 수신동의(<code>smsConsent</code> — fire-and-forget이라 항상 <code>skipError</code>) 엔드포인트가 추가되어 있습니다.</p>
     <p>조회는 React Query로 페이지네이션·필터(검색 타입·키워드·정렬·삭제 포함 여부)를 적용하고, 등록/수정/삭제는 Mutation으로 처리한 뒤 목록을 무효화·갱신합니다. 모든 요청은 <code>ApiClient</code> 인터셉터가 Bearer 토큰과 <code>unitServiceCode</code> 헤더를 자동 주입하고(세션에 site가 없으면 URL 첫 경로 세그먼트로 보정), 응답 오류 중 <code>BPG-</code> 코드의 업무 검증 오류는 서버 메시지를 그대로 오류 다이얼로그에 노출합니다. 구역 편집 화면의 KT 지도 SDK 지도는 좌표값을 <code>parseFloatLatData</code>/<code>parseFloatLngData</code>와 <code>DEFAULT_MAP_CENTER</code> 공용 상수로 fallback 처리합니다.</p>
+    <p>도메인 API 시그니처에는 공통 요청 옵션 <code>ApiRequestOptions</code>(<code>requestMode</code>·<code>skipError</code>·<code>signal</code>·<code>timeout</code>만 뽑아낸 axios 설정 타입)가 선택 인자로 추가되었습니다. <code>deviceApi.deviceList</code>/<code>deviceDetail</code>/<code>deviceImage</code>/<code>markerList</code>/<code>propertyDetail</code> 등 조회 계열이 모두 이 옵션을 받아 호출부에서 <code>AbortSignal</code>과 백그라운드 요청 모드를 내려보낼 수 있습니다. <code>commonApi</code>에는 토큰 갱신(<code>refreshToken</code>)과 상세코드 목록 조회(<code>getDetailCodes(groupCode)</code> — 예: <code>KEPCO_HQ</code> 한전본부 목록)가 추가되었고, 서비스 소개 조회는 <code>unitServiceCode</code>를 인터셉터가 항상 주입하므로 <code>serviceTargetId</code> 인자를 없애고 <code>getServiceIntro(introType)</code>로 단순화되었습니다.</p>
+    <p>스마트그린 관리 화면은 헤더의 가상 "전체" 항목(<code>ALL_SERVICE_TARGET</code>, id <code>ALL</code>)을 서비스대상 선택지에서 제외하도록 정리되었습니다. 미선택 상태가 이미 전체 조회이기 때문입니다. 디바이스 목록(<code>DeviceListSmartGreen</code>)과 AI산업안전DX 디바이스 목록(<code>DeviceListAidx</code>)의 CSV 다운로드 버튼이 다시 활성화되었고, 다운로드는 화면 입력값(draft)이 아니라 실제 적용된 <code>searchParams</code>를 사용하도록 바로잡혔습니다. 서비스대상 목록·CSV는 <code>smartGreenApi.serviceTargets(params, download, site.realcode)</code>로 <code>unitServiceCode</code> 헤더를 명시 전달하고, 코스 삭제 후 현재 페이지가 비면 앞 페이지로 이동합니다. 디바이스 편집(<code>DeviceEditSmartGreen</code>)은 서비스대상(골프장) 변경 시 설치 코스·홀과 <code>deviceName1/2</code>를 초기화하되 <code>useRef</code> 가드로 최초 마운트에서는 건너뛰어, 수정 진입 시 기존 값이 지워지지 않게 합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
-      구역(Area) API는 <code>download</code> 플래그로 같은 엔드포인트를 <code>/areas.csv</code> + <code>responseType: 'blob'</code>으로 재사용해 목록 조회와 CSV 다운로드를 한 함수로 처리합니다.
+      구역(Area) API는 <code>download</code> 플래그로 같은 엔드포인트를 <code>/areas.csv</code> + <code>responseType: 'blob'</code>으로 재사용해 목록 조회와 CSV 다운로드를 한 함수로 처리합니다. 한편 자동 갱신(<code>AutoRefreshRoute</code>)은 <code>home</code>·<code>overview</code> 라우트에만 적용되므로, 이 관리 화면들은 주기적 백그라운드 갱신 대상이 아니라 사용자의 조회·저장 동작으로만 갱신됩니다.
     </div>
   </section>
 
@@ -88,8 +90,9 @@ sequenceDiagram
       <div class="mermaid">
 classDiagram
     class deviceApi {
-        +deviceList(req)
-        +deviceDetail(targetId, deviceId)
+        +deviceList(req, options)
+        +deviceDetail(targetId, deviceId, options)
+        +deviceImage(targetId, deviceId, skipError, options)
         +deleteDevice(targetId, deviceId)
     }
     class commonApi {
@@ -103,9 +106,22 @@ classDiagram
         +serviceTargetDetail(id)
         +deleteServiceTarget(id)
         +areaMarkersUpsert(areaId, body)
+        +getDetailCodes(groupCode)
+        +refreshToken(params, options)
+    }
+    class smartGreenApi {
+        +deviceList(params, download)
+        +serviceTargets(params, download, unitServiceCode)
+    }
+    class ApiRequestOptions {
+        +requestMode
+        +skipError
+        +signal
+        +timeout
     }
     class ApiClient {
         +interceptors.request
+        +interceptors.response
         +downloadFileFromResponse()
     }
     class ManagePage {
@@ -116,10 +132,14 @@ classDiagram
 
     ManagePage ..&gt; deviceApi : 디바이스 CRUD
     ManagePage ..&gt; commonApi : 구역/서비스대상 CRUD
+    ManagePage ..&gt; smartGreenApi : 스마트그린 디바이스·골프장
+    deviceApi ..&gt; ApiRequestOptions : 선택 인자
+    commonApi ..&gt; ApiRequestOptions : 선택 인자
     deviceApi --&gt; ApiClient
     commonApi --&gt; ApiClient
+    smartGreenApi --&gt; ApiClient
       </div>
-      <p class="cap"><strong>관계.</strong> 관리 화면이 <code>deviceApi</code>·<code>commonApi</code>를 통해 CRUD를 수행하고, 두 모듈 모두 <code>ApiClient</code>(공통 인터셉터)를 거쳐 BFF와 통신합니다.</p>
+      <p class="cap"><strong>관계.</strong> 관리 화면이 <code>deviceApi</code>·<code>commonApi</code>·<code>smartGreenApi</code>를 통해 CRUD를 수행하고, 세 모듈 모두 <code>ApiClient</code>(공통 인터셉터)를 거쳐 BFF와 통신합니다. 조회 계열 함수는 <code>ApiRequestOptions</code>를 선택 인자로 받아 <code>AbortSignal</code>·요청 모드·타임아웃을 호출부에서 지정할 수 있습니다.</p>
     </div>
   </section>
 
@@ -128,13 +148,23 @@ classDiagram
     <div class="snippet">
       <div class="sc"><code>src/api/device.ts</code> — 디바이스 조회/상세/삭제</div>
 <pre><code>export const deviceApi = {
-  deviceList: (deviceRequest: DevicesRequest) =&gt;
-    /* GET /bff/monitor/devices */ /* ... */,
-  deviceDetail: (serviceTargetId: string, deviceId: string) =&gt;
-    apiClient.get(`/bff/monitor/devices/${serviceTargetId}/${deviceId}`).then((res) =&gt; res.data),
+  deviceList: (deviceRequest: DevicesRequest, options?: ApiRequestOptions) =&gt;
+    apiClient
+      .get('/bff/monitor/devices', { params: deviceRequest, ...options })
+      .then((res) =&gt; res.data),
+  deviceDetail: (serviceTargetId: string, deviceId: string, options?: ApiRequestOptions) =&gt;
+    apiClient
+      .get(`/bff/monitor/devices/${serviceTargetId}/${deviceId}`, options)
+      .then((res) =&gt; res.data),
   deleteDevice: (serviceTargetId: string, deviceId: string) =&gt;
     apiClient.delete(`/bff/monitor/devices/${serviceTargetId}/${deviceId}`).then((res) =&gt; res.data),
-};</code></pre>
+};
+
+// src/types/api.d.ts — 조회 계열이 공통으로 받는 요청 옵션
+export type ApiRequestOptions = Pick&lt;
+  import('axios').AxiosRequestConfig,
+  'requestMode' | 'skipError' | 'signal' | 'timeout'
+&gt;;</code></pre>
     </div>
     <div class="snippet">
       <div class="sc"><code>src/api/common.ts</code> — 구역(Area) CRUD와 다운로드 겸용 목록</div>
@@ -145,7 +175,50 @@ classDiagram
   }).then((res) =&gt; (download ? res : res.data)),
 registArea: (params) =&gt; apiClient.post('/bff/monitor/areas', { ...params }).then((r) =&gt; r.data),
 editArea: (areaId, params) =&gt; apiClient.put(`/bff/monitor/areas/${areaId}`, { ...params }).then((r) =&gt; r.data),
-deleteArea: (areaId) =&gt; apiClient.delete(`/bff/monitor/areas/${areaId}`).then((r) =&gt; r.data),</code></pre>
+deleteArea: (areaId) =&gt; apiClient.delete(`/bff/monitor/areas/${areaId}`).then((r) =&gt; r.data),
+// 상세코드 목록 조회 (예: groupCode='KEPCO_HQ' -&gt; 한전본부 목록)
+getDetailCodes: (groupCode: string) =&gt;
+  apiClient.get(`/bff/monitor/${groupCode}/detail-codes`).then((res) =&gt; res.data),</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/device/smartgreen/DeviceListSmartGreen.tsx</code> — 가상 "전체" 제외 · CSV 다운로드 복구</div>
+<pre><code>// 헤더의 가상 "전체" 항목은 실제 서비스대상이 아니므로 제외 (미선택 시 기본값이 이미 전체 조회)
+const serviceTargetOptions = serviceTargetList
+  .filter((item: any) =&gt; item.serviceTargetId !== ALL_SERVICE_TARGET.serviceTargetId)
+  .map((item: any) =&gt; ({ id: item.serviceTargetId, label: item.serviceTargetName }));
+
+const downloadMutation = useMutation({
+  mutationFn: async () =&gt;
+    smartGreenApi.deviceList(
+      {
+        serviceTargetId: searchParams.serviceTargetId,   // draft가 아닌 적용된 검색 조건 사용
+        deviceName: searchParams.deviceName,
+        useYn: searchParams.useYn,
+        segment: searchParams.segment,
+        page: 0,
+        size: MAX_DATA_ROW,
+      },
+      true,
+    ),
+  onSuccess: (res) =&gt; downloadFileFromResponse(res),
+});
+
+&lt;NormalTable download={{ title: 'CSV 다운로드', func: () =&gt; downloadMutation.mutate() }} /&gt;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/device/smartgreen/DeviceEditSmartGreen.tsx</code> — 서비스대상 변경 시 하위 값 초기화(최초 마운트 제외)</div>
+<pre><code>// 서비스대상(골프장) 변경 시 설치 코스/홀 및 deviceName1/2 초기화 (최초 마운트 시엔 스킵)
+const isServiceTargetMounted = useRef(false);
+useEffect(() =&gt; {
+  if (!isServiceTargetMounted.current) {
+    isServiceTargetMounted.current = true;
+    return;
+  }
+  formik.setFieldValue('areaId', '');
+  formik.setFieldValue('sectionId', '');
+  formik.setFieldValue('deviceName1', '');
+  formik.setFieldValue('deviceName2', '');
+}, [serviceTarget]);</code></pre>
     </div>
   </section>
 
@@ -156,7 +229,12 @@ deleteArea: (areaId) =&gt; apiClient.delete(`/bff/monitor/areas/${areaId}`).then
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/common.ts" target="_blank" rel="noopener">src/api/common.ts</a><span class="src">구역(Area)·서비스대상 CRUD · 구역-디바이스 연동 · 마커 upsert</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/serviceTarget.ts" target="_blank" rel="noopener">src/api/serviceTarget.ts</a><span class="src">서비스 대상 도메인 API</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/area.ts" target="_blank" rel="noopener">src/api/area.ts</a><span class="src">구역 도메인 API</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">devices / service-targets / zones 의 list·detail·edit 라우트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/device/smartgreen/DeviceListSmartGreen.tsx" target="_blank" rel="noopener">src/pages/device/smartgreen/DeviceListSmartGreen.tsx</a><span class="src">스마트그린 디바이스 목록 · 가상 "전체" 제외 · CSV 다운로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/device/smartgreen/DeviceEditSmartGreen.tsx" target="_blank" rel="noopener">src/pages/device/smartgreen/DeviceEditSmartGreen.tsx</a><span class="src">스마트그린 디바이스 편집 · 서비스대상 변경 시 코스/홀 초기화</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/serviceTarget/smartgreen/ServiceTagetListSmartGreen.tsx" target="_blank" rel="noopener">src/pages/serviceTarget/smartgreen/ServiceTagetListSmartGreen.tsx</a><span class="src">골프장(서비스대상) 목록 · unitServiceCode 명시 전달 CSV</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/smartGreen.ts" target="_blank" rel="noopener">src/api/smartGreen.ts</a><span class="src">스마트그린 디바이스·서비스대상 조회/다운로드 API</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/types/api.d.ts" target="_blank" rel="noopener">src/types/api.d.ts</a><span class="src">ApiRequestOptions (requestMode·skipError·signal·timeout)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">devices / service-targets / zones 의 list·detail·edit 라우트 · AutoRefreshRoute 적용 범위</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

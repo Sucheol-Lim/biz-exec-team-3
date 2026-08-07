@@ -27,7 +27,7 @@
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
       <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>home/DashboardMap.tsx</code> · <code>components/widget</code></div></div>
-      <div class="item"><div class="k">기능 맥락</div><div class="v">위젯 그리드 · 배치 저장 API</div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">위젯 그리드 · 배치 저장 API · 5분 자동 갱신</div></div>
     </div>
   </div>
 </header>
@@ -49,11 +49,14 @@
   <section id="desc">
     <h2>기능 개요</h2>
     <p><code>DashboardMap</code>은 <code>react-grid-layout</code>의 <code>Responsive</code> + <code>WidthProvider</code>를 사용해 위젯 카드를 격자에 배치합니다. 컨테이너 크기에 맞춰 <code>cols</code>와 <code>maxRows</code>를 동적으로 계산하고, <code>config.ts</code>의 <code>GRID_LAYOUT_*</code> 상수로 격자 단위·여백을 정합니다. 저장된 위젯 목록은 <code>getSavedWidgets(site.code, 'map_' + serviceType, savedWidgets)</code>로 사이트·서비스타입별로 불러옵니다. 저장분이 없으면 <code>types/widget.ts</code>의 사이트별 기본 배치(<code>defaultAirmapAirCard</code>·<code>defaultAirmapAirMap</code> 등)로 대체하고, Air Map 지도형에서는 <code>normalizeWidgets</code>가 <code>message_stats_kpi</code> 위젯의 높이를 고정 보정합니다. 위젯 추가 팝업 목록은 <code>getAvailableWidgets(code, type)</code>이 반환하며, 스마트그린의 '디바이스 생육 현황'(<code>device_growth_status</code>)은 카드형에서만 추가할 수 있도록 <code>availableSmartGreenWidgetsCard</code>로 분리했습니다(지도형 제외). 스마트그린 기본 배치의 위젯별 최소 크기(<code>mW</code>/<code>mH</code>)도 상향 조정되었습니다.</p>
-    <p>각 카드는 <code>WidgetComp</code>(<code>components/widget</code>)가 위젯 <code>type</code>에 따라 적절한 위젯 컴포넌트(예: <code>OverAllStatus</code>, <code>EventOccurrence</code>, <code>DeviceStatus</code>, <code>WeatherInfo</code>, AMI/SMART GREEN 위젯 등)를 골라 렌더링합니다. 위젯 목록과 배치는 <code>commonApi.widgetList()</code>로 조회하고 <code>registWidget</code>·<code>editWidget</code>·<code>deleteWidget</code>으로 영속화합니다. 이와 별개로 관리 메뉴에 위젯 설정 페이지(<code>widget-settings</code>)가 신설되어, <code>config.ts</code>의 <code>WIDGET_SETTING_SERVICE_TYPES</code>(<code>isWidgetSettingServiceType</code>)로 허용된 서비스타입 — 현재 AI산업안전DX 제조공정 전용 — 에서만 메뉴가 노출됩니다.</p>
+    <p>각 카드는 <code>WidgetComp</code>(<code>components/widget</code>)가 위젯 <code>type</code>에 따라 적절한 위젯 컴포넌트(예: <code>OverAllStatus</code>, <code>EventOccurrence</code>, <code>DeviceStatus</code>, <code>WeatherInfo</code>, AMI/SMART GREEN 위젯 등)를 골라 렌더링합니다. Air Map에는 상태별 색상 범례 위젯(<code>status_color_legend</code> → <code>StatusColorLegend</code>)이 신설되어 지도형·카드형 기본 배치와 추가 가능 목록에 모두 포함되었습니다. 범례 색상은 hex를 직접 박지 않고 <code>airQuality</code>의 <code>GRADE_CONFIG</code>를 단일 소스로 참조하므로, 지도 마커·차트의 등급색과 항상 같은 값을 씁니다. 위젯 목록과 배치는 <code>commonApi.widgetList()</code>로 조회하고 <code>registWidget</code>·<code>editWidget</code>·<code>deleteWidget</code>으로 영속화합니다. 이와 별개로 관리 메뉴에 위젯 설정 페이지(<code>widget-settings</code>)가 신설되어, <code>config.ts</code>의 <code>WIDGET_SETTING_SERVICE_TYPES</code>(<code>isWidgetSettingServiceType</code>)로 허용된 서비스타입 — 현재 AI산업안전DX 제조공정 전용 — 에서만 메뉴가 노출됩니다.</p>
     <p>편집 모드(<code>isEditMode</code>)에서만 드래그·리사이즈가 허용되며, <code>onLayoutChange</code>가 변경된 좌표·크기를 위젯 상태에 반영합니다. <code>limitBottom</code>이 카드가 격자 최대 행(<code>GRID_LAYOUT_MAX_ROWS</code>)을 넘지 않도록 보정합니다. 편집 종료 시 <code>WidgetControl</code>이 변경 배치를 저장합니다.</p>
+    <p>대시보드 위젯은 사용자가 새로고침하지 않아도 최신 값을 유지해야 하므로, <code>modules/autoRefresh</code> 모듈이 신설되어 5분 주기 배경 갱신을 담당합니다. 각 위젯은 <code>createAutoRefreshQueryOptions({ scope, fetcher })</code>로 React Query 옵션을 만들고, 이 팩토리가 <code>queryFn</code>(화면 조회)과 <code>meta.autoRefresh.backgroundFetch</code>(배경 갱신)를 <strong>같은 <code>fetcher</code></strong>로 묶습니다. 덕분에 두 경로가 같은 API·같은 변환을 공유하고, 배경 경로만 <code>requestMode: 'background'</code>·<code>skipError: true</code>·30초 타임아웃(<code>AUTO_REFRESH_REQUEST_TIMEOUT_MS</code>)을 덧붙여 실패해도 오류 팝업을 띄우지 않습니다. <code>meta</code>는 해당 사이트가 자동 갱신 대상일 때만 붙이므로(<code>isAirMapAutoRefreshTarget</code> 등), 대상이 아닌 사이트에서는 위젯이 종전대로 동작합니다.</p>
+    <p>실제 스케줄러는 <code>AutoRefreshBoundary</code>입니다. 마운트 시 <code>AUTO_REFRESH_INTERVAL_MS</code>(5분) 타이머를 걸고, 발화하면 <code>QueryCache</code>에서 <code>meta.autoRefresh.scope</code>가 자신의 스코프와 같은 <em>활성</em> Query만 모아 배경 갱신 배치를 돌립니다. 배치 직전에 <code>commonApi.refreshToken</code>으로 세션 토큰을 먼저 회전시키며, 응답의 access token JWT에서 뽑은 <code>id</code>(<code>getTokenPayloadId</code>)가 요청 당시 사용자와 다르면 커밋하지 않습니다. 갱신 결과를 캐시에 반영하기 전에는 <code>canCommitBackgroundResult()</code>가 dispose·pause 세대·사이트 일치·Query 인스턴스 동일성·활성 여부·foreground 진행 여부·<code>dataUpdateCount</code>/<code>errorUpdateCount</code> 불변을 모두 확인해, 늦게 도착한 응답이 최신 화면 데이터를 덮어쓰지 못하게 막습니다. 탭이 숨겨지거나 오프라인이면 타이머를 걷고 재예약하지 않습니다. 전체 기능은 <code>VITE_AUTO_REFRESH_ENABLED</code> 플래그로 켜고 끕니다.</p>
+    <p>위젯 편집 중에 화면이 갱신되면 편집 상태가 흔들리므로, <code>DashboardMap</code>·<code>DashboardCard</code>는 <code>isEditMode</code>가 켜지는 동안 <code>pauseAutoRefresh()</code>를 호출하고 편집이 끝나는 시점(effect cleanup)에 <code>resumeAutoRefresh()</code>로 새 5분을 시작합니다. 위젯 내부의 필터 변경처럼 사용자가 방금 조작한 직후에는 <code>postponeAutoRefresh()</code>로 유휴 타이머만 뒤로 미룹니다. <code>useAutoRefreshActivity()</code>는 바운더리 밖이나 플래그 OFF 상태에서도 항상 안전한 no-op 기본값을 돌려주므로 호출부에 분기가 필요 없습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
-      비편집 상태에서는 빈 격자 영역의 클릭이 아래 지도로 전달되도록 부모 <code>Stack</code>의 <code>pointerEvents</code>를 <code>none</code>으로 두고, 각 카드 <code>Box</code>만 <code>auto</code>로 두어 지도와 위젯이 한 화면에 공존합니다.
+      비편집 상태에서는 빈 격자 영역의 클릭이 아래 지도로 전달되도록 부모 <code>Stack</code>의 <code>pointerEvents</code>를 <code>none</code>으로 두고, 각 카드 <code>Box</code>만 <code>auto</code>로 두어 지도와 위젯이 한 화면에 공존합니다. 자동 갱신 쪽에서는 <code>pausedRef</code>·<code>hiddenRef</code> 같은 상태를 모두 <code>ref</code>로 관리해, pause/resume이 일어날 때마다 바운더리가 재렌더되어 하위 위젯 트리 전체가 다시 그려지는 일을 피합니다.
     </div>
   </section>
 
@@ -69,20 +72,35 @@ sequenceDiagram
     participant WC as WidgetComp
     participant Ctrl as WidgetControl
     participant API as commonApi (widgets)
+    participant ARB as AutoRefreshBoundary
+    participant QC as QueryCache
 
     DM-&gt;&gt;LS: getSavedWidgets(site.code, map_serviceType)
     LS--&gt;&gt;DM: widgets 목록
     DM-&gt;&gt;RGL: layouts(i,x,y,w,h,minW,minH)
     RGL-&gt;&gt;WC: 각 위젯 type 렌더
     WC--&gt;&gt;RGL: 현황 카드 UI
+    loop 5분마다 (AUTO_REFRESH_INTERVAL_MS)
+        ARB-&gt;&gt;ARB: canRun() 확인 (disposed/paused/hidden/offline/site)
+        ARB-&gt;&gt;API: refreshToken (background, skipError)
+        API--&gt;&gt;ARB: 새 accessToken / refreshToken
+        ARB-&gt;&gt;QC: scope 일치 활성 Query 수집
+        QC--&gt;&gt;ARB: 대상 Query 목록
+        ARB-&gt;&gt;WC: meta.autoRefresh.backgroundFetch()
+        WC--&gt;&gt;ARB: 최신 데이터
+        ARB-&gt;&gt;ARB: canCommitBackgroundResult() 판정
+        ARB-&gt;&gt;QC: setQueryData (통과 시에만)
+    end
     opt 편집 모드
+        DM-&gt;&gt;ARB: pauseAutoRefresh()
         RGL-&gt;&gt;DM: onLayoutChange(newLayout)
         DM-&gt;&gt;DM: limitBottom (최대 행 보정)
         Ctrl-&gt;&gt;API: registWidget / editWidget / deleteWidget
         API--&gt;&gt;Ctrl: 저장 결과
+        DM-&gt;&gt;ARB: resumeAutoRefresh() (편집 종료 시 새 5분)
     end
       </div>
-      <p class="cap"><strong>흐름.</strong> 저장된 위젯을 격자에 배치하고 각 카드를 <code>WidgetComp</code>로 렌더한 뒤, 편집 모드에서 변경한 배치를 위젯 API로 저장합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 저장된 위젯을 격자에 배치하고 각 카드를 <code>WidgetComp</code>로 렌더합니다. 이후 <code>AutoRefreshBoundary</code>가 5분마다 토큰을 회전시키고 스코프가 일치하는 활성 Query만 배경 갱신하며, 편집 모드 동안에는 갱신을 일시정지합니다.</p>
     </div>
   </section>
 
@@ -127,6 +145,27 @@ classDiagram
         +registWidget()
         +editWidget()
         +deleteWidget()
+        +refreshToken(params, options)
+    }
+    class AutoRefreshBoundary {
+        -sitePath
+        -scope
+        -pausedRef
+        -nextEligibleAtRef
+        +canRun() bool
+        +runBackgroundBatch()
+        +canCommitBackgroundResult(ctx) bool
+        +postponeAutoRefresh()
+        +pauseAutoRefresh()
+        +resumeAutoRefresh()
+    }
+    class createAutoRefreshQueryOptions {
+        +queryFn(signal)
+        +meta AutoRefreshMeta
+    }
+    class AutoRefreshMeta {
+        +scope AutoRefreshScope
+        +backgroundFetch()
     }
 
     DashboardMap o-- Widget : 보유
@@ -135,8 +174,13 @@ classDiagram
     ResponsiveGridLayout --&gt; WidgetComp : 카드별 렌더
     DashboardMap --&gt; WidgetControl : 편집·저장
     WidgetControl ..&gt; commonApi : 배치 영속화
+    DashboardMap ..&gt; AutoRefreshBoundary : 편집모드 pause 및 resume
+    WidgetComp ..&gt; createAutoRefreshQueryOptions : Query 옵션 생성
+    createAutoRefreshQueryOptions --&gt; AutoRefreshMeta : meta.autoRefresh
+    AutoRefreshBoundary ..&gt; AutoRefreshMeta : backgroundFetch 호출
+    AutoRefreshBoundary ..&gt; commonApi : 배치 전 토큰 회전
       </div>
-      <p class="cap"><strong>관계.</strong> <code>DashboardMap</code>이 <code>Widget</code> 목록을 격자에 배치하고, <code>WidgetComp</code>가 타입별 카드를 그리며 <code>WidgetControl</code>이 <code>commonApi</code> 위젯 엔드포인트로 배치를 저장합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>DashboardMap</code>이 <code>Widget</code> 목록을 격자에 배치하고, <code>WidgetComp</code>가 타입별 카드를 그리며 <code>WidgetControl</code>이 <code>commonApi</code> 위젯 엔드포인트로 배치를 저장합니다. 자동 갱신은 위젯이 <code>meta.autoRefresh</code>로 노출한 <code>backgroundFetch</code>를 <code>AutoRefreshBoundary</code>가 주기적으로 호출하는 구조입니다.</p>
     </div>
   </section>
 
@@ -216,13 +260,102 @@ export const getAvailableWidgets = (code: string, type: string): Widget[] =&gt; 
   }
 };</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>src/modules/autoRefresh/createAutoRefreshQueryOptions.ts</code> — foreground/background가 같은 fetcher를 공유</div>
+<pre><code>// foreground/background가 동일 API·동일 transform(fetcher)을 공유하도록 강제하는 factory.
+// backgroundFetch는 select 이전의 raw shape을 그대로 반환해야 하므로, fetcher 자체가
+// select 없는 순수 fetch+transform 함수여야 한다.
+export function createAutoRefreshQueryOptions&lt;TData&gt;({ scope, fetcher, meta }) {
+  return {
+    queryFn: ({ signal }: { signal?: AbortSignal }) =&gt; fetcher({ mode: 'foreground', signal }),
+    meta: {
+      ...meta,
+      autoRefresh: {
+        scope,
+        backgroundFetch: () =&gt; fetcher({ mode: 'background' }),
+      },
+    } satisfies QueryMeta,
+  };
+}
+
+// 위젯 호출부 — 사이트가 자동 갱신 대상일 때만 meta 를 붙인다
+const { data } = useQuery({
+  queryKey: ['propertyDetail', 'outdoor', serviceTargetId, outdoorFilter],
+  queryFn: outdoorStatusAutoRefreshOptions.queryFn,
+  ...(isAirMapAutoRefreshTarget ? { meta: outdoorStatusAutoRefreshOptions.meta } : {}),
+  placeholderData: keepPreviousData,
+});</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/modules/autoRefresh/AutoRefreshBoundary.tsx</code> — 배경 갱신 커밋 가드</div>
+<pre><code>const canCommitBackgroundResult = ({ startedQuery, baselineDataUpdateCount,
+                                     baselineErrorUpdateCount, pauseGeneration }) =&gt; {
+  if (disposedRef.current) return false;
+  if (pausedRef.current) return false;
+  if (pauseGeneration !== pauseGenerationRef.current) return false;   // pause 이전 요청
+  if (!isSiteSynchronized()) return false;                            // 사이트 전환됨
+
+  const currentQuery = queryClient.getQueryCache()
+    .find({ queryKey: startedQuery.queryKey, exact: true });
+
+  if (!currentQuery || currentQuery !== startedQuery) return false;   // Query 인스턴스 교체
+  if (!currentQuery.isActive()) return false;                         // 화면에서 사라짐
+  if (currentQuery.state.fetchStatus === 'fetching') return false;    // foreground 진행 중
+
+  // 요청 시작 이후 화면에서 이미 갱신됐다면 덮어쓰지 않는다
+  return currentQuery.state.dataUpdateCount === baselineDataUpdateCount
+      &amp;&amp; currentQuery.state.errorUpdateCount === baselineErrorUpdateCount;
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/home/DashboardMap.tsx</code> — 편집모드 동안 자동 갱신 일시정지</div>
+<pre><code>const { pauseAutoRefresh, resumeAutoRefresh } = useAutoRefreshActivity();
+
+// 위젯 편집모드 동안은 자동 갱신을 pause하고, 저장/취소로 편집모드가 끝나는 시점(effect cleanup)부터
+// 새 5분을 시작한다. 초기화/이전/추가/drag/resize는 isEditMode 자체를 바꾸지 않으므로 pause가 유지된다.
+useEffect(() =&gt; {
+  if (!isEditMode) {
+    return undefined;
+  }
+
+  pauseAutoRefresh();
+
+  return () =&gt; {
+    resumeAutoRefresh();
+  };
+}, [isEditMode, pauseAutoRefresh, resumeAutoRefresh]);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/components/widget/index.tsx</code> · <code>src/types/widget.ts</code> — 상태별 색상 범례 위젯 등록</div>
+<pre><code>case 'status_color_legend':
+  return {
+    comp: &lt;StatusColorLegend /&gt;,
+    title: getWidgetTitle(w.type),   // '상태별 색상 범례'
+    gap: '15px',
+  };
+
+// 지도형 기본 배치: message_stats_kpi 가 h:18 로 정규화되므로 그 아래(y:18)에 배치
+export const defaultAirmapAirMap: Widget[] = [
+  // ...
+  { x: 0, y: 18, w: 39, h: 6, type: 'status_color_legend', mW: 39, mH: 6 },
+];
+
+// StatusColorLegend: 색상은 GRADE_CONFIG(단일 소스)를 참조하므로 hex를 직접 박지 않는다
+const LEGEND_GRADES = [1, 2, 3, 4] as const;   // 좋음 / 보통 / 나쁨 / 매우나쁨</code></pre>
+    </div>
   </section>
 
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/DashboardMap.tsx" target="_blank" rel="noopener">src/pages/home/DashboardMap.tsx</a><span class="src">react-grid-layout 격자 배치 · 편집 모드 · limitBottom 보정</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/widget/index.tsx" target="_blank" rel="noopener">src/components/widget/index.tsx</a><span class="src">위젯 type → 위젯 컴포넌트 매핑(getWidgetInfo)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/widget/index.tsx" target="_blank" rel="noopener">src/components/widget/index.tsx</a><span class="src">위젯 type → 위젯 컴포넌트 매핑(getWidgetInfo) · status_color_legend 등록</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/widget/common/StatusColorLegend.tsx" target="_blank" rel="noopener">src/components/widget/common/StatusColorLegend.tsx</a><span class="src">상태별 색상 범례 위젯 · GRADE_CONFIG 단일 소스 참조</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modules/autoRefresh/AutoRefreshBoundary.tsx" target="_blank" rel="noopener">src/modules/autoRefresh/AutoRefreshBoundary.tsx</a><span class="src">5분 주기 스케줄러 · 토큰 회전 · 배경 갱신 배치 · 커밋 가드 · pause/postpone</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modules/autoRefresh/createAutoRefreshQueryOptions.ts" target="_blank" rel="noopener">src/modules/autoRefresh/createAutoRefreshQueryOptions.ts</a><span class="src">foreground queryFn 과 meta.autoRefresh.backgroundFetch 를 같은 fetcher로 묶는 팩토리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modules/autoRefresh/policy.ts" target="_blank" rel="noopener">src/modules/autoRefresh/policy.ts</a><span class="src">VITE_AUTO_REFRESH_ENABLED · 5분 주기 · 30초 요청 타임아웃</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modules/autoRefresh/useAutoRefreshActivity.ts" target="_blank" rel="noopener">src/modules/autoRefresh/useAutoRefreshActivity.ts</a><span class="src">바운더리 밖·플래그 OFF 에서도 안전한 no-op 기본값 제공</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/DashboardCard.tsx" target="_blank" rel="noopener">src/pages/home/DashboardCard.tsx</a><span class="src">카드형 격자 · 편집모드 pause / 종료 시 resume</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/WidgetControl.tsx" target="_blank" rel="noopener">src/pages/home/WidgetControl.tsx</a><span class="src">편집 모드 토글 · 배치 저장 컨트롤</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/common.ts" target="_blank" rel="noopener">src/api/common.ts</a><span class="src">widgetList / registWidget / editWidget / deleteWidget</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/types/widget.ts" target="_blank" rel="noopener">src/types/widget.ts</a><span class="src">getSavedWidgets / getAvailableWidgets(카드형·지도형 분기) · 사이트별 기본 배치(default*) · normalizeWidgets 보정</span></li>

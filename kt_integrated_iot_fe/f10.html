@@ -50,7 +50,8 @@
     <h2>기능 개요</h2>
     <p>세 게시판 도메인은 동일한 목록/상세/편집 패턴으로 구성됩니다. 공지(<code>/notice</code> → <code>NoticeList/Detail/Edit</code>), 자료실(<code>/resource</code> → <code>ResourceList/Detail/Edit</code>), 문의(<code>/contact-us</code> → <code>ContactUsList/Detail/Edit</code> + <code>Reply</code>)입니다. 데이터는 <code>boardApi</code>의 공통 게시판 엔드포인트(<code>/bff/monitor/boards/*</code>)와 도메인별 엔드포인트(<code>boards/notice</code>, <code>boards/resources</code>)를 사용합니다.</p>
     <p>첨부 파일은 <code>boardApi.uploadFile()</code>/<code>fileList()</code>/<code>downloadFile()</code>/<code>deleteFile()</code>로 관리합니다. 업로드 UI는 공통 컴포넌트 <code>CustomFile</code>이 담당하는데, <code>accept</code>에 지정된 확장자 목록과 실제 파일 확장자를 대조해 허용되지 않으면 입력을 비우고 선택을 취소합니다. 용량은 <code>limitSize</code>를 초과하면 경고 모달(<code>Alarm</code>)을 띄웁니다.</p>
-    <p>자료실 편집(<code>ResourceEdit</code>)은 SMART GREEN 병해충 도감 성격의 확장 필드(영문명·기주식물·증상·병해충 발생 현황·방제 방법 등)를 다루며, 저장은 <code>smartGreenApi.postResource()</code>/<code>putResource()</code>(<code>/bff/monitor/boards/resources</code>)로 처리합니다. 대표 사진은 base64 인라인 전송이 아니라 <code>commonApi.uploadFiles()</code>로 먼저 업로드한 뒤 반환된 파일 ID를 <code>thumbnailImage</code>로 전달하는 방식이며, 수정 진입 시 확장 필드는 상세 응답의 <code>extendedData</code>(snake_case 컬럼 <code>english_name</code>·<code>host_plant</code> 등)와 매칭해 채웁니다.</p>
+    <p>자료실 편집(<code>ResourceEdit</code>)은 SMART GREEN 병해충 도감 성격의 확장 필드(영문명·기주식물·증상·병해충 발생 현황·방제 방법 등)를 다루며, 저장은 <code>smartGreenApi.postResource()</code>/<code>putResource()</code>(<code>/bff/monitor/boards/resources</code>)로 처리합니다. 대표 사진은 base64 인라인 전송이 아니라 파일 업로드로 먼저 파일 ID를 받은 뒤 <code>thumbnailImage</code>로 전달하는 방식이며, 수정 진입 시 확장 필드는 상세 응답의 <code>extendData</code>(snake_case 컬럼 <code>english_name</code>·<code>host_plant</code> 등)와 매칭해 채웁니다. 서버 응답 필드명이 <code>extendedData</code>가 아니라 <code>extendData</code>인 것이 확인되어 상세·편집 양쪽 참조가 정정되었습니다.</p>
+    <p>편집 화면은 기존 첨부를 보존하도록 보완되었습니다. 수정 진입 시 상세 응답의 <code>fileId</code>와 <code>extendData.thumbnail_image</code>를 <code>existingFileId</code>/<code>existingThumbnailId</code>로 잡아 두고, 새로 업로드하지 않으면 저장 payload에 그 값을 그대로 실어 보냅니다. 파일명은 <code>boardApi.fileList(fileId)</code>로 <code>originalName</code>을 조회해 <code>CustomFile</code>의 <code>displayName</code>으로 표시하고, 사용자가 첨부를 제거하면 기존 ID·파일명도 함께 해제합니다. 상세 화면(<code>ResourceDetail</code>)의 대표 사진도 URL 필드(<code>logoImageUrl</code>) 대신 <code>extendData.thumbnail_image</code> 파일 ID를 기준으로 <code>fileList</code> → <code>downloadFile</code>로 blob을 받아 <code>URL.createObjectURL</code>로 표시하며, 값이 바뀌거나 언마운트될 때 이전 object URL을 <code>revokeObjectURL</code>로 회수합니다. 목록(<code>ResourceList</code>)은 정렬·행 수 변경 시 이전 검색 상태가 잔류하지 않도록 <code>page</code>·<code>rowCount</code>·<code>order</code>·<code>filter</code>·<code>keyword</code>를 담은 새 객체로 검색 파라미터를 통째 교체합니다.</p>
     <p>최근 KT 보안성 검증 반영으로 자료실에서 허용하지 않는 확장자 업로드 시 노출되던 alert 문구가 제거되는 등 첨부 처리 정책이 강화되었습니다. 문의(Q&amp;A)는 운영자가 답변(<code>Reply</code>)을 등록하는 흐름을 포함하며, 문의 목록의 등록 버튼은 <code>hasRole()</code> 권한 판정으로 고객(서비스 고객) 계정에서만 노출되고 관제요원 이상 관리자 계정에서는 숨겨집니다. 문의 목록의 조회 버튼은 선택한 필터·정렬·조회기간을 초기화하지 않고 그대로 조회하도록 개선되었고, 기본 조회기간(최근 1주)도 모듈 로드 시점이 아닌 호출 시점 기준으로 계산(<code>getDefaultDateRange()</code>)하도록 수정되었습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
@@ -65,28 +66,36 @@
 sequenceDiagram
     autonumber
     participant List as ResourceList / NoticeList
+    participant Detail as ResourceDetail
     participant Edit as ResourceEdit
     participant CF as CustomFile
     participant API as boardApi / smartGreenApi
     participant BFF as BFF /bff/monitor/boards
 
-    List-&gt;&gt;API: list(params)
+    List-&gt;&gt;API: list(params) — page/rowCount/order/filter/keyword 통째 교체
     API-&gt;&gt;BFF: GET boards / boards/resources
     BFF--&gt;&gt;List: 게시글 목록
+    List-&gt;&gt;Detail: 상세 진입
+    Detail-&gt;&gt;API: fileList(extendData.thumbnail_image)
+    API--&gt;&gt;Detail: fileItemSequence
+    Detail-&gt;&gt;API: downloadFile(fileItemSequence)
+    API--&gt;&gt;Detail: Blob → createObjectURL 로 대표사진 표시
+    Note over Detail: 값 변경·언마운트 시 revokeObjectURL
     List-&gt;&gt;Edit: 편집 진입
-    Edit-&gt;&gt;API: getResourceDetail(id) (수정 시 extendedData 매칭)
+    Edit-&gt;&gt;API: getResourceDetail(id) — extendData 매칭 + 기존 fileId/thumbnail 보관
+    Edit-&gt;&gt;API: fileList(기존 fileId) → originalName 을 displayName 으로 표시
     Edit-&gt;&gt;CF: 파일 선택
     CF-&gt;&gt;CF: accept 확장자 검사 + limitSize 검사
     alt 허용 안 됨
         CF--&gt;&gt;Edit: 선택 취소(value 비움)
     else 허용
-        Edit-&gt;&gt;API: uploadFiles(대표사진·첨부) 후 fileId 획득
+        Edit-&gt;&gt;API: 새 파일만 업로드해 fileId 획득 (미변경이면 기존 ID 유지)
         Edit-&gt;&gt;API: postResource / putResource (thumbnailImage·fileId 포함)
         API-&gt;&gt;BFF: POST/PUT boards/resources
         BFF--&gt;&gt;Edit: 저장 결과
     end
       </div>
-      <p class="cap"><strong>흐름.</strong> 목록·편집 화면이 게시판 API로 글을 관리하고, 첨부는 <code>CustomFile</code>이 확장자·용량을 먼저 검증합니다. 대표 사진·첨부는 파일 업로드로 ID를 먼저 받은 뒤 본문 저장 payload(<code>thumbnailImage</code>·<code>fileId</code>)에 실어 보냅니다.</p>
+      <p class="cap"><strong>흐름.</strong> 목록·상세·편집 화면이 게시판 API로 글을 관리하고, 첨부는 <code>CustomFile</code>이 확장자·용량을 먼저 검증합니다. 대표 사진은 URL이 아니라 파일 ID이므로 상세·편집 모두 <code>fileList</code>로 실제 파일 항목을 찾아 표시하며, 저장 시에는 새로 올린 파일만 업로드하고 미변경 항목은 기존 ID를 그대로 전달합니다.</p>
     </div>
   </section>
 
@@ -118,7 +127,18 @@ classDiagram
     class CustomFile {
         -accept
         -limitSize
+        -displayName
         +handleFileChange(e)
+    }
+    class ResourceDetail {
+        -thumbnailUrl
+        +loadThumbnail()
+    }
+    class ResourceEdit {
+        -existingFileId
+        -existingThumbnailId
+        -existingFileName
+        -existingThumbnailName
     }
     class Alarm {
         +용량 초과 경고
@@ -127,9 +147,14 @@ classDiagram
     BoardPage ..&gt; boardApi : 게시글/첨부 CRUD
     BoardPage ..&gt; smartGreenApi : 자료실 저장(thumbnailImage)
     BoardPage o-- CustomFile : 첨부 입력
+    BoardPage o-- ResourceDetail
+    BoardPage o-- ResourceEdit
+    ResourceDetail ..&gt; boardApi : fileList → downloadFile (대표사진 blob)
+    ResourceEdit ..&gt; boardApi : fileList → originalName (displayName)
+    ResourceEdit --&gt; CustomFile : displayName 전달
     CustomFile ..&gt; Alarm : 용량 초과 시
       </div>
-      <p class="cap"><strong>관계.</strong> 게시판 화면이 <code>boardApi</code>로 글·첨부를 관리하고, 자료실 등록·수정은 <code>smartGreenApi</code>(postResource/putResource)를 사용합니다. 첨부 입력은 <code>CustomFile</code>이 확장자/용량을 검증합니다.</p>
+      <p class="cap"><strong>관계.</strong> 게시판 화면이 <code>boardApi</code>로 글·첨부를 관리하고, 자료실 등록·수정은 <code>smartGreenApi</code>(postResource/putResource)를 사용합니다. 첨부 입력은 <code>CustomFile</code>이 확장자/용량을 검증하며, 상세·편집 화면은 기존 첨부의 실제 파일 항목과 원본 파일명을 <code>boardApi.fileList</code>로 되찾아 표시합니다.</p>
     </div>
   </section>
 
@@ -162,21 +187,58 @@ delete: (boardSequence) =&gt; apiClient.delete(`/bff/monitor/boards/${boardSeque
 downloadFile: (fileItemSequence, config) =&gt; apiClient.get(`/bff/monitor/files/download/${fileItemSequence}`, { /* ... */ }),</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>src/pages/resource/ResourceEdit.tsx</code> — 대표 사진 파일 업로드 → thumbnailImage</div>
-<pre><code>// 사진 업로드
-let imageFileId: string | null = null;
+      <div class="sc"><code>src/pages/resource/ResourceEdit.tsx</code> — 미변경 첨부는 기존 파일 ID 유지</div>
+<pre><code>// 사진 업로드 (새로 업로드하지 않았으면 기존 대표사진 유지)
+let imageFileId: string | null = existingThumbnailId;
 if (values.imageFile) {
   const imageUploadResult = await uploadFileMutation.mutateAsync(values.imageFile);
   imageFileId = imageUploadResult.result?.fileId || null;
 }
+
+// 첨부파일 업로드 (새로 업로드하지 않았으면 기존 첨부파일 유지)
+let attachmentFileId: string | null = existingFileId;
+if (values.file) {
+  const fileUploadResult = await uploadFileMutation.mutateAsync(values.file);
+  attachmentFileId = fileUploadResult.result?.fileId || null;
+}
 // ...
-if (imageFileId) {
-  payload.thumbnailImage = imageFileId; // 대표 사진 첨부파일 ID
-}
-if (attachmentFileId) {
-  payload.fileId = attachmentFileId;    // 첨부파일 ID
-}
-resourceMutation.mutate(payload);        // regist → postResource / 수정 → putResource</code></pre>
+if (imageFileId) payload.thumbnailImage = imageFileId; // 대표 사진 첨부파일 ID
+if (attachmentFileId) payload.fileId = attachmentFileId; // 첨부파일 ID
+resourceMutation.mutate(payload);        // regist → postResource / 수정 → putResource
+
+// 수정 진입 시 확장 필드·기존 첨부 ID 세팅 (응답 필드명은 extendData)
+formik.setFieldValue('englishName', data.extendData?.english_name || '');
+setExistingFileId(data.fileId || null);
+setExistingThumbnailId(data.extendData?.thumbnail_image || null);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/resource/ResourceDetail.tsx</code> — 대표사진 파일 ID → blob → object URL</div>
+<pre><code>// 대표사진(extendData.thumbnail_image)은 파일 ID라 fileList → downloadFile로 blob을 받아 object URL로 표시
+useEffect(() =&gt; {
+  const thumbnailFileId = data?.extendData?.thumbnail_image;
+  if (!thumbnailFileId) { /* 이전 URL revoke 후 null */ return; }
+
+  let revoked = false;
+  (async () =&gt; {
+    const listRes = await boardApi.fileList(thumbnailFileId);
+    const rows = listRes?.result?.rows ?? listRes?.rows ?? [];
+    const fileItemSequence = rows[0]?.fileItemSequence;
+    if (!fileItemSequence) return;
+
+    const blobRes = await boardApi.downloadFile(fileItemSequence);
+    const blob = blobRes?.data instanceof Blob ? blobRes.data : new Blob([]);
+    if (revoked) return;
+    const url = URL.createObjectURL(blob);
+    setThumbnailUrl((prev) =&gt; { if (prev) URL.revokeObjectURL(prev); return url; });
+  })();
+
+  return () =&gt; {
+    revoked = true;
+    setThumbnailUrl((prev) =&gt; { if (prev) URL.revokeObjectURL(prev); return null; });
+  };
+}, [data?.extendData?.thumbnail_image]);
+
+&lt;Box component="img" src={thumbnailUrl || defalutImage} alt="image" /&gt;</code></pre>
     </div>
     <div class="snippet">
       <div class="sc"><code>src/pages/contactUs/ContactUsList.tsx</code> — 등록 버튼 권한 제어</div>
@@ -199,7 +261,9 @@ resourceMutation.mutate(payload);        // regist → postResource / 수정 →
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/board.ts" target="_blank" rel="noopener">src/api/board.ts</a><span class="src">공지/자료실/문의 게시판 · 첨부 업로드·다운로드 API</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/search/CustomFile.tsx" target="_blank" rel="noopener">src/components/search/CustomFile.tsx</a><span class="src">첨부 확장자·용량 검증 공통 컴포넌트</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/ResourceEdit.tsx" target="_blank" rel="noopener">src/pages/resource/ResourceEdit.tsx</a><span class="src">자료실 편집 · extendedData 매칭 · thumbnailImage 업로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/ResourceEdit.tsx" target="_blank" rel="noopener">src/pages/resource/ResourceEdit.tsx</a><span class="src">자료실 편집 · extendData 매칭 · 기존 첨부 유지 · displayName 표시</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/ResourceDetail.tsx" target="_blank" rel="noopener">src/pages/resource/ResourceDetail.tsx</a><span class="src">자료실 상세 · 대표사진 blob 로드와 object URL 회수</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/ResourceList.tsx" target="_blank" rel="noopener">src/pages/resource/ResourceList.tsx</a><span class="src">자료실 목록 · 검색 파라미터 통째 교체(잔류 상태 제거)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/smartGreen.ts" target="_blank" rel="noopener">src/api/smartGreen.ts</a><span class="src">자료실 등록/수정 postResource·putResource (thumbnailImage·fileId)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/contactUs/ContactUsList.tsx" target="_blank" rel="noopener">src/pages/contactUs/ContactUsList.tsx</a><span class="src">문의 목록 · hasRole 기반 등록 버튼 노출 제어</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/contactUs/Reply.tsx" target="_blank" rel="noopener">src/pages/contactUs/Reply.tsx</a><span class="src">문의 답변 등록</span></li>

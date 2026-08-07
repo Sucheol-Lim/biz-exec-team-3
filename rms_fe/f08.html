@@ -22,12 +22,12 @@
       <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
     </div>
     <h1>관리자 · 역할(Role) 관리</h1>
-    <p class="one-liner"><code>administratorList</code>는 Admin List·Pending Approval(KT 전용) 탭으로 관리자 계정과 등록 신청 승인을, <code>rolelist</code>는 역할(Role) 기반 권한을 <code>UserApiManager</code>로 관리합니다. <code>mailreport</code> 경로는 사이트 공통으로 <code>AlertSetting</code>(단말 상태·OTT 버전(KT 전용)·네트워크 오프라인 탭)을 렌더합니다.</p>
+    <p class="one-liner"><code>administratorList</code>는 Admin List·Access History·Pending Approval(KT 전용) 탭으로 관리자 계정·접속 이력·등록 신청 승인을, <code>rolelist</code>는 역할(Role) 기반 권한을 <code>UserApiManager</code>로 관리합니다. 개인정보 마스킹은 <code>MaskingProvider</code>가 전역 상태로 들고 프로필 메뉴의 Data Masking 스위치로 전환하며, <code>mailreport</code> 경로는 사이트 공통으로 <code>AlertSetting</code>(단말 상태·OTT 버전(KT 전용)·네트워크 오프라인 탭)을 렌더합니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
-      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/administrator/*</code> · <code>_api/User.tsx</code></div></div>
-      <div class="item"><div class="k">기능 맥락</div><div class="v">계정·권한·운영 이력 관리</div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/administrator/*</code> · <code>contexts/MaskingContext.tsx</code> · <code>_api/User.tsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">계정·권한·접속 이력·마스킹 관리</div></div>
     </div>
   </div>
 </header>
@@ -48,8 +48,13 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>관리자 영역은 RMS 운영자 계정과 권한 체계를 다룹니다. <code>administratorList</code>는 Admin List·Pending Approval 두 탭을 가진 컨테이너로 재편되어, Admin List 탭(<code>administer/adminList.tsx</code>)이 <code>UserApiManager.getList()</code>(<code>/api/v1/users</code>)로 관리자 목록(역할명·Role Level 포함)을 조회하고, 등록/상세/수정은 <code>create</code>·<code>getDetail</code>·<code>update</code>로 처리합니다. 비밀번호 초기화(<code>resetUserPassword</code>)와 사용자명/이메일 중복 검사(<code>checkUserName</code>/<code>checkEmail</code>)도 같은 매니저에 있습니다. KT 사용자 등록 신청 흐름은 로그인 화면의 User Registration 팝업(<code>UserRegistrationModal</code>)이 <code>registLdap</code>(<code>/api/v1/auth/ldap/register/verify</code>, KT User ID + LDAP Password 검증)과 <code>submitLdap</code>(<code>/api/v1/auth/ldap/register/submit</code>)으로 신청을 제출하면, 관리자가 Pending Approval 탭(<code>administer/pendingApprovalList.tsx</code>, <code>adminPermissions.pendingApprovalTab</code> — KT 타깃 전용)에서 <code>getRegistrationList</code>(<code>/api/v1/registration-users</code>)로 신청 목록을 확인하고, 신청 행을 눌러 진입한 상세 화면(<code>administer/adminDetail.tsx</code>)에서 <code>approveUser</code>(roleId 지정 승인)/<code>rejectUser</code>(거절)로 처리합니다.</p>
-    <p>역할(Role)은 <code>rolelist</code>가 <code>getRoleList</code>(<code>/api/v1/roles</code>)·<code>createRole</code>·<code>updateRole</code>로 관리하며, 목록·상세에 Role Level(Level1~Level3)이 뱃지 형태로 표시되고 권한 편집 UI는 공용 컴포넌트(<code>administer/components/permissionShared.tsx</code>)로 정리되었습니다. 여기서 정의한 역할이 <code>PermissionContext</code>+<code>PermissionGuard</code>를 통해 화면 접근 권한으로 적용됩니다. 운영 이력 화면(<code>operationHistory.tsx</code>)은 라우트에 다시 연결되어 <code>operationHistory</code> 경로가 <code>DevicesApiManager.getOperationHistory</code> 기반의 운영 이력 화면을 렌더하고, 설문 설정은 <code>surveySetting</code>(목록)·<code>surveySetting/register</code>(<code>SurveyCreate</code>)에 상세/수정 경로 <code>surveySetting/:id</code>(<code>SurveyDetail</code>)가 추가되었습니다. 설문 상세 화면(<code>administer/surveyDetail.tsx</code>)은 대상 그룹명·설문 문항·응답 옵션 텍스트가 표시 영역을 넘으면 여러 줄로 줄바꿈(<code>flexWrap</code>·<code>wordBreak</code>, 고정 높이 대신 <code>minHeight</code>)해 보여주고, 응답 비율/건수 표기는 <code>nowrap</code>으로 한 줄을 유지하도록 다듬어졌습니다. 알림 설정은 라우트 정의(<code>MainRoutes.tsx</code>)에서 <code>mailreport</code> 경로가 사이트 구분 없이 <code>&lt;AlertSetting /&gt;</code>을 렌더하고, 탭 단에서 OTT 버전(<code>OTT_VER</code>) 탭만 <code>IS_KT</code>일 때 노출됩니다.</p>
+    <p>관리자 영역은 RMS 운영자 계정과 권한 체계를 다룹니다. <code>administratorList</code>는 Admin List·Access History·Pending Approval 세 탭을 가진 컨테이너로, Admin List 탭(<code>administer/adminList.tsx</code>)이 <code>UserApiManager.getList()</code>(<code>/api/v1/users</code>)로 관리자 목록(역할명·Role Level 포함)을 조회하고, 등록/상세/수정은 <code>create</code>·<code>getDetail</code>·<code>update</code>로 처리합니다. 관리자 목록에서는 전화번호(<code>phoneNumber</code>) 컬럼과 전화번호 검색 옵션이 제거되고 이름·Role Level·Division 컬럼 폭이 재조정되었습니다. 비밀번호 초기화(<code>resetUserPassword</code>)와 사용자명/이메일 중복 검사(<code>checkUserName</code>/<code>checkEmail</code>)도 같은 매니저에 있습니다. KT 사용자 등록 신청 흐름은 로그인 화면의 User Registration 팝업(<code>UserRegistrationModal</code>)이 <code>registLdap</code>(<code>/api/v1/auth/ldap/register/verify</code>, KT User ID + LDAP Password 검증)과 <code>submitLdap</code>(<code>/api/v1/auth/ldap/register/submit</code>)으로 신청을 제출하면, 관리자가 Pending Approval 탭(<code>administer/pendingApprovalList.tsx</code>, <code>adminPermissions.pendingApprovalTab</code> — KT 타깃 전용)에서 <code>getRegistrationList</code>(<code>/api/v1/registration-users</code>)로 신청 목록을 확인하고, 신청 행을 눌러 진입한 상세 화면(<code>administer/adminDetail.tsx</code>)에서 <code>approveUser</code>(roleId 지정 승인)/<code>rejectUser</code>(거절)로 처리합니다.</p>
+    <p>역할(Role)은 <code>rolelist</code>가 <code>getRoleList</code>(<code>/api/v1/roles</code>)·<code>createRole</code>·<code>updateRole</code>로 관리하며, 목록·상세에 Role Level(Level1~Level3)이 뱃지 형태로 표시되고 권한 편집 UI는 공용 컴포넌트(<code>administer/components/permissionShared.tsx</code>)로 정리되었습니다. 여기서 정의한 역할이 <code>PermissionContext</code>+<code>PermissionGuard</code>를 통해 화면 접근 권한으로 적용됩니다. 운영 이력 화면(<code>operationHistory.tsx</code>)은 라우트에 다시 연결되어 <code>operationHistory</code> 경로가 <code>DevicesApiManager.getOperationHistory</code> 기반의 운영 이력 화면을 렌더하고, 설문 설정은 <code>surveySetting</code>(목록)·<code>surveySetting/register</code>(<code>SurveyCreate</code>)에 상세/수정 경로 <code>surveySetting/:id</code>(<code>SurveyDetail</code>)가 추가되었습니다. 설문 상세 화면(<code>administer/surveyDetail.tsx</code>)은 대상 그룹명·설문 문항·응답 옵션 텍스트가 표시 영역을 넘으면 여러 줄로 줄바꿈(<code>flexWrap</code>·<code>wordBreak</code>, 고정 높이 대신 <code>minHeight</code>)해 보여주고, 응답 비율/건수 표기는 <code>nowrap</code>으로 한 줄을 유지하도록 다듬어졌습니다. 알림 설정은 라우트 정의(<code>MainRoutes.tsx</code>)에서 <code>mailreport</code> 경로가 사이트 구분 없이 <code>&lt;AlertSetting /&gt;</code>을 렌더하고, 탭 단에서 OTT 버전(<code>OTT_VER</code>) 탭만 <code>IS_KT</code>일 때 노출됩니다. 역할 레벨별 기본 권한/명령 매핑(<code>administer/rolePermission.tsx</code>의 <code>LEVEL_PERMISSIONS</code>·<code>LEVEL_COMMAND</code>)은 <code>process.env.REACT_APP_TARGET</code> 직접 비교 대신 공통 유틸 <code>isTarget()</code>(<code>utils/env.ts</code>)로 정리되어, TTG 전용 <code>LAUNCHER_RESET</code> 같은 사이트 분기를 한 곳에서 판정합니다.</p>
+    <p>새로 추가된 Access History 탭(<code>administer/historyList.tsx</code>)은 운영자 접속 이력을 조회합니다. <code>UserApiManager.getLoginHistories</code>(<code>/api/v1/login-histories</code>)로 페이지·검색 조건을 넘겨 목록을 받고, 컬럼(<code>getHistoryListColumns</code>)은 번호·계정 식별자·이름·Role Level·Account Type·Event·Detail·일시(<code>loginAt</code>, <code>relativeDate</code> 타입)로 구성되며, 계정 식별자 컬럼은 KT 타깃에서 <code>ID</code>, 그 외 사이트에서 <code>ID/E-mail</code> 라벨로 갈립니다. 검색 옵션(<code>getHistoryListSearchOptionList</code>)도 KT는 ID·E-mail을 따로, 그 외 사이트는 ID/E-mail 하나로 노출하며, 여기에 이름 텍스트 검색과 Account Type(<code>LOCAL</code>/<code>SSO</code>)·Event(<code>LOGIN</code>/<code>LOGOUT</code>)·Detail(<code>SUCCESS</code>/<code>FAILURE</code>/<code>LOGOUT</code>/<code>SESSION_EXPIRED</code>/<code>SESSION_KICKED</code>) select가 더해집니다. 목록에서 체크한 행은 <code>DownloadExcelModal</code>이 <code>/api/v1/login-histories/download-excel?ids=…</code>로 엑셀 내보내기를 수행합니다. 새로고침 버튼은 페이지·페이지 크기·검색 조건을 초기값으로 되돌린 뒤 다시 조회합니다.</p>
+    <div class="callout">
+      <div class="ct">개인정보 마스킹 — 전역 컨텍스트 + 요청 헤더</div>
+      <code>MaskingProvider</code>(<code>contexts/MaskingContext.tsx</code>)가 <code>MainLayout</code> 전체를 감싸고, <code>sessionStorage</code>의 <code>roleLevel</code>이 <code>Level3</code>인 계정에만 마스킹 권한(<code>hasMaskingPermission</code>)을 부여합니다. 진입 시 <code>getMaskingStatus</code>(<code>/api/v1/masking/status</code>)로 현재 상태를 읽고, 프로필 메뉴(<code>Header/HeaderContent/Profile</code>)의 Data Masking 스위치를 조작하면 <code>setMasking</code>(<code>/api/v1/masking/{on|off}</code> + <code>reason</code>)을 호출한 뒤 <code>sessionStorage.masking</code>을 갱신하고 화면을 리로드해 모든 목록을 다시 그립니다. 실제 마스킹 적용은 <code>_api/AxiosRequest.tsx</code>의 요청 인터셉터가 모든 API 호출에 <code>masking</code> 헤더를 실어 서버가 판단하며, 마스킹 상태 API는 <code>returnFullData</code> 옵션으로 응답 전체를 그대로 받습니다. 마스킹 전환 이력은 <code>getMaskingHistories</code>(<code>/api/v1/masking-histories</code>)로 조회할 수 있습니다.
+    </div>
     <div class="callout">
       <div class="ct">네트워크 오프라인 알림 — 전용 API 연동 (XLsmart Network Offline api 반영)</div>
       <code>AlertSetting</code>은 단말 상태(<code>DeviceAlert</code>)·OTT 버전(<code>OttVersion</code>, KT 전용)·네트워크 오프라인(<code>NetworkOffline</code>) 세 탭으로 구성됩니다. 네트워크 오프라인 알림은 <code>MailApiManager</code>의 전용 엔드포인트 <code>/api/v1/network-offline-alert/policy</code>(목록/생성/상세/수정/삭제)와 템플릿 API(<code>/api/v1/network-offline-alert/template</code>)로 연동되었으며, 편집은 <code>networkoffline/:id</code> 경로의 <code>NetworkOfflineEdit</code> 화면이 담당합니다.
@@ -64,7 +69,9 @@ sequenceDiagram
     autonumber
     participant OP as 운영자 (Browser)
     participant AL as administratorList (탭 컨테이너)
+    participant HL as historyList (Access History)
     participant AD as adminDetail
+    participant MP as MaskingProvider / Profile
     participant UM as UserApiManager (_api/User)
     participant BE as RMS BE 서버
     participant PC as PermissionContext / Guard
@@ -73,16 +80,30 @@ sequenceDiagram
     AL-&gt;&gt;UM: getList(data)
     UM-&gt;&gt;BE: GET /api/v1/users
     BE--&gt;&gt;AL: 관리자 목록 (role.roleLevel 포함)
+    OP-&gt;&gt;HL: Access History 탭 (검색/페이지)
+    HL-&gt;&gt;UM: getLoginHistories(page, size, 검색조건)
+    UM-&gt;&gt;BE: GET /api/v1/login-histories
+    BE--&gt;&gt;HL: 접속 이력 (event / detail / loginAt)
+    opt 엑셀 내보내기
+        HL-&gt;&gt;BE: GET /login-histories/download-excel?ids=...
+    end
     OP-&gt;&gt;AL: Pending Approval 탭 (KT 전용)
     AL-&gt;&gt;UM: getRegistrationList(data)
     UM-&gt;&gt;BE: GET /api/v1/registration-users
     OP-&gt;&gt;AD: 신청 행 클릭 → 상세 진입
     AD-&gt;&gt;UM: approveUser(id, roleId) / rejectUser(id)
     UM-&gt;&gt;BE: POST /api/v1/registration-users/:id/approve
+    opt Data Masking 전환 (roleLevel Level3)
+        OP-&gt;&gt;MP: Data Masking 스위치
+        MP-&gt;&gt;UM: setMasking(on|off, reason)
+        UM-&gt;&gt;BE: POST /api/v1/masking/on
+        BE--&gt;&gt;MP: isMasked
+        MP-&gt;&gt;MP: sessionStorage.masking 갱신 후 화면 리로드
+    end
     Note over PC: rolelist 에서 정의한 Role 이 PermissionGuard 로 화면 접근 권한에 적용
     Note over AL: mailreport 경로는 AlertSetting (OTT_VER 탭은 IS_KT 전용)
       </div>
-      <p class="cap"><strong>흐름.</strong> 관리자 화면이 Admin List·Pending Approval 탭으로 재편되어 계정 조회와 KT 등록 신청 승인/거절을 한 화면에서 처리하고, <code>rolelist</code>에서 정의한 Role이 <code>PermissionGuard</code>를 통해 접근 통제에 반영됩니다. 메일 리포트 메뉴는 사이트 공통으로 알림 설정 화면을 렌더하고, OTT 버전 탭만 KT 전용으로 노출됩니다.</p>
+      <p class="cap"><strong>흐름.</strong> 관리자 화면이 Admin List·Access History·Pending Approval 탭으로 계정 조회, 로그인/로그아웃 이력 조회·엑셀 내보내기, KT 등록 신청 승인/거절을 한 화면에서 처리하고, <code>rolelist</code>에서 정의한 Role이 <code>PermissionGuard</code>를 통해 접근 통제에 반영됩니다. Data Masking 전환은 상태 API 호출 후 세션 값을 갱신하고 화면을 리로드해 전 목록에 반영됩니다.</p>
     </div>
   </section>
 
@@ -97,6 +118,16 @@ classDiagram
     }
     class AdminList {
         +searchAdminList()
+    }
+    class HistoryList {
+        +searchAdminList(searchOptions)
+        +refresh()
+        +download()
+    }
+    class MaskingProvider {
+        +masking
+        +hasMaskingPermission
+        +updateMasking(checked, reason)
     }
     class PendingApprovalList {
         +getRegistrationList()
@@ -130,6 +161,10 @@ classDiagram
         +rejectUser(cb, id)
         +registLdap(cb, userId, password)
         +submitLdap(cb)
+        +getLoginHistories(cb, data)
+        +getMaskingHistories(cb, data)
+        +getMaskingStatus(cb)
+        +setMasking(cb, status, reason)
     }
     class MailApiManager {
         +getNetworkOfflineAlert(cb, data)
@@ -144,8 +179,11 @@ classDiagram
     }
 
     AdministratorList --&gt; AdminList : Admin List 탭
+    AdministratorList --&gt; HistoryList : Access History 탭
     AdministratorList --&gt; PendingApprovalList : Pending Approval 탭 (KT)
     AdminList --&gt; UserApiManager : 계정 CRUD
+    HistoryList --&gt; UserApiManager : 접속 이력 조회
+    MaskingProvider --&gt; UserApiManager : 마스킹 상태 조회·전환
     PendingApprovalList --&gt; AdminDetail : 신청 행 클릭 시 상세 이동
     AdminDetail --&gt; UserApiManager : 승인·거절
     RoleList --&gt; UserApiManager : 역할 CRUD
@@ -154,7 +192,7 @@ classDiagram
     MainRoutes ..&gt; AlertSetting : mailreport 경로
     MainRoutes ..&gt; AdministratorList : administrator 경로
       </div>
-      <p class="cap"><strong>관계.</strong> 관리자 화면(<code>AdministratorList</code>)이 Admin List·Pending Approval 탭 컨테이너로 재편되어 하위 목록 컴포넌트와 상세(<code>AdminDetail</code>)가 <code>UserApiManager</code>를 공유하고, KT 사용자 등록 팝업(<code>UserRegistrationModal</code>)도 같은 매니저로 신청을 제출합니다. <code>MainRoutes</code>의 <code>mailreport</code> 경로는 항상 <code>AlertSetting</code>을 렌더하며(OTT 버전 탭은 <code>IS_KT</code> 전용), 네트워크 오프라인 탭은 <code>MailApiManager</code>의 network-offline-alert API를 사용하고 편집은 <code>networkoffline/:id</code>의 <code>NetworkOfflineEdit</code>가 담당합니다. <code>operationHistory</code> 경로는 운영 이력 화면으로 복구되었고, <code>surveySetting</code> 경로는 목록·등록(<code>SurveyCreate</code>)·상세(<code>SurveyDetail</code>)를 렌더합니다.</p>
+      <p class="cap"><strong>관계.</strong> 관리자 화면(<code>AdministratorList</code>)이 Admin List·Access History·Pending Approval 탭 컨테이너로서 하위 목록 컴포넌트와 상세(<code>AdminDetail</code>)가 <code>UserApiManager</code>를 공유하고, 마스킹 전역 상태(<code>MaskingProvider</code>)도 같은 매니저의 masking API를 사용하며, KT 사용자 등록 팝업(<code>UserRegistrationModal</code>)도 같은 매니저로 신청을 제출합니다. <code>MainRoutes</code>의 <code>mailreport</code> 경로는 항상 <code>AlertSetting</code>을 렌더하며(OTT 버전 탭은 <code>IS_KT</code> 전용), 네트워크 오프라인 탭은 <code>MailApiManager</code>의 network-offline-alert API를 사용하고 편집은 <code>networkoffline/:id</code>의 <code>NetworkOfflineEdit</code>가 담당합니다. <code>operationHistory</code> 경로는 운영 이력 화면으로 복구되었고, <code>surveySetting</code> 경로는 목록·등록(<code>SurveyCreate</code>)·상세(<code>SurveyDetail</code>)를 렌더합니다.</p>
     </div>
   </section>
 
@@ -177,18 +215,78 @@ rejectUser: (callback, id) =&gt; { request('post', `/api/v1/registration-users/$
 // LDAP — KT User ID / LDAP Password 검증 후 신청 제출
 registLdap: async (callback, userId, password) =&gt;
   request('post', '/api/v1/auth/ldap/register/verify', callback, { ktUserId: userId, ldapPassword: password }),
-submitLdap: async (callback) =&gt; request('post', '/api/v1/auth/ldap/register/submit', callback)</code></pre>
+submitLdap: async (callback) =&gt; request('post', '/api/v1/auth/ldap/register/submit', callback),
+
+// masking — returnFullData(true) 로 응답 전체를 그대로 전달
+getMaskingStatus: (callback) =&gt; {
+  request('get', '/api/v1/masking/status', callback, undefined, undefined, undefined, true);
+},
+setMasking: async (callback, status: 'on' | 'off', reason: string) =&gt; {
+  return request('post', `/api/v1/masking/${status}`, callback, { reason }, undefined, undefined, true);
+},
+// history
+getLoginHistories: (callback, data) =&gt; { request('get', '/api/v1/login-histories', callback, data); },
+getMaskingHistories: (callback, data) =&gt; { request('get', '/api/v1/masking-histories', callback, data); }</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>pages/administrator/administratorList.tsx</code> — Admin List / Pending Approval 탭 컨테이너</div>
+      <div class="sc"><code>pages/administrator/administratorList.tsx</code> — Admin List / Access History / Pending Approval 탭 컨테이너</div>
 <pre><code>const tabs: TabConfig[] = [
   { value: 'DEFAULT', label: t('ms:administratorList.tab.admin_list'),
     enabled: true, content: &lt;AdminList /&gt; },
+  { value: 'HISTORY', label: t('ms:administratorList.tab.history'),   // "Access History"
+    enabled: true, content: &lt;HistoryList /&gt; },
   { value: 'PENDING_APPROVAL', label: t('ms:administratorList.tab.pendingApproval'),
     enabled: adminPermissions.pendingApprovalTab,   // utils/env: TARGET === 'KT'
     content: &lt;PendingApprovalList /&gt; }
 ];
 const visibleTabs = tabs.filter((tab) =&gt; tab.enabled);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>pages/administrator/administer/historyList.tsx</code> — 접속 이력 조회와 선택 행 엑셀 내보내기</div>
+<pre><code>const searchAdminList = (searchOptions?: menuItem) =&gt; {
+  UserApiManager.getLoginHistories(
+    (result, data) =&gt; {
+      if (!result || !data || !data.elements) return;
+      const tableData = data.elements.map((v: any, idx: number) =&gt; ({
+        no: page * rowsPerPage + idx + 1, ...v
+      }));
+      setRows(tableData);
+      setTotalPage(Math.ceil(data.totalCount / rowsPerPage));
+      prevPage.current = page;
+    },
+    { page, size: rowsPerPage,
+      ...(searchOptions?.id &amp;&amp; searchOptions?.searchValue &amp;&amp; { [searchOptions.id]: searchOptions.searchValue }) }
+  );
+};
+
+const download = () =&gt; {
+  if (rows?.length &gt; 0) {
+    const selectedIds = selectedRows.filter((item) =&gt; item.checked).map((item) =&gt; item.id);
+    setDownloadOpen(true);
+    setSelectedIdsCount(selectedIds.length);
+    setDownloadExcelUrl(`/api/v1/login-histories/download-excel?ids=${selectedIds.join(',')}`);
+  }
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>contexts/MaskingContext.tsx</code> · <code>_api/AxiosRequest.tsx</code> — 마스킹 전역 상태와 요청 헤더</div>
+<pre><code>// MaskingContext — Level3 계정만 마스킹 전환 권한
+const hasMaskingPermission = sessionStorage.getItem('roleLevel') === 'Level3';
+const [masking, setMaskingState] = useState&lt;boolean&gt;(sessionStorage.getItem('masking') === 'on');
+
+const updateMasking = (checked: boolean, reason: string = 'reason') =&gt; {
+  UserApiManager.setMasking((result, data) =&gt; {
+    if (result) {
+      const isMasked = !!data?.isMasked;
+      sessionStorage.setItem('masking', isMasked ? 'on' : 'off');
+      setMaskingState(isMasked);
+      window.location.reload();          // 마스킹 변경 후 화면 전체 재조회
+    }
+  }, checked ? 'on' : 'off', reason);
+};
+
+// AxiosRequest — 모든 요청에 masking 헤더 첨부 (토큰은 인터셉터에서 주입)
+config.headers.masking = `${sessionStorage.getItem('masking') === 'off' ? false : true} `;</code></pre>
     </div>
     <div class="snippet">
       <div class="sc"><code>routes/MainRoutes.tsx</code> — mailreport의 AlertSetting 통합 · operationHistory 복구 · surveySetting 상세 라우트</div>
@@ -232,6 +330,13 @@ const visibleTabs = tabs.filter((tab) =&gt; tab.enabled);</code></pre>
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administratorList.tsx" target="_blank" rel="noopener">pages/administrator/administratorList.tsx</a><span class="src">관리자 화면 탭 컨테이너 — Admin List·Pending Approval(KT 전용) 탭</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administer/adminList.tsx" target="_blank" rel="noopener">pages/administrator/administer/adminList.tsx</a><span class="src">관리자 계정 목록 — getList, 역할명·roleLevel 표시</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administer/historyList.tsx" target="_blank" rel="noopener">pages/administrator/administer/historyList.tsx</a><span class="src">Access History 탭 — getLoginHistories 조회·검색·새로고침·엑셀 내보내기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administrator.columns.ts" target="_blank" rel="noopener">pages/administrator/administrator.columns.ts</a><span class="src">목록 컬럼 — getHistoryListColumns 신설, 관리자 목록 phoneNumber 컬럼 제거</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administrator.searchOption.ts" target="_blank" rel="noopener">pages/administrator/administrator.searchOption.ts</a><span class="src">검색 옵션 — getHistoryListSearchOptionList(accountType·event·detail select)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administer/rolePermission.tsx" target="_blank" rel="noopener">pages/administrator/administer/rolePermission.tsx</a><span class="src">역할 레벨별 기본 권한·명령 매핑 — isTarget() 유틸로 사이트 분기 정리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/contexts/MaskingContext.tsx" target="_blank" rel="noopener">contexts/MaskingContext.tsx</a><span class="src">마스킹 전역 상태 — getMaskingStatus 초기화·updateMasking 전환·리로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/layout/MainLayout/Header/HeaderContent/Profile/index.tsx" target="_blank" rel="noopener">layout/MainLayout/Header/HeaderContent/Profile/index.tsx</a><span class="src">프로필 메뉴 — Level3 계정 전용 Data Masking 스위치</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/AxiosRequest.tsx" target="_blank" rel="noopener">_api/AxiosRequest.tsx</a><span class="src">요청 인터셉터 — masking 헤더 첨부·returnFullData 옵션</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administer/pendingApprovalList.tsx" target="_blank" rel="noopener">pages/administrator/administer/pendingApprovalList.tsx</a><span class="src">등록 신청 대기 목록 — getRegistrationList, 행 클릭 시 상세 이동</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administer/adminDetail.tsx" target="_blank" rel="noopener">pages/administrator/administer/adminDetail.tsx</a><span class="src">관리자 상세 — PENDING_APPROVAL 탭 진입 시 approveUser(roleId)/rejectUser 버튼</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/rolelist.tsx" target="_blank" rel="noopener">pages/administrator/rolelist.tsx</a><span class="src">역할(Role) 목록·권한 정의 — Role Level 뱃지 표시</span></li>
@@ -243,7 +348,7 @@ const visibleTabs = tabs.filter((tab) =&gt; tab.enabled);</code></pre>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/alert/networkOffline.tsx" target="_blank" rel="noopener">pages/administrator/alert/networkOffline.tsx</a><span class="src">네트워크 오프라인 알림 목록 — MailApiManager.getNetworkOfflineAlert 연동</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/mailReport.tsx" target="_blank" rel="noopener">pages/administrator/mailReport.tsx</a><span class="src">메일 리포트 — 현재 라우트에서는 미사용(AlertSetting으로 통합)</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/routes/MainRoutes.tsx" target="_blank" rel="noopener">routes/MainRoutes.tsx</a><span class="src">mailreport → AlertSetting · networkoffline/:id → NetworkOfflineEdit · operationHistory → OperationHistory · surveySetting → SurveySetting·SurveyCreate·SurveyDetail</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/User.tsx" target="_blank" rel="noopener">_api/User.tsx</a><span class="src">UserApiManager — users / roles CRUD·비밀번호 초기화·registration-users 승인/거절·LDAP register</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/User.tsx" target="_blank" rel="noopener">_api/User.tsx</a><span class="src">UserApiManager — users / roles CRUD·비밀번호 초기화·registration-users 승인/거절·LDAP register·login-histories·masking status/on/off·masking-histories</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Mail.tsx" target="_blank" rel="noopener">_api/Mail.tsx</a><span class="src">MailApiManager — network-offline-alert policy/template API</span></li>
     </ul>
     <div class="sibling-nav">

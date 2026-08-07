@@ -51,6 +51,8 @@
     <p><code>WebSocketProvider</code>는 전역 컨텍스트로, <code>connect()</code> 호출 시 먼저 <code>commonApi.subscription()</code>으로 구독 큐 ID를 받아 세션에 저장합니다. 이후 <code>@stomp/stompjs</code>의 <code>Client</code>를 <code>VITE_WEBSOCKET_SERVER</code> 브로커로 활성화하고, 연결되면 해당 큐를 구독해 메시지 수신을 시작합니다. 재연결 지연·하트비트가 설정되어 있고, STOMP 오류는 최대 5회(<code>MAX_RETRY</code>)까지 재시도 후 <code>connectionError</code>를 세웁니다.</p>
     <p>수신 메시지는 텍스트일 수도, 바이너리일 수도 있습니다. <code>decodeBinaryMessage</code>가 바이너리 페이로드를 <code>Uint8Array</code>로 변환하고, 앞 두 바이트가 <code>0x1f 0x8b</code>이면(GZIP 매직) <code>pako.inflate</code>로 해제한 뒤 UTF-8로 디코딩합니다. 디코딩 결과는 <code>JSON.parse</code>로 객체화됩니다.</p>
     <p>라우팅 분기는 단순합니다. 파싱된 데이터에 <code>threadId</code>가 있고 AI 에이전트가 활성(<code>isActiveAgent</code>)이면 <code>setLastMessage</code>(에이전트 응답)로, 그 외에는 <code>setLastEvent</code>(관제 이벤트)로 보냅니다. <code>lastEvent</code>는 지도 마커·위젯·Alarm 등이 구독해 화면에 반영합니다.</p>
+    <p>여기에 더해 화면 데이터를 최신으로 유지하는 두 번째 경로로 5분 주기 배경 갱신(<code>modules/autoRefresh</code>)이 신설되었습니다. WebSocket이 이벤트 <em>발생 시점</em>에 밀어주는 신호를 담당한다면, 자동 갱신은 홈·종합현황 위젯의 집계·현황 값을 주기적으로 다시 끌어옵니다. 이벤트 목록 위젯이 쓰는 <code>logEventApi.eventList</code>는 이 배경 경로를 받도록 요청 옵션 인자를 추가로 받게 되었고, 노출 건수도 3건에서 5건으로 늘었습니다. 자세한 스케줄러 동작은 <a href="f03.html">카드형 종합 현황</a> 문서에 정리되어 있습니다.</p>
+    <p>배경 요청이 늘면서 공용 응답 인터셉터(<code>ApiClient</code>)도 두 군데 조정되었습니다. 첫째, TanStack Query가 화면 이탈·Query 교체 시 <code>AbortSignal</code>로 취소한 요청은 서비스 장애가 아니므로 <code>axios.isCancel</code>로 걸러 오류 팝업 없이 취소 상태를 그대로 전달합니다. 둘째, <code>skipError</code> 요청이 인터셉터 앞단에서 조기 반환되던 처리를 걷어내, 팝업만 억제하고 401 인증 오류 처리(세션 정리·로그인 이동)는 그대로 통과하도록 바꿨습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       구독은 사용자 식별을 위해 헤더 <code>USER_ID</code>를 함께 보냅니다. <code>disconnect()</code>는 STOMP 클라이언트를 비활성화하고 재시도 카운트를 초기화하며, 권한 부적합 전환·로그아웃 시 호출됩니다.
@@ -168,6 +170,28 @@ client.subscribe(queueId, async (message) =&gt; {
   }
 }, { USER_ID: user?.id });</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>src/api/ApiClient.ts</code> — 취소 요청 제외 · skipError 도 401 처리는 통과</div>
+<pre><code>apiClient.interceptors.response.use(
+  (res) =&gt; res,
+  (error) =&gt; {
+    // TanStack Query가 화면 이탈·Query 교체 시 AbortSignal로 취소한 요청은
+    // 서비스 장애가 아니므로 오류 팝업을 표시하지 않고 취소 상태를 그대로 전달한다.
+    if (axios.isCancel(error)) {
+      return Promise.reject(error);
+    }
+
+    const skipError = error.config?.skipError;
+    const status = error?.response?.status ?? error?.status;
+
+    // skipError 요청도 401 인증 오류 처리는 통과해야 하므로 기존 조기 반환을 제거했다.
+
+    if (status === 401) {
+      // ... 세션 정리 후 /:site 로그인으로 이동
+    }
+  },
+);</code></pre>
+    </div>
   </section>
 
   <section id="sources">
@@ -176,6 +200,9 @@ client.subscribe(queueId, async (message) =&gt; {
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/contexts/WebSocketProvider.tsx" target="_blank" rel="noopener">src/contexts/WebSocketProvider.tsx</a><span class="src">STOMP 연결·구독 · GZIP 해제 · lastMessage/lastEvent 라우팅 · 재시도</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/common.ts" target="_blank" rel="noopener">src/api/common.ts</a><span class="src">subscription() → DASHBOARD 모듈 구독 큐 발급</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/main.tsx" target="_blank" rel="noopener">src/main.tsx</a><span class="src">WebSocketProvider 전역 Provider 배치</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/ApiClient.ts" target="_blank" rel="noopener">src/api/ApiClient.ts</a><span class="src">응답 인터셉터 — axios.isCancel 예외 처리 · skipError 요청의 401 처리 통과</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/logEvent.ts" target="_blank" rel="noopener">src/api/logEvent.ts</a><span class="src">eventList / eventWeather — 배경 갱신용 요청 옵션 인자 추가 · 목록 5건</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/widget/aidx/LiveSiteIssue.tsx" target="_blank" rel="noopener">src/components/widget/aidx/LiveSiteIssue.tsx</a><span class="src">실시간 현장 이슈 위젯 — 이벤트 목록·레벨 조회의 foreground/background 공유</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

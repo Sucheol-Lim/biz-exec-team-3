@@ -26,7 +26,7 @@
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
-      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>src/utils/env.ts</code> · <code>.env.*</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>src/utils/env.ts</code> · <code>components/TargetGuard.tsx</code> · <code>.env.*</code></div></div>
       <div class="item"><div class="k">기능 맥락</div><div class="v">멀티 타깃 단일 코드베이스</div></div>
     </div>
   </div>
@@ -48,8 +48,9 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>RMS FrontEnd는 하나의 코드베이스를 KT·OBE·TTG·XLSmart·IBC·GLOBAL 등 여러 사이트에 공통 배포하는 멀티 타깃 구조입니다. 그 중심이 <code>src/utils/env.ts</code>입니다. 이 모듈은 빌드 시 주입된 <code>REACT_APP_TARGET</code>(기본값 <code>GLOBAL</code>)을 읽어 <code>IS_KT</code>·<code>IS_NOT_KT</code> 같은 불리언과, 화면 노출/동작을 결정하는 여러 분기 객체를 export 합니다. 사이트별 환경값은 <code>.env.kt</code>·<code>.env.obe</code>·<code>.env.ttg</code>·<code>.env.xl</code> 등 사이트별 <code>.env</code> 파일과 <code>build.js</code> 인자로 주입되며, XLSmart 타깃으로 <code>rmsai.one</code> 도메인을 바라보는 <code>.env.rmsai_one</code>도 추가되었습니다.</p>
-    <p>주요 분기는 다섯 가지입니다. <code>modulePermissions</code>는 터미널(OBE/TTG/IBC)·고급 메시지(비-KT)·런처 리셋(TTG)·챗봇(IBC 전용 — 종전 <code>REACT_APP_CHATBOT</code> 환경변수 분기는 제거)·WiFi 메뉴(TTG)에 더해, IBC 타깃 전용 이상 감지(<code>anomalyDetect</code>) 노출을 제어합니다 — <code>quickOperationMain.tsx</code>가 이 값으로 Quick Operation 화면 대신 <code>AnomalyDetect</code> 컴포넌트(<code>pages/monitoring/anomalyDetect</code>로 승격)를 렌더합니다. <code>widgetPermissions</code>는 대시보드의 위치 지도·브랜드 모델·네트워크 인터페이스 위젯을 OBE/TTG/XLSmart/IBC에서 숨기고 KT는 편집 모드를 막습니다(<code>disableEditMode</code>). <code>illegalDevices</code> 위젯 노출, <code>KPIWidgetCount</code> 5(그 외 4), <code>widgetCols</code> 20(그 외 16)은 XLSmart 전용으로 축소되었습니다(IBC 제외). 지도 위젯의 경도 시작값 <code>mapBoundsLngStart()</code>는 OBE/TTG/IBC에서 -180, 그 외 0을 반환하고, 앱 정책 탭 노출은 신설된 <code>appPolicyTabs</code>(<code>managedApp</code>/<code>defaultApp</code>)가 제어합니다. <code>adminPermissions</code>는 관리자 화면을 분기해 KT는 승인 대기 탭(<code>pendingApprovalTab</code>)과 LDAP 항목(<code>usingLDAPItems</code>)을 쓰고, 비-KT는 관리자 등록(<code>regist</code>)·비밀번호 초기화(<code>resetPassword</code>)를 노출합니다. <code>stpPolicyPeriodMin</code>은 정책 주기 기본값을 KT 10분/그 외 5분으로 둡니다. <code>ID_FIELD</code>는 KT면 <code>deviceSiteId</code>, 그 외면 <code>deviceId</code>로 단말 식별자 필드를 바꿉니다. 한편 <code>MainRoutes.tsx</code>의 <code>IS_KT</code> 기반 메일 리포트/알림 설정 분기는 제거되어 <code>mailreport</code> 라우트가 <code>AlertSetting</code>으로 고정되었고, <code>App.tsx</code>는 <code>REACT_APP_ENV_NAME</code>이 <code>local</code>일 때 문서 타이틀에 현재 <code>REACT_APP_TARGET</code>을 표시해 어떤 타깃으로 떠 있는지 바로 보이게 합니다. XL Smart 대응으로 추가된 설문 설정 라우트는 <code>surveySetting</code> → <code>SurveySetting</code>, <code>surveySetting/register</code> → <code>SurveyCreate</code>, <code>surveySetting/:id</code> → <code>SurveyDetail</code>로 확장되었고, 임시로 <code>SurveySetting</code>을 렌더하던 <code>operationHistory</code> 경로는 정식 <code>OperationHistory</code> 컴포넌트로 복원되었습니다. <code>quickOperation</code> 라우트는 <code>QuickOperationMain</code>이 받아 <code>anomalyDetect</code> 여부로 분기하며, 컴포넌트의 <code>:detectId</code> 파라미터 소비는 제거되었습니다.</p>
+    <p>RMS FrontEnd는 하나의 코드베이스를 KT·OBE·TTG·XLSmart·IBC·GLOBAL 등 여러 사이트에 공통 배포하는 멀티 타깃 구조입니다. 그 중심이 <code>src/utils/env.ts</code>입니다. 이 모듈은 빌드 시 주입된 <code>REACT_APP_TARGET</code>(기본값 <code>GLOBAL</code>)을 읽어 <code>IS_KT</code>·<code>IS_NOT_KT</code> 같은 불리언과, 화면 노출/동작을 결정하는 여러 분기 객체를 export 합니다. 사이트별 환경값은 <code>.env.kt</code>·<code>.env.obe</code>·<code>.env.ttg</code>·<code>.env.xl</code>·<code>.env.local</code>(IBC) 등 사이트별 <code>.env</code> 파일과 <code>build.js</code>/<code>buildProd.js</code> 인자로 주입됩니다(<code>buildProd.js --target=&lt;name&gt;</code>이 <code>.env.&lt;name&gt;</code>을 로드). XLSmart 운영 빌드는 도메인 이관에 맞춰 <code>.env.rmsai_one</code>이 <code>.env.xl_prod</code>로 이름이 바뀌었고, 바라보는 호스트도 <code>rmsai.one</code>에서 <code>xlsmart.rmsai.one</code>으로 옮겨졌습니다 — <code>infra/helm/xlsmart/rms-ui-app/buildspec.yml</code>의 빌드 커맨드가 <code>yarn buildProd --target=xl_prod</code>로, <code>values-prod.yaml</code>의 ingress host가 <code>xlsmart.rmsai.one</code>으로 함께 갱신되었습니다(<code>REACT_APP_TARGET=XLSmart</code>는 유지).</p>
+    <p>주요 분기는 다섯 가지입니다. <code>modulePermissions</code>는 터미널(OBE/TTG/IBC)·고급 메시지(비-KT)·런처 리셋(TTG)·챗봇(IBC 전용 — 종전 <code>REACT_APP_CHATBOT</code> 환경변수 분기는 제거)·WiFi 메뉴(TTG)에 더해, IBC 타깃 전용 이상 감지(<code>anomalyDetect</code>) 노출을 제어합니다 — <code>quickOperationMain.tsx</code>가 이 값으로 Quick Operation 화면 대신 <code>AnomalyDetect</code> 컴포넌트(<code>pages/monitoring/anomalyDetect</code>로 승격)를 렌더합니다. <code>widgetPermissions</code>는 대시보드의 위치 지도·브랜드 모델·네트워크 인터페이스 위젯을 OBE/TTG/XLSmart/IBC에서 숨기고 KT는 편집 모드를 막습니다(<code>disableEditMode</code>). <code>illegalDevices</code> 위젯 노출, <code>KPIWidgetCount</code> 5(그 외 4), <code>widgetCols</code> 20(그 외 16)은 XLSmart 전용으로 축소되었습니다(IBC 제외). 지도 위젯의 경도 시작값 <code>mapBoundsLngStart()</code>는 OBE/TTG/IBC에서 -180, 그 외 0을 반환하고, 앱 정책 탭 노출은 신설된 <code>appPolicyTabs</code>(<code>managedApp</code>/<code>defaultApp</code>)가 제어합니다. <code>adminPermissions</code>는 관리자 화면을 분기해 KT는 승인 대기 탭(<code>pendingApprovalTab</code>)과 LDAP 항목(<code>usingLDAPItems</code>)을 쓰고, 비-KT는 관리자 등록(<code>regist</code>)·비밀번호 초기화(<code>resetPassword</code>)를 노출합니다. <code>stpPolicyPeriodMin</code>은 정책 주기 기본값을 KT 10분/그 외 5분으로 둡니다. <code>ID_FIELD</code>는 KT면 <code>deviceSiteId</code>, 그 외면 <code>deviceId</code>로 단말 식별자 필드를 바꿉니다(중간 플래그였던 <code>useRegionalId</code>는 제거되고 <code>IS_KT</code>를 직접 씁니다). 한편 <code>MainRoutes.tsx</code>의 <code>IS_KT</code> 기반 메일 리포트/알림 설정 분기는 제거되어 <code>mailreport</code> 라우트가 <code>AlertSetting</code>으로 고정되었고, <code>App.tsx</code>는 <code>REACT_APP_ENV_NAME</code>이 <code>local</code>일 때 문서 타이틀에 현재 <code>REACT_APP_TARGET</code>을 표시해 어떤 타깃으로 떠 있는지 바로 보이게 합니다. XL Smart 대응으로 추가된 설문 설정 라우트는 <code>surveySetting</code> → <code>SurveySetting</code>, <code>surveySetting/register</code> → <code>SurveyCreate</code>, <code>surveySetting/:id</code> → <code>SurveyDetail</code>로 확장되었고, 임시로 <code>SurveySetting</code>을 렌더하던 <code>operationHistory</code> 경로는 정식 <code>OperationHistory</code> 컴포넌트로 복원되었습니다. <code>quickOperation</code> 라우트는 <code>QuickOperationMain</code>이 받아 <code>anomalyDetect</code> 여부로 분기하며, 컴포넌트의 <code>:detectId</code> 파라미터 소비는 제거되었습니다.</p>
+    <p>고정 플래그로 표현하기 어려운 지엽적 분기는 술어 함수 <code>isTarget(only, except)</code>가 맡습니다. 이 함수는 원래 <code>hooks/useTarget.ts</code> 훅이 감싸고 있었지만, 훅일 필요가 없는 순수 함수라 <code>utils/env.ts</code>로 승격되고 훅 파일은 삭제되었습니다. 덕분에 컴포넌트 밖(컬럼 정의·권한 목록 같은 모듈 스코프)에서도 같은 판정을 쓸 수 있습니다. 사용은 두 갈래입니다. 값이 필요한 곳은 <code>isTarget('TTG')</code>처럼 직접 호출하고(<code>rolePermission.tsx</code>의 <code>LAUNCHER_RESET</code> 권한 추가, <code>screenShareModal.tsx</code>의 TTG 전용 리모컨, <code>managementDevices.tsx</code>의 OBE·TTG 전용 영역), JSX를 통째로 숨길 때는 선언적 래퍼 <code>components/TargetGuard.tsx</code>를 씁니다(<code>&lt;TargetGuard only="KT"&gt;</code>, <code>&lt;TargetGuard except="KT"&gt;</code>). <code>TargetGuard</code>도 이제 훅 대신 <code>utils/env</code>의 <code>isTarget</code>을 직접 import 합니다.</p>
     <div class="callout">
       <div class="ct">한 코드, 여러 사이트</div>
       각 화면이 if/else를 흩뿌리지 않고 <code>env.ts</code>의 분기 값을 import 해 참조하므로, 타깃별 차이가 한곳에 모입니다. 신규 사이트 대응이나 권한 변경이 <code>env.ts</code> 한 파일과 <code>.env.*</code> 조정으로 수렴합니다.
@@ -73,6 +74,7 @@ sequenceDiagram
     BUILD-&gt;&gt;ENV: REACT_APP_TARGET 주입
     ENV-&gt;&gt;ENV: TARGET / IS_KT 평가
     ENV-&gt;&gt;ENV: modulePermissions / widgetPermissions / adminPermissions / ID_FIELD / stpPolicyPeriodMin
+    ENV-&gt;&gt;ENV: isTarget(only, except) 술어 제공
     APP-&gt;&gt;ENV: modulePermissions.chatbot 확인
     APP-&gt;&gt;APP: 챗봇 버튼 노출 여부 결정
     APP-&gt;&gt;APP: local이면 타이틀에 TARGET 표시
@@ -80,8 +82,9 @@ sequenceDiagram
     DASH-&gt;&gt;DASH: 위젯 노출·컬럼 수(widgetCols)·편집 분기
     ADM-&gt;&gt;ENV: adminPermissions 확인
     ADM-&gt;&gt;ADM: 승인 대기 탭(KT) / 등록·비밀번호 초기화(비-KT) 분기
-    DEV-&gt;&gt;ENV: ID_FIELD 확인
+    DEV-&gt;&gt;ENV: ID_FIELD / isTarget 확인
     DEV-&gt;&gt;DEV: deviceSiteId(KT) / deviceId 로 표시
+    DEV-&gt;&gt;DEV: TargetGuard(only/except) 로 KT·TTG 전용 필드 노출
       </div>
       <p class="cap"><strong>흐름.</strong> 빌드 시 주입된 <code>REACT_APP_TARGET</code>을 <code>env.ts</code>가 분기 값으로 가공하고, 각 화면(App·대시보드·관리자·단말)이 그 값을 참조해 노출·동작·식별자를 사이트에 맞게 결정합니다.</p>
     </div>
@@ -95,14 +98,19 @@ classDiagram
     class envModule {
         +TARGET
         +IS_KT
+        +isTarget(only, except)
         +modulePermissions
         +widgetPermissions
         +adminPermissions
         +appPolicyTabs
         +stpPolicyPeriodMin
-        +useRegionalId
         +ID_FIELD
         +mapBoundsLngStart()
+    }
+    class TargetGuard {
+        +only
+        +except
+        +render()
     }
     class modulePermissions {
         +terminal
@@ -140,8 +148,9 @@ classDiagram
     DashboardRms ..&gt; widgetPermissions : 위젯 노출·컬럼 수
     AdministratorList ..&gt; adminPermissions : 승인 대기 탭·등록
     QuickOperationMain ..&gt; modulePermissions : anomalyDetect(IBC)
+    TargetGuard ..&gt; envModule : isTarget 판정
       </div>
-      <p class="cap"><strong>관계.</strong> <code>env.ts</code>가 <code>modulePermissions</code>·<code>widgetPermissions</code>·<code>adminPermissions</code>를 보유하고, App·DashboardRms·AdministratorList·QuickOperationMain 등 소비자가 이를 import 해 사이트별로 분기합니다. <code>MainRoutes.tsx</code>의 <code>IS_KT</code> 라우트 분기는 제거되었습니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>env.ts</code>가 <code>modulePermissions</code>·<code>widgetPermissions</code>·<code>adminPermissions</code>와 술어 <code>isTarget()</code>을 보유하고, App·DashboardRms·AdministratorList·QuickOperationMain 등 소비자가 이를 import 해 사이트별로 분기합니다. JSX 단위 분기는 <code>TargetGuard</code>가 <code>isTarget</code>으로 판정해 자식을 그리거나 <code>null</code>을 반환합니다. <code>MainRoutes.tsx</code>의 <code>IS_KT</code> 라우트 분기는 제거되었습니다.</p>
     </div>
   </section>
 
@@ -151,6 +160,14 @@ classDiagram
       <div class="sc"><code>src/utils/env.ts</code> — 타깃 기반 모듈/위젯/관리자 권한·식별자 분기</div>
 <pre><code>export const TARGET = process.env.REACT_APP_TARGET || 'GLOBAL';
 export const IS_KT = TARGET === 'KT';
+
+export const isTarget = (only?: string | string[], except?: string | string[]) =&gt; {
+  const onlyList = only ? (Array.isArray(only) ? only : [only]) : [];
+  const exceptList = except ? (Array.isArray(except) ? except : [except]) : [];
+  if (exceptList.length &gt; 0 &amp;&amp; exceptList.includes(TARGET)) return false;
+  if (onlyList.length &gt; 0 &amp;&amp; !onlyList.includes(TARGET)) return false;
+  return true;
+};
 
 export const modulePermissions = {
   terminal: ['OBE', 'TTG', 'IBC'].includes(TARGET),
@@ -171,8 +188,7 @@ export const widgetPermissions = {
   widgetCols: TARGET === 'XLSmart' ? 20 : 16
 };
 export const stpPolicyPeriodMin = TARGET === 'KT' ? 10 : 5;
-export const useRegionalId = TARGET === 'KT';
-export const ID_FIELD = useRegionalId ? 'deviceSiteId' : 'deviceId';
+export const ID_FIELD = IS_KT ? 'deviceSiteId' : 'deviceId';
 export const mapBoundsLngStart = () =&gt; {
   if (TARGET === 'OBE' || TARGET === 'TTG' || TARGET === 'IBC') {
     return -180;
@@ -191,18 +207,45 @@ export const adminPermissions = {
   resetPassword: TARGET !== 'KT'
 };</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>components/TargetGuard.tsx</code> — JSX 단위 선언적 분기 (useTarget 훅 제거 후 env 직접 참조)</div>
+<pre><code>import { isTarget } from 'utils/env';
+
+export const TargetGuard = ({ only, except, children }: Props) =&gt; {
+  // 조건에 맞지 않으면 null 반환
+  if (!isTarget(only, except)) return null;
+
+  return &lt;&gt;{children}&lt;/&gt;;
+};
+
+// 사용 예 — pages/management/deviceEdit.tsx
+&lt;TargetGuard only={'KT'}&gt;{/* 지역 ID 등 KT 전용 입력 */}&lt;/TargetGuard&gt;
+&lt;TargetGuard only={'TTG'}&gt;{/* MAC Address 입력 */}&lt;/TargetGuard&gt;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>infra/helm/xlsmart/rms-ui-app/buildspec.yml</code> — XLSmart 운영 빌드 타깃 전환</div>
+<pre><code>- echo "yarn buildProd (target=xl_prod) ..."
+- export GENERATE_SOURCEMAP=false
+- export CI=false
+- yarn install --frozen-lockfile
+- yarn buildProd --target=xl_prod     # .env.xl_prod 로드 (구 .env.rmsai_one)</code></pre>
+    </div>
   </section>
 
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/utils/env.ts" target="_blank" rel="noopener">src/utils/env.ts</a><span class="src">사이트 분기 핵심 — TARGET·modulePermissions·widgetPermissions·adminPermissions·ID_FIELD·정책 주기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/utils/env.ts" target="_blank" rel="noopener">src/utils/env.ts</a><span class="src">사이트 분기 핵심 — TARGET·isTarget()·modulePermissions·widgetPermissions·adminPermissions·ID_FIELD·정책 주기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/TargetGuard.tsx" target="_blank" rel="noopener">components/TargetGuard.tsx</a><span class="src">only/except 조건으로 자식 JSX를 그리거나 null 반환 (utils/env의 isTarget 사용)</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/routes/MainRoutes.tsx" target="_blank" rel="noopener">routes/MainRoutes.tsx</a><span class="src">mailreport 라우트 AlertSetting 고정 (IS_KT 분기 제거) · surveySetting/register·:id(SurveyCreate/SurveyDetail) 라우트 · operationHistory 정식 컴포넌트 복원 · quickOperation/:detectId</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/App.tsx" target="_blank" rel="noopener">App.tsx</a><span class="src">modulePermissions.chatbot로 챗봇 노출 결정 · local 환경 타이틀에 TARGET 표시</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/dashboardRms.tsx" target="_blank" rel="noopener">pages/monitoring/dashboardRms.tsx</a><span class="src">widgetPermissions로 위젯 노출/편집 분기</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/quickOperationMain.tsx" target="_blank" rel="noopener">pages/monitoring/quickOperationMain.tsx</a><span class="src">modulePermissions.anomalyDetect로 IBC 이상 감지 화면 분기</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/administrator/administratorList.tsx" target="_blank" rel="noopener">pages/administrator/administratorList.tsx</a><span class="src">adminPermissions.pendingApprovalTab로 KT 승인 대기 탭 분기</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/build.js" target="_blank" rel="noopener">build.js</a><span class="src">사이트별 빌드 — target/도메인/버전 인자로 .env 주입</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/buildProd.js" target="_blank" rel="noopener">buildProd.js</a><span class="src">운영 빌드 — --target=&lt;name&gt;으로 .env.&lt;name&gt; 로드 후 산출물 아카이브</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/infra/helm/xlsmart/rms-ui-app/buildspec.yml" target="_blank" rel="noopener">infra/helm/xlsmart/rms-ui-app/buildspec.yml</a><span class="src">XLSmart 운영 파이프라인 — buildProd --target=xl_prod</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/infra/helm/xlsmart/rms-ui-app/values-prod.yaml" target="_blank" rel="noopener">infra/helm/xlsmart/rms-ui-app/values-prod.yaml</a><span class="src">ingress host — rmsai.one → xlsmart.rmsai.one</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

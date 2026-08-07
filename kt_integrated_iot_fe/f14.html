@@ -26,8 +26,8 @@
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
-      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>themes/</code> · <code>ConfigContext</code> · <code>SITE_MENU</code></div></div>
-      <div class="item"><div class="k">기능 맥락</div><div class="v">MUI ThemeProvider · mode 토글</div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>themes/</code> · <code>ConfigContext</code> · <code>SITE_MENU</code> · <code>menu/menuItems.tsx</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">MUI ThemeProvider · mode 토글 · 사이트/권한별 메뉴 구성</div></div>
     </div>
   </div>
 </header>
@@ -50,10 +50,13 @@
     <h2>기능 개요</h2>
     <p><code>ThemeCustomization</code>(<code>themes/index.tsx</code>)은 <code>ConfigContext</code>의 <code>mode</code>(라이트/다크)를 읽어 <code>createTheme</code>로 MUI 테마를 생성합니다. 색상은 <code>palette(mode)</code>, 글꼴·타이포는 <code>typography</code>, 컴포넌트 기본 스타일은 <code>getComponents(theme, mode)</code>로 분리해 주입합니다. 생성된 테마는 <code>ThemeProvider</code>로 전체 앱에 적용되고 <code>CssBaseline</code>로 기본 스타일을 초기화합니다.</p>
     <p>테마는 <code>mode</code>가 바뀔 때만 재생성되도록 <code>useMemo</code>로 메모이즈됩니다. <code>ThemeCustomization</code>은 <code>main.tsx</code>의 Provider 트리에서 <code>ConfigProvider</code>·<code>HeaderProvider</code> 아래에 위치해, 설정 상태가 테마에 즉시 반영됩니다. 사용자가 라이트/다크를 전환하면 지도 틴트 레이어(기능 02)나 로그인 로고(<code>getLogo(type, mode)</code>)처럼 모드에 의존하는 화면 요소도 함께 바뀝니다.</p>
-    <p>레이아웃·메뉴는 <code>config.ts</code> 상수가 결정합니다. <code>SITE_MENU</code>는 서비스 그룹(Air Map·AI산업안전DX·SafeMate·SMART GREEN·한전 AMI)별 하위 메뉴를 정의하고, <code>DRAWER_FULL_WIDTH</code>·<code>HEADER_HEIGHT</code>·<code>FOOTER_HEIGHT</code> 등 레이아웃 치수와 <code>GRID_LAYOUT_*</code> 위젯 격자 상수도 함께 둡니다. AI산업안전DX 그룹은 <code>AIENVDX_SERVICE_TYPE_LIST</code>(산업대기질·자원순환·산업환경·탄소중립·제조공정)를 매핑해 같은 경로(<code>dx</code>)에 <code>serviceType</code>만 다른 5개 전환 메뉴로 확장되었습니다. 위젯 설정 메뉴(<code>widget-settings</code>)는 <code>WIDGET_SETTING_SERVICE_TYPES</code>(현재 제조공정 <code>ENVSMAT30203</code> 전용)와 판별 함수 <code>isWidgetSettingServiceType</code>으로 노출을 제어합니다. 테마 설정 화면(<code>pages/theme/ThemeSetting</code>)에서 외형 옵션을 조정할 수 있습니다.</p>
+    <p>레이아웃·메뉴는 <code>config.ts</code> 상수가 결정합니다. <code>SITE_MENU</code>는 서비스 그룹(Air Map·AI산업안전DX·SafeMate·SMART GREEN·한전 AMI)별 하위 메뉴를 정의하고, <code>DRAWER_FULL_WIDTH</code>·<code>HEADER_HEIGHT</code>·<code>FOOTER_HEIGHT</code> 등 레이아웃 치수와 <code>GRID_LAYOUT_*</code> 위젯 격자 상수도 함께 둡니다. 사이트 진입 경로는 운영 반영 과정에서 <code>air</code>→<code>airbiz</code>, <code>dx</code>→<code>factorydx</code>, <code>gwacheon</code>→<code>airmon</code>으로 바뀌었고, 로고·배경을 경로로 분기하던 <code>Sidebar</code>·<code>AuthLayout</code>·<code>Login</code>의 <code>getLogo</code>/<code>getBg</code>도 같은 값으로 갱신되었습니다.</p>
+    <p>AI산업안전DX 그룹은 <code>AIENVDX_SERVICE_TYPE_LIST</code>(산업대기질·자원순환·산업환경·탄소중립·제조공정) 5개에, 유형 필터를 해제하는 <code>전체</code> 항목(<code>AIDX_ALL_SERVICE_TYPE = 'ALL'</code>)이 맨 앞에 추가되어 같은 경로(<code>factorydx</code>)에 <code>serviceType</code>만 다른 6개 전환 메뉴가 되었습니다. 사이드바 서브타이틀과 브라우저 탭 제목은 <code>AIENVDX_SERVICE_TYPE_LIST</code>를 직접 뒤지던 코드를 공용 <code>getDxServiceTypeLabel(serviceType)</code>으로 통일해 ‘전체’ 상태까지 한 함수로 처리합니다. 위젯 설정 메뉴(<code>widget-settings</code>)는 <code>WIDGET_SETTING_SERVICE_TYPES</code>(현재 제조공정 <code>ENVSMAT30203</code> 전용)와 판별 함수 <code>isWidgetSettingServiceType</code>으로 노출을 제어합니다. 테마 설정 화면(<code>pages/theme/ThemeSetting</code>)에서 외형 옵션을 조정할 수 있습니다.</p>
+    <p>메뉴 목록 자체는 <code>getMenuList(siteCode, serviceType)</code>가 사이트 코드별 <code>switch</code>로 조립합니다. AI산업안전DX는 서비스 고객(<code>!hasRole(1)</code>)일 때 종합 현황·서비스대상 관리·디바이스 관리를 넣지 않고 구역 관리만 제조공정에서 예외적으로 노출하며, 한전 AMI는 KT 요청으로 주석 처리돼 있던 현황·배전선로 작업현황 메뉴가 다시 노출되도록 복구되었습니다. 헤더 서비스대상 드롭다운은 공용 <code>serviceTargetList</code>를 유형 구분 없이 전체로 보관하되(설비가동률분석 등 관리자용 유형 전환 라디오가 전체 목록을 필요로 함), 화면에 뿌릴 때만 <code>getDisplayOptions()</code>로 현재 <code>user.serviceType</code>에 맞춰 걸러 냅니다.</p>
+    <p>사이트별 외형 분기도 몇 가지 정리되었습니다. 푸터의 ‘에어코리아’ 외부 링크는 성격에 맞게 Air Map과 과천 관제센터에서만 노출하도록 조건이 붙었고, 과천은 Air Map과 같은 경로 그룹이지만 <code>SITE_CODES.GWACHEON</code>으로 먼저 분기해 전용 로그인 배경(<code>bg_gwacheon-login.png</code>)과 전용 로고(<code>loginGwacheon.svg</code>)를 사용합니다. 로그인 화면 하단 문의처는 <code>LOGIN_CONTACT_INFO</code> 맵에 등록된 사이트에만 렌더링됩니다. 전역 스타일(<code>index.css</code>)에는 지도 이종 클러스터 툴팁용 클래스(<code>.cluster-marker-row</code>·<code>.cluster-marker-icon</code>·<code>.cluster-marker-name</code>)가 추가되어, 다크 모드에서 라벨 색을 별도로 덮어씁니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
-      palette·typography·components를 파일로 분리하고 <code>mode</code>를 인자로 받는 팩토리 형태로 둬서, 라이트/다크 두 모드를 같은 테마 구성으로 일관되게 생성합니다.
+      palette·typography·components를 파일로 분리하고 <code>mode</code>를 인자로 받는 팩토리 형태로 둬서, 라이트/다크 두 모드를 같은 테마 구성으로 일관되게 생성합니다. 사이트·권한에 따른 차이는 테마가 아니라 <code>config</code> 상수와 <code>getMenuList</code> 조립 단계에 모아, 테마 생성 로직이 사이트별 분기로 오염되지 않게 했습니다.
     </div>
   </section>
 
@@ -68,6 +71,8 @@ sequenceDiagram
     participant Pal as palette / typography / components
     participant MUI as MUI ThemeProvider
     participant UI as 화면 컴포넌트
+    participant SB as Sidebar
+    participant ML as getMenuList
 
     UI-&gt;&gt;Cfg: 라이트/다크 토글
     Cfg-&gt;&gt;TC: mode 변경 전달
@@ -75,8 +80,12 @@ sequenceDiagram
     Pal--&gt;&gt;TC: 테마 옵션
     TC-&gt;&gt;MUI: createTheme(...) (useMemo)
     MUI--&gt;&gt;UI: ThemeProvider 적용(전역 재렌더)
+    Note over SB,ML: 사이트/유형 전환 시 메뉴·서브타이틀 재구성
+    SB-&gt;&gt;SB: getDxServiceTypeLabel(serviceType) — 전체 포함
+    SB-&gt;&gt;ML: getMenuList(siteCode, serviceType)
+    ML--&gt;&gt;SB: 권한(hasRole)·유형으로 걸러진 메뉴 목록
       </div>
-      <p class="cap"><strong>흐름.</strong> <code>ConfigContext</code>의 <code>mode</code>가 바뀌면 <code>ThemeCustomization</code>이 테마를 재생성해 <code>ThemeProvider</code>로 전역에 반영합니다.</p>
+      <p class="cap"><strong>흐름.</strong> <code>ConfigContext</code>의 <code>mode</code>가 바뀌면 <code>ThemeCustomization</code>이 테마를 재생성해 <code>ThemeProvider</code>로 전역에 반영합니다. 사이트·서비스 유형 전환은 테마와 별개로 <code>Sidebar</code>가 <code>getDxServiceTypeLabel</code>·<code>getMenuList</code>로 서브타이틀과 메뉴를 다시 구성합니다.</p>
     </div>
   </section>
 
@@ -107,10 +116,20 @@ classDiagram
     class config {
         +SITE_MENU
         +AIENVDX_SERVICE_TYPE_LIST
+        +AIDX_ALL_SERVICE_TYPE
+        +getDxServiceTypeLabel(serviceType)
+        +LOGIN_CONTACT_INFO
         +isWidgetSettingServiceType(serviceType)
         +DRAWER_FULL_WIDTH
         +HEADER_HEIGHT
         +GRID_LAYOUT_COLS
+    }
+    class getMenuList {
+        +getMenuList(siteCode, serviceType)
+    }
+    class Sidebar {
+        +getLogo(type, mode)
+        +setSiteSubName(label)
     }
 
     ThemeCustomization ..&gt; ConfigContext : mode 구독
@@ -118,8 +137,11 @@ classDiagram
     ThemeCustomization ..&gt; typography : 글꼴
     ThemeCustomization ..&gt; getComponents : 컴포넌트 스타일
     ThemeCustomization ..&gt; config : 레이아웃·메뉴 상수
+    Sidebar ..&gt; config : SITE_MENU · 유형 라벨 · 경로별 로고
+    Sidebar --&gt; getMenuList : 사이트/유형별 메뉴 요청
+    getMenuList ..&gt; config : 위젯 설정 노출 판정
       </div>
-      <p class="cap"><strong>관계.</strong> <code>ThemeCustomization</code>이 <code>ConfigContext</code>의 <code>mode</code>를 구독해 palette·typography·components로 테마를 조립하고, 레이아웃·메뉴는 <code>config</code> 상수가 결정합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>ThemeCustomization</code>이 <code>ConfigContext</code>의 <code>mode</code>를 구독해 palette·typography·components로 테마를 조립하고, 레이아웃·메뉴는 <code>config</code> 상수와 <code>getMenuList</code>가 결정합니다.</p>
     </div>
   </section>
 
@@ -150,22 +172,62 @@ export const DRAWER_FULL_WIDTH = 270;
 
 export const SITE_MENU = [
   { title: 'Air Map', children: [
-      { code: '001ENV301', realcode: '001ENV301', title: 'Air Map', path: 'air' },
+      { code: '001ENV301', realcode: '001ENV301', title: 'Air Map', path: 'airbiz' },
       { code: 'GWACHEON', realcode: '001ENV301',
-        title: '과천 관제 센터', path: 'gwacheon' } ] },
-  // AI산업안전DX — 같은 path(dx)에 serviceType만 다른 5개 전환 메뉴
+        title: '과천 관제 센터', path: 'airmon' } ] },
+  // AI산업안전DX — 같은 path(factorydx)에 serviceType만 다른 전환 메뉴
   { title: 'AI산업안전DX',
-    children: AIENVDX_SERVICE_TYPE_LIST.map((item) =&gt; ({
-      code: '001ENV302', realcode: '001ENV302',
-      title: item.label, path: 'dx', serviceType: item.id })) },
+    children: [
+      // 유형별로 좁혀 보던 중, 최초 로그인 시처럼 전체를 총괄하는 상태로 되돌아가기 위한 항목
+      { code: '001ENV302', realcode: '001ENV302', title: '전체',
+        path: 'factorydx', serviceType: AIDX_ALL_SERVICE_TYPE },
+      ...AIENVDX_SERVICE_TYPE_LIST.map((item) =&gt; ({
+        code: '001ENV302', realcode: '001ENV302',
+        title: item.label, path: 'factorydx', serviceType: item.id })),
+    ] },
   { title: 'SafeMate', children: [ /* 4종 */ ] },
   // SMART GREEN / 한전 AMI ...
 ];
 
+// 사이드바 서브타이틀·브라우저 탭 제목에 쓰는 DX 유형 라벨. '전체'도 함께 처리.
+export const AIDX_ALL_SERVICE_TYPE = 'ALL';
+export const getDxServiceTypeLabel = (serviceType?: string | null): string =&gt; {
+  if (serviceType === AIDX_ALL_SERVICE_TYPE) return '전체';
+  return AIENVDX_SERVICE_TYPE_LIST.find((item) =&gt; item.id === serviceType)?.label ?? '';
+};
+
 // 위젯 설정(widget-settings) 메뉴 노출 — 현재 제조공정(ENVSMAT30203) 전용
 export const WIDGET_SETTING_SERVICE_TYPES = [AIDX_MANUFACTURING_PROC] as const;
 export const isWidgetSettingServiceType = (serviceType: string | null | undefined) =&gt;
-  WIDGET_SETTING_SERVICE_TYPES.some((type) =&gt; type === serviceType);</code></pre>
+  WIDGET_SETTING_SERVICE_TYPES.some((type) =&gt; type === serviceType);
+
+// 로그인 화면 하단에 노출할 사이트별 문의처. 모두 비어 있으면 영역을 렌더링하지 않는다.
+export const LOGIN_CONTACT_INFO: Record&lt;string, { center?: string; email?: string }&gt; = {
+  [SITE_CODES.AIRMAP]: { center: '080-258-0007', email: 'ktairmap@kt.com' },
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/layout/menu/menuItems.tsx</code> · <code>src/layout/Footer.tsx</code> — 권한·사이트별 노출 제어</div>
+<pre><code>case SITE_CODES.DX: {
+  const isServiceClient = !hasRole(1);
+  const hideZonesForServiceClient = isServiceClient &amp;&amp; serviceType !== AIDX_MANUFACTURING_PROC;
+
+  if (!isServiceClient) menuList[1].children?.push(overview);
+  if (!isServiceClient) menuList[4].children?.push(serviceTargets);
+  if (!hideZonesForServiceClient) menuList[4].children?.push(zones);
+  if (!isServiceClient) menuList[4].children?.push(devices);
+  if (isWidgetSettingServiceType(serviceType)) menuList[4].children?.push(widgetSetting);
+  break;
+}
+case SITE_CODES.AMI:
+  menuList[1].children?.push(overview);            // KT 미노출 요청으로 주석 처리됐던 항목 복구
+  menuList[1].children?.push(amiLineTaskStatus);
+  break;
+
+// Footer — 에어코리아 링크는 에어맵·과천에서만 노출
+{[SITE_CODES.AIRMAP, SITE_CODES.GWACHEON].includes(site?.code) &amp;&amp; (
+  &lt;&gt;...&lt;/&gt;
+)}</code></pre>
     </div>
   </section>
 
@@ -175,7 +237,13 @@ export const isWidgetSettingServiceType = (serviceType: string | null | undefine
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/themes/index.tsx" target="_blank" rel="noopener">src/themes/index.tsx</a><span class="src">mode 기반 createTheme · ThemeProvider 전역 적용</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/themes/palette.ts" target="_blank" rel="noopener">src/themes/palette.ts</a><span class="src">라이트/다크 색상 팔레트</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/themes/typography.ts" target="_blank" rel="noopener">src/themes/typography.ts</a><span class="src">타이포그래피(Pretendard 등)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">SITE_MENU · 레이아웃/그리드 치수 상수</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">SITE_MENU(airbiz/factorydx/airmon · 전체 항목) · getDxServiceTypeLabel · LOGIN_CONTACT_INFO · 레이아웃/그리드 치수 상수</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/menu/menuItems.tsx" target="_blank" rel="noopener">src/layout/menu/menuItems.tsx</a><span class="src">getMenuList — 사이트/서비스 유형/권한별 메뉴 조립</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/Sidebar.tsx" target="_blank" rel="noopener">src/layout/Sidebar.tsx</a><span class="src">사이트 전환·서브타이틀(getDxServiceTypeLabel) · 경로별 로고</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/Header.tsx" target="_blank" rel="noopener">src/layout/Header.tsx</a><span class="src">서비스대상 드롭다운 유형 필터(getDisplayOptions) · 전체 옵션 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/Footer.tsx" target="_blank" rel="noopener">src/layout/Footer.tsx</a><span class="src">에어코리아 링크를 에어맵·과천에서만 노출</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/AuthLayout.tsx" target="_blank" rel="noopener">src/layout/AuthLayout.tsx</a><span class="src">사이트별 로그인 배경·로고 — 과천 전용 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/index.css" target="_blank" rel="noopener">src/index.css</a><span class="src">지도 이종 클러스터 툴팁 전역 스타일(.cluster-marker-*)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/theme/ThemeSetting.tsx" target="_blank" rel="noopener">src/pages/theme/ThemeSetting.tsx</a><span class="src">테마 설정 화면</span></li>
     </ul>
     <div class="sibling-nav">

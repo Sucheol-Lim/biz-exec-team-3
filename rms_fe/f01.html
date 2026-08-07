@@ -51,7 +51,9 @@
     <p>모니터링 대시보드는 운영자가 RMS에 로그인하면 처음 마주하는 화면으로, 현장에 배포된 단말의 온라인 수·모델별 분포·임계치 초과 추이 등을 위젯 단위로 보여줍니다. 화면 본체인 <code>dashboardRms.tsx</code>는 <code>react-grid-layout</code>의 <code>Responsive</code>를 <code>WidthProvider</code>로 감싼 <code>ResponsiveGridLayout</code>을 렌더링하며, 각 칸이 하나의 <code>DashboardItem</code> 위젯이 됩니다. 레이아웃 컬럼 수는 <code>widgetPermissions.widgetCols</code>로 분기되어 XLSmart 타깃은 20, 그 외는 16 컬럼을 사용합니다. XLSmart에서 KPI 위젯을 5개(<code>KPIWidgetCount</code>) 나란히 표시하기 위한 확장으로, IBC 타깃은 이 확장 대상에서 제외되어 기본 16컬럼·KPI 4개를 사용합니다.</p>
     <p>위젯 데이터는 서버 상태로 관리됩니다. 마운트 시 <code>initialize()</code>가 <code>getLayout()</code>·<code>getWidget()</code>·<code>getOnlineDevice()</code>를 <code>Promise.all</code>로 병렬 실행합니다. <code>getWidget()</code>은 내부에서 <code>loadWidget()</code>으로 위젯 목록(<code>/api/v1/dashboard-config/widgets</code>)을 가져온 뒤, 위젯별로 <code>getWidgetDetailInfos(t)</code>에 정의된 개별 API를 <code>Promise.allSettled</code>로 병렬 호출해 성공한 응답만 <code>parsing()</code>으로 차트 데이터로 변환합니다. 이어서 모듈 레벨 헬퍼 <code>buildLayouts()</code>가 서버 레이아웃(<code>/api/v1/dashboard-config/layouts</code>)과 위젯을 결합해 그리드를 구성합니다. 운영자가 편집 모드에서 위젯을 드래그하면 <code>onLayoutChange</code>가 상태를 갱신하며 sessionStorage에 임시 저장하고(재진입 시 복원 확인 모달), 저장 시 <code>saveLayout()</code>·<code>saveWidget()</code>이 변경된 레이아웃과 위젯 구성을 서버에 POST 합니다.</p>
     <p>XLSmart 타깃 대응으로 위젯이 확장되었습니다. KPI 위젯 <strong>Illegal Devices</strong>(<code>/api/v3/dashboard/illegal-device</code>)가 <code>widgetPermissions.illegalDevices</code> 조건(XLSmart 전용)으로 초기 위젯 목록(<code>types/dashboard/init.ts</code>)에 추가되고, 차트 위젯 <strong>Top Installed Apps</strong>(<code>install-app</code>)·<strong>Top Deleted Apps</strong>(<code>delete-app</code>)·<strong>HDMI Connection Status</strong>(<code>hdmi-connection</code>)가 <code>widgetDetailInfos</code>(<code>types/dashboard/data.ts</code>)에 정의되었습니다. 각 위젯에는 <code>topInstall</code>·<code>topDelete</code>·<code>hdmi</code> 전용 아이콘도 부여되었습니다. 지도 위젯(<code>DashboardItem/map/Map.tsx</code>)에는 단말 상태(All/Active/Crash App/Warning/Illegal)를 고르는 <code>CustomSelect</code> 셀렉트가 지도 우상단 <code>position: absolute</code> 오버레이(top 48px·폰트 13px·높이 32px, 총계 문구 아래로 위치 조정)로 표시되며, 선택한 상태는 <code>onMapChange</code>를 거쳐 <code>getDeviceStatusParam()</code>(<code>components/CustomizedMap.tsx</code>)으로 변환되어 지도 데이터 조회 파라미터에 실제 반영됩니다. 위젯 상세 모달(<code>dashboardDetailModal.tsx</code>)도 <code>isShowDeviceStatus</code> 플래그로 같은 상태 필터를 노출하며, Illegal Devices 위젯의 테마 컬러는 <code>#93ACFF</code>로 조정되었습니다(<code>types/dashboard/data.ts</code>의 <code>themeColor</code>).</p>
-    <p>위젯 상세(2depth) 화면도 강화되었습니다. <code>widgetDetailInfos</code>의 각 위젯에 기본 정렬 옵션 <code>defaultSortTarget</code>·<code>defaultSortType</code>이 추가되어 상세 테이블이 위젯 성격에 맞는 컬럼(threshold 계열은 <code>cpuUsage</code>/<code>memoryUsage</code>/<code>networkUsage</code>, 단말 목록 계열은 <code>IS_KT ? 'deviceSiteId' : 'deviceId'</code>)으로 정렬된 채 열립니다. App Crash·CPU/Memory/Network Threshold 위젯에는 <code>isAiCause: modulePermissions.anomalyDetect</code> 플래그가 붙어 IBC 타깃에서 이상 감지(AI 원인 분석) 기능과 연동됩니다. 또한 별도 팝업으로 뜨는 위젯 상세(<code>components/DashboardItemDetail</code>)에서 Device Details를 클릭하면 <code>window.opener.openDeviceDetailModal(deviceId)</code>로 부모 대시보드에 등록된 콜백이 호출되고, <code>dashboardRms</code>가 <code>DevicesApiManager.getList()</code>로 단말을 조회한 뒤 단말 관리 화면(<code>devices.tsx</code>)의 행 클릭과 동일한 연결 상태 분기를 수행합니다. DISCONNECTED+ONLINE이면 <code>DEVICE_CONNECTION</code> 명령 후 <code>DEVICE_CONNECTION_TIME_LEFT</code>(30초) 동안 <code>BackdropLoading</code>을 띄우고 1초 간격으로 세션 상태를 폴링하며, STANDBY면 <code>createDeviceConnection</code>으로 연결을 만든 뒤 <code>useTask().openModal()</code>로 <code>device_info</code> 모달을 엽니다.</p>
+    <p>위젯 상세(2depth) 화면도 강화되었습니다. <code>widgetDetailInfos</code>의 각 위젯에 기본 정렬 옵션 <code>defaultSortTarget</code>·<code>defaultSortType</code>이 추가되어 상세 테이블이 위젯 성격에 맞는 컬럼(threshold 계열은 <code>cpuUsage</code>/<code>memoryUsage</code>/<code>networkUsage</code>, 단말 목록 계열은 <code>IS_KT ? 'deviceSiteId' : 'deviceId'</code>)으로 정렬된 채 열립니다. App Crash·CPU/Memory/Network Threshold 위젯에는 <code>isAiCause: modulePermissions.anomalyDetect</code> 플래그가 붙어 IBC 타깃에서 이상 감지(AI 원인 분석) 기능과 연동됩니다. 또한 별도 팝업으로 뜨는 위젯 상세(<code>components/DashboardItemDetail</code>)에서 Device Details를 클릭하면 <code>window.opener.openDeviceDetailModal(deviceId)</code>로 부모 대시보드에 등록된 콜백이 호출되고, <code>dashboardRms</code>가 <code>DevicesApiManager.getList()</code>로 단말을 조회한 뒤 단말 관리 화면(<code>devices.tsx</code>)의 행 클릭과 동일한 연결 상태 분기를 수행합니다.</p>
+    <p>단말 연결 대기 처리는 <strong>모달을 띄우기 전에서 띄운 뒤로</strong> 옮겨졌습니다. 예전에는 DISCONNECTED+ONLINE 단말에 <code>DEVICE_CONNECTION</code> 명령을 보낸 뒤 <code>dashboardRms</code>가 <code>BackdropLoading</code>을 띄운 채 <code>DEVICE_CONNECTION_TIME_LEFT</code>(30초) 동안 세션 상태를 폴링했지만, 지금은 명령을 보내자마자 <code>isCommandSent: true</code>를 실은 모달 정보를 <code>useTask().openDeviceDetailModal()</code>에 넘겨 <code>device_info</code> 모달을 먼저 엽니다. 실제 재연결 확인은 모달 본체인 <code>pages/device/detailWrapper.tsx</code>가 맡아 1초 간격·최대 20회로 <code>getDetail</code>을 폴링하다가 STANDBY가 되면 <code>createDeviceConnection</code>으로 연결을 만들고 <code>updateCurrDeviceDetailModalConnectionId(connectionId)</code>로 이미 열려 있는 모달의 <code>connectionId</code>를 갱신합니다. 이 개편으로 <code>TaskContext</code>의 API 이름도 디바이스 상세 전용임이 드러나게 <code>openModal</code>→<code>openDeviceDetailModal</code>, <code>currModal</code>→<code>currDeviceDetailModal</code>로 정리되었고, <code>ModalProps</code>에서는 호출부가 계산하던 <code>isMine</code>이 빠지고 <code>isCommandSent</code>가 추가되었습니다. 조작 권한(Controllable/View Only)은 상세 모달이 <code>getDeviceInfo</code> 응답의 <code>lastConnectUserId</code>와 로그인 사용자 <code>userInfo.id</code>를 비교한 <code>isConnectedByMe</code>로 직접 판단합니다.</p>
+    <p>위젯 상세(2depth) 팝업의 이슈 이력 모달(<code>IssueHistoryModal</code>)은 목업 배열을 걷어내고 <code>dashboardAxios</code>로 <code>/api/v1/quick-operation-issues/device-history</code>를 조회해 실제 이슈 타임라인을 그립니다. 응답의 <code>days</code>·<code>totalCount</code>로 "최근 N일 M건" 배지를 표시하고, 각 이슈는 <code>RESOLVED</code>·<code>AUTO_RECOVERED</code>·<code>UNRESOLVED</code> 상태별 아이콘과 색으로 구분되며 <code>actionsTaken</code>·<code>recoveredInMinutes</code>·<code>scope</code>를 조합해 설명 문구를 만듭니다. 응답의 <code>quickOperationAvailable</code>이 참일 때만 Quick Operation 이동 버튼이 노출되어 <code>callbackFc('Q', deviceId)</code>로 부모 창을 <code>/monitoring/quickOperation?deviceId=…&amp;size=20</code>으로 보내며, 이 <code>deviceId</code> 쿼리는 이상 감지 화면의 딥링크 조건으로 그대로 쓰입니다. 상세 테이블의 AI Cause 버튼도 <code>row.quickOperationIssueId</code>가 <code>null</code>이면 렌더링되지 않습니다. 차트 쪽에서는 <code>BarChart</code>의 x축 tick 클릭이 막대 클릭과 같은 <code>handleClickX()</code> 경로로 합쳐져, 날짜 레이블을 눌러도 막대를 누른 것과 동일하게 <code>onClickDate</code>가 호출됩니다.</p>
     <div class="callout">
       <div class="ct">사이트별 위젯 분기</div>
       <code>utils/env.ts</code>의 <code>widgetPermissions</code>에 따라 단말 위치 지도(<code>deviceLocationMap</code>)·브랜드 모델·네트워크 인터페이스 위젯은 OBE/TTG/XLSmart/IBC 타깃에서 숨겨지고, KT 타깃은 <code>disableEditMode</code>로 편집 자체가 비활성화됩니다. XLSmart에서는 <code>illegalDevices</code> 위젯이 켜지고 <code>KPIWidgetCount</code> 5·<code>widgetCols</code> 20이 적용됩니다. IBC는 위젯 확장 대상에서 빠지는 대신 <code>modulePermissions</code>에서 <code>anomalyDetect</code>·<code>chatbot</code>·<code>terminal</code>이 켜지는 별도 프로파일로 정리되었습니다. 즉 같은 코드가 사이트에 따라 다른 위젯 구성을 노출합니다.
@@ -72,6 +74,7 @@ sequenceDiagram
     participant ITEM as DashboardItem (차트)
     participant DET as DashboardItemDetail (팝업)
     participant TC as TaskContext (useTask)
+    participant DW as detailWrapper (device_info 모달)
 
     OP-&gt;&gt;DRM: 대시보드 진입 (mount)
     DRM-&gt;&gt;DA: getLayout() GET /dashboard-config/layouts
@@ -91,14 +94,24 @@ sequenceDiagram
     GRID-&gt;&gt;DRM: onLayoutChange(currentLayout, allLayouts)
     OP-&gt;&gt;DRM: 저장
     DRM-&gt;&gt;DA: saveLayout() POST /dashboard-config/layouts
-    OP-&gt;&gt;DET: 위젯 상세(2depth)에서 Device Details 클릭
+    OP-&gt;&gt;DET: 위젯 상세(2depth)에서 이슈 이력 열기
+    DET-&gt;&gt;BE: GET /quick-operation-issues/device-history?deviceId
+    BE--&gt;&gt;DET: days / totalCount / issues / quickOperationAvailable
+    OP-&gt;&gt;DET: Device Details 클릭
     DET-&gt;&gt;DRM: window.opener.openDeviceDetailModal(deviceId)
     DRM-&gt;&gt;BE: DevicesApiManager.getList(deviceId)
     BE--&gt;&gt;DRM: 단말 status / onlineStatus
-    DRM-&gt;&gt;DRM: 연결 상태 분기 (DEVICE_CONNECTION 명령, 30초 폴링)
-    DRM-&gt;&gt;TC: openModal(device_info)
+    DRM-&gt;&gt;BE: commandDevices(DEVICE_CONNECTION)
+    DRM-&gt;&gt;TC: openDeviceDetailModal(isCommandSent true)
+    TC-&gt;&gt;DW: device_info 모달 렌더
+    loop 최대 20회 1초 간격
+        DW-&gt;&gt;BE: getDetail(id)
+        BE--&gt;&gt;DW: status (STANDBY 이면 종료)
+    end
+    DW-&gt;&gt;BE: createDeviceConnection(id)
+    DW-&gt;&gt;TC: updateCurrDeviceDetailModalConnectionId(connectionId)
       </div>
-      <p class="cap"><strong>흐름.</strong> 마운트 시 레이아웃·위젯·온라인 수를 병렬 조회해 그리드를 재구성하고, 위젯별 개별 API로 차트를 채웁니다. 드래그/리사이즈는 <code>onLayoutChange</code>로 반영되고 저장 시 <code>saveLayout()</code>이 서버에 POST 합니다. 위젯 상세 팝업의 Device Details는 <code>window.opener</code> 콜백으로 부모 대시보드에 위임되어 단말 연결 상태 분기 후 <code>device_info</code> 모달로 열립니다.</p>
+      <p class="cap"><strong>흐름.</strong> 마운트 시 레이아웃·위젯·온라인 수를 병렬 조회해 그리드를 재구성하고, 위젯별 개별 API로 차트를 채웁니다. 드래그/리사이즈는 <code>onLayoutChange</code>로 반영되고 저장 시 <code>saveLayout()</code>이 서버에 POST 합니다. 위젯 상세 팝업의 Device Details는 <code>window.opener</code> 콜백으로 부모 대시보드에 위임되며, 재연결 명령 직후 곧바로 <code>device_info</code> 모달을 열고 대기·폴링은 모달 본체(<code>detailWrapper</code>)가 이어받습니다.</p>
     </div>
   </section>
 
@@ -146,7 +159,20 @@ classDiagram
         +createDeviceConnection(cb, id)
     }
     class TaskContext {
-        +openModal(ModalProps)
+        +currDeviceDetailModal ModalProps
+        +openDeviceDetailModal(ModalProps)
+        +closeDeviceDetailModal(ModalProps)
+        +updateCurrDeviceDetailModalConnectionId(connectionId)
+    }
+    class DetailWrapper {
+        -isCommandSentPolling bool
+        -isConnectedByMe bool
+        +getDeviceInfo(isReload)
+    }
+    class IssueHistoryModal {
+        -historyList
+        -quickOperationAvailable
+        +callbackFc(type, deviceId)
     }
     class widgetPermissions {
         +deviceLocationMap
@@ -165,9 +191,13 @@ classDiagram
     DashboardRms ..&gt; widgetPermissions : 사이트별 노출 분기
     DashboardRms --&gt; DevicesApiManager : Device Details 연결 분기
     DashboardRms --&gt; TaskContext : device_info 모달 오픈
+    TaskContext --&gt; DetailWrapper : currDeviceDetailModal 렌더
+    DetailWrapper --&gt; TaskContext : connectionId 갱신
+    DetailWrapper --&gt; DevicesApiManager : getDetail 폴링·createDeviceConnection
+    IssueHistoryModal ..&gt; dashboardAxios : device-history 조회
     DashboardItem ..&gt; dashboardAxios : 위젯 데이터 조회
       </div>
-      <p class="cap"><strong>관계.</strong> <code>DashboardRms</code>가 <code>ResponsiveGridLayout</code>을 렌더하고 다수의 <code>DashboardItem</code>을 소유하며, <code>dashboardAxios</code>로 설정/데이터를 주고받습니다. 위젯 크기·상세 정의(기본 정렬 <code>defaultSortTarget</code>, AI 원인 분석 <code>isAiCause</code> 포함)는 <code>widgetInfos</code>/<code>widgetDetailInfos</code>, 사이트별 노출·그리드 컬럼 수(<code>widgetCols</code>)·XLSmart 전용 위젯(<code>illegalDevices</code>)은 <code>widgetPermissions</code>에서 결정됩니다. 팝업의 Device Details 요청은 <code>DevicesApiManager</code> 연결 분기를 거쳐 <code>TaskContext.openModal()</code>로 이어집니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>DashboardRms</code>가 <code>ResponsiveGridLayout</code>을 렌더하고 다수의 <code>DashboardItem</code>을 소유하며, <code>dashboardAxios</code>로 설정/데이터를 주고받습니다. 위젯 크기·상세 정의(기본 정렬 <code>defaultSortTarget</code>, AI 원인 분석 <code>isAiCause</code> 포함)는 <code>widgetInfos</code>/<code>widgetDetailInfos</code>, 사이트별 노출·그리드 컬럼 수(<code>widgetCols</code>)·XLSmart 전용 위젯(<code>illegalDevices</code>)은 <code>widgetPermissions</code>에서 결정됩니다. 팝업의 Device Details 요청은 <code>DevicesApiManager</code> 연결 분기를 거쳐 <code>TaskContext.openDeviceDetailModal()</code>로 이어지고, 이후 재연결 폴링과 <code>connectionId</code> 갱신은 모달 본체인 <code>DetailWrapper</code>가 담당합니다.</p>
     </div>
   </section>
 
@@ -232,7 +262,53 @@ cpuThreshold: {
 
 // 팝업(components/DashboardItemDetail/index.tsx)에서 호출
 window.opener.openDeviceDetailModal?.(deviceInfo?.deviceId);
-// → getList로 단말 조회 → devices.tsx의 onRowClick과 동일한 연결 분기 → openModal(device_info)</code></pre>
+// → getList로 단말 조회 → devices.tsx의 onRowClick과 동일한 연결 분기 → openDeviceDetailModal(device_info)</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>pages/monitoring/dashboardRms.tsx</code> · <code>pages/device/detailWrapper.tsx</code> — 재연결 대기를 모달 오픈 이후로 이동</div>
+<pre><code>// dashboardRms: 명령만 보내고 곧바로 모달을 연다 (BackdropLoading·30초 폴링 제거)
+DevicesApiManager.commandDevices({
+  callback: (result, commandData, code, message) =&gt; {
+    if (result &amp;&amp; message === 'OK') {
+      goDetail({ id, prevSectionStatus: status, currSectionStatus: status,
+                 deviceId: fetchedDeviceId, connectionId: 0, modifiedBy, isCommandSent: true });
+    }
+  },
+  ids: [id], command: 'DEVICE_CONNECTION'
+});
+
+// detailWrapper: 모달이 뜬 뒤 1초 간격·최대 20회 폴링 → STANDBY 면 연결 생성 후 모달 갱신
+useEffect(() =&gt; {
+  if (!isCommandSent) return;
+  const interval = setInterval(() =&gt; {
+    if (++count &gt;= 20) { clearInterval(interval); setIsCommandSentPolling(false); }
+    DevicesApiManager.getDetail((result, data) =&gt; {
+      if (data.status === DEVICE_SECTION_STATUS.STANDBY) {
+        clearInterval(interval);
+        DevicesApiManager.createDeviceConnection((result, connectionData) =&gt; {
+          if (result &amp;&amp; connectionData?.id) {
+            updateCurrDeviceDetailModalConnectionId(connectionData.id);
+            getDeviceInfo();
+          }
+        }, id);
+      }
+    }, id);
+  }, 1000);
+  return () =&gt; clearInterval(interval);
+}, [isCommandSent, id, updateCurrDeviceDetailModalConnectionId]);</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>components/DashboardItemDetail/IssueHistoryModal.tsx</code> — 목업 대신 실제 단말 이슈 이력 조회 + Quick Operation 딥링크</div>
+<pre><code>const { data: responseBody } = await dashboardAxios.get('/api/v1/quick-operation-issues/device-history', {
+  params: { deviceId: deviceInfo.deviceId }
+});
+const { days, totalCount, issues, quickOperationAvailable } = responseBody.data;
+setHistoryList(mapIssuesToHistoryList(issues ?? []));   // RESOLVED / AUTO_RECOVERED / UNRESOLVED
+setQuickOperationAvailable(!!quickOperationAvailable);
+
+// quickOperationAvailable 일 때만 노출되는 이동 버튼
+callbackFc('Q', deviceInfo?.deviceId);
+// → index.tsx: window.opener.location.href = `.../monitoring/quickOperation?deviceId=${deviceId}&amp;size=20`</code></pre>
     </div>
   </section>
 
@@ -245,7 +321,11 @@ window.opener.openDeviceDetailModal?.(deviceInfo?.deviceId);
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/utils/env.ts" target="_blank" rel="noopener">utils/env.ts</a><span class="src">widgetPermissions — 사이트별 위젯 노출·편집 모드·widgetCols/KPIWidgetCount/illegalDevices 분기</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/types/dashboard/data.ts" target="_blank" rel="noopener">types/dashboard/data.ts</a><span class="src">widgetDetailInfos — 위젯별 API·차트 정의 + 기본 정렬(defaultSortTarget/Type)·AI 원인 분석(isAiCause) 플래그</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/DashboardItem/map/Map.tsx" target="_blank" rel="noopener">components/DashboardItem/map/Map.tsx</a><span class="src">지도 위젯 — 단말 상태(deviceStatus) CustomSelect 필터 (지도 우상단 absolute 오버레이, top 48px)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/DashboardItemDetail/index.tsx" target="_blank" rel="noopener">components/DashboardItemDetail/index.tsx</a><span class="src">위젯 상세 팝업 — Device Details 클릭 시 window.opener.openDeviceDetailModal 호출</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/DashboardItemDetail/index.tsx" target="_blank" rel="noopener">components/DashboardItemDetail/index.tsx</a><span class="src">위젯 상세 팝업 — Device Details 클릭 시 window.opener.openDeviceDetailModal 호출, Quick Operation 딥링크(?deviceId&amp;size) 생성, quickOperationIssueId 없으면 AI Cause 버튼 숨김</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/DashboardItemDetail/IssueHistoryModal.tsx" target="_blank" rel="noopener">components/DashboardItemDetail/IssueHistoryModal.tsx</a><span class="src">단말 이슈 이력 모달 — /api/v1/quick-operation-issues/device-history 조회·상태별 타임라인·Quick Operation 이동</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/contexts/TaskContext.tsx" target="_blank" rel="noopener">contexts/TaskContext.tsx</a><span class="src">openDeviceDetailModal / currDeviceDetailModal / updateCurrDeviceDetailModalConnectionId (구 openModal·currModal)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/device/detailWrapper.tsx" target="_blank" rel="noopener">pages/device/detailWrapper.tsx</a><span class="src">device_info 모달 본체 — isCommandSent 폴링(1초·최대 20회)·createDeviceConnection·isConnectedByMe 판정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/DashboardItemDetail/chart/Barchart.tsx" target="_blank" rel="noopener">components/DashboardItemDetail/chart/Barchart.tsx</a><span class="src">2depth 바 차트 — x축 tick 클릭을 막대 클릭과 동일한 handleClickX 경로로 통합</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

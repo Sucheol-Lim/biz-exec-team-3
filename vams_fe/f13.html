@@ -1,0 +1,374 @@
+<!doctype html>
+<!-- vams_fe · 모니터링(대시보드·로그 이력) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>모니터링 (대시보드·로그 이력) — vams_fe 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">VAMS 고도화 (Video Asset Management System FE)</a><span class="sep">›</span>
+      <span class="here">모니터링 (대시보드·로그 이력)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">KT</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">관리자 웹앱 (Vue 3 SPA)</span>
+    </div>
+    <h1>모니터링 (대시보드·로그 이력)</h1>
+    <p class="one-liner">AI 엔진 운영 현황을 보는 탭 셸 화면입니다. 중첩 라우트로 5개 탭을 딥링크 가능하게 배선하고, 현황 대시보드(MN-001)는 요약카드 6종과 작업현황·연동현황·연동률·GPU·실시간 로그 위젯 5종을 self-contained 방식으로 조립하며, 로그 히스토리(MN-005)는 별도 목록·상세 패널을 제공합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/vams_fe" target="_blank" rel="noopener"><code>vams_fe</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트·화면</div><div class="v"><code>src/features/monitoring/</code> — 탭 셸 + <code>dashboard/</code> · <code>log-history/</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">LNB 13개 메뉴 중 구현 11개 도메인의 하나 · 실 API 경로 사용(가설 아님)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ VAMS 고도화</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p>모니터링은 VAMS가 돌리는 AI 엔진들의 하루 운영 상태를 한눈에 보는 메뉴입니다. 껍데기는 탭 셸(<code>MonitoringPage</code>)이고 탭 5종(현황 대시보드 / 솔루션별 작업 현황 / 솔루션별 연동 현황 / GPU 사용 현황 / 로그 히스토리)은 <strong>중첩 라우트 + <code>&lt;router-view&gt;</code></strong>로 배선했습니다. 설정 화면은 딥링크가 없어 탭 상태를 ref로 소유하지만, 모니터링은 대시보드의 [전체 로그 히스토리]처럼 특정 탭으로 직접 진입하는 경로가 있어 라우트가 정본이어야 합니다. 활성 탭은 라우트 name(<code>monitoring-{tab}</code>)에서 단방향으로 파생되고, 탭 클릭은 <code>router.push</code>로 처리합니다. 현재 대시보드와 로그 히스토리 2개 탭이 구현되어 있고 나머지 3개는 화면 ID·개요를 명시한 플레이스홀더(<code>MonitoringTabPlaceholder</code>)입니다.</p>
+    <p>현황 대시보드(<code>MonitoringDashboardTab</code>)는 GUI Contents 순서를 그대로 조립합니다 — 요약카드 6종, 작업현황 스택 막대, 연동현황 스택 막대, 연동률·GPU 2컬럼, 실시간 로그 표입니다. 위젯 5종은 <strong>self-contained</strong>라 각자 자기 쿼리 훅을 호출해 <code>ChartFrame</code>과 차트/표를 조립하고, [더보기]는 라우팅을 모른 채 <code>emit</code>만 올립니다. 컨테이너 자체가 라우트 컴포넌트여서 상위로 재emit 할 대상이 없으므로 여기서 <code>router.push</code>로 마감합니다. 연동률 위젯에는 전용 상세 화면이 시나리오·GUI 모두에 없어 연동현황 탭으로 흡수시켰습니다.</p>
+    <p>데이터 계약은 모니터링 API 실경로를 그대로 씁니다(다른 메뉴처럼 추상 경로 가설이 아닙니다). 응답은 공통 엔벨로프 <code>{code, message, data}</code>인데 <code>code</code>가 숫자 <code>200</code>과 문자 <code>"OK"</code>로 혼재해 <code>isMonitoringEnvelopeSuccess</code>가 양쪽을 허용하고, 실패면 <code>unwrapMonitoringEnvelope</code>가 throw 해 위젯 상태가 <code>error</code>로 파생됩니다. 연동현황(#5)과 연동률(#6)은 <strong>같은 <code>queryKey</code>를 공유</strong>하고 <code>select</code>만 다르게 두어 네트워크 1회로 두 위젯을 채웁니다. 위젯 상태는 <code>deriveWidgetState</code>가 <code>error &gt; loading &gt; empty &gt; ok</code> 우선순위로 접습니다. 요약카드의 <code>isEmpty</code> 판정에는 함정이 있어 <code>isLoading</code> 대신 <code>data === undefined</code>를 직접 봅니다 — retry 백오프 <strong>대기 중</strong>에는 <code>isFetching</code>이 false로 떨어져 loading도 error도 아닌 구간이 생기고, 그때 골격값 0이 실측값처럼 노출되기 때문입니다.</p>
+    <p>차트는 ECharts 래퍼(<code>ChartFrame</code> + <code>StackedBarChart</code>)로 공통화했습니다. ECharts는 canvas 렌더러라 <code>var(--x)</code> 문자열을 직접 읽지 못하므로 <code>resolveCssVar</code>가 숨겨진 엘리먼트의 <code>color</code>에 변수를 걸어 브라우저가 완전히 리졸브한 계산값을 읽어 옵니다. 커스텀 프로퍼티를 <code>getPropertyValue</code>로 직접 읽으면 중첩 <code>var()</code> 참조가 안 풀려 값이 비거나 <code>var(...)</code> 문자열이 그대로 나오기 때문입니다. 툴팁 다크 테마(<code>chartTheme</code>)는 시각 속성만 export 하고 <code>trigger</code>·<code>formatter</code>는 각 래퍼가 유지하며, 마크업 로직은 <code>chartTooltipFormatter</code>로 분리했습니다.</p>
+    <p>로그 히스토리(MN-005)는 자체 완결된 페이지로 만들어 탭 셸이 완성된 뒤 셸 children으로 이전했습니다 — 최종 URL <code>/monitoring/log-history</code>와 라우트 name은 그대로라 대시보드 #8 배선과 기존 링크는 영향받지 않습니다. 목록은 공통 리스트 패턴을 따르되 <strong>작업 서비스 칩을 BE 원본 코드로 확장</strong>해 보냅니다. 화면의 칩은 병합축(예: 개인화 = <code>PERSONAL</code>)인데 로그 행의 <code>serviceType</code>은 원본 코드(<code>SEGPOST</code>·<code>SEGBANNER</code>·<code>SEGHIGH</code>)라, 병합축을 그대로 실으면 매칭이 0건이 됩니다. 정렬은 로그 API가 "실패 우선" 서버 정렬을 지원하는지 스펙에 없어 확인 전까지 최신순으로 폴백합니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트 — feature 간 직접 import 금지</div>
+      로그 히스토리의 wire 파라미터는 대시보드 #8의 타입과 동일한 필드셋인데도 재사용하지 않고 같은 모양으로 다시 선언했습니다. ESLint <code>no-restricted-imports</code>가 <code>@/features/*/*</code> 그룹을 전면 금지해 feature 간 직접 import가 불가능하고(공통화하려면 <code>shared/</code>·<code>api/</code>·<code>domain/</code>으로 승격해야 함), 그 승격이 다른 담당자의 산출물 변경을 요구해 이번 범위를 벗어났기 때문입니다. 의도와 사유는 코드 주석과 구현 보고서에 남겨 두었습니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant USR as 운영자
+    participant SHELL as MonitoringPage (탭 셸)
+    participant RT as vue-router
+    participant TAB as MonitoringDashboardTab
+    participant W as 위젯 (WorkStatus / IntegrationRate / Gpu / RecentLog)
+    participant DQ as dashboard/queries.ts
+    participant ENV as monitoringTypes (엔벨로프)
+    participant AD as adapters/monitoring
+    participant LH as LogHistoryListPage
+
+    USR-&gt;&gt;SHELL: /monitoring 진입
+    SHELL-&gt;&gt;RT: path '' → redirect monitoring-dashboard
+    RT--&gt;&gt;SHELL: 활성 탭 = 라우트 name 에서 파생
+    SHELL-&gt;&gt;TAB: router-view 마운트 (활성 탭만)
+
+    TAB-&gt;&gt;W: 위젯 5종 배치 (self-contained)
+    W-&gt;&gt;DQ: useWorkStatusQuery / useIntegrationStatusQuery / useIntegrationRateQuery / useGpuQuery / useRecentLogsQuery
+    Note over DQ: #5 · #6 은 동일 queryKey(syncState) 공유 — 네트워크 1회, select 만 상이
+    DQ-&gt;&gt;ENV: httpGet → unwrapMonitoringEnvelope(code 200 또는 OK)
+    ENV--&gt;&gt;DQ: data (실패 code 면 throw)
+    DQ-&gt;&gt;AD: toWorkStackSeries · toIntegrationRate · toGpuView · toRecentLogRows
+    AD--&gt;&gt;W: 도메인 뷰 모델
+    W-&gt;&gt;W: deriveWidgetState(error &gt; loading &gt; empty &gt; ok)
+
+    USR-&gt;&gt;W: 위젯 [더보기] / [전체 로그 히스토리]
+    W--&gt;&gt;TAB: more / viewAll emit (라우팅 무지)
+    TAB-&gt;&gt;RT: router.push(monitoring-{tab})
+    RT--&gt;&gt;LH: /monitoring/log-history 마운트
+
+    USR-&gt;&gt;LH: 작업 서비스 칩 선택 (예 개인화)
+    LH-&gt;&gt;LH: SERVICE_CHIP_TO_LOG_CODES 로 raw 코드 확장
+    LH-&gt;&gt;DQ: fetchLogHistory(params) — GET /api/log
+    USR-&gt;&gt;LH: 행 선택 → 상세 패널
+    LH-&gt;&gt;DQ: fetchLogDetail(logId) — GET /api/log/{logId}
+      </div>
+      <p class="cap"><strong>흐름.</strong> 탭 전환은 라우트가 정본이고 위젯은 각자 조회합니다. 엔벨로프 언랩 실패는 그대로 전파되어 위젯 상태가 <code>error</code>로 접히며, 칩 필터는 병합축을 BE 원본 코드로 확장해 전송합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class MonitoringPage {
+        탭 셸 (VTabs + router-view)
+        활성 탭 = 라우트 name 파생
+    }
+    class MonitoringDashboardTab {
+        요약카드 + 위젯 5종 배치
+        goTab(tab) router.push
+    }
+    class MonitoringTabPlaceholder {
+        screenId · title · outline
+    }
+    class SummaryCards {
+        6종 카드 (오늘/전일 2쿼리)
+    }
+    class WorkStatusChart {
+        ChartFrame + StackedBarChart
+    }
+    class IntegrationStatusChart
+    class IntegrationRatePanel
+    class GpuUsagePanel
+    class RecentLogTable {
+        DataTable 6컬럼
+        state 분기 Skeleton · Empty · Table
+    }
+    class ChartFrame {
+        +title · caption · moreLabel
+        +state WidgetState
+        +more()
+    }
+    class DashboardQueries {
+        &lt;&lt;api boundary&gt;&gt;
+        +monitoringKeys stateSummary · workState · syncState · gpuOverview · logs
+        +deriveWidgetState(opts)
+        +useWorkStatusQuery()
+        +useIntegrationStatusQuery()
+        +useIntegrationRateQuery()
+        +useRecentLogsQuery()
+    }
+    class MonitoringEnvelope {
+        +code number 또는 string
+        +message
+        +data
+        +unwrapMonitoringEnvelope()
+    }
+    class ResolveCssVar {
+        &lt;&lt;pure module&gt;&gt;
+        +resolveCssVar(varName) string
+    }
+    class ChartTheme {
+        &lt;&lt;const&gt;&gt;
+        darkTooltipTheme
+    }
+    class LogHistoryListPage {
+        공통 리스트 패턴
+        칩 → raw 코드 확장
+    }
+    class LogHistoryQueries {
+        &lt;&lt;api boundary&gt;&gt;
+        +logHistoryKeys list · detail
+        +toListQuery(searchData)
+        +fetchLogHistory(params)
+        +fetchLogDetail(logId)
+    }
+    class LogHistoryDetailPanel
+    class WidgetState {
+        &lt;&lt;enumeration&gt;&gt;
+        loading
+        error
+        empty
+        ok
+    }
+
+    MonitoringPage --&gt; MonitoringDashboardTab : 중첩 라우트
+    MonitoringPage --&gt; MonitoringTabPlaceholder : 미구현 3탭
+    MonitoringPage --&gt; LogHistoryListPage : 중첩 라우트
+    MonitoringDashboardTab --&gt; SummaryCards
+    MonitoringDashboardTab --&gt; WorkStatusChart
+    MonitoringDashboardTab --&gt; IntegrationStatusChart
+    MonitoringDashboardTab --&gt; IntegrationRatePanel
+    MonitoringDashboardTab --&gt; GpuUsagePanel
+    MonitoringDashboardTab --&gt; RecentLogTable
+    WorkStatusChart --&gt; ChartFrame
+    RecentLogTable --&gt; ChartFrame
+    WorkStatusChart --&gt; DashboardQueries
+    RecentLogTable --&gt; DashboardQueries
+    DashboardQueries --&gt; MonitoringEnvelope : 언랩
+    DashboardQueries ..&gt; WidgetState : deriveWidgetState
+    ChartFrame ..&gt; WidgetState
+    ChartTheme --&gt; ResolveCssVar
+    LogHistoryListPage --&gt; LogHistoryQueries
+    LogHistoryListPage --&gt; LogHistoryDetailPanel
+      </div>
+      <p class="cap"><strong>관계.</strong> 셸은 배치만 알고 위젯은 자기 데이터만 압니다. 라우팅 지식은 컨테이너 한 곳에 모이고, 위젯 상태는 <code>WidgetState</code> 한 축으로 통일되어 프레임과 차트가 동일 기준으로 분기합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>src/features/monitoring/routes.ts</code> — 탭 셸 중첩 라우트와 로그 히스토리 이전</div>
+<pre><code>// seam = 중첩 라우트 + &lt;router-view&gt;. `/monitoring` = 탭 셸, 자식 5개 = 탭 콘텐츠.
+// 라우트 name 규약 `monitoring-{tab}`(constants.ts tabRouteName 과 1:1 — 탭↔라우트 단일 매핑축).
+export const monitoringRoutes: RouteRecordRaw = {
+  path: 'monitoring', // AppShellContainer children (leading slash 없음)
+  component: () =&gt; import('@/features/monitoring/pages/MonitoringPage.vue'),
+  children: [
+    // 기본 진입 = 현황 대시보드
+    { path: '', redirect: { name: 'monitoring-dashboard' } },
+    {
+      path: 'dashboard',
+      name: 'monitoring-dashboard',
+      component: () =&gt; import('@/features/monitoring/dashboard/MonitoringDashboardTab.vue'),
+    },
+    // work-status · integration-status · gpu-usage 는 MonitoringTabPlaceholder(screenId/outline props)
+    // MN-005 — feature 내부 self-export 를 그대로 nest(name·최종 경로 계약 불변)
+    logHistoryRoutes,
+  ],
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/monitoring/dashboard/queries.ts</code> — queryKey 공유와 위젯 상태 파생</div>
+<pre><code>export function deriveWidgetState(opts: {
+  isLoading: boolean
+  isError: boolean
+  isEmpty: boolean
+}): WidgetState {
+  if (opts.isError) return 'error'
+  if (opts.isLoading) return 'loading'
+  if (opts.isEmpty) return 'empty'
+  return 'ok'
+}
+
+/** #6 연동률 — sync-state 원본을 연동률로 파생(select). #5 와 queryKey 공유(네트워크 1회). */
+export function useIntegrationRateQuery(targetDate?: MaybeRefOrGetter&lt;string | undefined&gt;) {
+  const query = useQuery({
+    queryKey: computed(() =&gt; monitoringKeys.syncState(toValue(targetDate))),
+    queryFn: () =&gt; fetchSyncState(toValue(targetDate)),
+    select: toIntegrationRate,
+  })
+  const data = computed&lt;IntegrationRateView&gt;(() =&gt; query.data.value ?? EMPTY_RATE)
+  const state = computed&lt;WidgetState&gt;(() =&gt;
+    deriveWidgetState({
+      isLoading: query.isLoading.value,
+      isError: query.isError.value,
+      isEmpty: data.value.bySolution.length === 0,
+    }),
+  )
+  return { data, state }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/monitoring/dashboard/queries.ts</code> — 요약카드 empty 판정이 <code>isLoading</code>을 못 믿는 이유</div>
+<pre><code>const state = computed&lt;WidgetState&gt;(() =&gt;
+  deriveWidgetState({
+    isLoading: todayQuery.isLoading.value,
+    isError: todayQuery.isError.value,
+    // "값을 아직 모른다"(= 골격만 있는 상태)를 empty 로 본다 → 컴포넌트가 '-' 로 표시.
+    //   집계 0건은 data 가 존재하므로 ok 로 남아 '0' 이 그대로 보인다.
+    //   ⚠️ isLoading(=isPending &amp;&amp; isFetching) 만으로는 부족하다: 기본 retry 백오프 대기 중엔
+    //      isFetching 이 false 로 떨어져 loading 도 error 도 아닌 구간이 생기고, 그때 값 0(골격)이
+    //      실측값처럼 노출된다. data 유무를 직접 보는 이 판정이 그 구간을 덮는다.
+    isEmpty: todayQuery.data.value === undefined,
+  }),
+)</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/api/monitoringTypes.ts</code> — code 혼재를 흡수하는 공통 엔벨로프</div>
+<pre><code>/** 공통 엔벨로프 — code 는 숫자(200)|문자("OK") 혼재 */
+export interface MonitoringEnvelope&lt;T&gt; {
+  code: number | string
+  message: string
+  data: T
+}
+
+/** 엔벨로프 code 성공 판정 — 200(숫자) 또는 "OK"(문자) 양쪽 허용 */
+export function isMonitoringEnvelopeSuccess(code: number | string): boolean {
+  return code === 200 || code === 'OK'
+}
+
+/** 엔벨로프에서 data 추출 — 실패 code 면 throw(호출측이 catch → WidgetState:'error' 파생) */
+export function unwrapMonitoringEnvelope&lt;T&gt;(envelope: MonitoringEnvelope&lt;T&gt;): T {
+  if (!isMonitoringEnvelopeSuccess(envelope.code)) {
+    throw Object.assign(new Error(`monitoring API error: ${envelope.message}`), {
+      code: envelope.code,
+    })
+  }
+  return envelope.data
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/shared/components/composite/chart/resolveCssVar.ts</code> — canvas 차트를 위한 CSS 변수 리졸브</div>
+<pre><code>// echarts 는 canvas 렌더러라 `var(--x)` 문자열을 직접 못 읽는다.
+// ⚠️ getComputedStyle(el).getPropertyValue('--status-dot-waiting') 로 커스텀 프로퍼티 자체를 읽으면
+//    중첩 var(--c-...) 참조가 안 풀려 값이 비거나 'var(...)' 문자열이 그대로 나올 수 있다.
+//    반드시 실제 CSS 프로퍼티(color)에 걸어 브라우저가 완전히 리졸브한 계산값을 읽는다.
+export function resolveCssVar(varName: string): string {
+  const el = document.createElement('span')
+  el.style.color = `var(${varName})`
+  el.style.display = 'none'
+  document.body.appendChild(el)
+  const resolved = getComputedStyle(el).color
+  el.remove()
+  return resolved
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/monitoring/log-history/constants.ts</code> — 화면 칩(병합축) → BE 원본 코드 확장</div>
+<pre><code>/**
+ * 칩(ServiceType) → 로그 raw serviceType 코드 확장 맵.
+ * 로그 행/쿼리의 serviceType 은 BE 원본 코드라 병합축(PERSONAL)을 그대로 실으면 매칭되지 않는다.
+ * CI 는 칩에 없지만(GUI) Record&lt;ServiceType,...&gt; 축 완결성을 위해 유지한다.
+ */
+export const SERVICE_CHIP_TO_LOG_CODES: Record&lt;ServiceType, string[]&gt; = {
+  POSTER: ['POSTER'],
+  THUMBNAIL: ['THUMBNAIL', 'TENTHUMB', 'AITHUMB'],
+  SUBTITLE: ['SUBTITLE'],
+  PERSONAL: ['SEGPOST', 'SEGBANNER', 'SEGHIGH'],
+  MARKING: ['MARKING'],
+  CHOICE: ['CHOICE'],
+  HIGHLIGHT: ['HIGHLIGHT'],
+  CI: ['CI'],
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/monitoring/pages/MonitoringPage.vue" target="_blank" rel="noopener">features/monitoring/pages/MonitoringPage.vue</a><span class="src">탭 셸 — VTabs + router-view, 활성 탭을 라우트 name에서 단방향 파생</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/monitoring/routes.ts" target="_blank" rel="noopener">features/monitoring/routes.ts</a><span class="src">중첩 라우트 5탭 · 기본 진입 redirect · 로그 히스토리 nest</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/monitoring/dashboard/MonitoringDashboardTab.vue" target="_blank" rel="noopener">features/monitoring/dashboard/MonitoringDashboardTab.vue</a><span class="src">현황 대시보드(MN-001) — 요약카드 + 위젯 5종 배치, 더보기 라우팅 마감</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/monitoring/dashboard/queries.ts" target="_blank" rel="noopener">features/monitoring/dashboard/queries.ts</a><span class="src">queryKey 팩토리 · 위젯 쿼리 훅 · queryKey 공유(#5/#6) · deriveWidgetState</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/monitoring/dashboard/components/SummaryCards.vue" target="_blank" rel="noopener">features/monitoring/dashboard/components/SummaryCards.vue</a><span class="src">#3 요약카드 6종 — 오늘/전일 2쿼리, 값 미확보 시 '-' 표시</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/monitoring/dashboard/components/WorkStatusChart.vue" target="_blank" rel="noopener">features/monitoring/dashboard/components/WorkStatusChart.vue</a><span class="src">#4 작업현황 — ChartFrame + StackedBarChart self-contained 조립</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/monitoring/dashboard/components/GpuUsagePanel.vue" target="_blank" rel="noopener">features/monitoring/dashboard/components/GpuUsagePanel.vue</a><span class="src">#7 GPU 사용현황 위젯</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/monitoring/dashboard/components/RecentLogTable.vue" target="_blank" rel="noopener">features/monitoring/dashboard/components/RecentLogTable.vue</a><span class="src">#8 실시간 로그 — DataTable 6컬럼, 상태별 Skeleton/Empty 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/components/composite/chart/ChartFrame.vue" target="_blank" rel="noopener">shared/components/composite/chart/ChartFrame.vue</a><span class="src">차트 위젯 공통 프레임 — 제목·캡션·더보기·본문·요약 슬롯</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/components/composite/chart/resolveCssVar.ts" target="_blank" rel="noopener">shared/components/composite/chart/resolveCssVar.ts</a><span class="src">canvas 차트용 CSS 변수 리졸브(중첩 var 참조 해결)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/components/composite/chart/chartTheme.ts" target="_blank" rel="noopener">shared/components/composite/chart/chartTheme.ts</a><span class="src">차트 전용 다크 툴팁 테마 — 시각 속성만 export</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/monitoringTypes.ts" target="_blank" rel="noopener">api/monitoringTypes.ts</a><span class="src">공통 엔벨로프·성공 판정·언랩 · 위젯별 DTO 정의</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/monitoring/log-history/queries.ts" target="_blank" rel="noopener">features/monitoring/log-history/queries.ts</a><span class="src">로그 히스토리(MN-005) 데이터 계약 — 목록/상세 fetch·정렬 폴백</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/monitoring/log-history/constants.ts" target="_blank" rel="noopener">features/monitoring/log-history/constants.ts</a><span class="src">작업 서비스 칩 목록 · 병합축 → BE raw 코드 확장 맵</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/endpoints.ts" target="_blank" rel="noopener">api/endpoints.ts</a><span class="src"><code>MONITORING_API</code> — 요약/작업/연동/GPU/로그 실경로(가설 아님)</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="f12.html">‹ AI Pick (씬 추출)</a>
+      <a href="index.html#features">기능 목록</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">VAMS 고도화 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>
