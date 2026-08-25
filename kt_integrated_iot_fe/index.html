@@ -215,6 +215,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
   <div class="wrap">
     <a class="up" href="../index.html">⌂ 전체 목록</a>
     <a href="#overview">개요</a>
+    <a href="#services">서비스 구조</a>
     <a href="#features">주요 기능</a>
     <a href="#architecture">아키텍처</a>
     <a href="#stack">기술 스택</a>
@@ -237,6 +238,33 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       각각 존재하던 KT의 IoT 서비스들을 하나로 통합하는 과제입니다. R&amp;R 상 KT가 IoT 플랫폼을, H2Net이 통합 관리 F/E·BFF·Edge 서버·Mobile App을, Altimedia가 전체 UX 및 통합 관제 F/E와 관제용 일부 관리 페이지(AXDX Client)를 담당합니다. 본 저장소는 그중 관제 F/E(지도형·카드형)에 해당합니다.
     </div>
     <p>사용자 권한(<code>USER_ROLES</code>)은 서비스 고객 / 서비스 관제요원 / 서비스 운영자 / 서비스 관리자 / 플랫폼 관리자 5단계로 구분되며, 라우팅 단에서 권한 레벨에 따라 사이트 간 전환을 제어합니다. 인증은 reCAPTCHA v3·RSA 키 기반 로그인과 BFF(Back-end For Front-end) API를 통해 이뤄집니다.</p>
+    <div class="callout">
+      <div class="ct">상용 전환 현황 (팀 확인 기준, 2026-08)</div>
+      위 5개는 코드(<code>SITE_LIST</code>)에 구현되어 있는 서비스 종류를 정리한 것으로, 실제 상용 전환 여부와는 별개입니다. 수행3팀 확인 기준 현재 상용 전환이 완료된 서비스는 <b>에어맵, 과천(관제센터, 별도 과제로 취급), AI산업안전DX, SMART GREEN, 한전 AMI</b> 5개입니다. <b>SafeMate(및 하위 4개 서비스)는 상용화가 1년 뒤로 유예되었습니다.</b> 과천은 코드상으로도 에어맵과 site code(<code>GWACHEON</code>)·URL(<code>airmon</code>)이 분리된 별도 항목이라 별도 과제로 구분하는 근거가 있고, SafeMate 관련 <code>git log</code>상 다수의 "KT미노출요청" 커밋도 이 유예 결정과 맥락이 닿아 있는 것으로 보입니다.
+    </div>
+  </section>
+
+  <section id="services">
+    <h2>서비스 구조</h2>
+    <p><code>src/config.ts</code>의 <code>SITE_MENU</code>는 최상위 5개 타이틀 아래 하위(children) 사이트를 두는 구조입니다. 아래 표는 각 사이트가 최상위인지 어느 서비스의 하위인지, 무엇을 하는 화면인지를 정리한 것입니다.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>서비스</th><th>소속</th><th>요약</th><th>상용 전환</th></tr></thead>
+        <tbody>
+          <tr><td>Air Map<br><span class="src">(에어맵)</span></td><td>최상위</td><td>대기질 측정소 현황·관제. 측정소 목록/현황(<code>station-overview</code>), 측정소 비교·분석(<code>station-analysis</code>, <code>expert-analysis</code>), 국가관측망 비교(<code>national-network</code>), 도로청소차·살수차량 현황(<code>street-sweeper</code>) 등을 제공합니다. path <code>airbiz</code>.</td><td>O</td></tr>
+          <tr><td>과천 관제센터</td><td>Air Map 하위<br><span class="src">(단, 코드상 별도 site code)</span></td><td>과천 측정망 전용 화면. 통신 상태·미수신·센싱 오류·전송 실패 등 운영 특화 정보를 제공합니다. site code <code>GWACHEON</code>, path <code>airmon</code>으로 Air Map 본 사이트와 코드값이 분리되어 있어, 실무에서는 별도 과제로 취급됩니다.</td><td>O<br><span class="src">(별도 과제로 집계)</span></td></tr>
+          <tr><td>AI산업안전DX</td><td>최상위</td><td>산업 현장 환경 DX 관제. 서비스 유형 5종(산업대기질·자원순환·산업환경·탄소중립·제조공정)으로 하위 메뉴가 분화되며, 디바이스·이벤트·서비스대상 등록/관리 기능을 제공합니다. '제조공정' 유형만 위젯 설정(<code>widget-settings</code>) 화면이 별도로 열립니다. path <code>factorydx</code>.</td><td>O</td></tr>
+          <tr><td>SafeMate</td><td>최상위<br><span class="src">(브랜드 타이틀, 직접 site code 없음)</span></td><td>지능형 소방·안전 디바이스 통합 브랜드. 실제 사이트는 아래 4개 하위 서비스로만 존재하며, SafeMate 자체는 <code>SITE_MENU</code>의 묶음 타이틀입니다.</td><td>1년 유예<br><span class="src">(하위 4개 포함)</span></td></tr>
+          <tr><td>&nbsp;&nbsp;└ 지능형 화재 감지기</td><td>SafeMate 하위</td><td>화재 감지기 디바이스 현황·이벤트 수신/미수신 관제. path <code>fire-detector</code>.</td><td>1년 유예</td></tr>
+          <tr><td>&nbsp;&nbsp;└ 옥상 비상문</td><td>SafeMate 하위</td><td>옥상 비상문 개폐 상태·이벤트 관제. path <code>emergency-door</code>.</td><td>1년 유예</td></tr>
+          <tr><td>&nbsp;&nbsp;└ 소방시설 모니터링</td><td>SafeMate 하위</td><td>소방 설비 상태 모니터링. path <code>fire-monitoring</code>.</td><td>1년 유예</td></tr>
+          <tr><td>&nbsp;&nbsp;└ 지능형 비상벨</td><td>SafeMate 하위</td><td>비상벨 디바이스 현황·이벤트 관제. path <code>emergency-bell</code>.</td><td>1년 유예</td></tr>
+          <tr><td>SMART GREEN<br><span class="src">(스마트 그린)</span></td><td>최상위</td><td>골프장 잔디 생육 디바이스 관제. 골프장·코스·홀 단위로 생육 환경·병반 예찰 데이터를 조회·시각화합니다. path <code>smart-green</code>.</td><td>O</td></tr>
+          <tr><td>한전 AMI</td><td>최상위</td><td>KEPCO 스마트미터(AMI) 통신망 관제. 회선 현황(<code>line-status</code>) 조회와 배전선로 작업 지원요청/지원처리 현황(<code>amiLineTaskStatus</code>)을 한전본부(<code>KEPCO_HQ</code>) 단위로 제공합니다. path <code>ami</code>.</td><td>O</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="src">과천·SafeMate 관련 상용 전환 표기는 코드만으로 단정하기 어려운 부분이라, 팀에서 확인한 현황(에어맵·과천·AI산업안전DX·SMART GREEN·한전AMI 5개 상용, SafeMate 및 하위 4개는 상용화 1년 유예)을 반영한 것입니다. 위 "상용 전환 현황" 콜아웃과 동일한 근거입니다.</p>
   </section>
 
   <section id="features">
