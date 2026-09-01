@@ -48,16 +48,16 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>얼굴인식은 콘텐츠 영상에서 검출된 인물 얼굴을 배역(인물)별로 정리하고, AI가 잘못 묶은 얼굴을 운영자가 바로잡는 메뉴입니다. 목록(<code>FaceRecognitionListPage</code>)은 전 메뉴 공통 리스트 패턴을 따르되 <code>serviceType: 'CI'</code>를 고정 주입하고, 완결여부 3택1 필터를 feature-local ref로 유지해 공용 <code>listQuery</code> 스토어를 침범하지 않습니다(<code>completedYn</code>은 페이지에서 머지). 정렬은 상태칩이 <code>all</code>이 아닐 때 <code>PRIORITY</code>를 <code>LATEST</code>로 강등하는 공통 가드를 그대로 씁니다. 우측 <code>FaceRecognitionDetailPanel</code>이 행 요약을 보여주고, [검수] CTA가 AppShell 밖 <strong>bare 풀스크린 라우트</strong> <code>/face-recognition/:jobId</code>로 진입시킵니다. 목록 상단에서는 콘텐츠를 횡단하는 전역 배역 조회 모달(<code>FaceRoleListModal</code>, FC-003)을 열 수 있으며, 이 모달은 <code>keyword</code>에만 의존하는 별도 쿼리 축(<code>faceRecognitionKeys.roles</code>)을 씁니다.</p>
-    <p>상세 화면(<code>FaceRecognitionDetailPage</code>)은 두 축의 쿼리로 구성됩니다. 헤더 breadcrumb(장르·콘텐츠명)용 <code>fetchFaceRecognitionDetail</code>과, 화면 본문 3개 섹션(배역 칩 행 · 검출 썸네일 그리드 · 대표 이미지 아코디언)의 단일 소스인 <code>fetchFaceRecognitionResult</code>입니다. 후자는 <strong>최초 fetch 로더 전용</strong>으로만 쓰입니다 — <code>staleTime: Infinity</code> + <code>refetchOnMount/WindowFocus: false</code>로 두고, 성공하면 <code>store.hydrate()</code>가 결과를 Pinia 스토어로 1회 이관합니다. 이후 렌더 소스는 오직 <code>store.result</code>이며, 대표/후보 토글·인물 재지정·대표 영역 지정은 전부 <strong>로컬 스테이징(네트워크 0)</strong>으로 처리하고 BE 쓰기는 헤더 [저장] 한 경로로 모읍니다. 썸네일 제어(<code>FaceSizeControl</code>)로 검출 얼굴 크기를 조절하거나 "결과만 보기"를 토글할 수 있습니다.</p>
-    <p>편집 상태는 <code>faceRecognitionEdit</code> 스토어가 <code>shallowRef</code>로 소유합니다. 결과 그래프가 불변(immutable)이라 deep reactivity가 필요 없고, 루트 참조만 갈아끼우면 파생 computed가 전부 갱신되기 때문입니다. 그래서 <code>isDirty</code>는 <code>result !== baselineResult</code> 참조 비교 O(1)로 판정되고, 이 판정이 성립하려면 <code>faceResultMutations.ts</code>의 모든 transform이 불변이면서 no-op일 때 인자를 <strong>그대로</strong> 반환해야 합니다(위반 시 헛 dirty). 실행취소·재실행은 이 불변성 덕에 루트 참조 스냅샷 스택으로 충분해 클론 없이 O(1) push/pop이며, 상한은 50단계(<code>FACE_HISTORY_LIMIT</code>)로 초과분은 가장 오래된 이력부터 버립니다. 모든 편집은 <code>commit()</code> 단일 관문을 지나므로 필터칩·스크롤·모달 열기 같은 보기 상태는 구조적으로 이력에 기록되지 않습니다.</p>
+    <p>얼굴인식은 콘텐츠 영상에서 검출된 인물 얼굴을 배역(인물)별로 정리하고, AI가 잘못 묶은 얼굴을 운영자가 바로잡는 메뉴입니다. 목록(<code>FaceRecognitionListPage</code>)은 2026-08-28 실 BE 경로로 이관되어 <strong>공통#1</strong>(<code>GET /api/content-info/list?serviceType=CI</code>)을 직접 쓰고, 완결여부 3택1 필터를 feature-local ref로 유지해 공용 <code>listQuery</code> 스토어를 침범하지 않습니다(<code>completedYn</code>은 페이지에서 머지). 정렬은 상태칩이 <code>all</code>이 아닐 때 <code>PRIORITY</code>를 <code>LATEST</code>로 강등하는 공통 가드를 그대로 씁니다. 우측 <code>FaceRecognitionDetailPanel</code>이 행 요약을 보여주고(작업이력=공통#3 + 콘텐츠정보=공통#2 순차 조인, 후자가 실패해도 패널 상단은 살립니다), [검수] CTA가 AppShell 밖 <strong>bare 풀스크린 라우트</strong> <code>/face-recognition/:jobId</code>로 진입시킵니다. 목록 상단에서는 콘텐츠를 횡단하는 전역 배역 조회 모달(<code>FaceRoleListModal</code>, FC-003)을 열 수 있으며, 실계약(얼굴인식#1 <code>/api/person-meta</code>)은 검색어가 없으면 건수 제한 없이 전량(실측 421건)을 주므로 "최근 등록 배역" 3건은 클라이언트에서 <code>RECENT_ROLE_LIMIT</code>로 잘라 보여줍니다.</p>
+    <p>상세 화면(<code>FaceRecognitionDetailPage</code>)의 본문 3개 섹션(배역 칩 행 · 검출 썸네일 그리드 · 대표 이미지 아코디언)은 2026-08-27 실계약 정합으로 <strong>두 API 조인</strong>이 되었습니다 — 라우트가 가진 건 <code>jobId</code>뿐이라 먼저 <code>resolveFaceContentId</code>(공통#3)로 <code>contentId</code>를 얻은 뒤, 얼굴인식#3(<code>/api/face-result/contents/{contentId}</code>, 검출 그리드)과 얼굴인식#4(<code>/api/content-person-mapp/content/{contentId}</code>, 칩·대표이미지쌍)를 병렬로 불러 조인합니다. 한쪽이 실패해도 화면 전체를 죽이지 않고 그 섹션만 비웁니다. 이 조인 결과는 <strong>최초 fetch 로더 전용</strong>으로만 쓰입니다 — <code>staleTime: Infinity</code> + <code>refetchOnMount/WindowFocus: false</code>로 두고, 성공하면 <code>store.hydrate()</code>가 결과를 Pinia 스토어로 1회 이관합니다. 이후 렌더 소스는 오직 <code>store.result</code>이며, 대표/후보 토글·인물 재지정·대표 영역 지정은 전부 <strong>로컬 스테이징(네트워크 0)</strong>으로 처리하고 BE 쓰기는 헤더 [저장] 한 경로로 모읍니다. 썸네일 제어(<code>FaceSizeControl</code>)로 검출 얼굴 크기를 조절하거나 "결과만 보기"를 토글할 수 있습니다. 헤더의 [재생성](공통#8 단건)·[연동](공통#6, jobId 하나로 일괄 API를 호출) 버튼도 2026-08-28에 실제로 배선되었습니다 — 그 전까지는 눌러도 아무 반응이 없는 버튼이었습니다. [이전]으로 나갈 때 dirty 상태면 [취소]/[저장 후 종료]/[저장하지 않고 종료] 3버튼 확인 팝업이 뜨는 것도 2026-08-31에 배선되었습니다(저장 실패 시에는 이탈하지 않습니다) — 포스터·썸네일·구간마킹·하이라이트·개인화 포스터 5개 메뉴가 이미 쓰던 공용 <code>ConfirmDialog</code> 패턴에 얼굴인식만 배선이 빠져 있던 것입니다.</p>
+    <p>편집 상태는 <code>faceRecognitionEdit</code> 스토어가 <code>shallowRef</code>로 소유합니다. 결과 그래프가 불변(immutable)이라 deep reactivity가 필요 없고, 루트 참조만 갈아끼우면 파생 computed가 전부 갱신되기 때문입니다. 그래서 <code>isDirty</code>는 <code>result !== baselineResult</code> 참조 비교 O(1)로 판정되고, 이 판정이 성립하려면 <code>faceResultMutations.ts</code>의 모든 transform이 불변이면서 no-op일 때 인자를 <strong>그대로</strong> 반환해야 합니다(위반 시 헛 dirty). 실행취소·재실행은 이 불변성 덕에 루트 참조 스냅샷 스택으로 충분해 클론 없이 O(1) push/pop이며, 상한은 50단계(<code>FACE_HISTORY_LIMIT</code>)로 초과분은 가장 오래된 이력부터 버립니다. 모든 편집은 <code>commit()</code> 단일 관문을 지나므로 필터칩·스크롤·모달 열기 같은 보기 상태는 구조적으로 이력에 기록되지 않습니다. <code>FaceBox</code>는 실계약 확인 후 축이 둘로 나뉘었습니다 — 검출 박스(<code>faceBox</code>·<code>otherFaces</code>)는 실계약 그대로 <strong>절대 px</strong>인 반면 대표 영역 드래그(<code>repRegion</code>)는 여전히 <strong>정규화 0~1</strong>이라, <code>FaceAnalysisModal</code>이 <code>&lt;img&gt;</code>의 <code>naturalWidth</code>/<code>naturalHeight</code>로 나눠 px를 비율로 환산하는 지점(<code>toRatioBox</code>)을 화면 쪽에 하나 두어 렌더·라벨 배치가 여전히 비율 축으로만 동작하게 합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트 — 저장 후 캐시 승격</div>
       저장 성공 시 <code>store.applySaved(r)</code>로 baseline을 승격하는 것만으로는 부족합니다. result 쿼리가 <code>staleTime: Infinity</code>이고 언마운트 시 스토어가 리셋되므로, <code>qc.setQueryData</code>로 캐시까지 함께 승격하지 않으면 <strong>저장 → 목록 복귀 → gcTime 내 재진입</strong> 시 저장 이전 스냅샷으로 다시 hydrate되어 편집이 사라진 것처럼 보입니다. 실제로 리뷰에서 MAJOR로 잡혀 수정된 결함입니다.
     </div>
     <div class="callout">
-      <div class="ct">참고 — 계약 상태</div>
-      <code>FACE_API</code>의 경로는 아직 전부 [추정]입니다. API 리스트 v1.0.3에서 얼굴인식 시트가 4종 → 11종으로 확장되며 교체 블로커 2건이 해소됐고 상세 결과 저장(FC-9 PATCH)은 여전히 API 부재(FC-I4)로 표시되어, 저장은 Mock 로컬 반영 수준입니다. 실 계약 확정 시 <code>endpoints.ts</code>와 어댑터 2지점만 교체하도록 격리해 두었습니다.
+      <div class="ct">참고 — 계약 상태(2026-08-27/28 실계약 정합 완료)</div>
+      종전 <code>FACE_API</code>의 경로는 전부 [추정]이었고 저장은 Mock 로컬 반영 수준이었으나, 목록(공통#1)·상세 패널(공통#2+#3)·본문 결과(얼굴인식#3+#4 조인)·저장(얼굴인식#10 인물 재지정 PUT + 얼굴인식#8 대표이미지 POST, 순차 호출)·연동(공통#6)·재생성(공통#8)까지 전부 실 BE 경로로 전환되었습니다. 대표 <strong>영역</strong> 지정(얼굴인식#9 <code>POST /api/image-crop</code>, 절대 px)만 되읽는 응답 경로가 없어(FC-C10) 이번 전환 범위 밖으로 남아 있습니다. 저장 응답은 HTTP 200이면서 <code>{code:'JOB_NOT_REREQUESTABLE'}</code>류로 거절될 수 있어, <code>assertSaved</code>가 엔벨로프 <code>code</code>를 직접 확인합니다(HTTP 상태만 보면 거절이 성공 토스트로 보입니다).
     </div>
   </section>
 
@@ -76,8 +76,15 @@ sequenceDiagram
     participant DRAG as useRepRegionDrag
 
     USR-&gt;&gt;PAGE: 목록 [검수] → /face-recognition/:jobId
-    PAGE-&gt;&gt;Q: fetchFaceRecognitionDetail(jobId) — 헤더 breadcrumb 축
+    PAGE-&gt;&gt;Q: fetchFaceRecognitionDetail(jobId) — 헤더 breadcrumb 축 (공통#3+공통#2 순차 조인)
     PAGE-&gt;&gt;Q: fetchFaceRecognitionResult(jobId) — staleTime Infinity(로더 전용)
+    Q-&gt;&gt;Q: resolveFaceContentId(jobId) — 공통#3 GET job → contentId
+    par 얼굴인식#3 검출 그리드
+        Q-&gt;&gt;Q: GET /api/face-result/contents/{contentId}
+    and 얼굴인식#4 칩·대표이미지쌍
+        Q-&gt;&gt;Q: GET /api/content-person-mapp/content/{contentId}
+    end
+    Note over Q: 한쪽이 실패해도 throw 하지 않고 그 섹션만 빈 값으로 조인(catch)
     Q--&gt;&gt;PAGE: FaceRecognitionResult (roles · detections · repImagePairs)
     PAGE-&gt;&gt;ST: hydrate(jobId, result) — 1회 이관, hydratedJobId 가드
     Note over PAGE,ST: 이후 렌더 소스는 store.result 뿐
@@ -98,12 +105,17 @@ sequenceDiagram
     ST-&gt;&gt;MU: reassignDetection + setRepRegion (1 transform = 1 이력)
 
     USR-&gt;&gt;PAGE: 헤더 [저장] (isDirty)
-    PAGE-&gt;&gt;Q: saveFaceRecognitionResult(jobId, toFaceRecognitionResultSave(result))
-    Q--&gt;&gt;PAGE: {code, message}
+    PAGE-&gt;&gt;Q: saveFaceRecognitionResult(jobId, result, baselineResult)
+    Q-&gt;&gt;Q: toFaceAssignSave(result, baseline) — baseline 대비 변경분만(해제 포함)
+    Q-&gt;&gt;Q: resolveFaceContentId(jobId) — 조회와 같은 축으로 저장
+    Q-&gt;&gt;Q: PUT 얼굴인식#10 /api/face-result/contents/{contentId} — 인물 재지정
+    Q-&gt;&gt;Q: assertSaved() — 엔벨로프 code 확인(HTTP 200 + 거절 코드 방어)
+    Q-&gt;&gt;Q: POST 얼굴인식#8 /api/person-crop-result/{contentId}/save — 대표이미지(순차)
+    Q--&gt;&gt;PAGE: void (둘 다 성공, editList 0건이면 그 호출은 생략)
     PAGE-&gt;&gt;ST: applySaved(result) — baseline 승격
     PAGE-&gt;&gt;Q: qc.setQueryData(keys.result(jobId), result) — 캐시도 승격
       </div>
-      <p class="cap"><strong>흐름.</strong> 진입 시 결과를 스토어로 1회 이관한 뒤, 모든 편집은 순수 transform → <code>commit()</code> 경로로 로컬에만 반영됩니다. 분석 모달의 인물 재지정과 대표 영역은 한 payload로 묶여 원자 반영되고, 네트워크 왕복은 헤더 [저장] 1회뿐입니다.</p>
+      <p class="cap"><strong>흐름.</strong> 진입 시 <code>contentId</code> 축으로 전환한 뒤 검출(#3)·인물(#4) 두 API를 병렬 조인해 스토어로 1회 이관하고, 모든 편집은 순수 transform → <code>commit()</code> 경로로 로컬에만 반영됩니다. 저장은 <code>baseline</code> 대비 변경분만 골라 재지정(#10)을 먼저 쓰고 대표이미지(#8)를 순차로 씁니다 — 재지정이 먼저 반영돼야 대표이미지의 personId가 유효하기 때문이며, 각 응답은 <code>assertSaved</code>가 엔벨로프 <code>code</code>로 거절 여부를 가립니다.</p>
     </div>
   </section>
 
@@ -187,18 +199,29 @@ classDiagram
         +detectionId
         +personId · reassignedPersonId
         +cardState
-        +repRegion FaceBox
+        +faceBox 절대 px(실계약)
+        +repRegion FaceBox 정규화 0~1
+    }
+    class FaceQueries {
+        &lt;&lt;queries.ts — 실 BE 경로&gt;&gt;
+        +resolveFaceContentId(jobId) 공통#3
+        +fetchFaceRecognitionResult(jobId) 얼굴인식#3+#4 병렬조인
+        +saveFaceRecognitionResult(jobId, result, baseline) 순차 #10→#8
+        +postRegenerate(jobId) 공통#8 · postLink(jobIds) 공통#6
+        -assertSaved(res, what) 엔벨로프 code 거절 검사
     }
 
     FaceRecognitionListPage --&gt; FaceRecognitionDetailPage : goReview (route state)
     FaceRecognitionListPage --&gt; FaceRoleListModal : 전역 배역 조회
     FaceRecognitionDetailPage --&gt; FaceRecognitionEditStore : 렌더 소스 · 편집 위임
+    FaceRecognitionDetailPage --&gt; FaceQueries : 조회·저장·재생성·연동
     FaceRecognitionDetailPage --&gt; FaceDetectionGrid
     FaceRecognitionDetailPage --&gt; FaceRepImageAccordion
     FaceRecognitionDetailPage --&gt; FaceSizeControl
     FaceRecognitionDetailPage --&gt; FaceAnalysisModal : 카드 클릭 시 오픈
     FaceAnalysisModal --&gt; UseRepRegionDrag : 대표 영역 포인터 조작
     FaceAnalysisModal ..&gt; FaceBoxLabel : 박스 라벨 배치
+    FaceAnalysisModal ..&gt; FaceDetection : toRatioBox(px → 비율) 렌더 변환
     FaceRecognitionEditStore --&gt; FaceResultMutations : 불변 transform 호출
     FaceRecognitionEditStore ..&gt; FaceRecognitionResult
     FaceRecognitionResult o-- FaceDetection
@@ -286,15 +309,17 @@ export function squareFromAnchor(anchor: Point, point: Point, aspect = 1): FaceB
 }</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>src/features/face-recognition/pages/FaceRecognitionDetailPage.vue</code> — 저장 후 baseline·캐시 동시 승격</div>
+      <div class="sc"><code>src/features/face-recognition/pages/FaceRecognitionDetailPage.vue</code> — 저장 후 baseline·캐시 동시 승격 (실계약 2종 순차 호출, 2026-08-27)</div>
 <pre><code>async function onSave(): Promise&lt;void&gt; {
   if (!store.isDirty || savePending.value) return
   const r = store.result
   if (!r) return
   savePending.value = true
   try {
-    const payload = toFaceRecognitionResultSave(r)
-    await saveFaceRecognitionResult(jobId.value, payload)
+    // 페이로드 변환은 queries 가 맡는다 — 실계약이 두 갈래(#10 재지정 · #8 대표이미지)라
+    // 화면이 어느 쪽을 부를지 알 필요가 없다. baseline 을 함께 넘긴다 — 재지정 해제
+    // (인물 → 미지정)는 진입 스냅샷과 비교해야만 판별된다. 안 넘기면 해제가 서버에 반영되지 않는다.
+    await saveFaceRecognitionResult(jobId.value, r, store.baselineResult)
     store.applySaved(r)   // 응답이 {code,message}뿐 — 저장 직전 로컬 result를 baseline으로 승격
     // ⚠️ 캐시도 함께 승격해야 한다. result 쿼리는 staleTime: Infinity + refetchOnMount: false 라
     // 이 줄이 없으면 저장 → 목록 복귀 → (gcTime 내) 재진입 시 저장 이전 스냅샷으로 다시 hydrate 된다.
@@ -305,6 +330,42 @@ export function squareFromAnchor(anchor: Point, point: Point, aspect = 1): FaceB
   } finally {
     savePending.value = false
   }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/face-recognition/queries.ts</code> — 실계약 2종 순차 저장 + 엔벨로프 거절 검사</div>
+<pre><code>/**
+ * 상세 결과 저장 — 실계약 2종을 순차 호출한다.
+ *   #10 PUT  /api/face-result/contents/{contentId}       — 인물 재지정
+ *   #8  POST /api/person-crop-result/{contentId}/save    — 대표이미지
+ * 보낼 것이 없으면 호출하지 않는다. 순차로 부른다(병렬 아님) — 재지정이 먼저 반영돼야
+ * 대표이미지의 personId 가 유효하다.
+ */
+export async function saveFaceRecognitionResult(
+  jobId: string,
+  result: FaceRecognitionResult,
+  baseline?: FaceRecognitionResult | null,
+): Promise&lt;void&gt; {
+  const assign = toFaceAssignSave(result, baseline)
+  const rep = toFaceRepImageSave(result)
+  if (assign.editList.length === 0 &amp;&amp; rep.editList.length === 0) return
+
+  const contentId = await resolveFaceContentId(jobId) // 조회와 같은 축으로 저장
+  if (assign.editList.length &gt; 0) {
+    assertSaved(await httpPut(FACE_API.saveAssign(contentId), assign), '얼굴인식#10(인물 재지정 저장)')
+  }
+  if (rep.editList.length &gt; 0) {
+    assertSaved(await httpPost(FACE_API.saveRepImage(contentId), rep), '얼굴인식#8(대표이미지 저장)')
+  }
+}
+
+// 🔴 2026-08-31 신설 — 이 계열 BE 는 거절을 HTTP 200 + {code:'…'} 로 준다
+// (재생성 JOB_NOT_REREQUESTABLE 이 실측 사례). HTTP 상태만 보면 거절이 성공 토스트로 보인다.
+function assertSaved(res: ContentEnvelope&lt;unknown&gt; | null | undefined, what: string): void {
+  const code = res?.code
+  if (code === undefined || code === null) return       // 형상 없는 mock 은 성공으로 본다
+  if (isContentEnvelopeSuccess(code)) return
+  throw Object.assign(new Error(`${what} 거절: ${code} ${res?.message ?? ''}`), { code })
 }</code></pre>
     </div>
     <div class="snippet">
@@ -334,8 +395,8 @@ export function resolveFaceLabelPlacement(input: FaceLabelPlacementInput): FaceL
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/pages/FaceRecognitionListPage.vue" target="_blank" rel="noopener">features/face-recognition/pages/FaceRecognitionListPage.vue</a><span class="src">목록(FC-001) — 공통 리스트 패턴 + 완결여부 필터·배역 인식 목록 모달 트리거</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/pages/FaceRecognitionDetailPage.vue" target="_blank" rel="noopener">features/face-recognition/pages/FaceRecognitionDetailPage.vue</a><span class="src">bare 풀스크린 상세(FC-004) — 2축 쿼리·hydrate·저장/초기화·실행취소/재실행 배선</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/pages/FaceRecognitionListPage.vue" target="_blank" rel="noopener">features/face-recognition/pages/FaceRecognitionListPage.vue</a><span class="src">목록(FC-001) — 공통#1 실경로(serviceType=CI) + 완결여부 필터·배역 인식 목록 모달 트리거</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/pages/FaceRecognitionDetailPage.vue" target="_blank" rel="noopener">features/face-recognition/pages/FaceRecognitionDetailPage.vue</a><span class="src">bare 풀스크린 상세(FC-004) — 2축 쿼리·hydrate·저장/초기화/재생성/연동·실행취소/재실행 배선</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/edit/stores/faceRecognitionEdit.ts" target="_blank" rel="noopener">features/face-recognition/edit/stores/faceRecognitionEdit.ts</a><span class="src">편집 스토어 — shallowRef 로컬 스테이징 · commit 단일 관문 · 50단계 undo/redo</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/edit/faceResultMutations.ts" target="_blank" rel="noopener">features/face-recognition/edit/faceResultMutations.ts</a><span class="src">순수 불변 transform 4종 — 대표/후보 지정 · 인물 재지정 · 대표 영역</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/components/FaceAnalysisModal.vue" target="_blank" rel="noopener">features/face-recognition/components/FaceAnalysisModal.vue</a><span class="src">상세 분석 결과 모달(FC-005) — 인물 재지정 + 대표 영역을 한 payload로 [적용]</span></li>
@@ -344,9 +405,10 @@ export function resolveFaceLabelPlacement(input: FaceLabelPlacementInput): FaceL
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/components/FaceDetectionGrid.vue" target="_blank" rel="noopener">features/face-recognition/components/FaceDetectionGrid.vue</a><span class="src">검출 썸네일 그리드 — 헤더(제목+개수)·카드 목록, 필터링은 페이지 책임</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/components/FaceSizeControl.vue" target="_blank" rel="noopener">features/face-recognition/components/FaceSizeControl.vue</a><span class="src">썸네일 제어 — 검출 얼굴 크기 조절 · 결과만 보기 토글</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/components/FaceRoleListModal.vue" target="_blank" rel="noopener">features/face-recognition/components/FaceRoleListModal.vue</a><span class="src">배역 인식 목록 모달(FC-003) — 콘텐츠 횡단 전역 인물 조회(keyword 단일 축)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/queries.ts" target="_blank" rel="noopener">features/face-recognition/queries.ts</a><span class="src">queryKey 전략(list/detail/roles/result) · toListQuery · 저장 mutation fn</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/queries.ts" target="_blank" rel="noopener">features/face-recognition/queries.ts</a><span class="src">queryKey 전략 · resolveFaceContentId(jobId→contentId 축전환) · fetchFaceRecognitionResult(#3+#4 조인) · saveFaceRecognitionResult(#10+#8 순차) · assertSaved · postRegenerate/postLink</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/adapters/faceRecognition.ts" target="_blank" rel="noopener">api/adapters/faceRecognition.ts</a><span class="src">toFaceAssignSave(result, baseline) — 변경분만 추출(재지정 해제는 baseline 비교로만 판별) · toFaceRepImageSave</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/routes.ts" target="_blank" rel="noopener">features/face-recognition/routes.ts</a><span class="src">라우트 — 목록(AppShell children) · 상세(top-level bare, props true)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/endpoints.ts" target="_blank" rel="noopener">api/endpoints.ts</a><span class="src"><code>FACE_API</code> — 목록/상세/연동/재처리/배역/결과 조회·저장(계약 [추정] 주석 포함)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/endpoints.ts" target="_blank" rel="noopener">api/endpoints.ts</a><span class="src"><code>FACE_API</code> — 실계약(얼굴인식#1/2/3/4/8/9/10) + 목록/상세/연동/재처리는 공통 계열(공통#1/2/3/6/7/8)로 이관, 자체 list/detail/link/reprocess 상수는 제거(2026-08-28)</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="f08.html">‹ Figma 연동·품질 게이트 파이프라인</a>

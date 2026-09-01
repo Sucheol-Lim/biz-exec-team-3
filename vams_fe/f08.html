@@ -51,8 +51,10 @@
     <p>이 기능은 화면이 아니라 <strong>개발 프로세스 자체를 코드로 만든 인프라</strong>입니다. 첫째 축은 Figma 매핑 파이프라인(<code>scripts/figma-mapping/</code>, Python·PAT REST 전용·MCP 불사용)입니다. <code>check-versions.py</code>가 디자인팀 공식 릴리즈 3파일(UI 시나리오 Flipbook · GUI · 공통 컴포넌트 GUI)의 version/lastModified를 스냅샷(<code>design/json_raw/.versions.json</code>)과 대조해 변경 여부를 exit code(0=변경 없음/1=변경/2=404/3=판단 불가)로 알려주고, 변경 시 <code>dump-sources.py</code>가 Flipbook 페이지별 JSON과 GUI depth-2 인벤토리를 <code>design/json_raw/</code>에 저장합니다 — <code>--page</code> 옵션으로 특정 메뉴 페이지만 선택 덤프할 수 있고(파일 전체 version만 제공되는 Figma API 특성상 페이지 델타 감지는 불가능해 사람이 지정), 429 응답은 check-versions와 동일한 쿼터 소진 방어(Retry-After 60초 초과 시 즉시 중단)를 갖췄습니다. 이어서 <code>build-screen-map.py</code>가 Flipbook(시나리오) ↔ GUI 화면 매칭 정본 <code>design/screen-map.json</code>을 생성하는데, 사람 판정(수동 매칭·컴포넌트 참조·정책 재분류)은 <code>overrides.json</code>으로 분리·머지되어 재생성해도 큐레이션이 보존됩니다. 화면마다 <strong>renderKind 축</strong>(기본 assembly=공통 컴포넌트 조립 / bespoke=에디터·타임라인·캔버스류)이 기록되며, bespoke 의심 화면은 이름 사전으로 경고만 하고 확정은 overrides의 사람 판정에 맡깁니다. SECTION 안에 화면처럼 섞인 메뉴 스코프 정책 프레임(<code>menuPolicyFrames</code>)도 화면 버킷에서 분리됩니다.</p>
     <p>매핑 정본 위에서 <code>extract-behaviors.py</code>가 시나리오 프레임의 description 표를 구조화해 메뉴별 behavior 스펙(<code>design/behavior/{NN}-{menu}.json</code>)을 뽑고, <code>extract-policy-common.py</code>(00-policy/00-common)와 <code>link-policy-refs.py</code>(behavior ↔ 공통 정책 상호참조 링킹)가 뒤따릅니다. 추출기는 v3/v4로 보강되어 각 row에 Figma 노드ID·그룹 앵커(row-title)를 부착하고 /guide 콜아웃 마커를 화면 요소와 z-order 히트테스트로 매핑한 <code>anchor</code>를 답니다 — Flipbook을 요구사항 지식그래프로 직렬화하는 <code>scripts/kg-extract/</code> 파이프라인의 REQ↔UI 요소 provenance 근거입니다. 분리된 메뉴 정책 프레임은 신설 <code>extract-menu-policy.py</code>가 <code>{NN}-{menu}-policy.json</code>으로 별도 추출합니다(link-policy-refs는 이 파일을 링킹 대상에서 제외). <code>gen-pixel-manifest.py</code>는 screen-map에서 GUI 노드를 조회해 픽셀 게이트 manifest 뼈대와 레퍼런스 PNG(REST 이미지 렌더)를 만들어 두 축을 연결하는데, <strong>renderKind로 분기</strong>합니다 — assembly는 프레임 PNG + 오버레이 중심이고, bespoke는 신설 <code>extract-elements.py</code>(GUI 노드 depth-8 심층조회 → 내부 element 실측 구조화)의 산출물이 없으면 즉시 FAIL하며, 있으면 manifest <code>elements[]</code>에 figmaNode·크기·색·radius·폰트 기대값을 자동 기입하고 렌더 DOM <code>selector</code>만 사람 몫으로 남깁니다(프레임 레벨 눈대중 재현이 만든 HL-004 드리프트 사고 재발 방지). <code>extract-elements.py</code>는 이후 <code>visible=false</code> 서브트리를 전면 제외하도록 보강되었습니다 — 숨김 노드는 렌더 DOM에 없어 픽셀 게이트에서 영구 FAIL하는 유령 element가 되기 때문입니다(해당 메뉴가 쓰지 않는 조회기간·검색·토글 등 GUI 리스트 템플릿 잔재, 2026-07-30 PK-001 실측에서 발견).</p>
     <p>둘째 축은 npm 스크립트로 실행하는 <strong>결정론적 품질 게이트</strong>(<code>scripts/*.mjs</code>, Node)입니다. <code>check:pixel</code>(L4)은 Playwright로 렌더 DOM의 크기·색·여백·radius·폰트를 실측해 Figma 실측 manifest와 1:1 대조하고 스크린샷·레퍼런스 PNG 오버레이 diff까지 수행합니다 — manifest나 레퍼런스가 없으면 "조용한 PASS" 없이 즉시 FAIL(exit 1)입니다(2026-06-18 썸네일 상세 추측 구현 사고 재발 방지). <code>check:pins</code>(L3)는 package.json 핵심 의존성 메이저 버전을 ADR 확정 핀과 대조해 임의 다운그레이드를 잡고(2026-06-05 TS6→5.9 거짓 다운그레이드 사고 재발 방지), <code>check:cssvars</code>(L3)는 fallback 없는 미정의 <code>var(--x)</code> 사용(토큰 리네임 낙오 회귀)을, <code>check:ownership</code>은 feature 브랜치의 담당 범위 침범을 검출합니다. <code>figma:tokens</code>는 <code>tokens.scss</code>와 Figma 변수의 드리프트를 리포트합니다(게이트 아님, 항상 exit 0). 2026-08 갱신으로 픽셀 게이트에 <code>fill:&lt;selector&gt;=&lt;text&gt;</code> setup 액션이 추가되어 "입력이 있어야 도달하는 상태"(예: 얼굴인식 인물 검색 결과)도 촬영할 수 있고(셀렉터에 <code>=</code>가 흔해 마지막 <code>=</code>로 가릅니다), <code>check:ownership</code>의 표준 슬러그는 개인화 2분할·얼굴인식 분리를 반영해 13종으로 갱신되면서 <code>face</code> 계열 브랜치 별칭이 추가되었습니다 — 구 <code>personalization</code> 토큰은 어느 쪽인지 알 수 없어 <strong>의도적으로 미매핑</strong>으로 남겨 오판 대신 <code>--own</code> 명시를 요구합니다.</p>
+    <p>2026-08 하순 픽셀 게이트 자체도 판정 축이 여러 건 늘었습니다. 준비 신호가 <code>networkidle</code>(SSE·polling이 있으면 영원히 안 옴)에서 <code>load</code> + <code>readySelector</code> 가시화 대기(미지정 시 첫 <code>elements[].selector</code>로 대체, 타임아웃 시 DOM 부재/비가시 원인 분기 안내와 함께 FAIL)로 바뀌었고, 위치(절대 <code>x</code>/<code>y</code> 또는 기준 요소 대비 상대 위치) · 색상 알파(허용오차 0.02) · <code>textAlign</code>(Figma <code>textAlignHorizontal</code> 대응)이 새 판정 축으로 추가되었습니다. 보더는 <code>borderSide</code>(top/right/bottom/left, 4면 중 하나 지정)로 일반화되면서 구 <code>borderBottomColor</code>는 하위호환 별칭으로 남았고(둘을 같은 요소에 다른 값으로 같이 쓰면 즉시 에러), Figma의 stroke가 레이아웃을 차지하지 않도록 <code>inset box-shadow</code>로 그려진 경우도 border-width 0일 때 그 shadow 색을 stroke로 인정합니다. 2026-08-25에는 상대 배치 축(<code>centerIn</code> — 부모 안 세로/가로 정중앙 여부, <code>matchEdges</code> — 지정 변이 다른 요소 같은 변과 일치하는지, <code>gapTo</code> — 두 요소 사이 여백)이 추가되었습니다. 세 축 모두 <code>got.x</code>/<code>got.y</code> 실측값 자체는 이미 있었는데 그걸 비교하는 코드가 없어 제목이 한쪽으로 쏠리거나 구분선이 카드 끝까지 안 닿는 류가 w/h/색 체크를 다 통과해도 안 잡히던 것을 메웁니다. <code>&lt;video&gt;</code>가 있는 화면(구간마킹·자막·하이라이트·골라보기·AI Pick)에서는 재생 프레임이 매번 달라 오버레이가 무작위가 되는 문제가 있어, opt-in <code>freezeMedia</code>로 측정 직전 영상을 <code>pause()</code> + <code>currentTime=0</code>으로 고정할 수 있습니다(영상 자체를 검증하는 화면에서는 켜지 않으며, 목적은 수치를 낮추는 것이 아니라 매 실행 같은 값이 나오게 하는 것입니다).</p>
     <p>2026-08에 세 번째 축이 붙었습니다. 첫째, <code>extract-api-spec.py</code>(<code>npm run spec:api</code>)는 BE가 배포하는 「VAMS API 리스트」 엑셀을 외부 의존성 없이 stdlib(<code>zipfile</code> + <code>xml.etree</code>)로 파싱해 <code>Ref-docs/claude/api-spec/&lt;version&gt;.json</code> 정본으로 만듭니다 — 원본 엑셀이 레포에 없고 <code>design/</code>은 gitignore라 이 JSON이 BE 계약의 유일한 추적 기록입니다. <code>--diff</code> 옵션은 직전 버전과 엔드포인트 추가·삭제·시그니처 변경·필드 변경·폐기 전환을 대조해 리포트하며, 이번 라운드에서 v1.0.4 정본과 <code>diff-v1.0.3-v1.0.4.md</code>가 생성되어 골라보기 인물 리스트 계약 변경 같은 항목이 조기에 잡혔습니다. 임기응변 파싱 시절 「얼굴인식」 시트를 "없다"고 오판해 추정 경로 위에 구현한 사고가 이 스크립트의 배경입니다.</p>
-    <p>둘째, <code>figma-section-diff.py</code>(<code>figma:diff</code>)는 Figma 섹션의 "이전 버전 ↔ 현재" 차이를 REST로 뽑습니다. Figma MCP 읽기 도구와 Plugin API 모두 <strong>읽기용 version 파라미터가 없어</strong> 버전 diff는 REST 전용이며, <code>versions</code>/<code>bisect</code>/<code>fetch</code>/<code>diff</code>/<code>hash</code> 서브커맨드로 섹션 직속 COMPONENT의 추가·삭제·개명·지오메트리·크기 변경을 이분 탐색합니다(fills·strokes·토큰 바인딩 변경은 감지 대상이 아님을 명시). 셋째, <code>sync-icons.py</code>(<code>icons:sync</code>)는 아이콘 스프라이트 <code>src/assets/icons.svg</code>를 컴포넌트 라이브러리 Icons 섹션 마스터에서 재생성합니다 — 매핑 정본 <code>scripts/icon-map.json</code>(68 슬러그, 좌표 Jaccard·래스터 IoU로 tier 판정)이 무엇을 갱신·보존·삭제할지 규정하고, GUI 화면 파일 대신 마스터를 직접 받아 mask 해체·타이트 크롭·instance-swap 누락 문제를 원천 회피합니다. 스프라이트를 placeholder로 덮어써 위험했던 구 <code>build-icons.mjs</code>는 삭제되고 <code>icons:build</code>는 안내 후 <code>exit 1</code> 하는 폐기 스텁으로 남았습니다.</p>
+    <p>둘째, <code>figma-section-diff.py</code>(<code>figma:diff</code>)는 Figma 섹션의 "이전 버전 ↔ 현재" 차이를 REST로 뽑습니다. Figma MCP 읽기 도구와 Plugin API 모두 <strong>읽기용 version 파라미터가 없어</strong> 버전 diff는 REST 전용이며, <code>versions</code>/<code>bisect</code>/<code>fetch</code>/<code>diff</code>/<code>hash</code> 서브커맨드로 섹션 직속 COMPONENT의 추가·삭제·개명·지오메트리·크기 변경을 이분 탐색합니다(fills·strokes·토큰 바인딩 변경은 감지 대상이 아님을 명시). 셋째, <code>sync-icons.py</code>(<code>icons:sync</code>)는 아이콘 스프라이트 <code>src/assets/icons.svg</code>를 컴포넌트 라이브러리 Icons 섹션 마스터에서 재생성합니다 — 매핑 정본 <code>scripts/icon-map.json</code>(83 슬러그, unmapped 0건, 좌표 Jaccard·래스터 IoU로 tier 판정)이 무엇을 갱신·보존·삭제할지 규정하고, GUI 화면 파일 대신 마스터를 직접 받아 mask 해체·타이트 크롭·instance-swap 누락 문제를 원천 회피합니다. 스프라이트를 placeholder로 덮어써 위험했던 구 <code>build-icons.mjs</code>는 삭제되고 <code>icons:build</code>는 안내 후 <code>exit 1</code> 하는 폐기 스텁으로 남았습니다. <code>build-screen-map.py</code>는 프레임명에 화면 ID가 없고 헤더 표(<code>header_slot*</code>)에만 있는 신형 Flipbook 페이지 대응(<code>header_slot_meta()</code>)도 갖췄습니다 — 2026-08-10 릴리즈의 '14. 개인화 하이라이트'가 첫 사례로, 종전 프레임명 정규식만으로는 화면 0건으로 낙오했습니다.</p>
+    <p>넷째, <strong>BE 계약 준수를 코드 차원에서 잠그는 두 도구</strong>가 추가되었습니다. <code>check-api-contract.mjs</code>(<code>check:api-contract</code>)는 코드 주석의 규격 인용키(<code>&lt;시트&gt;#&lt;번호&gt;</code>, 현재 29곳)가 <code>Ref-docs/claude/api-spec/</code> 정본에 실재하는지 검사하는데, 존재 검사만으로는 부족해서 <strong>인용키 신원 lock</strong>(<code>citation-lock.json</code>) 축도 함께 봅니다 — 규격 시트에 엔드포인트가 중간 삽입되면 그 뒤 번호가 통째로 밀리는데, 밀린 번호도 "존재하는 번호"라 존재 검사는 그냥 PASS 해 버립니다(v1.0.8에서 실제로 나 <code>공통#8</code> 삽입으로 <code>#8</code>~<code>#13</code> 6건이 다른 API를 가리키게 됐는데도 게이트가 PASS를 냈습니다). lock에 "이 인용키는 이 METHOD+URL을 가리킨다"를 박아 두고 매 실행 대조하며, 인용을 사람이 실제로 정정한 뒤에만 <code>--update-lock</code>으로 갱신합니다. 다섯째, <code>probe-be.mjs</code>(<code>probe:be</code>)는 규격 정본의 예시 URL과 응답 필드 경로를 그대로 써서 실 BE를 자동 탐침하고 엔드포인트별로 MATCH(정상)·DRIFT(응답은 오는데 필드가 규격과 다름 — 어댑터 수정 대상)·AUTH(인증 필요)·ERROR(4xx/5xx)·DOWN(연결 실패)·SKIP(예시 URL 없음) 6색 판정을 냅니다. 기본은 GET만(46개) 때리고 쓰기 계열은 <code>--unsafe</code> 없이는 실행하지 않습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       파이프라인 산출물(<code>design/json_raw/</code>·<code>design/screen-map.json</code>·<code>design/behavior/</code>)은 gitignore된 <strong>로컬 전용</strong>이라 팀원 각자 실행해 생성하며, 저장소에는 스크립트·<code>overrides.json</code>·픽셀 게이트 manifest(<code>design/pixel-gate/</code>)만 커밋됩니다. 전 과정은 PAT(REST) 전용으로 Figma MCP 없이 동작하고, 429 응답의 Retry-After가 60초를 넘으면 플랜 쿼터 소진으로 판단해 무한 대기하지 않습니다.
@@ -198,6 +200,20 @@ classDiagram
         -WHITELIST --v- --radix- --reka-
         +fallback 없는 미정의 var FAIL
     }
+    class CheckApiContract {
+        &lt;&lt;node mjs — 2026-08-27 신설&gt;&gt;
+        -ALIAS 시트명 별칭
+        +인용키 존재 검사(29곳)
+        +citation-lock.json 신원 대조
+        +--update-lock (정정 후에만)
+    }
+    class ProbeBe {
+        &lt;&lt;node mjs&gt;&gt;
+        +규격 exampleJson·response.fields 로 자동 탐침
+        +MATCH·DRIFT·AUTH·ERROR·DOWN·SKIP 판정
+        +GET 기본(46개) · POST/PUT/DELETE는 --unsafe
+        +--diff 직전 결과 대비 변화만
+    }
 
     CheckVersions ..> DumpSources : 변경 감지 시 덤프 유도
     DumpSources --> BuildScreenMap : design/json_raw 제공
@@ -211,8 +227,10 @@ classDiagram
     FigmaSectionDiff ..> SyncIcons : 섹션 변경 감지 시 재동기화 유도
     SyncIcons ..> CheckPixelGate : 스프라이트 자산 정합 (아이콘 실측 대조)
     ExtractApiSpec ..> CheckStackPins : 계약·스택 정본 추적 (버전 대조 축)
+    ExtractApiSpec ..> CheckApiContract : api-spec 정본 제공 (인용키 대조 대상)
+    ExtractApiSpec ..> ProbeBe : exampleJson·response.fields 제공 (탐침 입력)
       </div>
-      <p class="cap"><strong>관계.</strong> Python 파이프라인(좌측 계열)이 Figma 원본을 덤프·매핑·추출해 산출물을 만들고, 그 산출물을 Node 게이트(우측 계열)가 소비합니다. 게이트는 L3(결정론적 정적 검사 — 버전 핀·CSS 변수)와 L4(런타임 픽셀 실측)로 층위가 나뉩니다. 2026-08 추가분(<code>ExtractApiSpec</code>·<code>FigmaSectionDiff</code>·<code>SyncIcons</code>)은 화면 매핑 경로와 독립적으로 동작하는 별도 도구지만, 같은 원칙(정본을 기계 산출물로 두고 버전 대조)을 따릅니다.</p>
+      <p class="cap"><strong>관계.</strong> Python 파이프라인(좌측 계열)이 Figma 원본을 덤프·매핑·추출해 산출물을 만들고, 그 산출물을 Node 게이트(우측 계열)가 소비합니다. 게이트는 L3(결정론적 정적 검사 — 버전 핀·CSS 변수)와 L4(런타임 픽셀 실측)로 층위가 나뉩니다. 2026-08 추가분(<code>ExtractApiSpec</code>·<code>FigmaSectionDiff</code>·<code>SyncIcons</code>·<code>CheckApiContract</code>·<code>ProbeBe</code>)은 화면 매핑 경로와 독립적으로 동작하는 별도 도구지만, 같은 원칙(정본을 기계 산출물로 두고 버전·신원 대조)을 따릅니다 — 특히 <code>CheckApiContract</code>·<code>ProbeBe</code>는 <code>ExtractApiSpec</code>이 만든 BE 계약 정본을 코드 주석 인용·실 응답 양쪽에서 검증합니다.</p>
     </div>
   </section>
 
@@ -250,6 +268,7 @@ const EXPECTED = {
   'vee-validate': 4, zod: 4,
   'reka-ui': 2, echarts: 6, 'vue-echarts': 8, 'vue-i18n': 11, axios: 1,
   'wavesurfer.js': 7,          // 자막 편집 파형 (ADR §1.4)
+  'hls.js': 1,                 // 실 BE 영상이 HLS(fMP4)뿐 — Chrome/Edge/Firefox 네이티브 재생 불가(2026-08-31)
   konva: 10, 'vue-konva': 3,   // 포스터 캔버스 편집기 (ADR §1.4)
   '@vitejs/plugin-vue': 6, 'vue-tsc': 3, eslint: 10, 'eslint-plugin-vue': 10,
   prettier: 3, vitest: 4, '@playwright/test': 1, msw: 2, 'sass-embedded': 1,
@@ -333,6 +352,33 @@ mask 해체도 타이트 크롭도 필요 없다. instance-swap 글리프 누락
 "figma:diff": "python3 scripts/figma-section-diff.py",
 "spec:api":   "python3 scripts/extract-api-spec.py --md",</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>scripts/check-api-contract.mjs</code> — 인용키 신원 lock (규격 개편으로 번호가 밀려도 잡는다)</div>
+<pre><code>// 두 번째 축 — 인용키 신원 lock(2026-08-27 신설).
+// 존재 검사만으로는 부족하다. 규격 시트 중간에 엔드포인트가 삽입되면 그 뒤 번호가 통째로
+// 밀리는데, 밀린 번호도 '존재하는 번호'이므로 존재 검사는 PASS 한다. v1.0.8 에서 실제로
+// 났다 — `공통#8 재처리(단건)` 삽입으로 `공통#8`~`#13` 6건이 다른 API 를 가리키게 됐고
+// 게이트는 "죽은 인용 0 · PASS" 를 냈다. 코드 주석 ~35줄 + 문서 52곳이 조용히 어긋났다.
+// → citation-lock.json 에 "이 인용키는 이 METHOD+URL 을 가리킨다"를 박아두고 매 실행 대조한다.
+//   인용키가 다른 것을 가리키게 되면 차단한다(exit 1).
+// lock 갱신: 인용을 사람이 실제로 고친 뒤 --update-lock. 순서가 뒤집히면 어긋난 상태가
+// 기준으로 박히므로, 갱신은 정정 후에만 한다.</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>scripts/probe-be.mjs</code> — 규격 정본으로 실 BE 자동 탐침</div>
+<pre><code>// 무엇을 판정하나:
+//   MATCH  — 응답 옴 + 규격 필수 필드 전부 존재
+//   DRIFT  — 응답은 오는데 규격과 필드가 다름(누락/신설). 어댑터 수정 대상
+//   AUTH   — 401/403. 서버는 살아있고 인증만 필요
+//   ERROR  — 4xx/5xx (404 = 아직 미구현으로 읽는다)
+//   DOWN   — 연결 실패/타임아웃
+//   SKIP   — 예시 URL 이 없어 호출값을 만들 수 없음(pathParam 미상)
+//
+// 안전: 기본은 GET 만 때린다(46개). POST/PUT/DELETE 는 BE 데이터를 바꾸므로
+// --unsafe 없이는 실행하지 않는다.
+//
+// 사용: node scripts/probe-be.mjs --base https://be.example.com --diff</code></pre>
+    </div>
   </section>
 
   <section id="sources">
@@ -354,9 +400,12 @@ mask 해체도 타이트 크롭도 필요 없다. instance-swap 글리프 누락
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/extract-api-spec.py" target="_blank" rel="noopener">scripts/extract-api-spec.py</a><span class="src">BE API 명세 엑셀 → 구조화 JSON 정본(stdlib 파싱) + <code>--diff</code> 버전 대조 리포트</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/figma-section-diff.py" target="_blank" rel="noopener">scripts/figma-section-diff.py</a><span class="src">Figma 섹션 버전 diff — versions·bisect·fetch·diff·hash (읽기용 version은 REST에만 존재)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/sync-icons.py" target="_blank" rel="noopener">scripts/sync-icons.py</a><span class="src">아이콘 스프라이트를 컴포넌트 라이브러리 마스터에서 재생성 (--apply 시 icons.svg 반영)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/icon-map.json" target="_blank" rel="noopener">scripts/icon-map.json</a><span class="src">아이콘 매핑 정본 — slug↔마스터 68건, tier(exact/likely/intent/raster) · unmapped 보존 · removed 삭제</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/package.json" target="_blank" rel="noopener">package.json</a><span class="src">게이트·파이프라인 npm 스크립트 — check:pins/pixel/cssvars/ownership/policy-refs · figma:tokens/diff · icons:sync · spec:api</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/tests/e2e/catalog.spec.ts" target="_blank" rel="noopener">tests/e2e/catalog.spec.ts</a><span class="src">L2 시각회귀 — 카탈로그 스토리 스냅샷(1280 단일 운영, 1920 프로젝트는 전체 스킵)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/icon-map.json" target="_blank" rel="noopener">scripts/icon-map.json</a><span class="src">아이콘 매핑 정본 — slug↔마스터 83건(unmapped 0), tier(exact/likely/intent/raster) · removed 삭제</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/check-api-contract.mjs" target="_blank" rel="noopener">scripts/check-api-contract.mjs</a><span class="src">규격 인용키 존재 검사 + citation-lock.json 신원 대조(2026-08-27) — 시트 개편으로 번호가 밀려도 차단</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/Ref-docs/claude/api-spec/citation-lock.json" target="_blank" rel="noopener">Ref-docs/claude/api-spec/citation-lock.json</a><span class="src">인용키 → {method,url,name} 신원 lock — 사람이 정정한 뒤에만 --update-lock으로 갱신</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/scripts/probe-be.mjs" target="_blank" rel="noopener">scripts/probe-be.mjs</a><span class="src">규격 정본의 예시 URL·응답 필드로 실 BE 자동 탐침 — MATCH/DRIFT/AUTH/ERROR/DOWN/SKIP 판정, GET 기본(--unsafe로 쓰기 허용)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/package.json" target="_blank" rel="noopener">package.json</a><span class="src">게이트·파이프라인 npm 스크립트 — check:pins/pixel/cssvars/ownership/policy-refs/api-contract · figma:tokens/diff · icons:sync · spec:api · probe:be</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/tests/e2e/catalog.spec.ts" target="_blank" rel="noopener">tests/e2e/catalog.spec.ts</a><span class="src">L2 시각회귀 — 카탈로그 스토리 스냅샷(2026-08-10부터 1280·1920 두 뷰포트 운영, 구 1920 스킵 정책 폐기)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/design/pixel-gate/README.md" target="_blank" rel="noopener">design/pixel-gate/README.md</a><span class="src">픽셀 게이트 manifest 작성 가이드 — expect 값은 Figma 실측만(추측 금지), PAT REST 생성 절차(assembly/bespoke 분기) 포함</span></li>
     </ul>
     <div class="sibling-nav">

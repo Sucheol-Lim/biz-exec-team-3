@@ -205,7 +205,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/vams_fe" target="_blank" rel="noopener"><code>vams_fe</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/4212162576" target="_blank" rel="noopener">KT_VAMS 프로젝트 요약 (4212162576)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-08-07 · 2b82873 툴바 중수준 공통화 — ListToolbar·ToolbarCount</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-09-01 · 97b071ae origin/develop 병합 (직전 작업 c6afea01 구간마킹 Figma 정합 검수 문서 슬림화)</div></div>
       <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>vams-fe</code> / 0.0.0 (private, 개발 중)</div></div>
     </div>
   </div>
@@ -235,7 +235,8 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="ct">사업 맥락 (Confluence 근거)</div>
       발주는 KT — 콘텐츠(VOD) AI 운영 도메인이며 알티미디어가 수행(자막 엔진 등 일부 어뮤즈랩 협업)합니다. 상위 시스템 C-Cube가 콘텐츠 입수·로그인/권한 연계·최종 연동의 중심이고, VAMS는 그 사이의 운영 콘솔입니다. 마일스톤은 6월(포스터 엔진 배포·자막 프로토타입·썸네일 C-Cube 연동)과 10월(자막 상용 모델·10초 썸네일 통합)로 나뉩니다. Confluence 요약(2026-06-01 스냅샷)에는 11개 메뉴로 기재되어 있으나, 이후 Figma Flipbook v0.7에서 'AI 개인화'가 개인화 포스터·개인화 하이라이트로 2분할되고 얼굴인식이 분리되어 현재 소스(<code>app/stores/menu.ts</code>)의 LNB는 13개 메뉴입니다(소스 우선). Figma 자산의 권위 순서도 이 시기에 확정되어, UI 요소 정본은 Flipbook·아이콘 정본은 컴포넌트 라이브러리로 이원화되었습니다.
     </div>
-    <p>사용자 권한은 일반운영자/중간관리자/시스템관리자 3계층(<code>useCan</code> 컴포저블로 판정)이며, 상태칩 7종(전체/대기/검수필요/실패/검수중/검수완료/연동완료 — <code>domain/statusChip.ts</code> 공통 소스로 통합)과 조회기간 최대 60일 등 공통 정책이 전 메뉴에 적용됩니다. 현재 LNB 13개 메뉴 중 <strong>대시보드·AI 포스터·AI 썸네일·AI 자막·AI 하이라이트·AI 골라보기·AI Pick·구간마킹·얼굴인식·모니터링·설정 11개 도메인이 구현</strong>되어 있고, 개인화 포스터·개인화 하이라이트 2개만 메뉴 정의만 존재하는 구현 예정 상태입니다. 모니터링은 5개 탭 중 현황 대시보드(MN-001)와 로그 이력(MN-005) 2개가 구현되어 있고 나머지 3개 탭은 화면 개요를 담은 플레이스홀더(<code>MonitoringTabPlaceholder</code>)입니다.</p>
+    <p>사용자 권한은 일반운영자/중간관리자/시스템관리자 3계층(<code>useCan</code> 컴포저블로 판정)이며, 상태칩 7종(전체/대기/검수필요/실패/검수중/검수완료/연동완료 — <code>domain/statusChip.ts</code> 공통 소스로 통합)과 조회기간 최대 60일 등 공통 정책이 전 메뉴에 적용됩니다. <strong>LNB 13개 메뉴는 2026-08-13 개인화 하이라이트 구현으로 13/13 화면 구현이 완료</strong>되었고, 모니터링도 5개 탭(현황 대시보드·솔루션별 작업 현황·솔루션별 연동 현황·GPU 사용 현황·로그 히스토리)이 모두 화면으로 채워져 플레이스홀더가 사라졌습니다.</p>
+    <p>2026-08-26 BE 연동 서버가 열리면서 과제 단계가 <strong>화면 구현에서 실 BE 정합으로 이동</strong>했습니다. 다만 BE가 엔드포인트를 점진 개방하는 중이라, 열린 경로만 실서버로 보내고 나머지는 mock을 유지하는 <strong>엔드포인트 단위 live/mock 라우팅</strong>(<code>src/api/liveEndpoints.ts</code> + <code>VITE_LIVE_APIS</code>)을 전환기 구조로 두고 있습니다. FE가 임의로 만들었던 추상 경로는 규격 실경로로 순차 이관되어 AI 썸네일·AI 자막·설정·얼굴인식·개인화 하이라이트는 추상 경로가 0개가 되었고, 리스트는 13개 메뉴가 공유하는 공통#1(<code>/api/content-info/list</code>) 하나로 수렴하는 중입니다.</p>
   </section>
 
   <section id="features">
@@ -261,41 +262,55 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
     <h2>아키텍처 · 모듈 구조</h2>
     <p>Vue 3 SPA로, <code>src/main.ts</code>가 Pinia → Router → Vue Query → i18n 순으로 플러그인을 배선하고, <code>src/app/router/index.ts</code>가 앱 셸(LNB) 하위의 기능 라우트와 풀스크린(bare) 편집 화면을 분리합니다. 기능은 <code>src/features/&lt;도메인&gt;</code> 폴더 표준 구조(pages/components/composables)로 성장하며, 백엔드 DTO는 <code>src/api/adapters</code>에서만 도메인 모델로 변환되어 화면 코드는 도메인 모델만 다룹니다.</p>
     <pre class="tree">vams_fe/
-├─ index.html               # 엔트리 HTML
-├─ vite.config.ts           # @→src 별칭, 벤더 청크(echarts/konva/wavesurfer) 분리, port 5173
+├─ index.html               # 엔트리 HTML (빌드 시 형상 표식 meta 주입 — 배포본 대조용)
+├─ vite.config.ts           # @→src 별칭, 벤더 청크(echarts/konva/wavesurfer/hls) 분리,
+│                           #  dev·preview 프록시(/be-api 실 BE · /vams-api 코멘트), 포트 정본=scripts/dev-port.mjs
 ├─ vitest.config.ts / playwright.config.ts / eslint.config.ts
+├─ .env.development         # BE 연동 전환기 설정 — VITE_LIVE_APIS(실 BE 로 보낼 경로 prefix CSV)
 ├─ figma-config.json        # Figma GUI 파일 연동 설정 (fileKey·덤프 산출물 경로)
 ├─ design/                  # Figma 실측 산출물 (pixel-gate 매니페스트 등)
+├─ deploy/                  # 시연처 nginx 설정·적용 스크립트 (BE 프록시·keep-alive·캐시·코멘트 수집)
+├─ server/vams-comments/    # 시연 화면 코멘트 수집 서버 (Python)
 ├─ scripts/                 # 품질 게이트(.mjs)·Figma 매핑 파이프라인(figma-mapping/, Python)
 │                           #  + sync-icons.py(스프라이트 동기화)·figma-section-diff.py·extract-api-spec.py(규격서→JSON)
-├─ tests/                   # component/ (Vitest 브라우저 90+) · e2e/ (Playwright 시각·계약)
+│                           #  + probe-be.mjs(BE 규격 대조 탐침)·deploy-demo.sh·ai-worktree-*(병렬 작업 디렉터리)
+├─ tests/                   # component/ (Vitest 브라우저 211) · e2e/ (Playwright 시각·계약 20) · fixtures/be/(실 BE 응답 캡처)
 ├─ public/                  # config.js(런타임 설정), mockServiceWorker.js, samples/
 └─ src/
-   ├─ main.ts               # 부트스트랩 (pinia→router→query→i18n, dev면 MSW 선기동)
-   ├─ app/                  # 앱 셸·라우터·전역 스토어(menu/dialog/toast)·플러그인·runtimeConfig
-   ├─ api/                  # http.ts(fetch 래퍼)·endpoints.ts(경로 상수)·monitoringTypes.ts·adapters/(DTO→도메인)
+   ├─ main.ts               # 부트스트랩 (pinia→router→query→i18n, dev면 MSW+BE 세션 선기동, demo면 in-page mock)
+   ├─ app/                  # 앱 셸·라우터·전역 스토어(menu/dialog/toast)·플러그인·runtimeConfig·dataMode
+   ├─ api/                  # http.ts(fetch 래퍼)·endpoints.ts(규격 실경로 상수)·liveEndpoints.ts(live/mock 라우팅)
+   │                        #  contentListQuery.ts(공통#1 파라미터 계약)·bulkJob.ts(공통#6·#7 공용 호출)
+   │                        #  beAsset.ts·mediaUrl.ts(BE 자산 경로 변환)·monitoringTypes.ts·adapters/(DTO→도메인)
    ├─ domain/               # 도메인 모델·타입 (job, poster, subtitle, marking, watchPick, highlight,
-   │                        #  faceRecognition, pick, monitoring, monitoringServiceType, statusChip ...)
+   │                        #  faceRecognition, pick, personalPoster, personalHighlight, monitoring,
+   │                        #  statusChip, sortLabel, serviceRoute ...)
    ├─ core/auth/            # authStore, MockAuthProvider
-   ├─ features/             # dashboard / poster / thumbnail / subtitle / highlight / watch-pick
-   │                        #  / segment-marking / face-recognition / pick / monitoring / settings
+   ├─ features/             # dashboard / poster / thumbnail / subtitle / personal-poster / personal-highlight
+   │                        #  / pick / segment-marking / face-recognition / watch-pick / highlight
+   │                        #  / monitoring / settings — LNB 13메뉴 = 13 폴더
    ├─ shared/               # 공통 컴포넌트(base/composite/layout)·컴포저블·lib/·listQuery 스토어 팩토리
-   │                        #  composite/ 하위 그룹: chart/ · toolbar/ · data-table/ · date-picker/
-   ├─ mocks/                # MSW handlers·fixtures (dev 백엔드 목킹)
-   ├─ dev/catalog/          # 컴포넌트 카탈로그 (dev 전용)
+   │                        #  composite/ 하위 그룹: chart/ · toolbar/ · data-table/ · date-picker/ · filter/
+   │                        #  image-edit/(Konva 편집 코어)·media-edit/(타임라인·필름스트립·HLS 소스)
+   ├─ mocks/                # MSW handlers·fixtures (dev 는 SW, demo 빌드는 in-page 목킹)
+   ├─ dev/                  # catalog/(컴포넌트 카탈로그)·be-session·demo-comments·data-mode-badge
    └─ styles/               # tokens.scss(Figma 실측)·base·mixins·utilities</pre>
     <h3>주요 모듈 · 클래스</h3>
     <div class="table-wrap">
       <table>
         <thead><tr><th>모듈/파일</th><th>역할</th></tr></thead>
         <tbody>
-          <tr><td><code>src/main.ts</code></td><td>앱 부트스트랩. pinia(스토어 의존) → router(가드에서 auth bootstrap) → Vue Query → i18n 순서로 배선하고, dev 환경이면 mount 전에 MSW worker를 <code>await</code>로 기동합니다.</td></tr>
+          <tr><td><code>src/main.ts</code></td><td>앱 부트스트랩. pinia(스토어 의존) → router(가드에서 auth bootstrap) → Vue Query → i18n 순서로 배선하고, dev 환경이면 mount 전에 MSW worker와 BE 세션(<code>dev/be-session.ts</code>)을 <code>await</code>로 기동합니다. demo 빌드에서는 SW를 못 쓰는 사설 IP 환경을 고려해 in-page mock(<code>mocks/inPage.ts</code>)·코멘트 위젯·데이터 출처 배지를 대신 올립니다.</td></tr>
           <tr><td><code>src/app/router/index.ts</code></td><td>루트 <code>/</code>는 <code>AppShellContainer</code>(LNB) children으로 기능 라우트를 등록하고, 상세·편집 화면(<code>/poster/:jobId/edit-image/:resultId</code> 등)은 <code>meta.layout:'bare'</code> 풀스크린으로 분리합니다. <code>beforeEach</code>에서 <code>authStore.bootstrap()</code>을 1회 실행합니다.</td></tr>
-          <tr><td><code>src/app/runtimeConfig.ts</code></td><td>런타임 설정 단일 진입. 우선순위는 <code>window.__VAMS_CONFIG__</code>(배포 후 <code>public/config.js</code>) → 빌드 env(<code>VITE_API_*</code>, <code>VITE_AUTH_MODE</code>) → 기본 상대경로이며, 기본 인증 모드는 <code>mock</code>입니다.</td></tr>
-          <tr><td><code>src/api/http.ts</code> · <code>endpoints.ts</code></td><td>얇은 fetch 래퍼(<code>httpGet/Post/Put/Delete/FormData</code>)와 BE 경로 상수(<code>DASHBOARD_API</code>·<code>POSTER_API</code>·<code>SUBTITLE_API</code>·<code>ALFA_API</code> 등). dev에서는 MSW가 동일 경로를 인터셉트합니다.</td></tr>
+          <tr><td><code>src/app/runtimeConfig.ts</code> · <code>app/dataMode.ts</code></td><td>런타임 설정 단일 진입. 우선순위는 <code>window.__VAMS_CONFIG__</code>(배포 후 <code>public/config.js</code>) → 빌드 env(<code>VITE_API_*</code>, <code>VITE_AUTH_MODE</code>, <code>VITE_LIVE_APIS</code>) → 기본 상대경로이며, 기본 인증 모드는 <code>mock</code>입니다. BE 전환기 항목 <code>liveApis</code>·<code>liveBase</code>·<code>beSeqno</code>가 추가됐고, 판정은 순수 함수 <code>pickLiveApis</code>로 분리해 테스트로 고정합니다(seqno가 없으면 조용히 전량 mock). <code>dataMode.ts</code>는 시연처에서 실 BE와 mock 중 무엇을 볼지 <code>?data=</code>·localStorage로 고르는 스위치입니다.</td></tr>
+          <tr><td><code>src/api/http.ts</code> · <code>endpoints.ts</code> · <code>liveEndpoints.ts</code></td><td>얇은 fetch 래퍼(<code>httpGet/Post/Put/Delete/FormData</code>)와 규격 실경로 상수(<code>CONTENT_API</code>·<code>POSTER_API</code>·<code>SUBTITLE_API</code>·<code>ALFA_API</code> 등). <code>liveEndpoints.ts</code>가 요청 직전에 경로 prefix를 대조해 live면 <code>/be-api</code>(dev·preview는 vite 프록시, 시연처는 nginx)를 붙여 실 BE로 보내고, 아니면 종전대로 MSW가 인터셉트합니다. 전 도메인 이관이 끝나면 걷어낼 전환기 계층입니다.</td></tr>
+          <tr><td><code>src/api/contentListQuery.ts</code> · <code>bulkJob.ts</code></td><td>13개 메뉴 공용 계약 계층. 리스트는 공통#1 하나를 <code>serviceType</code> 쿼리로 나눠 쓰므로 파라미터 이름·형식·제약(날짜 <code>yyyy-MM-dd</code> 강제 등 실측 결과)을 한곳에 모았고, 일괄 연동(공통#6)·재처리(공통#7)는 요청·응답 형상이 같아 <code>bulkJob.ts</code> 한 곳에서 Integer 변환·성공/실패 축 변환·누락 id 판정을 처리합니다.</td></tr>
+          <tr><td><code>src/api/beAsset.ts</code> · <code>mediaUrl.ts</code></td><td>BE가 응답에 실어 보내는 자산 경로(<code>/nas2/…</code> 절대 URL·호스트 없는 경로 혼재)를 화면이 쓸 URL로 변환합니다. 데이터가 live면 이미지·영상도 같은 프록시를 타도록 묶어 "live 데이터 + mock 이미지" 같은 조합을 차단합니다.</td></tr>
           <tr><td><code>src/api/adapters/*</code></td><td>DTO→도메인 변환 단일 지점(<code>parseJobState</code>·<code>toStatusChip</code>·<code>maskActor</code> 등). 컴포넌트는 어댑터 출력만 사용하고 DTO에 직접 접근하지 않는 규칙을 강제합니다.</td></tr>
           <tr><td><code>src/shared/stores/listQuery.ts</code></td><td><code>createListQueryStore</code> 팩토리. 메뉴별 검색/필터 상태를 싱글톤 스토어로 만들고 <code>vams:listQuery:&lt;slug&gt;</code> 키로 영속해, 13개 메뉴가 같은 리스트 패턴을 공유하게 합니다.</td></tr>
           <tr><td><code>src/features/poster/stores/poster.store.ts</code></td><td><code>usePosterEditorStore</code> — 스냅샷 스택+커서 기반 undo/redo(최대 50단계 FIFO). 편집 도구·Konva·fetch를 import하지 않는 도구 불가지 원칙을 지킵니다.</td></tr>
+          <tr><td><code>src/shared/image-edit/*</code></td><td>Konva 이미지·타이틀 편집 코어(승격 산출물). <code>CanvasHost</code>·도구·<code>editorState</code>(board·flip·crop·adjust 4차원)·<code>useImageEditor</code>·<code>useTitleEditor</code>·이력 포트로 구성되며, 포스터와 개인화 포스터가 같은 코어를 공유합니다. 저장·이탈 가드·진입 배선만 도메인이 갖고, <code>usePosterEdit</code>은 521줄에서 166줄 어댑터로 줄었습니다.</td></tr>
+          <tr><td><code>src/shared/media-edit/*</code></td><td>타임라인·영상 편집 공용 계층. 무상태 타임라인 계산(<code>timeline/</code>)·<code>TimelineRuler</code>·<code>ClipBlock</code>·<code>useFilmstrip</code>·<code>useTimelineViewport</code>·<code>useSplitResize</code>에 더해, 실 BE가 영상을 HLS로만 주는 제약을 흡수하는 <code>useVideoSource</code>(hls.js 동적 로드 + Safari 네이티브 분기)를 제공합니다. 골라보기·하이라이트·개인화 하이라이트·구간마킹이 공유합니다.</td></tr>
           <tr><td><code>src/core/auth/authStore.ts</code></td><td><code>useAuthStore</code> — 라우터 가드에서 <code>bootstrap()</code> 1회 실행. 현재 <code>MockAuthProvider</code> 기반이며 C-Cube 로그인 연계를 전제로 추상화되어 있습니다.</td></tr>
           <tr><td><code>src/features/subtitle/edit/*</code></td><td>자막 편집기 모듈. <code>useWaveform</code>(wavesurfer)·<code>useSubtitleShortcuts</code>·<code>useSubtitleSocket</code>·<code>useEditHistory</code>·<code>useSubtitleParser</code> 등 컴포저블과 20종 이상의 편집 다이얼로그로 구성됩니다.</td></tr>
           <tr><td><code>src/features/watch-pick/*</code></td><td>AI 골라보기 모듈. 리스트 → 우측 상세패널 → 편집화면(타임라인·재생 엔진·클립 추가/제외/분할·undo/redo·로컬 스테이징)으로 구성되며, 실 BE 계약은 <code>adapters/watchPick·watchPickResult</code>에서 흡수합니다. API 리스트 v1.0.4에서 인물 리스트(C4) 응답이 <code>data.personList</code>·<code>castingNm</code>·<code>imagePath</code>로 바뀌어 DTO·어댑터·Mock을 재정합했습니다.</td></tr>
@@ -309,7 +324,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       </table>
     </div>
     <h3>계층 · 외부 연동</h3>
-    <p>프레젠테이션(features/pages·shared/components) → 상태(Pinia 스토어·Vue Query 캐시) → 통신(http.ts·adapters) 계층으로 구성되며, 경계는 "BE 갭은 adapter·쿼리빌더·에러매핑 3지점에서만 흡수한다"는 설계 원칙(Confluence 공통 인프라 설계서)을 따릅니다. 외부 연동 대상은 C-Cube 통합 API(작업/연동), 자막 편집 서버(<code>ALFA_API</code>), 그리고 개발 단계에서는 MSW 목킹입니다. 이번 범위에서 <code>endpoints.ts</code>에 <code>PICK_API</code>·<code>FACE_API</code>·<code>MONITORING_API</code> 3개 그룹이 추가됐는데, 모니터링만 규격서 실경로를 그대로 쓰고 AI Pick·얼굴인식은 BE 확정 전 추정 경로라 주석에 근거·미확정 항목을 명시한 채 Mock을 유지합니다. 산출물은 정적 번들(dist)로 폐쇄망 내부 nginx에 배포하는 구조입니다.</p>
+    <p>프레젠테이션(features/pages·shared/components) → 상태(Pinia 스토어·Vue Query 캐시) → 통신(http.ts·adapters) 계층으로 구성되며, 경계는 "BE 갭은 adapter·쿼리빌더·에러매핑 3지점에서만 흡수한다"는 설계 원칙(Confluence 공통 인프라 설계서)을 따릅니다. 외부 연동 대상은 C-Cube 통합 API(작업/연동), 자막 편집 서버(<code>ALFA_API</code>), 신설된 BE 연동 서버(2026-08-26 개통), 그리고 아직 이관되지 않은 경로를 받는 개발 단계 MSW 목킹입니다. <code>endpoints.ts</code>의 경로 상수는 이번 범위에서 FE 추정 경로 상수(<code>DASHBOARD_API</code>류)에서 규격서 실경로 상수(<code>CONTENT_API</code>·<code>POSTER_API</code>류)로 전면 교체됐고, 실 BE는 콘텐츠가 없어도 404가 아닌 <code>data:[]</code> 200을 주는 등 규격서에 없던 실측 형상이 다수 발견되어 <code>Ref-docs/claude/api-spec/</code> 버전 diff로 계속 추적합니다. 산출물은 정적 번들(dist)로 폐쇄망 내부 nginx에 배포하되, 시연처 nginx는 BE로도 프록시하는 이중 역할을 겸합니다.</p>
   </section>
 
   <section id="stack">
@@ -330,9 +345,10 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
           <tr><td>차트</td><td>ECharts / vue-echarts</td><td>^6 / ^8</td><td>모니터링 현황 대시보드 위젯 — <code>BaseChart</code> 격리 래퍼 경유만 허용</td></tr>
           <tr><td>캔버스 편집</td><td>Konva / vue-konva</td><td>^10.3 / ^3.4</td><td>포스터 이미지·타이틀 편집기</td></tr>
           <tr><td>오디오 파형</td><td>wavesurfer.js</td><td>^7.12</td><td>자막 편집기 파형 타임라인</td></tr>
+          <tr><td>영상 스트리밍</td><td>hls.js</td><td>^1.7</td><td><code>useVideoSource</code> 동적 로드 — 실 BE가 HLS로만 영상을 주는 제약 흡수, Safari는 네이티브 재생 분기</td></tr>
           <tr><td>i18n</td><td>vue-i18n</td><td>^11</td><td>@internationalized/date 병용</td></tr>
-          <tr><td>테스트</td><td>Vitest(browser) / Playwright / MSW</td><td>^4 / ^1 / ^2</td><td>컴포넌트 90+·E2E 시각/계약·API 목킹</td></tr>
-          <tr><td>품질 도구</td><td>ESLint / Prettier / lint-staged</td><td>^10 / ^3 / ^16</td><td>simple-git-hooks + 자체 게이트 스크립트 5종</td></tr>
+          <tr><td>테스트</td><td>Vitest(browser) / Playwright / MSW</td><td>^4 / ^1 / ^2</td><td>컴포넌트 211·E2E 시각/계약 20·API 목킹</td></tr>
+          <tr><td>품질 도구</td><td>ESLint / Prettier / lint-staged</td><td>^10 / ^3 / ^16</td><td>simple-git-hooks + 자체 게이트 스크립트 8종(check:pins/pixel/cssvars/ownership/msw/policy-refs/api-contract/deployed)</td></tr>
           <tr><td>패키지 매니저</td><td>npm (Node 22 계열)</td><td>-</td><td>package-lock.json, 스택 버전 핀 게이트(<code>check:pins</code>)</td></tr>
         </tbody>
       </table>
@@ -401,46 +417,53 @@ npm run test          # Vitest 브라우저 컴포넌트 테스트
 npm run test:e2e      # Playwright E2E (시각·계약)
 
 # 품질 게이트 (자체 도구)
-npm run check:pins    # 기술 스택 버전 핀 대조
-npm run check:pixel   # Figma 실측 픽셀 게이트
-npm run check:cssvars # 미정의 CSS 변수 검사
+npm run check:pins        # 기술 스택 버전 핀 대조
+npm run check:pixel       # Figma 실측 픽셀 게이트
+npm run check:cssvars     # 미정의 CSS 변수 검사
 npm run check:ownership
 npm run check:policy-refs # 정책 근거(§ 참조) 게이트
+npm run check:msw         # MSW 핸들러 누락·드리프트 검사
+npm run check:api-contract # BE 규격서 대조 계약 게이트
+npm run check:deployed    # 배포본 형상 표식 대조 — "배포된 거야?"에 즉답
+
+# BE 연동 전환기 도구
+npm run probe:be      # 실 BE 규격 대조 탐침(scripts/probe-be.mjs)
+npm run deploy:demo   # 시연처 nginx 배포(BE 프록시·keep-alive·comments 서버 포함)
 
 # Figma·규격서 동기화 도구 (Python)
 npm run icons:sync    # 아이콘 스프라이트 재추출 (매핑=scripts/icon-map.json)
 npm run figma:diff    # Figma 섹션 버전 diff — 새 배포본 변경점 기계 대조
 npm run spec:api      # BE API 규격서(xlsx) → 구조화 JSON/MD 추출</code></pre>
     <p>구 <code>icons:build</code>는 스프라이트를 플레이스홀더로 덮어쓰는 위험 때문에 폐기되었고, 실행하면 안내 메시지와 함께 실패하며 <code>icons:sync</code>로 대체되었습니다.</p>
-    <p>환경 설정은 <code>.env</code> 파일 대신 <code>src/app/runtimeConfig.ts</code>가 단일 진입점입니다. 우선순위는 배포 후 교체 가능한 런타임 설정 <code>window.__VAMS_CONFIG__</code>(<code>public/config.js</code>) → 빌드 시 env(<code>VITE_API_DB_API</code>·<code>VITE_API_D_CMS</code>·<code>VITE_API_SERVER</code>·<code>VITE_API_V2</code>·<code>VITE_AUTH_MODE</code>·<code>VITE_ALFA_BASE</code>) → 기본 상대경로 순이며, 기본 인증 모드는 <code>mock</code>입니다. 정적 산출물(dist)을 폐쇄망 내부 nginx로 배포하는 것을 전제로 합니다.</p>
+    <p>환경 설정은 <code>.env</code> 파일 대신 <code>src/app/runtimeConfig.ts</code>가 단일 진입점입니다. 우선순위는 배포 후 교체 가능한 런타임 설정 <code>window.__VAMS_CONFIG__</code>(<code>public/config.js</code>) → 빌드 시 env(<code>VITE_API_DB_API</code>·<code>VITE_API_D_CMS</code>·<code>VITE_API_SERVER</code>·<code>VITE_API_V2</code>·<code>VITE_AUTH_MODE</code>·<code>VITE_ALFA_BASE</code>·<code>VITE_LIVE_APIS</code>) → 기본 상대경로 순이며, 기본 인증 모드는 <code>mock</code>입니다. 정적 산출물(dist)을 폐쇄망 내부 nginx로 배포하는 것을 전제로 합니다.</p>
     <div class="callout warn">
       <div class="ct">주의</div>
-      백엔드 미연동 개발 단계로, dev 서버는 MSW(Mock Service Worker)가 모든 API를 목킹하고 인증도 <code>MockAuthProvider</code>로 동작합니다. 실서버 연동 시 <code>public/config.js</code>의 런타임 설정과 <code>VITE_AUTH_MODE</code> 전환이 필요합니다.
+      2026-08-26 BE 연동 서버 개통 이후는 개발 단계 mock 전면 목킹이 아니라 <strong>엔드포인트 단위 live/mock 전환기</strong>입니다. <code>.env.development</code>의 <code>VITE_LIVE_APIS</code>에 없는 경로만 여전히 MSW가 목킹하며, 인증은 아직 <code>MockAuthProvider</code>로 동작합니다. L4 픽셀게이트를 돌릴 때는 <code>.env.development.local</code>에서 <code>VITE_LIVE_APIS=</code>로 비우고 dev 서버를 재시작해야 합니다(HMR로는 반영되지 않음) — 실 BE는 mock과 행 수가 달라 데이터 의존 치수가 어긋납니다.
     </div>
   </section>
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>이번 범위(7/22~8/7, 135커밋)는 <strong>신규 기능 영역 5종 추가</strong>와 공통 컴포넌트·디자인 토큰 정합이 병행된 흐름입니다. <strong>얼굴인식</strong>은 설계 정본 5문서에서 출발해 Phase 1(feature 골격·라우트·리스트 도메인/Mock/UI) → Phase 2(우측 상세패널) → Phase 3(배역 인식 목록 모달) → Phase 4(상세 썸네일 검수 + 대표/후보 로컬 스테이징·저장/초기화) → Phase 5(분석 결과 모달 인물 재지정·대표 영역 드래그 지정)까지 진행됐고, <strong>모니터링</strong>은 현황 대시보드(MN-001) 6위젯과 로그 이력(MN-005) 목록·상세 패널을 구현한 뒤 5개 탭 셸로 통합했습니다. <strong>AI Pick</strong>(PK-001/004/005)은 업로드형 단일 메뉴로 목록·업로드 모달·풀스크린 상세와 목록 폴링을 갖췄고, 기존 <strong>AI 골라보기·AI 하이라이트</strong>는 실계약 정합과 GUI 재정합이 이어졌습니다.</p>
-    <p>계약 축에서는 BE API 명세 엑셀을 구조화 JSON·MD로 뽑는 추출기(<code>spec:api</code>)와 규격서 버전 diff 옵션을 만들어 v1.0.3·v1.0.4 정본을 기계로 관리하기 시작했습니다. 그 결과 엔진버전 필드 폐기(8개 메뉴 일괄 제거)와 골라보기 인물 리스트(C4) 응답 셰이프 3축 변경(<code>data.personList</code>·<code>castingNm</code>·<code>imagePath</code>)을 실 연동 전에 반영했습니다.</p>
-    <p>공통 축에서는 8개 메뉴에 흩어져 있던 중복을 정본으로 승격하는 리팩터링이 집중적으로 이뤄졌습니다. <code>DateRangeCalendarPopover</code> 9벌 → 1벌, <code>datePresetOptions</code> 9벌 → <code>shared/lib/datePreset</code>, <code>useBulkActionEligibility</code> 8벌 → shared 제네릭 컴포저블, 긴급 배지 자체구현 8곳 → 공용 <code>UrgentBadge</code>로 정리했고, <code>ListToolbar</code>·<code>ToolbarBox</code>·<code>IdNameCell</code>·<code>PanelInfoTable</code>·<code>TableLoading</code>·<code>ListEmptyState</code>·<code>TableActionButton</code> 등 공통 컴포넌트를 신설했습니다. 아이콘은 정본을 Figma 컴포넌트 라이브러리 마스터로 전환해 스프라이트를 전량 재추출(<code>icons:sync</code>)하고 별도 SVG 파일 경로를 줄였으며, 위험했던 구 <code>icons:build</code>는 폐기했습니다.</p>
+    <p>이번 범위(8/7~9/1, 528커밋)는 전반부의 <strong>LNB 13/13 화면 구현 완성</strong>과 후반부의 <strong>실 BE 정합 전환</strong> 두 국면으로 나뉩니다. 전반부는 마지막 두 메뉴인 <strong>개인화 포스터</strong>(목록 → 상세 S0~S8 → 이미지편집 → 타이틀편집 T1~T9, 기존 포스터 편집 코어를 공유)와 <strong>개인화 하이라이트</strong>(VAMS-PH-001/002 신규 구현)를 채워 13개 메뉴 전 화면 구현을 마쳤고, 모니터링도 잔여 3탭(MN-002 솔루션별 작업현황·MN-003 연동현황·MN-004 GPU 사용현황)을 완성해 5탭 전부가 화면으로 채워졌습니다.</p>
+    <p>2026-08-26 BE 연동 서버가 열리며 후반부는 <strong>화면 구현에서 실 BE 정합으로 전환</strong>됐습니다. <code>liveEndpoints.ts</code>·<code>VITE_LIVE_APIS</code>의 엔드포인트 단위 live/mock 라우팅과 13개 메뉴 공용 계약 계층(<code>contentListQuery.ts</code>·<code>bulkJob.ts</code>)을 먼저 놓은 뒤, 리스트→상세→연동/재처리 순으로 AI 썸네일·AI 자막·설정·얼굴인식·개인화 하이라이트가 FE 추상 경로 0개까지 이관됐고, 실 BE가 영상을 HLS로만 주는 제약을 흡수하는 <code>useVideoSource</code>(hls.js)도 이 축에서 나왔습니다. 이관 과정에서 규격서에 없던 실측 형상(없는 콘텐츠에 404가 아닌 <code>data:[]</code> 200, d-cms처럼 <code>/api</code> 접두가 아닌 경로 등)이 다수 드러나 API 규격서 v1.0.5~v1.0.9 버전 diff로 계속 기록했습니다.</p>
+    <p>병행 축으로 시연처(사설 IP 내부망) 배포가 실사용 단계에 들어가 데이터 출처 배지·in-page mock·코멘트 수집 서버·데이터 live/mock 스위치(<code>dataMode.ts</code>)가 새로 생겼고, dev·preview·시연처 3곳의 BE 프록시가 매 요청 새 연결을 열던 성능 결함을 keep-alive로 잡았습니다(dev/preview 병렬 3콜 11초·502 → 28ms, 시연처 순차 1.05초 → 0.03초). 품질 축에서는 <code>check:api-contract</code>·<code>check:msw</code>·<code>check:deployed</code>·<code>probe:be</code> 게이트를 신설하고 픽셀게이트에 위치·색 알파·인셋 보더 판정을 추가했으며, 여러 명이 동시에 작업할 수 있는 AI worktree 도구를 도입했습니다.</p>
     <ul class="commits">
-      <li><span class="date">2026-08-07</span><span class="msg">[UI] 툴바 중수준 공통화 — ListToolbar·ToolbarCount (Header/Table 정본 + 카운트 gap 교정)</span></li>
-      <li><span class="date">2026-08-07</span><span class="msg">[UI] 툴바 저수준 공통화 — ToolbarBox·DateRangeControl (Figma Dropdown 정본)</span></li>
-      <li><span class="date">2026-08-07</span><span class="msg">[Refactor] DateRangeCalendarPopover 공통화 (9→1) + 툴바 공통화 proposal</span></li>
-      <li><span class="date">2026-08-07</span><span class="msg">[Refactor] useBulkActionEligibility 8벌 복제 제거 — shared 제네릭 composable 로 승격</span></li>
-      <li><span class="date">2026-08-07</span><span class="msg">[Refactor] datePresetOptions 9벌 복제 제거 — shared/lib/datePreset 로 승격</span></li>
-      <li><span class="date">2026-08-07</span><span class="msg">[Refactor] 상세패널 긴급 배지 정본 일원화 — 공용 UrgentBadge 신설, 자체구현 8곳 제거</span></li>
-      <li><span class="date">2026-08-07</span><span class="msg">[UI] 홈 GUI 정본 정합 — 헤더타이틀·LNB·필터칩·패널·조회기간</span></li>
-      <li><span class="date">2026-08-06</span><span class="msg">[Fix] 골라보기 C4 인물 리스트 계약 v1.0.4 정합 + 셰이프 드리프트 방어</span></li>
-      <li><span class="date">2026-08-06</span><span class="msg">[Docs] API 리스트 v1.0.4 추출 + 문의 회신 정산 — 골라보기 C4 계약 변경 경고</span></li>
-      <li><span class="date">2026-08-06</span><span class="msg">[Feature] 아이콘 스프라이트를 컴포넌트 라이브러리 마스터로 전량 재정합 + 섹션 버전 diff 도구</span></li>
-      <li><span class="date">2026-08-05</span><span class="msg">[UI] 리스트 테이블 공통화 — IdNameCell 8메뉴 + 인터랙션·상태칩 GUI 정합</span></li>
-      <li><span class="date">2026-08-05</span><span class="msg">[Feature] BE API 명세 엑셀 → 구조화 JSON 추출기 + v1.0.3 정본</span></li>
-      <li><span class="date">2026-08-04</span><span class="msg">[Feat] 모니터링 탭 셸 + 요약카드 6종 — MN-001 (#2·#3)</span></li>
-      <li><span class="date">2026-07-31</span><span class="msg">[Feat] AI Pick 메뉴 구현 — 진입/목록·우측패널·업로드 모달·상세 (VAMS-PK-001/004/005)</span></li>
-      <li><span class="date">2026-07-28</span><span class="msg">[Feature] 얼굴인식 Phase 4-② — 대표/후보 토글 + 로컬 스테이징 + 저장/초기화</span></li>
-      <li><span class="date">2026-07-22</span><span class="msg">[Feature] 모니터링 현황대시보드 P0~P2 — 계약/Mock·ECharts 래퍼·데이터 훅</span></li>
+      <li><span class="date">2026-09-01</span><span class="msg">[Feat] 개인화 하이라이트 B단계 — 실경로 전환 + 상세 연동을 공통#4 로 교체 (FE 추상경로 0)</span></li>
+      <li><span class="date">2026-08-31</span><span class="msg">[Feature] 영상 재생 소스가 HLS 뿐이다 — hls.js 도입 + 공용 useVideoSource</span></li>
+      <li><span class="date">2026-08-31</span><span class="msg">[Feature] 시연처 데이터 기준을 실 BE 로 전환 — mock 은 선택적으로 보는 구조</span></li>
+      <li><span class="date">2026-08-28</span><span class="msg">[Feat] 썸네일 상세 「재생성」을 공통#8 실경로로 배선 + 일괄 재처리 공통#7 이관 (추상경로 0)</span></li>
+      <li><span class="date">2026-08-26</span><span class="msg">[Feat] BE 연동 인프라 — 엔드포인트 단위 live/mock 토글 + dev 세션 부트스트랩</span></li>
+      <li><span class="date">2026-08-26</span><span class="msg">[Feat] 공통#1 콘텐츠 리스트 공용 계약 계층 — 13개 메뉴가 공유할 파라미터·응답 단일 소스</span></li>
+      <li><span class="date">2026-08-25</span><span class="msg">[Feat] 픽셀게이트 판정 축 3종 — 위치(x/y)·색 알파·borderBottomColor 별칭</span></li>
+      <li><span class="date">2026-08-24</span><span class="msg">[Feature] 필터 공통 컴포넌트 6종 신설 + 홈 이관</span></li>
+      <li><span class="date">2026-08-21</span><span class="msg">[Feature] 자막 전체화면 — 인라인 서식(b/i/u·취소선·색·글꼴)을 VTT 큐 태그로 이관</span></li>
+      <li><span class="date">2026-08-20</span><span class="msg">[Feature] AI 병렬 작업 worktree — 한 저장소·여러 작업 디렉터리</span></li>
+      <li><span class="date">2026-08-19</span><span class="msg">[Feature] 데모 코멘트 수집 — 시연 화면에서 바로 남기는 피드백 채널(시연 빌드 전용)</span></li>
+      <li><span class="date">2026-08-18</span><span class="msg">[Feature] 개인화 포스터 타이틀편집 T1 — 라우트 + 셸 골격 (게이트 title-01-first 초록)</span></li>
+      <li><span class="date">2026-08-14</span><span class="msg">[Feature] 디자이너 시연용 demo 빌드 — SW 없는 in-page mock + 내부망 정적 호스팅</span></li>
+      <li><span class="date">2026-08-13</span><span class="msg">[Feature] 개인화 하이라이트(VAMS-PH-001/002) 신규 구현</span></li>
+      <li><span class="date">2026-08-12</span><span class="msg">[Feature] MN-004 GPU 사용 현황 — 요약카드 5종·트렌드 3차트·저장 이력·서버 리소스 카드</span></li>
+      <li><span class="date">2026-08-11</span><span class="msg">[Feature] MN-002 솔루션별 작업현황 — 조회조건·엔진별 누적 분포 도넛·엔진별 상세 통계 테이블</span></li>
     </ul>
   </section>
 
@@ -464,7 +487,7 @@ npm run spec:api      # BE API 규격서(xlsx) → 구조화 JSON/MD 추출</cod
 <footer>
   <div class="wrap">
     이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
-    생성일 2026-07-10 · 최종 갱신 2026-08-07 · <a href="../index.html">전체 과제 목록으로</a>
+    생성일 2026-07-10 · 최종 갱신 2026-09-01 · <a href="../index.html">전체 과제 목록으로</a>
   </div>
 </footer>
 

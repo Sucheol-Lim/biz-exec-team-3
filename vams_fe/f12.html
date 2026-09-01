@@ -48,14 +48,14 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>AI Pick은 영상 파일을 업로드하면 AI가 의미 단위 장면(씬)을 잘라 주는 기능입니다. 다른 메뉴가 상위 시스템에서 내려온 작업을 검수하는 구조인 데 비해, Pick은 <strong>운영자가 작업의 시작점</strong>이라 목록 화면의 성격 자체가 다릅니다. 목록(<code>PickListPage</code>)은 공용 <code>listQuery</code> 스토어를 쓰되 요청에는 <code>serviceType</code>·<code>page</code>·<code>size</code>·<code>sort</code> <strong>4개 키만</strong> 실어 보냅니다. 검색어·상태칩·장르·조회기간·긴급 여부는 이 메뉴의 계약에 없어 쿼리 빌더에서 아예 읽지 않고, 다른 메뉴에서 영속된 <code>PRIORITY</code> 정렬값이 남아 있을 수 있으므로 방어적으로 <code>LATEST</code>로 접습니다. 그래서 공통 <code>toListQuery</code>를 재사용하지 않고 전용 빌더 <code>toPickListQuery</code>를 둡니다.</p>
+    <p>AI Pick은 영상 파일을 업로드하면 AI가 의미 단위 장면(씬)을 잘라 주는 기능입니다. 다른 메뉴가 상위 시스템에서 내려온 작업을 검수하는 구조인 데 비해, Pick은 <strong>운영자가 작업의 시작점</strong>이라 목록 화면의 성격 자체가 다릅니다. 목록(<code>PickListPage</code>)은 공용 <code>listQuery</code> 스토어를 쓰되 요청에는 <code>serviceType</code>·<code>page</code>·<code>size</code>·<code>sort</code> <strong>4개 키만</strong> 실어 보냅니다. 검색어·상태칩·장르·조회기간·긴급 여부는 이 메뉴의 계약에 없어 쿼리 빌더에서 아예 읽지 않고, 다른 메뉴에서 영속된 <code>PRIORITY</code> 정렬값이 남아 있을 수 있으므로 방어적으로 <code>LATEST</code>로 접습니다. 그래서 공통 <code>toListQuery</code>를 재사용하지 않고 전용 빌더 <code>toPickListQuery</code>를 둡니다. 목록 툴바([작업 추가]·카운트·일괄삭제·정렬/페이지당)는 손으로 짜여 있던 로컬 마크업이 사라지고 공용 <code>ListToolbar</code>·<code>ToolbarCount</code>·<code>ToolbarBox</code>로, 우측 상세패널 열림/닫힘 상태기계는 공용 <code>useListDetailPanel</code>(닫기 트리거 ×·ESC·체크박스 선택)로 이관됐고, 행 CTA 버튼도 공용 <code>TableActionButton</code>으로 통일됐습니다.</p>
     <p>업로드(<code>PickUploadModal</code> + <code>usePickUpload</code>)는 <code>empty → uploading → uploaded → submitting</code> 4단계 상태기계입니다. 파일 제약은 <code>.mp4</code> 단일 확장자·<code>video/mp4</code> MIME·2 GiB 상한이며, 서버 왕복 전에 FE가 선제 검증해 부적합하면 <code>empty</code>를 유지합니다. 업로드 진행률은 표시하지 않고 indeterminate 로딩만 보여 주며(실측 근거), 서버 오류 코드(<code>VAMS-PCK-101</code>/<code>102</code>)는 토스트 메시지 키로 매핑합니다. 업로드 취소는 <code>AbortController</code>로 처리하고 <code>AbortError</code>는 실패 토스트에서 제외합니다.</p>
     <p>업로드 직전에는 <code>useVideoFileMeta</code>가 <code>&lt;video&gt;</code> 엘리먼트로 메타(재생시간·해상도)를 probe 합니다. 미리보기 용도가 아니라 메타 추출만이 목적이라 Object URL을 만들자마자 성공·실패·타임아웃 어느 경로로 끝나든 즉시 <code>revoke</code> 하고 엘리먼트의 <code>src</code>를 떼어 냅니다. probe는 6초 타임아웃을 두고 <strong>실패해도 업로드를 막지 않으며</strong>, 값이 없으면 모달에 <code>-</code>로 표기합니다.</p>
     <p>목록 폴링(<code>usePickListPolling</code>)은 별도 프레임워크를 도입하지 않고 vue-query의 함수형 <code>refetchInterval</code>과 순수 함수 <code>nextPickPollInterval()</code>만으로 구현했습니다. 정지 조건(진행 중 작업 0건 · 오버레이 열림 · 탭 숨김 · 연속 실패 3회 · 전체 30분 상한)과 상한 캡 판정은 순수 함수가 담당하고, 실제 백오프 증가(5s → 10s → 20s → 30s)는 <strong><code>watch(rows)</code>에서만</strong> 수행합니다. <code>refetchInterval</code> 콜백 안에서 값을 올리면 vue-query가 옵저버 갱신마다 그 콜백을 평가해 실제 tick과 무관하게 몇 번 만에 30초 캡에 도달해 버리기 때문입니다(QA에서 확인된 결함). 진행 중이던 작업이 완료·실패로 전이하면 스냅샷 비교로 감지해 토스트를 띄웁니다.</p>
-    <p>상세(<code>PickDetailPage</code>)는 <code>/pick/:jobId</code> bare 라우트의 <strong>읽기 전용</strong> 화면이라 dirty·이탈 가드가 없습니다. 데이터는 2단 조회로 얻습니다 — <code>jobId</code>로 작업 이력과 <code>contentId</code>를 확보한 뒤, 그 <code>contentId</code>를 키로 영상 파일 정보와 장면 목록을 조회합니다(<code>enabled</code>로 2단을 게이팅). 장면 목록(<code>PickSceneList</code>)은 Pick 번호·장면 시간·타임코드·설명을 보여 주고, 권장 구간(60~180초)을 벗어난 장면은 경고 스타일로 강조합니다. 결과 다운로드는 공통 <code>httpGetBlob</code>을 쓰며 <code>Content-Disposition</code>의 RFC 5987 <code>filename*</code>을 우선 해석해 한글 파일명을 보존합니다.</p>
+    <p>상세(<code>PickDetailPage</code>)는 <code>/pick/:jobId</code> bare 라우트의 <strong>읽기 전용</strong> 화면이라 dirty·이탈 가드가 없습니다. 데이터는 2단 조회로 얻습니다 — <code>jobId</code>로 작업 이력과 <code>contentId</code>를 확보한 뒤, 그 <code>contentId</code>를 키로 영상 파일 정보와 장면 목록을 조회합니다(<code>enabled</code>로 2단을 게이팅). 장면 목록(<code>PickSceneList</code>)은 Pick 번호·장면 시간·타임코드·설명을 보여 주고, 권장 구간(60~180초)을 벗어난 장면은 경고 스타일로 강조합니다. 결과 다운로드는 공통 <code>httpGetBlob</code>을 쓰며 <code>Content-Disposition</code>의 RFC 5987 <code>filename*</code>을 우선 해석해 한글 파일명을 보존합니다. <code>httpGetBlob</code>을 포함한 <code>src/api/http.ts</code>의 모든 HTTP 헬퍼는 URL 생성을 <code>resolveApiUrl</code>(<code>src/api/liveEndpoints.ts</code>)에 위임하도록 바뀌어, <code>VITE_LIVE_APIS</code>로 열린 엔드포인트만 <code>/be-api</code> 프록시를 태워 실 BE로 가고 나머지는 종전대로 mock same-origin 경로를 씁니다 — Pick 경로는 아직 이 목록에 없어 현재는 계속 mock으로 응답합니다.</p>
     <div class="callout">
       <div class="ct">참고 — 계약 상태와 회귀 테스트</div>
-      <code>PICK_API</code>의 일부 경로(일괄 삭제·상태 조회)는 아직 [가설]이며 BE 실경로 가설이 주석으로 병기되어 있습니다. 이번 갱신에서 AI Pick 유닛 테스트 44건이 추가되어 공통 HTTP 파서, 상태 fold, 그리고 폐기된 <strong>금지 필드</strong>(작업이력의 <code>engineVersion</code> — Flipbook 삭제 + API v1.0.3 폐기)가 되살아나지 않도록 회귀 방어하고 있습니다.
+      <code>PICK_API</code>의 일부 경로(일괄 삭제·상태 조회)는 아직 [가설]이며 BE 실경로 가설이 주석으로 병기되어 있습니다. 이번 갱신에서 AI Pick 유닛 테스트 44건이 추가되어 공통 HTTP 파서, 상태 fold, 그리고 폐기된 <strong>금지 필드</strong>(작업이력의 <code>engineVersion</code> — Flipbook 삭제 + API v1.0.3 폐기)가 되살아나지 않도록 회귀 방어하고 있습니다. 이후 GUI 재검증에서 업로드 팝업·상세·우측 패널 3화면의 드리프트 31건(모달 여백·드롭존 색상·씬 카드 배경·CTA 크기 등)이 해소됐고, 우측 패널은 값 없음이 빈 칸으로 보이던 결함을 공용 폴백 <code>orDash</code>(F-32)로 막았습니다.
     </div>
   </section>
 
@@ -115,6 +115,18 @@ classDiagram
         4키 목록 조회
         업로드 모달 트리거
         우측 상세패널
+        공통 ListToolbar useListDetailPanel 채택
+    }
+    class ListToolbarUi {
+        ListToolbar 타이틀바 서브바 슬롯
+        ToolbarCount 총N건 선택N건
+        ToolbarBox 정렬 페이지당 — 조회기간 없음
+    }
+    class UseListDetailPanel {
+        &lt;&lt;composable&gt;&gt;
+        +panelOpen · selectedKey · selectedRow
+        +onRowClick 닫기트리거 x·ESC·체크박스
+        +bindRows(rows, isFetching) stale 재동기
     }
     class PickUploadModal {
         empty → uploading → uploaded → submitting
@@ -189,6 +201,8 @@ classDiagram
     PickListPage --&gt; PickUploadModal
     PickListPage --&gt; UsePickListPolling
     PickListPage --&gt; UsePickActions
+    PickListPage --&gt; ListToolbarUi : 툴바 슬롯 합성
+    PickListPage --&gt; UseListDetailPanel : 패널 열림닫힘 상태기계
     PickListPage --&gt; PickDetailPage : openDetail
     PickUploadModal --&gt; UsePickUpload
     UsePickUpload --&gt; UseVideoFileMeta : 메타 probe
@@ -199,7 +213,7 @@ classDiagram
     PickDetailPage --&gt; PickSceneList
     PickQueries ..&gt; PickJobRow : 어댑터 변환 결과
       </div>
-      <p class="cap"><strong>관계.</strong> 업로드·폴링·액션이 각각 독립 컴포저블로 분리되고, 서버 접점은 <code>queries.ts</code> 하나입니다. 파일 제약과 폴링 상수는 도메인·상수 모듈에 상수로 고정해 단일 주입 지점을 유지합니다.</p>
+      <p class="cap"><strong>관계.</strong> 업로드·폴링·액션이 각각 독립 컴포저블로 분리되고, 서버 접점은 <code>queries.ts</code> 하나입니다. 파일 제약과 폴링 상수는 도메인·상수 모듈에 상수로 고정해 단일 주입 지점을 유지합니다. 목록 툴바와 상세패널 열림/닫힘은 더 이상 이 페이지의 로컬 구현이 아니라 <code>shared/</code>의 공통 컴포넌트·컴포저블을 그대로 소비합니다.</p>
     </div>
   </section>
 
@@ -304,8 +318,13 @@ function validateFile(file: File): boolean {
     </div>
     <div class="snippet">
       <div class="sc"><code>src/api/http.ts</code> — 한글 파일명 보존 Blob 다운로드(공통 인프라 보강)</div>
-<pre><code>export async function httpGetBlob(path: string): Promise&lt;{ blob: Blob; filename: string | null }&gt; {
-  const res = await fetch(new URL(path, window.location.origin).toString(), {
+<pre><code>// BE 연동(2026-08-26~): URL 생성은 resolveApiUrl(src/api/liveEndpoints.ts)에 위임한다.
+// live 로 켠 경로만 /be-api 프록시를 타고 실 BE 로 가고, 나머지는 종전대로 same-origin(mock).
+import { resolveApiUrl } from './liveEndpoints'
+
+export async function httpGetBlob(path: string): Promise&lt;{ blob: Blob; filename: string | null }&gt; {
+  const url = resolveApiUrl(path)
+  const res = await fetch(url.toString(), {
     method: 'GET', credentials: 'include',
   })
   if (!res.ok) { /* status·body 를 실은 에러로 throw */ }
@@ -324,19 +343,20 @@ function validateFile(file: File): boolean {
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/pick/pages/PickListPage.vue" target="_blank" rel="noopener">features/pick/pages/PickListPage.vue</a><span class="src">목록(PK-001) — 4키 조회·우측 패널·업로드 모달 트리거·폴링 연결</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/pick/pages/PickListPage.vue" target="_blank" rel="noopener">features/pick/pages/PickListPage.vue</a><span class="src">목록(PK-001) — 4키 조회·업로드 모달 트리거·폴링 연결, 툴바·상세패널 열림닫힘은 공용 ListToolbar·useListDetailPanel 채택</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/pick/pages/PickDetailPage.vue" target="_blank" rel="noopener">features/pick/pages/PickDetailPage.vue</a><span class="src">읽기전용 bare 상세(PK-005) — jobId→contentId 2단 조회, 이탈 가드 없음</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/pick/components/PickDetailPanel.vue" target="_blank" rel="noopener">features/pick/components/PickDetailPanel.vue</a><span class="src">우측 상세패널 — 이력/영상정보 dl, 값 없음 폴백 orDash(F-32), CTA 버튼 GUI 재검증 정합</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/pick/composables/usePickUpload.ts" target="_blank" rel="noopener">features/pick/composables/usePickUpload.ts</a><span class="src">업로드 4단계 상태기계 — 선제 검증·Abort 취소·에러 코드 매핑</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/pick/composables/useVideoFileMeta.ts" target="_blank" rel="noopener">features/pick/composables/useVideoFileMeta.ts</a><span class="src">영상 메타 probe — Object URL 즉시 revoke·6초 타임아웃·실패 허용</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/pick/composables/usePickListPolling.ts" target="_blank" rel="noopener">features/pick/composables/usePickListPolling.ts</a><span class="src">목록 폴링 폴백 — 순수 판정 함수 + watch(rows) 백오프 · 전이 토스트</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/pick/composables/usePickActions.ts" target="_blank" rel="noopener">features/pick/composables/usePickActions.ts</a><span class="src">행 액션 — 상세 진입·재처리·삭제(단건/일괄)·결과 다운로드·상태별 CTA</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/pick/components/PickUploadModal.vue" target="_blank" rel="noopener">features/pick/components/PickUploadModal.vue</a><span class="src">업로드 팝업(PK-004) — indeterminate 진행 표시·메타 요약</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/pick/components/PickSceneList.vue" target="_blank" rel="noopener">features/pick/components/PickSceneList.vue</a><span class="src">결과 장면 목록 — 권장 구간(60~180초) 밖 경고 강조, 클릭 대상 아님</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/pick/components/PickUploadModal.vue" target="_blank" rel="noopener">features/pick/components/PickUploadModal.vue</a><span class="src">업로드 팝업(PK-004) — indeterminate 진행 표시·메타 요약, GUI 재검증으로 모달 여백·드롭존·영상정보 카드 정합</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/pick/components/PickSceneList.vue" target="_blank" rel="noopener">features/pick/components/PickSceneList.vue</a><span class="src">결과 장면 목록 — 권장 구간(60~180초) 밖 경고 강조, 클릭 대상 아님. GUI 재검증으로 카드 배경·색상 정합</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/pick/queries.ts" target="_blank" rel="noopener">features/pick/queries.ts</a><span class="src">queryKey 전략 · 4키 전용 쿼리 빌더 · 업로드/삭제/다운로드 fetch</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/pick/constants.ts" target="_blank" rel="noopener">features/pick/constants.ts</a><span class="src">폴링 백오프 상수·정렬 옵션·컬럼 폭</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/domain/pick.ts" target="_blank" rel="noopener">domain/pick.ts</a><span class="src">도메인 모델 — 파일 제약(.mp4 / 2 GiB) · 권장 장면 시간 · 업로드 draft</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/pick/routes.ts" target="_blank" rel="noopener">features/pick/routes.ts</a><span class="src">라우트 — 목록(AppShell children) · 상세(top-level bare, 읽기전용)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/http.ts" target="_blank" rel="noopener">api/http.ts</a><span class="src">공통 HTTP — Blob 다운로드 RFC 5987 한글 파일명 해석</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/http.ts" target="_blank" rel="noopener">api/http.ts</a><span class="src">공통 HTTP — Blob 다운로드 RFC 5987 한글 파일명 해석, URL 생성은 resolveApiUrl(liveEndpoints.ts) 위임으로 live/mock 라우팅 전환</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="f11.html">‹ AI 하이라이트 편집</a>

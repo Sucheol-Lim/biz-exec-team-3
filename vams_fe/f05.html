@@ -50,9 +50,9 @@
     <h2>기능 개요</h2>
     <p>구간마킹은 AI 씬서치 엔진이 추출한 샷 경계(shot boundary) 결과를 근거로, 콘텐츠의 <strong>인트로(INTRO)·등급고지(RATING)·엔딩(ENDING)</strong> 3종 구간을 운영자가 확인하고 수정하는 메뉴입니다. 목록 화면(<code>SegmentMarkingListPage</code>)은 전 메뉴 공통 리스트 패턴(<code>ContentListLayout</code> + 검색·상태칩·페이지네이션)을 따르되, 구간마킹 고유의 <strong>완결여부 3택1 필터</strong>(feature-local ref로 머지, listQuery 스토어 미침범)와 마킹 구간 수(<code>segmentCount</code>) 컬럼을 추가합니다. 상태칩은 메뉴별 6칩/7칩 불일치를 정리한 공통 소스 <code>statusChipOptions</code>(<code>domain/statusChip.ts</code>)에서 정본 7종(전체/대기/검수필요/실패/검수중/검수완료/연동완료)을 받아 렌더합니다. 우측 <code>SegmentMarkingDetailPanel</code>로 행 요약을 확인하고, 상세는 AppShell 밖 <strong>bare 풀스크린 라우트</strong>(<code>/segment-marking/:jobId</code>)로 진입합니다.</p>
     <p>2026-08 공통화 라운드에서 목록의 자체 구현 부분이 대거 공통 컴포넌트로 교체되었습니다. ID/명 2단 셀은 <code>IdNameCell</code>, 빈 상태는 3분기(로드실패 &gt; 필터결과없음 &gt; 데이터없음) 통합 컴포넌트 <code>ListEmptyState</code>, 로딩은 스켈레톤 대신 정본 스피너 <code>TableLoading</code>, 행 CTA는 <code>TableActionButton</code>이 담당하고, 긴급 깃발은 개별 SVG(<code>flag.svg</code>) 대신 공용 스프라이트 심볼(<code>VIcon name="flag"</code>)로 일원화되었습니다. 조회기간 프리셋(<code>datePresetOptions</code>)·일괄액션 판정(<code>useBulkActionEligibility</code>)·달력 팝오버(<code>DateRangeCalendarPopover</code>)는 메뉴마다 복제돼 있던 것이 각각 <code>shared/lib/datePreset</code>·<code>shared/composables/useBulkActionEligibility</code>·<code>shared/components/composite/date-picker/</code>로 승격되어 이 페이지도 그 공통본을 import 합니다. 컬럼 정의(<code>useSegmentMarkingColumns</code>)도 "패널 열림 시 압축" 방식을 버리고, 뷰포트 tier(<code>useMediaQuery('(max-width: 1280px)')</code>) 고정폭 + <code>DataTable</code>의 <code>grow</code> 분배로 바뀌었습니다 — 콘텐츠 컬럼이 잉여 폭을 전량 흡수(<code>grow:1</code>)하고 시리즈 컬럼은 부족분을 <code>minWidth</code>까지 양보(<code>grow:0</code>)합니다. 한편 작업이력의 <code>engineVersion</code> 필드는 Flipbook 삭제 + API 리스트 v1.0.3 「작업이력 조회」 폐기에 따라 도메인 모델·어댑터에서 제거되었습니다.</p>
-    <p>상세 화면(<code>SegmentMarkingDetailPage</code>)은 헤더 + 마킹 3카드(프리뷰) + 리사이즈 스플리터 + <strong>씬서치 썸네일 그리드(6열)</strong>의 3분할 구조입니다. 데이터는 <code>useSegmentMarkingDetail</code>이 <strong>2단계 조회</strong>로 가져옵니다 — 먼저 <code>jobId</code>로 콘텐츠 정보·작업이력을 조회하고, 확보한 <code>contentId</code>를 키로 씬 그리드(<code>shot-boundary-detection-result</code>)와 마킹 3종 구간(<code>boundary-marking-result</code>)을 병렬 조회합니다. 어댑터(<code>toMarkingSegments</code>)가 응답에 없는 구간 유형을 미지정(assigned=false)으로 채워 <strong>항상 길이 3의 고정 순서</strong>(INTRO→RATING→ENDING)를 보장하므로, 화면 코드는 결측 분기 없이 3카드를 그대로 렌더합니다. 시리즈 콘텐츠(seriesId 보유)에는 상세 헤더에 [시리즈 목록] 트리거가 노출되고, 팝업 <code>SeriesListModal</code>이 <code>seriesQueries.fetchSeries</code>(GET <code>/series?seriesId</code>)로 시리즈 소속 회차 목록과 회차별 마킹 대표 썸네일(<code>toSeriesContentRow</code>)을 페이지네이션(6행 고정) 조회합니다. 이 팝업은 더 이상 조회 전용이 아니어서, 행을 클릭하면 응답의 <code>jobId</code>로 <code>segment-marking-detail</code> 라우트를 push 해 해당 회차 상세로 전환합니다. 현재 열람 중인 콘텐츠 행 강조도 체크박스 다중선택(<code>selected</code>)이 아니라 <code>DataTable</code>의 <code>activeKey</code>(State=Selected — 틴트 + 1px 라인)로 바뀌었습니다.</p>
+    <p>상세 화면(<code>SegmentMarkingDetailPage</code>)은 헤더 + 마킹 3카드(프리뷰) + 리사이즈 스플리터 + <strong>씬서치 썸네일 그리드(6열)</strong>의 3분할 구조입니다. 데이터는 <code>useSegmentMarkingDetail</code>이 <strong>2단계 조회</strong>로 가져옵니다 — 먼저 <code>jobId</code>로 콘텐츠 정보·작업이력을 조회하고, 확보한 <code>contentId</code>를 키로 씬 그리드(<code>shot-boundary-detection-result</code>)와 마킹 3종 구간(<code>boundary-marking-result</code>)을 병렬 조회합니다. 어댑터(<code>toMarkingSegments</code>)가 응답에 없는 구간 유형을 미지정(assigned=false)으로 채워 <strong>항상 길이 3의 고정 순서</strong>를 보장하므로 화면 코드는 결측 분기 없이 3카드를 그대로 렌더합니다 — 카드·프리뷰·시리즈 팝업 컬럼의 표시 순서는 2026-08-10 RevHist v0.9.70 정정으로 <strong>등급고지(RATING)→인트로(INTRO)→엔딩(ENDING)</strong>이며(종전 인트로 우선 순서는 stale Flipbook 프레임 기준이었습니다), 회귀 가드로 <code>MarkingSegmentOrder.browser.test.ts</code>가 고정합니다. 재생 영상은 공통#2 <code>transcodeFile</code>이 HLS 플레이리스트(<code>.m3u8</code>)라 <code>&lt;video src&gt;</code> 직결로는 Chrome에서 재생되지 않아, <code>MarkingCardPlayer</code>가 공용 <code>useVideoSource</code>(<code>shared/media-edit</code>)로 hls.js를 붙입니다. 시리즈 콘텐츠(seriesId 보유)에는 상세 헤더에 [시리즈 목록] 트리거가 노출되고, 팝업 <code>SeriesListModal</code>이 <code>seriesQueries.fetchSeries</code>(GET <code>/api/series/contents/{contentId}?page&amp;size</code>, 구간마킹#5 v1.0.7 확정 — 조회 키는 <code>seriesId</code>가 아니라 현재 콘텐츠의 <code>contentId</code>)로 시리즈 소속 회차 목록과 회차별 마킹 대표 썸네일(<code>toSeriesContentRow</code>)을 페이지네이션(6행 고정) 조회합니다. 행 클릭 시 응답의 <code>jobId</code>로 <code>segment-marking-detail</code> 라우트를 push 해 해당 회차 상세로 전환하는 기능은 구현돼 있지만, <strong>규격 v1.0.7 응답에 <code>jobId</code> 필드가 없어</strong>(BE 회신 대기, 마킹-02) 현재는 mock에서만 동작하고 실 BE에서는 행 클릭이 무반응입니다. 현재 열람 중인 콘텐츠 행 강조도 체크박스 다중선택(<code>selected</code>)이 아니라 <code>DataTable</code>의 <code>activeKey</code>(State=Selected — 틴트 + 1px 라인)로 바뀌었습니다.</p>
     <p>상세 레이아웃도 Figma 실측에 맞춰 재정합되었습니다. 프리뷰 pane 높이는 고정 <code>flexBasis</code> 대신 <code>clamp(352px, min(드래그값, 폭-자연높이), 484px)</code>로 계산해, 스플리터 드래그값과 뷰포트 폭 기반 선형보간값(<code>--preview-fit</code>) 중 작은 쪽을 택합니다. 스플리터 grip은 알약 막대에서 Figma 원본 ↕ 이중 화살표 벡터로 교체되었고, 상세 헤더에는 공통 <code>DetailHeader</code>의 <code>genre</code> prop을 통해 장르칩(<code>HeaderGenre</code>)이 붙습니다. 씬서치 그리드도 6열 고정에서 <strong>폭 반응형</strong>(1920 6열 / 1280 4열)으로 바뀌어, CSS <code>auto-fill</code>이 정한 열 수를 <code>ResizeObserver</code>로 동일 공식(<code>minmax(288px)</code>·gap 16)으로 재산출해 하이라이트 밴드의 행 분해와 항상 일치시킵니다.</p>
-    <p>편집은 읽기전용 조회 위에 <code>useMarkingSegmentEdit</code>가 additive로 얹은 draft 레이어입니다. 카드 [편집]으로 <code>editingKind</code>를 활성화한 뒤 씬 카드의 [START]/[END]를 클릭하면 기획서 VAMS-MK-006의 <strong>5전이규칙</strong>(확장/축소·역전 시 구간 해제 등)에 따라 draft가 갱신되고, 그리드에는 구간이 행별 하이라이트 밴드로 실시간 표시됩니다. 저장은 완성(START·END 모두 지정) 구간만 추려 <code>PUT boundary</code>로 content 단위 전체 교체(replace)하며, dirty 상태에서는 이탈·새로고침 가드가 동작합니다. 그리드는 읽기 모드에서 구간 소속 씬 카드 hover 시 퀵메뉴(<code>SceneQuickMenu</code>)를 띄우는데, Figma 정본 재확인으로 내용이 타임코드에서 <strong>구간 씬 번호 범위</strong>(예 "1 - 4")로 바뀌고 세로 2줄에서 가로 1줄 배치가 되었습니다. 편집 모드에서는 타 구간 소속 씬을 잠금(dim·선택 불가) 처리해 구간 겹침을 차단하고(MK-005 §3), 하이라이트 밴드는 행별 조각마다 시작·끝 여부(<code>isFirst</code>/<code>isLast</code>)를 판정해 좌·우 캡(라운드 + 보더)만 그립니다. 검은 이미지 표시 토글을 꺼도 마킹 구간 안의 검은 씬은 예외로 항상 표시됩니다. 우측 상세패널(<code>SegmentMarkingDetailPanel</code>)도 자체 구현 표·긴급 점·복사 필드를 걷어내고 공통 <code>PanelInfoTable</code>·<code>UrgentBadge</code>·<code>GenrePath</code>·<code>PanelActionButton</code> 조합으로 재작성되었습니다.</p>
+    <p>편집은 읽기전용 조회 위에 <code>useMarkingSegmentEdit</code>가 additive로 얹은 draft 레이어입니다. 카드 [편집]으로 <code>editingKind</code>를 활성화한 뒤 씬 카드의 [Start]/[End](2026-09-01 라벨 정합 — 배지·버튼 모두 대문자 아닌 <code>Start</code>/<code>End</code>로 통일)를 클릭하면 기획서 VAMS-MK-006의 <strong>5전이규칙</strong>(확장/축소·역전 시 구간 해제 등)에 따라 draft가 갱신되고, 그리드에는 구간이 행별 하이라이트 밴드로 실시간 표시됩니다. 저장은 완성(START·END 모두 지정) 구간만 추려 <code>PUT boundary</code>로 content 단위 전체 교체(replace)하며, 응답이 <code>{code,message}</code>뿐이라 <strong><code>isContentEnvelopeSuccess</code>로 코드를 검사해 실패 시 throw</strong>합니다 — 종전엔 이 검사가 없어 <strong>쓰기 실패가 성공으로 보일 수 있었습니다</strong>(2026-08-31 회귀 가드 신설). dirty 상태에서는 이탈·새로고침 가드가 동작합니다. 인트로·엔딩 카드에는 <strong>구간마킹#4 시리즈 일괄 적용</strong> 버튼이 있어(등급고지는 대상 아님, Flipbook VAMS-MK-007 §2), 확인 팝업 후 현재 저장된(서버 기준값, draft 아님) 구간과 유사도가 높은 인트로/엔딩 구간을 동일 시리즈의 다른 콘텐츠에 자동 지정하도록 <code>POST /api/match/deep-feature-for-scene-search/content/{contentId}</code>(<code>postSceneSearch</code>)를 요청합니다 — 응답은 접수 결과(<code>{code,message}</code>)뿐이라 적용된 콘텐츠 목록은 화면에 나타나지 않습니다. 그리드는 읽기 모드에서 구간 소속 씬 카드 hover 시 퀵메뉴(<code>SceneQuickMenu</code>)를 띄우는데, Figma 정본 재확인으로 내용이 타임코드에서 <strong>구간 씬 번호 범위</strong>(예 "1 - 4")로 바뀌고 세로 2줄에서 가로 1줄 배치가 되었습니다. 편집 모드에서는 타 구간 소속 씬을 잠금(dim·선택 불가) 처리해 구간 겹침을 차단하고(MK-005 §3), 하이라이트 밴드는 행별 조각마다 시작·끝 여부(<code>isFirst</code>/<code>isLast</code>)를 판정해 좌·우 캡(라운드 + 보더)만 그립니다. 검은 이미지 표시 토글을 꺼도 마킹 구간 안의 검은 씬은 예외로 항상 표시됩니다. 우측 상세패널(<code>SegmentMarkingDetailPanel</code>)도 자체 구현 표·긴급 점·복사 필드를 걷어내고 공통 <code>PanelInfoTable</code>·<code>UrgentBadge</code>·<code>GenrePath</code>·<code>PanelActionButton</code> 조합으로 재작성되었습니다.</p>
     <div class="callout">
       <div class="ct">참고 — 매니페스트 기술과의 차이</div>
       과제 개요 문서에는 이 기능이 "상세 본문 스텁 단계"로 기재되어 있으나, 현재 <code>develop</code> 소스에는 읽기전용 상세(3카드·씬 그리드·리사이즈)에 편집 레이어(Phase B — 씬 클릭 지정·저장·이탈가드)까지 구현되어 있습니다. 초기 골격이던 <code>SegmentMarkingDetailStub.vue</code>는 트리에 남아 있지만 라우트는 <code>SegmentMarkingDetailPage.vue</code>를 사용합니다.
@@ -93,7 +93,7 @@ sequenceDiagram
     end
     USR->>PAGE: 마킹 카드 [편집] 클릭
     PAGE->>EDIT: enterEdit(kind) — editingKind 활성
-    USR->>PAGE: 씬 카드 [START]/[END] 클릭
+    USR->>PAGE: 씬 카드 [Start]/[End] 클릭
     PAGE->>EDIT: designate(kind, slot, sceneIdx)
     Note over EDIT: MK-006 5전이규칙 — 역전 지정 시 구간 해제 + 토스트
     EDIT-->>PAGE: draftSegments 갱신 → 그리드 하이라이트 밴드 재계산
@@ -140,10 +140,11 @@ classDiagram
         &lt;&lt;composable&gt;&gt;
         +scenes
         +segments
-        +videoUrl
+        +videoUrl HLS m3u8 → useVideoSource
         +seriesSummary
         +reprocess()
         +link()
+        +seriesApply(kind) 구간마킹#4, INTRO·ENDING만
     }
     class useMarkingSegmentEdit {
         &lt;&lt;composable&gt;&gt;
@@ -167,10 +168,10 @@ classDiagram
         -isLocked 편집 중 타 구간 잠금
     }
     class MarkingAdapter {
-        +toMarkingScenes(dto)
-        +toMarkingSegments(dto)
+        +toMarkingScenes(dto, path)
+        +toMarkingSegments(dto, path) SEG_ORDER RATING→INTRO→ENDING
         +buildEditList(draft)
-        +toSeriesList(dto)
+        +toSeriesList(dto, path)
         +msToTimestamp(ms) string
     }
     class MarkingSegment {
@@ -181,8 +182,8 @@ classDiagram
     }
     class MarkingSegmentKind {
         &lt;&lt;enumeration&gt;&gt;
-        INTRO
         RATING
+        INTRO
         ENDING
     }
 
@@ -190,13 +191,14 @@ classDiagram
     SegmentMarkingListPage --> SegmentMarkingDetailPage : goReview (route state)
     SegmentMarkingDetailPage --> useSegmentMarkingDetail : 데이터 훅
     useSegmentMarkingDetail o-- useMarkingSegmentEdit : 편집 레이어 합성
-    SegmentMarkingDetailPage --> MarkingSegmentCard : 3카드 렌더
+    SegmentMarkingDetailPage --> MarkingSegmentCard : 3카드 렌더(RATING→INTRO→ENDING)
     SegmentMarkingDetailPage --> SceneSearchGrid : 씬 그리드 렌더
     SegmentMarkingDetailPage --> SeriesListModal : 시리즈만 마운트
-    SeriesListModal ..> SegmentMarkingDetailPage : 행 클릭 → jobId 라우트 재진입
+    SeriesListModal ..> SegmentMarkingDetailPage : 행 클릭 → jobId 라우트(응답에 jobId 없음, mock만 동작)
     SeriesListModal ..> MarkingAdapter : seriesQueries 경유
     useMarkingSegmentEdit --> MarkingAdapter : buildEditList 호출
     useSegmentMarkingDetail ..> MarkingAdapter : detailQueries 경유
+    useSegmentMarkingDetail ..> MarkingAdapter : postSceneSearch(시리즈 일괄 적용)
     MarkingAdapter ..> MarkingSegment : 생성
     MarkingSegment --> MarkingSegmentKind
       </div>
@@ -207,21 +209,30 @@ classDiagram
   <section id="code">
     <h2>핵심 코드</h2>
     <div class="snippet">
-      <div class="sc"><code>src/api/adapters/marking.ts</code> — 3종 구간을 항상 길이 3·고정 순서로 보장</div>
+      <div class="sc"><code>src/api/adapters/marking.ts</code> — 3종 구간을 항상 길이 3·고정 순서로 보장(카드 순서 RevHist v0.9.70 정정)</div>
 <pre><code>const SEG_KIND: Record&lt;BoundaryMarkingDto['type'], MarkingSegmentKind&gt; = {
   opening: 'INTRO',
   notice: 'RATING',
   ending: 'ENDING',
 }
 
-const SEG_ORDER: MarkingSegmentKind[] = ['INTRO', 'RATING', 'ENDING']
+/**
+ * 상세 카드·프리뷰 표시 순서 — 등급고지 → 인트로 → 엔딩.
+ * 근거: RevHist v0.9.70(2026-08-10) "인트로,구간마킹,엔딩 → 구간마킹,인트로,엔딩 순으로 변경"
+ * (여기서 "구간마킹"=등급고지). 시리즈 팝업 테이블 컬럼도 동일 순서(SeriesListModal.vue).
+ * 회귀 가드: tests/component/MarkingSegmentOrder.browser.test.ts
+ */
+const SEG_ORDER: MarkingSegmentKind[] = ['RATING', 'INTRO', 'ENDING']
 
-/** 3종 구간 전체 — 항상 길이 3, 고정 순서 INTRO→RATING→ENDING.
+/** 3종 구간 전체 — 항상 길이 3, 고정 순서 RATING→INTRO→ENDING(SEG_ORDER).
  *  dto.data 에 없는 kind 는 미지정(assigned=false, 값 null)으로 채움. */
-export function toMarkingSegments(dto: BoundaryMarkingResponseDto): MarkingSegment[] {
+export function toMarkingSegments(
+  dto: BoundaryMarkingResponseDto,
+  sourceApiPath: string,
+): MarkingSegment[] {
   const byKind = new Map&lt;MarkingSegmentKind, MarkingSegment&gt;()
-  for (const item of dto.data) {
-    byKind.set(SEG_KIND[item.type], toMarkingSegment(item))
+  for (const item of unwrapContentEnvelope(dto)) {
+    byKind.set(SEG_KIND[item.type], toMarkingSegment(item, sourceApiPath))
   }
   return SEG_ORDER.map(
     (kind) =&gt;
@@ -262,33 +273,37 @@ function designate(kind: MarkingSegmentKind, slot: 'start' | 'end', sceneIdx: nu
 }</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>src/api/endpoints.ts</code> · <code>src/features/segment-marking/detailQueries.ts</code> — contentId 키 상세 API와 저장(replace)</div>
+      <div class="sc"><code>src/api/endpoints.ts</code> · <code>src/features/segment-marking/detailQueries.ts</code> — contentId 키 실경로(2026-08-31 이관)와 저장 실패 가드</div>
 <pre><code>export const MARKING_API = {
-  list: '/markings',
-  detail: (jobId: string) =&gt; `/markings/${jobId}`,
-  link: '/markings/link',
-  reprocess: '/markings/reprocess',
-  // 상세(읽기전용) — contentId 키. BE 실경로:
-  //   scenes   = GET /db-api/shot-boundary-detection-result/contents/{contentId}
-  //   boundary = GET /db-api/boundary-marking-result/content/{contentId}
-  scenes: (contentId: string) =&gt; `/markings/contents/${contentId}/scenes`,
-  boundary: (contentId: string) =&gt; `/markings/contents/${contentId}/boundary`,
-  // 편집 저장(PUT) — GET boundary와 동일 경로, METHOD 분기(poster-result 선례).
-  boundarySave: (contentId: string) =&gt; `/markings/contents/${contentId}/boundary`,
-  // 시리즈 목록 조회 — seriesId는 쿼리 파라미터(BE 실경로: GET /db-api/series?seriesId&amp;page&amp;size)
-  series: () =&gt; '/series',
+  list: CONTENT_API.list,             // 공통#1 — serviceType=MARKING
+  link: CONTENT_API.sendResult,       // 공통#6
+  reprocess: CONTENT_API.reprocess,   // 공통#7
+  // 상세(구간마킹 시트) — 전부 contentId 키. #1 은 contents(복수) · #2·#3 은 content(단수, 규격 원문).
+  scenes: (contentId: string) =&gt;
+    `/api/shot-boundary-detection-result/contents/${contentId}`,        // 구간마킹#1
+  boundary: (contentId: string) =&gt;
+    `/api/boundary-marking-result/content/${contentId}`,                // 구간마킹#2
+  boundarySave: (contentId: string) =&gt;
+    `/api/boundary-marking-result/content/${contentId}`,                // 구간마킹#3 — GET(#2)과 동일 URL, METHOD 분기
+  sceneSearch: (contentId: string) =&gt;
+    `/api/match/deep-feature-for-scene-search/content/${contentId}`,    // 구간마킹#4 시리즈 일괄 적용
+  series: (contentId: string) =&gt; `/api/series/contents/${contentId}`,   // 구간마킹#5 — 키는 contentId(⚠ 응답에 jobId 없음)
 } as const
 
-/** 마킹 3종 구간 저장(편집 모드) — PUT editList(완성 구간만).
- *  content 단위 replace(M3): editList 로 boundary 전체 교체, 미완성은 미포함. */
+/** 마킹 3종 구간 저장(편집 모드) — PUT editList(완성 구간만), content 단위 replace(M3).
+ *  응답이 {code,message}뿐(data 없음)이라 코드만 판정 — 저장 실패를 성공처럼 넘기지 않는다.
+ *  (2026-08-31 회귀 가드: 이 검사가 없던 시절엔 쓰기 실패가 성공으로 보일 수 있었다) */
 export async function saveMarkingBoundary(
   contentId: string,
   editList: BoundaryMarkingEditDto[],
 ): Promise&lt;void&gt; {
-  await httpPut&lt;MarkingBoundarySaveDto, { code: string; message: string }&gt;(
+  const res = await httpPut&lt;MarkingBoundarySaveDto, { code: string; message: string }&gt;(
     MARKING_API.boundarySave(contentId),
     { editList },
   )
+  if (!isContentEnvelopeSuccess(res.code)) {
+    throw Object.assign(new Error(`구간 저장 실패: ${res.code} ${res.message}`), { code: res.code })
+  }
 }</code></pre>
     </div>
     <div class="snippet">
@@ -327,17 +342,17 @@ function buildColumns(t: (key: string) =&gt; string, narrow: boolean): ColumnDef
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/pages/SegmentMarkingListPage.vue" target="_blank" rel="noopener">features/segment-marking/pages/SegmentMarkingListPage.vue</a><span class="src">목록 화면 — 공통 리스트 패턴 + 완결여부 3택1 필터·segmentCount 컬럼·공통 상태칩 7종</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/pages/SegmentMarkingDetailPage.vue" target="_blank" rel="noopener">features/segment-marking/pages/SegmentMarkingDetailPage.vue</a><span class="src">bare 풀스크린 상세 — 헤더 + 마킹 3카드 + 스플리터 + 씬 그리드, 이탈/새로고침 가드</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/composables/useSegmentMarkingDetail.ts" target="_blank" rel="noopener">features/segment-marking/composables/useSegmentMarkingDetail.ts</a><span class="src">상세 데이터 훅 — jobId→contentId 2단계 조회 · 편집 레이어 합성</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/composables/useSegmentMarkingDetail.ts" target="_blank" rel="noopener">features/segment-marking/composables/useSegmentMarkingDetail.ts</a><span class="src">상세 데이터 훅 — jobId→contentId 2단계 조회 · 편집 레이어 합성 · HLS 재생(useVideoSource) · 시리즈 일괄 적용(구간마킹#4)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/composables/useMarkingSegmentEdit.ts" target="_blank" rel="noopener">features/segment-marking/composables/useMarkingSegmentEdit.ts</a><span class="src">편집 draft 상태 — designate 5전이규칙 · isDirty · 저장/원복</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/components/SceneSearchGrid.vue" target="_blank" rel="noopener">features/segment-marking/components/SceneSearchGrid.vue</a><span class="src">씬서치 6열 썸네일 그리드 — 행별 구간 하이라이트 밴드 · 읽기 퀵메뉴 · 편집 중 타 구간 잠금 · 검은 이미지 토글(구간 내 예외)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/components/SceneQuickMenu.vue" target="_blank" rel="noopener">features/segment-marking/components/SceneQuickMenu.vue</a><span class="src">읽기 모드 hover 퀵메뉴 — 구간 라벨 · 씬 번호 범위 · [해제] (가로 1줄, Figma 5012:25161)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/components/SeriesListModal.vue" target="_blank" rel="noopener">features/segment-marking/components/SeriesListModal.vue</a><span class="src">시리즈 목록 팝업 — 6행 페이지네이션 · 회차별 마킹 썸네일 · activeKey 강조 · 행 클릭 시 jobId 상세 전환</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/components/SceneSearchGrid.vue" target="_blank" rel="noopener">features/segment-marking/components/SceneSearchGrid.vue</a><span class="src">씬서치 6열 썸네일 그리드 — 행별 구간 하이라이트 밴드 · 읽기 퀵메뉴 · 편집 중 타 구간 잠금 · 검은 이미지 토글(구간 내 예외) · Start/End 지정 pill(2026-09-01 라벨 정합)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/components/SceneQuickMenu.vue" target="_blank" rel="noopener">features/segment-marking/components/SceneQuickMenu.vue</a><span class="src">읽기 모드 hover 퀵메뉴 — 구간 라벨 · 씬 번호 범위 · [해제] (가로 1줄, Figma 5610:642716)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/components/SeriesListModal.vue" target="_blank" rel="noopener">features/segment-marking/components/SeriesListModal.vue</a><span class="src">시리즈 목록 팝업 — 6행 페이지네이션 · 회차별 마킹 썸네일 · activeKey 강조 · 행 클릭 시 jobId 상세 전환(⚠ 규격 응답에 jobId 없음, BE 회신 대기 · 현재 mock만 동작)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/components/SegmentMarkingDetailPanel.vue" target="_blank" rel="noopener">features/segment-marking/components/SegmentMarkingDetailPanel.vue</a><span class="src">우측 상세패널 — 공통 PanelInfoTable · UrgentBadge · GenrePath · PanelActionButton 조합으로 재작성</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/composables/useSegmentMarkingColumns.ts" target="_blank" rel="noopener">features/segment-marking/composables/useSegmentMarkingColumns.ts</a><span class="src">컬럼 정의 — 뷰포트 tier(1280) 고정폭 + DataTable grow 흡수/양보</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/lib/datePreset.ts" target="_blank" rel="noopener">shared/lib/datePreset.ts</a><span class="src">조회기간 프리셋 공통본 — 메뉴별 9벌 복제(datePresetOptions.ts)를 승격 통합</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/detailQueries.ts" target="_blank" rel="noopener">features/segment-marking/detailQueries.ts</a><span class="src">상세 queryKey·fetch — 씬/구간 조회 · boundary PUT 저장</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/seriesQueries.ts" target="_blank" rel="noopener">features/segment-marking/seriesQueries.ts</a><span class="src">시리즈 목록 queryKey·fetch — GET /series?seriesId (toSeriesList 어댑터 경유)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/adapters/marking.ts" target="_blank" rel="noopener">api/adapters/marking.ts</a><span class="src">DTO↔도메인 단일 변환 지점 — toMarkingSegments(항상 3종) · buildEditList · toSeriesList(시리즈) · 타임스탬프 변환</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/detailQueries.ts" target="_blank" rel="noopener">features/segment-marking/detailQueries.ts</a><span class="src">상세 queryKey·fetch — 씬/구간 조회(contentId 키, 2026-08-31 실경로) · boundary PUT 저장(isContentEnvelopeSuccess 가드) · postSceneSearch(구간마킹#4)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/seriesQueries.ts" target="_blank" rel="noopener">features/segment-marking/seriesQueries.ts</a><span class="src">시리즈 목록 queryKey·fetch — GET /api/series/contents/{contentId}?page&amp;size(구간마킹#5 v1.0.7, toSeriesList 어댑터 경유)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/adapters/marking.ts" target="_blank" rel="noopener">api/adapters/marking.ts</a><span class="src">DTO↔도메인 단일 변환 지점 — toMarkingSegments(항상 3종, SEG_ORDER RATING→INTRO→ENDING) · buildEditList · toSeriesList(시리즈) · 타임스탬프 변환</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/domain/marking.ts" target="_blank" rel="noopener">domain/marking.ts</a><span class="src">도메인 모델 — MarkingJobRow · MarkingScene · MarkingSegment(3종 kind)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/segment-marking/routes.ts" target="_blank" rel="noopener">features/segment-marking/routes.ts</a><span class="src">라우트 — 목록(AppShell children) · 상세(top-level bare)</span></li>
     </ul>

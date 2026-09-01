@@ -51,7 +51,9 @@
     <p>설정 메뉴는 <code>src/features/settings/routes.ts</code>가 self-export 하는 단일 라우트 <code>settings</code>로 앱 셸(<code>AppShellContainer</code>) 하위에 등록되며, <code>SettingsPage.vue</code>가 공용 세그먼트형 탭 컴포넌트(<code>VTabs</code>, Reka UI TabsRoot 합성)로 3개 탭을 렌더합니다. 탭 구성은 <code>SETTINGS_TAB_ITEMS</code> 상수에 정의된 <strong>카테고리별 솔루션 작업 설정(work)</strong> · <strong>솔루션별 연동 설정(integration)</strong> · <strong>사용자 권한 설정(roles)</strong>이며, 활성 탭은 딥링크 없이 페이지 내부 <code>activeTab</code> ref가 소유합니다. 탭 전환 시 <code>handleTabChange</code>가 가드를 거쳐, 차단되면 마지막 통과 탭(<code>committedTab</code>)으로 롤백하는 구조입니다.</p>
     <p>탭1(WorkConfig)은 장르/세부장르 필터 + <code>DataTable</code> + 페이지네이션으로 카테고리 작업 항목을 조회하고 <code>CategoryItemFormModal</code>로 항목 추가/수정을 수행합니다. 솔루션 마스터는 API(E10 <code>/solutions</code>) 응답이 없으면 FE 상수 <code>SETTING_SOLUTIONS</code>(포스터·썸네일·자막·구간마킹·얼굴인식·골라보기·하이라이트·개인화 포스터/하이라이트 9종)로 폴백합니다. 탭2(Integration)는 전체 자동 연동 마스터 스위치 + <code>SolutionIntegrationCard</code> 9장으로 구성되며, <code>useSettingsEditorStore</code>의 드래프트/베이스라인 이중 상태로 dirty를 판정하고 토글·체크 변경마다 전체 스냅샷을 PUT 하는 <strong>즉시 저장</strong> 모델을 씁니다. 저장 실패 시 직전 저장 상태로 자동 복원됩니다.</p>
     <p>탭3(UserRole)은 역할 필터(<code>VSelect</code>) + 키워드 검색 + <code>UserRoleTable</code>로 사용자 목록을 조회하고, 역할 변경(E8 PUT <code>/users/:id/role</code>)은 Vue Query 캐시를 먼저 갱신하는 <strong>낙관적 업데이트</strong>로 처리합니다. 역할 코드는 <code>OPERATOR</code>/<code>MANAGER</code>/<code>ADMIN</code> 3계층으로, 앱 전역의 권한 판정 컴포저블 <code>useCan</code>(authStore role 기반)이 참조하는 권한 정책의 관리 지점입니다. 모든 API는 <code>SETTINGS_API</code>·<code>USER_API</code> 등 추상 경로 상수를 경유하고 dev에서는 MSW가 인터셉트하며, DTO→도메인 변환은 <code>api/adapters/settings.ts</code> 단일 지점에서만 수행합니다.</p>
-    <p>2026-08 공통 컴포넌트 정합 라운드에서 설정 화면도 소폭 조정되었습니다. 공통 <code>DataTable</code>에 Figma Table Size 축(<code>size</code> — medium 60 / small / xsmall)이 도입되면서 기본 행 높이가 60px가 되었는데, 설정 탭의 표는 Figma Size 확정 전까지 현행 48px를 유지해야 해 <code>SettingsPage.vue</code>가 <code>--v-table-row-h: var(--table-cell-h-small)</code>로 명시 핀(P2b)을 겁니다. 연동 카드의 스위치도 <code>VSwitch</code> size를 구 명칭 <code>md</code>에서 Figma Draft 명칭 <code>medium</code>으로 교체했습니다. 한편 LNB는 v0.7 반영으로 'AI 개인화'가 개인화 포스터/개인화 하이라이트로 2분할되고 얼굴인식이 분리되어 13개 메뉴가 되었지만, 연동 탭의 솔루션 마스터(<code>SETTING_SOLUTIONS</code>)는 여전히 9종으로 LNB 메뉴 수와 직접 대응하지 않습니다(모니터링·설정은 솔루션이 아니고, AI Pick은 솔루션 목록에 없습니다).</p>
+    <p>2026-08 공통 컴포넌트 정합 라운드에서 설정 화면도 소폭 조정되었습니다. 연동 카드의 스위치는 <code>VSwitch</code> size를 구 명칭 <code>md</code>에서 Figma Draft 명칭 <code>medium</code>으로 교체했고, 탭1·탭3 표의 행 높이는 한동안 <code>--v-table-row-h: var(--table-cell-h-small)</code>(48px)로 명시 핀(P2b, "Figma Size 확정 전" 임시 조치)을 걸고 있었으나 2026-08-20 GUI 실측(Table Structure 1656×60)으로 그 핀이 해소되어 공용 <code>DataTable</code> 기본값 <code>--table-cell-h-medium</code>(60px)을 그대로 씁니다. 한편 LNB는 v0.7 반영으로 'AI 개인화'가 개인화 포스터/개인화 하이라이트로 2분할되고 얼굴인식이 분리되어 13개 메뉴가 되었지만, 연동 탭의 솔루션 마스터(<code>SETTING_SOLUTIONS</code>)는 여전히 9종으로 LNB 메뉴 수와 직접 대응하지 않습니다(모니터링·설정은 솔루션이 아니고, AI Pick은 솔루션 목록에 없습니다).</p>
+    <p>2026-08-28 설정 3개 탭 전체가 <strong>실 BE 경로로 이관</strong>되었습니다. 종전 FE 추상 경로(<code>/settings/category-items</code>·<code>/settings/integration</code>·<code>/users</code>·<code>/genres</code>)는 실 BE에 존재하지 않아 live 모드에서는 3개 탭이 통째로 404였습니다. 실계약은 탭1 <code>GET/POST/PUT /api/solution/service(/list, /{solutionId})</code>(설정#1~#3), 탭2 <code>GET /api/solution/link/list</code> + <code>PUT /api/solution/link</code>(설정#4·#5), 탭3 <code>GET /api/users</code> + <code>PUT /api/users/{userId}</code>(설정#6·#8, pathParam은 사번이 아니라 Integer PK <code>userId</code>)입니다. 이관에는 세 가지 축 정합이 함께 따라왔습니다. ① 탭2의 실계약 축은 「솔루션 × <strong>장르쌍</strong>」인데 화면은 「솔루션 × 탭1 항목」이라, 두 축의 장르쌍 집합이 실측으로 정확히 일치함(14/14)을 확인하고 어댑터에서 조인해 UI는 그대로 둡니다(마스터 토글은 별도 필드가 아니라 <code>serviceType:'ALL'</code> 행). ② 실 BE 솔루션은 10종(<code>AIPICK</code> 포함)인데 화면 열은 9종(GUI 정본)이라, 저장 시 화면 밖 솔루션이 조용히 꺼지지 않도록 원본 <code>rawServiceList</code>/<code>raw</code>를 왕복 보존합니다. ③ 탭1 장르 필터는 설정 전용 마스터(<code>/genres</code>, <code>G01</code>류)를 폐기하고 공통#12 코드축(<code>genreDisplay</code>, <code>"11"</code>류)으로 통일했습니다 — 그 마스터에는 "전체" sentinel 행(<code>G00</code>)이 없어 필터 로직도 이름(<code>전체</code>) 기준으로 바뀌었습니다. 존재하지 않던 <code>GET /solutions</code>(E10)·<code>GET /me</code> 폴백 조회는 참조 0건과 상시 404만 만들던 코드라 그대로 제거되었고, 솔루션 9열은 <code>SETTING_SOLUTIONS</code> 상수를 정본으로 직접 씁니다.</p>
+    <p>서버 오류 표시도 이 시점에 바로잡혔습니다. 종전에는 오류 코드를 mock이 만든 형상(<code>body.error.code</code>)에서 읽었는데 실 BE는 공통 엔벨로프라 <code>body.code</code>이고, i18n 사전에도 mock 코드(<code>VAMS-SET-*</code>)만 있어 형상을 고쳐도 매칭될 키가 없었습니다. 그 결과 live에서는 모든 설정 오류가 "오류가 발생했습니다"로 뭉개졌고, 중복 등록(409) 모달의 인라인 에러도 뜨지 않았습니다. 코드 해석 로직이 <code>useSettingsMutations.ts</code>와 <code>WorkConfigTab.vue</code> 두 곳에 복사돼 있던 것을 <code>features/settings/errorCodes.ts</code> 단일 출처로 모으고, 실 BE 코드 7종(<code>VALIDATION_FAILED</code>·<code>BAD_REQUEST</code>·<code>NOT_FOUND</code>·<code>API_NOT_FOUND</code>·<code>LOGIN_REQUIRED</code>·<code>FORBIDDEN</code>·<code>INTERNAL_SERVER_ERROR</code>)를 i18n에 추가했습니다. BE의 <code>message</code> 원문은 내부 표현이 사용자에게 새는 것을 막기 위해 화면에 직결하지 않고 DEV 콘솔에만 남깁니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트 — dirty 가드 이중 결선</div>
       연동 탭의 미저장 드래프트 보호는 두 경로에 결선됩니다. 같은 페이지 안의 탭 전환은 <code>useSettingsGuard.guardTabChange</code>가, 다른 메뉴로의 라우트 이탈은 <code>onBeforeRouteLeave</code> 훅이 각각 확인 모달(<code>useConfirm</code>)을 띄우고, 이동을 확정하면 <code>resetIntegration()</code>으로 드래프트를 폐기합니다. 한편 라우트 자체의 권한 차단 meta는 제거되어 있어(비침습 원칙) 화면 접근 제어보다 데이터 정합 보호에 무게를 둔 구현입니다.
@@ -70,31 +72,35 @@ sequenceDiagram
     participant TAB as IntegrationTab
     participant ST as useSettingsEditorStore
     participant MU as useSettingsMutations
-    participant API as SETTINGS_API (MSW/BE)
+    participant EC as errorCodes
+    participant API as 설정#4/#5 BE (공통 엔벨로프)
 
     U->>PG: /settings 진입 (기본 탭 work)
     U->>PG: 연동 설정 탭 클릭
     PG->>GD: guardTabChange(work, integration)
     GD-->>PG: true (dirty 아님 → 허용)
     PG->>TAB: 탭 패널 활성화
-    TAB->>API: GET /settings/integration (useIntegrationQuery)
-    API-->>TAB: IntegrationSettingsResponseDto → 어댑터 변환
-    TAB->>ST: hydrateIntegration(server) — baseline+draft 동기
+    TAB->>API: GET /api/solution/link/list + GET /api/solution/service/list (탭1 조인용)
+    API-->>TAB: SolutionLinkRowDto[] + 탭1 항목 → 어댑터가 장르쌍 to itemId 조인
+    TAB->>ST: hydrateIntegration(settings) — baseline+draft 동기
     U->>TAB: 솔루션 토글 ON/OFF
     TAB->>ST: toggleSolution(code, enabled) — 마스터 파생 동기화
-    TAB->>MU: persistIntegration() → saveIntegration.mutate(draft)
-    MU->>API: PUT /settings/integration (전체 스냅샷)
+    TAB->>MU: persistIntegration() → saveIntegration.mutate(draft, items, raw)
+    MU->>API: PUT /api/solution/link (editList 전체 스냅샷 + 화면 밖 솔루션 보존)
     alt 저장 성공
-        API-->>MU: 200 OK
+        API-->>MU: 200 {code:"OK", data}
         MU-->>TAB: onSuccess
         TAB->>ST: commitIntegration() — baseline=draft
-    else 저장 실패
-        MU-->>TAB: onError (에러 토스트 발화)
+    else 저장 실패 (예: VALIDATION_FAILED 422)
+        API-->>MU: {code:"VALIDATION_FAILED", message} (공통 엔벨로프 body.code)
+        MU->>EC: getSettingsErrorCode(error) → resolveSettingsErrorKey(code)
+        EC-->>MU: errorCode.VALIDATION_FAILED (사전에 없으면 UNKNOWN)
+        MU-->>TAB: onError (i18n 토스트 — 서버 message 원문은 DEV 콘솔에만)
         TAB->>ST: resetIntegration() — 직전 저장 상태 복원
     end
     Note over PG,ST: 미저장 dirty 상태의 탭 전환·라우트 이탈은 확인 모달 후 드래프트 폐기
       </div>
-      <p class="cap"><strong>흐름.</strong> 연동 탭 진입 시 서버 스냅샷을 baseline+draft로 hydrate 하고, 토글·체크 변경마다 전체 스냅샷을 즉시 PUT 합니다. 성공하면 <code>commitIntegration</code>으로 baseline을 전진시키고, 실패하면 <code>resetIntegration</code>으로 롤백합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 연동 탭 진입 시 설정#4 응답을 탭1 항목과 조인해 baseline+draft로 hydrate 하고, 토글·체크 변경마다 전체 스냅샷을 설정#5로 즉시 PUT 합니다. 성공하면 <code>commitIntegration</code>으로 baseline을 전진시키고, 실패하면 <code>errorCodes</code>가 공통 엔벨로프의 <code>body.code</code>를 i18n 키로 접어 토스트를 띄운 뒤 <code>resetIntegration</code>으로 롤백합니다.</p>
     </div>
   </section>
 
@@ -150,9 +156,15 @@ classDiagram
         +settingsKeys
         +fetchCategoryItems(params)
         +fetchIntegration()
+        +fetchGenres()
         +fetchUsers(params)
-        +saveIntegration(body)
+        +saveIntegration(settings, items, raw)
         +setUserRole(userId, roleCode)
+    }
+    class errorCodes {
+        +getSettingsErrorCode(error) string
+        +resolveSettingsErrorKey(code) string
+        +DUPLICATE_CODES string[]
     }
 
     SettingsPage o-- WorkConfigTab : panel-work
@@ -164,7 +176,9 @@ classDiagram
     IntegrationTab --> useSettingsMutations : 즉시 저장
     UserRoleTab --> useSettingsMutations : 역할 변경(낙관적)
     WorkConfigTab --> useSettingsMutations : 항목 추가·수정
-    useSettingsMutations --> settingsQueries : fetch·save 호출
+    useSettingsMutations --> settingsQueries : fetch·save 호출(실 BE 경로)
+    useSettingsMutations --> errorCodes : 오류 코드 해석(단일 출처)
+    WorkConfigTab --> errorCodes : 모달 인라인 에러(중복 등록 등) 판정
       </div>
       <p class="cap"><strong>관계.</strong> <code>SettingsPage</code>가 탭 셸로 3개 탭 컴포넌트를 소유하고, 연동 탭만 Pinia 드래프트 스토어(<code>useSettingsEditorStore</code>)를 씁니다. 나머지 탭은 Vue Query 캐시(서버 상태)와 로컬 ref만으로 동작하는 얇은 구조입니다.</p>
     </div>
@@ -231,6 +245,28 @@ function toggleSolution(code: SettingSolutionCode, enabled: boolean): void {
   return ok
 }</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/settings/errorCodes.ts</code> — 실 BE 오류 형상·코드 해석 단일 출처(2026-08-28 신설)</div>
+<pre><code>/**
+ * 오류 객체 → 서버 코드.
+ * `api/http.ts` 는 실패 시 {status, body} 를 붙여 던진다. 실 BE 는 공통 엔벨로프
+ * ({code,message,data})이고, mock 일부는 아직 {error:{code,message}} 를 준다 —
+ * 전환기 동안 둘 다 읽는다.
+ */
+export function getSettingsErrorCode(error: unknown): string {
+  if (!error || typeof error !== 'object') return 'UNKNOWN'
+  const e = error as Record&lt;string, unknown&gt;
+  const body = (typeof e['body'] === 'object' ? e['body'] : null) as Record&lt;string, unknown&gt; | null
+
+  if (body &amp;&amp; typeof body['code'] === 'string') return body['code'] // 실계약: 엔벨로프 최상위 code
+  if (body &amp;&amp; typeof body['error'] === 'object' &amp;&amp; body['error'] !== null) {
+    const inner = body['error'] as Record&lt;string, unknown&gt;
+    if (typeof inner['code'] === 'string') return inner['code'] // 레거시 mock 형상
+  }
+  if (typeof e['code'] === 'string') return e['code']
+  return 'UNKNOWN'
+}</code></pre>
+    </div>
   </section>
 
   <section id="sources">
@@ -244,8 +280,9 @@ function toggleSolution(code: SettingSolutionCode, enabled: boolean): void {
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/stores/useSettingsEditorStore.ts" target="_blank" rel="noopener">features/settings/stores/useSettingsEditorStore.ts</a><span class="src">탭2 드래프트/베이스라인 Pinia 스토어 — dirty 판정·마스터 파생 동기화</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/composables/useSettingsGuard.ts" target="_blank" rel="noopener">features/settings/composables/useSettingsGuard.ts</a><span class="src">탭 전환 가드 + onBeforeRouteLeave 이탈 확인</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/composables/useSettingsMutations.ts" target="_blank" rel="noopener">features/settings/composables/useSettingsMutations.ts</a><span class="src">항목 추가/수정 · 연동 전체 스냅샷 PUT · 역할 변경 useMutation 묶음</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/queries.ts" target="_blank" rel="noopener">features/settings/queries.ts</a><span class="src">queryKey 팩토리 + fetch/save 함수 (SETTINGS_API·USER_API 경유, 어댑터 변환)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/constants.ts" target="_blank" rel="noopener">features/settings/constants.ts</a><span class="src">탭 아이템·솔루션 9종 상수·역할 옵션(OPERATOR/MANAGER/ADMIN)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/queries.ts" target="_blank" rel="noopener">features/settings/queries.ts</a><span class="src">queryKey 팩토리 + fetch/save 함수 — SETTINGS_API·USER_API 실 BE 경로 경유, 어댑터 변환</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/errorCodes.ts" target="_blank" rel="noopener">features/settings/errorCodes.ts</a><span class="src">서버 오류 코드 해석 단일 출처(2026-08-28 신설) — 공통 엔벨로프 body.code + 레거시 mock 형상 병행 지원</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/settings/constants.ts" target="_blank" rel="noopener">features/settings/constants.ts</a><span class="src">탭 아이템·솔루션 9종 상수(GUI 정본, API 폴백 없음)·역할 옵션(OPERATOR/MANAGER/ADMIN)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/app/composables/useCan.ts" target="_blank" rel="noopener">app/composables/useCan.ts</a><span class="src">권한 3계층 판정 컴포저블 — 설정 탭3이 관리하는 역할의 소비 지점</span></li>
     </ul>
     <div class="sibling-nav">

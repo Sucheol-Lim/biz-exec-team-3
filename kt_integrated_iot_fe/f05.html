@@ -22,7 +22,7 @@
       <span class="badge gray">웹 관제 콘솔 (React SPA)</span>
     </div>
     <h1>통계 요약·분석</h1>
-    <p class="one-liner">Nivo·D3 차트로 측정소 비교, 이벤트·디바이스 통계, AI산업안전DX 설비 이용률·자원환경, SMART GREEN 생육 디바이스 분석 등을 시각화하고 CSV 다운로드를 제공합니다.</p>
+    <p class="one-liner">Nivo·D3 차트로 측정소 비교, 이벤트·디바이스 통계, AI산업안전DX 설비 이용률·자원환경, SMART GREEN 생육 디바이스 분석 등을 시각화하고 CSV·xlsx 다운로드를 제공합니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
@@ -49,10 +49,13 @@
   <section id="desc">
     <h2>기능 개요</h2>
     <p><code>Summary</code> 화면(<code>pages/summary/index.tsx</code>)은 세션의 <code>site.code</code>에 따라 사이트별 요약 컴포넌트(<code>airmap/DashBoard</code>, <code>aidx/Overall</code>, SafeMate 4종, <code>smartgreen/overall</code>)를 분기 렌더링합니다. 추가 분석 화면으로 AI산업안전DX 설비 이용률(<code>EquipmentUtilization</code>)·자원환경(<code>ResourceEnvironment</code>), SMART GREEN 생육 디바이스 분석(<code>GrowthDevice</code>), 측정소 분석(<code>StationAnalysis</code>) 등이 라우팅에 등록되어 있습니다. Air Map 종합분석(<code>airmap/DashBoard</code>)은 측정위치별·미세/초미세먼지 측정기 위치별·한달 기준값별·시간대별·주의지역 Top5 분석 유형을 제공하며, 조회 월 기준으로 <code>startDate</code>/<code>endDate</code>를 산출해 <code>airmapApi.getAreaAnalytics</code>를 호출합니다. 페이지 최초 진입 시 기본 조건(실외 측정위치별 분석)으로 자동 조회하며, Worst5 화면에서 전달된 state가 있으면 해당 설치유형·주제를 반영합니다. 주제(segment)·전월 대비 옵션 변경 시에는 현재 피커에서 선택한 조회 월을 <code>queryMonth</code>에 다시 반영해 이전 검색의 월이 남는 문제를 방지합니다. 전국 측정소 서비스대상(<code>AIRMAPNATIONAL</code>)에서는 지역·구역 조회를 중단하고 안내 문구를 표시합니다.</p>
-    <p>차트는 <code>components/chart</code> 아래의 Nivo 래퍼들(<code>NivoStackedBarChart</code>, <code>NivoGroupedBarChart</code>, <code>NivoLineChart</code>, <code>NivoPie</code>, <code>NivoComposedChart</code> 등)을 사용합니다. 각 래퍼는 <code>@nivo/bar</code>·<code>@nivo/line</code> 등의 <code>Responsive*</code> 컴포넌트를 감싸고, <code>useChartBar</code>·<code>useChartLine</code>·<code>useChartTheme</code> 훅으로 데이터 가공과 라이트/다크 테마를 적용합니다. <code>useChartBar</code>는 데이터와 <code>keys</code>·<code>groupMode</code>로 Y축 최대/최소값·눈금(<code>tickValues</code>)·마진을 계산하며, 선택 인자 <code>minMaxValue</code>로 Y축이 최소한 기준선 값까지는 포함하도록 보장해 기준선이 차트 밖으로 벗어나는 것을 방지합니다. 막대 차트의 막대·툴팁은 <code>CustomBar</code>·<code>CustomTooltipLayer</code> 커스텀 레이어로 렌더링하며, 게이지·일부 커스텀 시각화에는 D3가 함께 쓰입니다.</p>
+    <p>Air Map 종합분석의 표출 항목과 조회 방식도 정리되었습니다. 실외 공기질(<code>by_location</code> · segment <code>02</code>) 탭은 <code>getAnalyticsProperties()</code>가 <code>pm10,pm25,temp,humi</code>를 요청하도록 바뀌어 표가 'PM10 측정치(평균) · PM2.5 측정치(평균) · 온도(℃) · 습도(%)' 구성이 되었고, PM10·PM2.5의 신호등 열과 VOCs·CO 열은 제거되었습니다. 측정위치별 분석은 서버 페이징이라 <code>page</code>·<code>rowCount</code> 상태를 하위 <code>ByLocationView</code>에서 상위 <code>DashBoard</code>로 끌어올려 조회 파라미터(<code>page</code>는 0-base로 변환)에 싣습니다. 이렇게 하지 않으면 페이지를 눌러도 재조회가 일어나지 않습니다. 조회 조건이 바뀌거나 노출 개수를 바꾸면 첫 페이지로 되돌려, 조건만 바뀐 채 뒤쪽 페이지에 머물러 빈 결과가 나오는 것을 막습니다. 화면 헤더의 '전체 분석 다운로드'는 여러 <code>analyticsType</code>을 이어 붙여 CSV를 받던 방식을 버리고 전용 엔드포인트 <code>airmapApi.getAreaAnalyticsXlsx</code>(<code>/bff/monitor/airmap/device/area/analytics.xlsx</code>)로 xlsx를 받습니다. 이 엔드포인트는 주제 구분(<code>analyticsType</code>)을 받지 않고 서버가 전체 주제를 담아 주며, 측정항목은 <code>FULL_DOWNLOAD_PROPERTIES</code>(<code>pm10,pm25,temp,humi,db</code>)로 고정 전달하고 고르지 않은 지역 값은 빈 문자열 대신 <code>undefined</code>로 두어 쿼리에서 아예 빠지게 합니다. 표 하단의 'CSV 다운로드'는 종전 <code>analytics.csv</code> 그대로입니다. 시간대별 분석의 전월값은 현재값에서 증감분을 뺀 값인데 그대로 빼면 부동소수점 오차가 노출되므로(<code>25.1 - 25.0</code>이 <code>0.10000000000000142</code>로 표시), <code>subtractDecimal()</code>이 두 값 중 긴 소수 자릿수에 맞춰 반올림합니다.</p>
+    <p>측정소별 분석(<code>stationAnalysis/airmap</code>)의 실외 공기질 분석은 측정항목에서 '유동인구'가 빠지고 '온도'(<code>temp</code>)가 추가되었습니다. 여기서도 헤더의 '전체 분석 다운로드'가 <code>airmapApi.getDeviceAnalyticsXlsx</code>(<code>/bff/monitor/airmap/device/analytics.xlsx</code>) 기반 xlsx로 바뀌었는데, 이 엔드포인트는 <code>properties</code>·<code>startDate</code>·<code>endDate</code>·<code>serviceTargetId</code>만 받고 <code>segment</code>·<code>deviceIds</code>·<code>size</code>·<code>page</code>는 지원하지 않습니다. 조회 기간은 탭이 고른 조회연도를 상위와 나눠 써야 하므로, 연도 → 기간 변환을 <code>getAnalyticsYearRange()</code>로 뽑아 탭이 <code>onDateRangeChange</code>로 올려 주고 상위도 같은 함수로 초기값(올해)을 만들어 첫 렌더부터 빈 기간이 나가지 않게 합니다. 측정항목은 <code>FIXED_ANALYTICS_PROPERTIES</code>(<code>pm10,pm25,humi,temp,db</code>)를 씁니다.</p>
+    <p>차트는 <code>components/chart</code> 아래의 Nivo 래퍼들(<code>NivoStackedBarChart</code>, <code>NivoGroupedBarChart</code>, <code>NivoLineChart</code>, <code>NivoPie</code>, <code>NivoComposedChart</code> 등)을 사용합니다. 각 래퍼는 <code>@nivo/bar</code>·<code>@nivo/line</code> 등의 <code>Responsive*</code> 컴포넌트를 감싸고, <code>useChartBar</code>·<code>useChartLine</code>·<code>useChartTheme</code> 훅으로 데이터 가공과 라이트/다크 테마를 적용합니다. <code>useChartBar</code>는 데이터와 <code>keys</code>·<code>groupMode</code>로 Y축 최대/최소값·눈금(<code>tickValues</code>)·마진을 계산하며, 선택 인자 <code>minMaxValue</code>로 Y축이 최소한 기준선 값까지는 포함하도록 보장해 기준선이 차트 밖으로 벗어나는 것을 방지합니다. 막대 차트의 막대·툴팁은 <code>CustomBar</code>·<code>CustomTooltipLayer</code> 커스텀 레이어로 렌더링하며, 게이지·일부 커스텀 시각화에는 D3가 함께 쓰입니다. <code>NivoLineChart</code>에는 X축에 실제로 표시할 눈금만 지정하는 <code>xAxisTickValues</code>가 추가되었고(미지정 시 종전대로 모든 데이터 포인트에 눈금 표시), 시리즈의 모든 점이 비어 있으면 <code>lines</code> 레이어를 렌더 목록에서 제외해 빈 라인 차트가 잘못된 SVG 경로를 만들지 않게 했습니다.</p>
     <p>막대 렌더링은 스택 세그먼트 가독성을 중심으로 재편되었습니다. 전체 합 대비 값이 극단적으로 작으면 세그먼트 높이가 1px 미만이 되어 보이지 않는데, 높이만 키우면 이웃 세그먼트를 덮어버립니다. 그래서 <code>CustomBar</code>는 스택 순서(<code>stackKeys</code>)를 받아 기준선(값 0의 y좌표)에서부터 아래 세그먼트들의 <em>보정된</em> 높이를 누적해 자기 위치를 다시 계산하고, 각 세그먼트에 <code>minSegmentHeight</code>만큼의 최소 높이를 보장합니다(<code>NivoStackedBarChart</code> 기본값 3px). 값이 0인 세그먼트는 렌더링되지 않으므로 맨 아래 판정과 누적 계산에서 모두 제외하며, 둥근 모서리 반지름은 막대 높이(양끝 둥근 세그먼트는 절반)로 제한해 경로가 스스로 교차하며 형태가 깨지는 것을 막습니다. 높이 보정 때문에 막대와 hover 영역이 어긋나므로 막대 <code>path</code>는 <code>pointerEvents: 'none'</code>으로 두고 툴팁은 <code>CustomBarTooltipLayer</code>의 투명 hover 영역이 전담하며, <code>fullColumnHover</code>로 hover 영역을 컬럼 전체 높이까지 넓혔습니다.</p>
     <p>색상 전달 규약도 정리되었습니다. <code>CustomTooltipLayer</code>는 막대 색을 더 이상 <code>chartColors</code> 배열에서 인덱싱하지 않고 Nivo가 계산한 <code>bar.color</code>를 그대로 쓰며, 라인 시리즈 색만 <code>lineColors</code>로 받습니다. <code>NivoComposedChart</code>의 <code>chartColors</code>는 배열뿐 아니라 막대별로 색을 계산하는 함수도 받을 수 있게 되었고, 함수를 넘긴 경우 배열 인덱싱이 불가능하므로 <code>resolvedLineColors</code>가 <code>lineColors</code> → 기본색 순으로 폴백합니다. 값 기반 등급색은 <code>airQualityGrade</code>의 <code>makeGradeBarColor(grade, fallback)</code>가 만들어 주며, Air Map 마커 상세 차트가 이를 사용합니다. 측정 항목 키를 화면 표시명으로 바꾸는 <code>PROPERTY_LABELS</code>·<code>getPropertyLabel()</code>도 함께 추가되어 API 원본 키(<code>temp</code>/<code>humi</code>/<code>PM2.5</code> 등)가 화면에 그대로 노출되지 않습니다.</p>
-    <p>데이터는 React Query로 도메인 API(예: <code>rooftopDoorApi</code>, <code>intFireDetectorApi</code>, <code>airmap</code>·<code>smartGreen</code> 모듈 등)에서 조회합니다. AI산업안전DX 설비가동률분석(<code>EquipmentUtilization</code>)은 서비스대상을 <code>FIXED_SERVICE_TARGET_ID('KT')</code>로 고정해 조회하고, 조회 기간 기본값은 <code>getDefaultDateRange()</code>로 호출 시점에 산출하며(모듈 로드 시점에 고정되던 dayjs 버그 수정), 조회 버튼 클릭 시 <code>searchTrigger</code>를 queryKey에 포함해 파라미터 변경 여부와 무관하게 항상 재요청합니다. 요약 화면의 다운로드 버튼은 <code>downloadFileFromResponse</code>로 Content-Disposition 기반 CSV 저장을 수행합니다.</p>
+    <p>데이터는 React Query로 도메인 API(예: <code>rooftopDoorApi</code>, <code>intFireDetectorApi</code>, <code>airmap</code>·<code>smartGreen</code> 모듈 등)에서 조회합니다. AI산업안전DX 설비가동률분석(<code>EquipmentUtilization</code>)은 서비스대상을 <code>FIXED_SERVICE_TARGET_ID('KT')</code>로 고정해 조회하고, 조회 기간 기본값은 <code>getDefaultDateRange()</code>로 호출 시점에 산출하며(모듈 로드 시점에 고정되던 dayjs 버그 수정), 조회 버튼 클릭 시 <code>searchTrigger</code>를 queryKey에 포함해 파라미터 변경 여부와 무관하게 항상 재요청합니다. 요약 화면의 다운로드 버튼은 <code>downloadFileFromResponse</code>로 Content-Disposition 기반 파일 저장을 수행합니다.</p>
+    <p>AI산업안전DX 종합분석(<code>summary/aidx/Overall</code>)은 집계 단위(<code>unit</code>)와 조회 기간이 어긋나 있던 부분을 맞췄습니다. <code>getPickerTypeByUnit()</code>이 단위에 따라 날짜 피커 종류를 정하고(일별 → 월 선택, 월별 → 연 선택, 그 외 → 일 선택), <code>getDateRangeByUnit()</code>이 같은 기준으로 조회 시작·종료 시각과 차트 시간 포맷을 함께 산출합니다. 이전에는 차트 전용 쿼리만 하루 범위·<code>HOUR</code> 고정으로 따로 조회했는데, 지금은 표·차트·다운로드가 모두 같은 단위와 기간을 씁니다. 요청에는 <code>serviceType</code>이 추가되었고, 피커 종류가 바뀔 때 날짜가 오늘로 초기화되지 않도록 <code>CustomPicker</code>에 <code>resetOnPickerTypeChange={false}</code>를 넘깁니다. 측정 항목 ID는 한글 키를 쓰던 '총누적량'·'누적투입량'을 <code>accuweight</code>로, <code>collReduceweight</code>를 <code>collreduceweight</code>로 통일했습니다. 15분 단위 조회에서는 x축 라벨이 겹치므로 정시(<code>HH:00</code>) 값만 <code>xAxisTickValues</code>로 남기고 <code>xAxisFormat</code>이 분 부분을 잘라 시간별 조회와 같은 표기(<code>HH</code>)로 맞춥니다. 그래프 데이터 자체는 15분 단위 그대로 유지합니다.</p>
     <p>기간 조회에는 공용 상한이 도입되었습니다. <code>utils/dateRange</code>의 <code>DATE_RANGE_LIMIT_DAYS</code>(90일)를 <code>CustomRangePicker</code>의 <code>maxRangeDays</code>로 넘겨 달력에서 그 이상 선택을 막고, <code>SearchItemBox</code>의 <code>notice</code>에 <code>dateRangeLimitNotice()</code> 문구를 함께 노출합니다. 조회기간 무제한으로 504 타임아웃이 나던 AI산업안전DX 설비가동률분석과, SMART GREEN 생육 디바이스 분석·종합현황 화면에 적용되었습니다. CSV 다운로드는 화면 페이지네이션과 무관하게 항상 전체를 받도록 <code>page: 0</code>·<code>size: MAX_DATA_ROW</code>로 통일했습니다.</p>
     <p>SMART GREEN 분석 화면들은 날짜·기간 단위를 바꿀 때 <code>applied</code> 상태를 부분 갱신하던 방식을 버리고, 조회 버튼과 동일한 정규화를 거친 <code>draft</code> 전체를 한 번에 적용합니다. 이전에는 아직 조회를 누르지 않은 골프장·코스·홀 선택이 반영되지 않은 채로 조회가 나가 화면 표시와 실제 조회 대상이 어긋났습니다. 데이터가 없을 때의 안내는 인라인 문구 대신 공용 <code>EmptyState</code> 컴포넌트로 교체되었습니다. AI산업안전DX 자원환경 분석의 '지역' 옵션은 구역 목록(<code>commonApi.areaList</code>) 대신 시/도 단위(<code>regionsApi.getUnitSido</code>)로 바뀌었고, 선택값을 API 규격에 맞춰 <code>sidoNm</code>으로 그대로 전달합니다. 서비스대상이 '전체'인 경우에는 현재 서비스 형태에 속한 대상들의 시/도를 모아 중복 제거 후 노출합니다.</p>
     <div class="callout">
@@ -82,13 +85,13 @@ sequenceDiagram
     Sum-&gt;&gt;Hook: 데이터 가공(keys/indexBy)
     Hook--&gt;&gt;Nivo: 가공된 시리즈 + 테마
     Nivo--&gt;&gt;Sum: 차트 렌더
-    opt CSV 다운로드
+    opt 다운로드 - 표는 CSV, 헤더 전체 분석은 xlsx
         Sum-&gt;&gt;API: 다운로드(blob) 요청
         API--&gt;&gt;DL: AxiosResponse(Blob)
         DL--&gt;&gt;Sum: Content-Disposition 파일 저장
     end
       </div>
-      <p class="cap"><strong>흐름.</strong> 사이트별 요약 컴포넌트가 통계를 조회·가공해 Nivo 차트로 시각화하고, 필요 시 CSV로 다운로드합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 사이트별 요약 컴포넌트가 통계를 조회·가공해 Nivo 차트로 시각화하고, 표는 CSV로 헤더의 전체 분석은 xlsx로 다운로드합니다.</p>
     </div>
   </section>
 
@@ -135,6 +138,17 @@ classDiagram
         +getPropertyLabel(property)
         +makeGradeBarColor(grade, fallback)
     }
+    class NivoLineChart {
+        +xAxisTickValues
+        +xAxisFormat
+        +hasRenderableLineData
+    }
+    class airmapApi {
+        +getAreaAnalytics(params, download)
+        +getAreaAnalyticsXlsx(params)
+        +getDeviceAnalytics(params, download)
+        +getDeviceAnalyticsXlsx(params)
+    }
     class dateRange {
         +DATE_RANGE_LIMIT_DAYS
         +dateRangeLimitNotice(days)
@@ -164,9 +178,12 @@ classDiagram
     NivoComposedChart --&gt; CustomBar : 스택 세그먼트 보정 공유
     NivoComposedChart --&gt; CustomBarTooltipLayer : lineColors 전달
     NivoComposedChart ..&gt; airQualityGrade : makeGradeBarColor 로 값별 등급색
+    Summary --&gt; NivoLineChart : 라인 차트 렌더 (15분 조회 눈금 지정)
+    NivoLineChart ..&gt; useChartTheme : 테마 적용
     Summary ..&gt; dateRange : 조회기간 90일 상한
     Summary ..&gt; DomainApi : 통계 조회
-    Summary ..&gt; ApiClient : CSV 다운로드
+    Summary ..&gt; airmapApi : 전체 분석 xlsx 다운로드
+    Summary ..&gt; ApiClient : CSV / xlsx 저장
       </div>
       <p class="cap"><strong>관계.</strong> <code>Summary</code>가 도메인 API로 통계를 받아 Nivo 래퍼로 그리고, 데이터 가공·테마는 차트 훅이 담당합니다. 막대 형상 보정과 툴팁 hover 영역은 <code>CustomBar</code>·<code>CustomBarTooltipLayer</code>가 나눠 맡고, 색은 시리즈 고정색과 값 기반 등급색 두 방식을 모두 지원합니다.</p>
     </div>
@@ -305,6 +322,11 @@ export const dateRangeLimitNotice = (days: number = DATE_RANGE_LIMIT_DAYS) =&gt;
         if (segment === '02') return 'pm25';
     }
 
+    // 실외 공기질(by_location, segment 02) 탭은 온도/습도도 함께 조회한다.
+    if (analysisType === 'by_location' &amp;&amp; segment === '02') {
+        return `${DEFAULT_PROPERTIES},temp,humi`;
+    }
+
     return DEFAULT_PROPERTIES; // 'pm10,pm25'
 };
 
@@ -316,6 +338,71 @@ const getMonthRangeParams = (queryMonth: string) =&gt; {
         endDate: month.endOf('month').format('YYYY-MM-DD HH:mm:ss'),
     };
 };</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/summary/airmap/DashBoard.tsx</code> · <code>src/api/airmap.ts</code> — 서버 페이징 상위 관리와 전체 분석 xlsx 전환</div>
+<pre><code>// 페이지네이션 상태는 상위에서 관리한다. 서버 페이징이라 page/size가 조회 파라미터에
+// 실려야 하는데, View가 자체 state로만 들고 있어 페이지를 눌러도 재조회가 안 됐다.
+const [page, setPage] = useState&lt;number&gt;(1);
+const [rowCount, setRowCount] = useState&lt;number&gt;(10);
+
+const handleRowCountChange = (nextRowCount: number) =&gt; {
+  setRowCount(nextRowCount);
+  setPage(1);            // 개수를 바꾸면 범위를 벗어날 수 있으므로 첫 페이지로
+};
+
+useEffect(() =&gt; { setPage(1); }, [searchParams]);   // 조회 조건 변경 시에도 첫 페이지
+
+const queryParams = useMemo(() =&gt; ({
+  page: page - 1,        // API는 0-base
+  size: rowCount,
+  // ... serviceTargetId / analyticsType / segment / properties / 기간 / 지역
+}), [headerServiceTarget?.serviceTargetId, searchParams, selectedMonth, page, rowCount]);
+
+// 전체 분석 다운로드 - 하단 "CSV 다운로드"와 달리 xlsx로 받는다
+const fullDownloadMutation = useMutation({
+  mutationFn: async () =&gt; airmapApi.getAreaAnalyticsXlsx(fullDownloadParams),
+  onSuccess: (res) =&gt; downloadFileFromResponse(
+    res, `airmap_full_analytics_${new Date().toISOString().slice(0, 10)}.xlsx`),
+});
+
+// src/api/airmap.ts — analyticsType·areaId·segment·prevMonthDiff·size·page 는 지원하지 않는다
+getAreaAnalyticsXlsx: (params) =&gt;
+  apiClient
+    .get('/bff/monitor/airmap/device/area/analytics.xlsx', { params, responseType: 'blob' })
+    .then((res) =&gt; res),</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/summary/aidx/Overall.tsx</code> — 집계 단위에 맞춘 피커·기간 산출과 15분 x축 정리</div>
+<pre><code>const getPickerTypeByUnit = (unit: string): 'date' | 'month' | 'year' =&gt; {
+  if (unit === 'DAY') return 'month';
+  if (unit === 'MONTH') return 'year';
+  return 'date';
+};
+
+const getDateRangeByUnit = (date: Dayjs, unit: string) =&gt; {
+  if (unit === 'DAY')   return { startDate: date.startOf('month'), endDate: date.endOf('month'),
+                                 chartTimeFormat: 'MM-DD' };
+  if (unit === 'MONTH') return { startDate: date.startOf('year'),  endDate: date.endOf('year'),
+                                 chartTimeFormat: 'YYYY-MM' };
+  return { startDate: date.startOf('day'), endDate: date.endOf('day'),
+           chartTimeFormat: unit === 'MIN15' ? 'HH:mm' : 'HH' };
+};
+
+// 15분 단위 조회 시 x축에 정시(HH:00) 값만 표시 (그래프는 15분 데이터 그대로 유지)
+const xAxisTickValues = useMemo(() =&gt; {
+  if (searchParams.unit !== 'MIN15') return undefined;
+  const xValues: string[] = (chartData[0]?.data ?? []).map((d: { x: string }) =&gt; d.x);
+  return Array.from(new Set(xValues)).filter((x) =&gt; x.endsWith(':00'));
+}, [chartData, searchParams.unit]);
+
+// 15분은 x값이 'HH:mm' 이라 시간별('HH')과 표기가 달라진다 → 분 부분을 잘라 동일하게
+const xAxisFormat = searchParams.unit === 'MIN15'
+  ? (value: string) =&gt; value.split(':')[0]
+  : undefined;
+
+&lt;CustomPicker pickerType={getPickerTypeByUnit(unit)} date={date} setDate={setDate}
+  flex={3} resetOnPickerTypeChange={false} /&gt;</code></pre>
     </div>
     <div class="snippet">
       <div class="sc"><code>src/pages/summary/aidx/EquipmentUtilization.tsx</code> — KT 고정 조회·기본 조회기간·강제 재요청</div>
@@ -352,7 +439,14 @@ const search = () =&gt; {
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/dateRange.ts" target="_blank" rel="noopener">src/utils/dateRange.ts</a><span class="src">DATE_RANGE_LIMIT_DAYS(90) · dateRangeLimitNotice 안내 문구</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/hooks/useChartBar.ts" target="_blank" rel="noopener">src/hooks/useChartBar.ts</a><span class="src">막대 차트 데이터 가공 훅</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/hooks/useChartTheme.ts" target="_blank" rel="noopener">src/hooks/useChartTheme.ts</a><span class="src">Nivo 라이트/다크 테마 훅</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/airmap/DashBoard.tsx" target="_blank" rel="noopener">src/pages/summary/airmap/DashBoard.tsx</a><span class="src">Air Map 종합분석 — 분석 유형·조회 월 파라미터 · CSV 다운로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/airmap/DashBoard.tsx" target="_blank" rel="noopener">src/pages/summary/airmap/DashBoard.tsx</a><span class="src">Air Map 종합분석 — 분석 유형·조회 월 파라미터 · 서버 페이징(page/rowCount) 상위 관리 · 전체 분석 xlsx 다운로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/airmap/components/ByLocationView.tsx" target="_blank" rel="noopener">src/pages/summary/airmap/components/ByLocationView.tsx</a><span class="src">실외 공기질 표 — 온도/습도 열 추가, 신호등·VOCs·CO 제거 · 상위가 넘긴 page/rowCount 사용</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/airmap/components/ByTimeView.tsx" target="_blank" rel="noopener">src/pages/summary/airmap/components/ByTimeView.tsx</a><span class="src">시간대별 분석 · subtractDecimal 로 전월값 부동소수점 오차 보정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/airmap.ts" target="_blank" rel="noopener">src/api/airmap.ts</a><span class="src">getAreaAnalytics(.csv) / getAreaAnalyticsXlsx · getDeviceAnalytics / getDeviceAnalyticsXlsx</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/stationAnalysis/airmap/index.tsx" target="_blank" rel="noopener">src/pages/stationAnalysis/airmap/index.tsx</a><span class="src">측정소별 분석 탭 · 전체 분석 xlsx 다운로드 · 조회연도 기간 공유</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/stationAnalysis/airmap/OutdoorAirQuality.tsx" target="_blank" rel="noopener">src/pages/stationAnalysis/airmap/OutdoorAirQuality.tsx</a><span class="src">측정항목 온도 추가·유동인구 제거 · getAnalyticsYearRange / onDateRangeChange</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/aidx/Overall.tsx" target="_blank" rel="noopener">src/pages/summary/aidx/Overall.tsx</a><span class="src">AI산업안전DX 종합분석 — getPickerTypeByUnit / getDateRangeByUnit · 측정 항목 ID 통일 · 15분 x축 눈금</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/chart/NivoLineChart.tsx" target="_blank" rel="noopener">src/components/chart/NivoLineChart.tsx</a><span class="src">xAxisTickValues 지원 · 표시할 점이 없으면 lines 레이어 제외</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/aidx/EquipmentUtilization.tsx" target="_blank" rel="noopener">src/pages/summary/aidx/EquipmentUtilization.tsx</a><span class="src">AI산업안전DX 설비 이용률 분석 화면 · 조회기간 90일 제한(504 타임아웃 방지)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/aidx/ResourceEnvironment.tsx" target="_blank" rel="noopener">src/pages/summary/aidx/ResourceEnvironment.tsx</a><span class="src">자원환경 분석 · 지역 옵션을 시/도(regionsApi.getUnitSido)로 전환, sidoNm 파라미터</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/summary/smartgreen/growthDevice/index.tsx" target="_blank" rel="noopener">src/pages/summary/smartgreen/growthDevice/index.tsx</a><span class="src">SMART GREEN 생육 디바이스 분석 · draft 전체 반영 · EmptyState · 기간 상한</span></li>

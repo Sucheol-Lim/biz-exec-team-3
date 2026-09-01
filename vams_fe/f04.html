@@ -49,9 +49,9 @@
   <section id="desc">
     <h2>기능 개요</h2>
     <p>AI 자막 엔진(어뮤즈랩 협업 alfaeditor)이 생성한 자막을 운영자가 사람 검수로 다듬는 화면입니다. 자막 작업 목록(<code>SubtitleListPage</code>, LNB 하위 <code>/subtitle</code>)에서 행을 선택하면 <code>meta.layout:'bare'</code> 풀스크린 라우트 <code>/subtitle/:jobId/edit</code>의 <code>SubtitleEditPage</code>로 진입합니다. 화면은 헤더 / 자막 리스트 + 영상·편집 패인 / 하단 전폭 파형 타임라인 3구역으로 구성되며, Pinia setup 스토어 <code>subtitleEditor</code>가 <code>currentTimeMs</code>·<code>selectedLineId</code>·<code>playing</code>을 단일 진실로 삼아 리스트·영상·파형 3자를 동기화합니다. 모든 seek/선택은 <code>SyncSource</code>(list/video/waveform/find/keyboard 등) 소스 태그를 달아 무한 이벤트 루프를 차단합니다.</p>
-    <p>진입 시 스토어 <code>init()</code>이 E7 점유 확인 → E1 콘텐츠 메타 → E4 임시저장 복구 순으로 alfaeditor API를 호출하고, 타인이 편집 중(RUNNING)이면 <code>sessionState='denied'</code>로 차단합니다. 편집 락은 WebSocket 세션(<code>useSubtitleSocket</code>, WS <code>/alti/socket</code>) 자체가 담당하며, 서버의 <code>temporary_storage</code> 메시지(5분 주기)가 자동 임시저장(E5)을 트리거합니다. 파형은 <code>useWaveform</code>이 wavesurfer.js + Regions 플러그인으로 라인 ↔ region을 양방향 동기화하고, 빈 구간 드래그로 새 자막 라인을 삽입할 수 있습니다. 편집 트랜잭션(텍스트 적용·타임코드 변경·분할/병합 등)은 <code>useEditHistory</code> 메멘토 스택(최대 100단계)에 적재되어 Ctrl+Z / Ctrl+Shift+Z로 undo/redo 됩니다.</p>
+    <p>진입 시 스토어 <code>init()</code>은 <strong>메타 → E7 점유 확인 → E4 임시저장 복구</strong> 순으로 호출합니다(2026-08 순서 정정 — 인터페이스 정의서 API0001~0003 기준). 종전엔 메타 조회에 alfaeditor 내부 엔드포인트(E1 <code>GET /alti/content</code>)를 썼는데 그 조회 자체가 락 획득 부작용이 있어(이미 점유 중이면 200+빈 body) 점유 확인보다 먼저 부를 수 없었습니다. 지금은 메타를 <strong>VAMS 신규 API</strong>(<code>fetchReviewTarget</code>, <code>GET /api/subtitle-result/contents/{contentId}</code>, v1.0.5)로 조회하는데 이 호출엔 부작용이 없어 점유 확인(API0003 <code>GET /alti/status</code>)보다 먼저 부르고, 그 응답에서 확정된 <code>ccContentsId</code>·<code>language</code>를 점유 확인 호출에 넘깁니다 — 정의서 키축은 <code>ccContentsId</code>인데 alfaeditor 내부(<code>/temporary</code>·<code>/peaks</code>)는 <code>contentId</code> 축이라 두 값을 함께 들고 다닙니다. 타인이 편집 중(RUNNING)이면 <code>sessionState='denied'</code>로 차단합니다. 편집 락은 WebSocket 세션(<code>useSubtitleSocket</code>, WS <code>/alti/socket</code>) 자체가 담당하며, 서버의 <code>temporary_storage</code> 메시지(5분 주기)가 자동 임시저장(E5)을 트리거합니다. 파형은 <code>useWaveform</code>이 wavesurfer.js + Regions 플러그인으로 라인 ↔ region을 양방향 동기화하고, 빈 구간 드래그로 새 자막 라인을 삽입할 수 있습니다. 편집 트랜잭션(텍스트 적용·타임코드 변경·분할/병합 등)은 <code>useEditHistory</code> 메멘토 스택(최대 100단계)에 적재되어 Ctrl+Z / Ctrl+Shift+Z로 undo/redo 됩니다.</p>
     <p>편집 도구는 Subtitle Edit 기반 단축키(<code>useSubtitleShortcuts</code> — S 시작시간, D 종료시간, A/F 다음·이전 줄, Q/W 이전·다음 병합, Ctrl+R 자동 줄바꿈)와 찾기/이동·찾아 바꾸기·다중 바꾸기·선택해서 바꾸기·오류 일괄수정·간격 채우기·동기화 시프트·타임코드·색상/글꼴·다운로드(검수 전 SRT / 완료 SMI) 등 다이얼로그 18종 + 컨텍스트 메뉴·팝업으로 제공됩니다. KRCC 바꾸기/KT 포맷 변환(<code>useSubtitleTransform</code>)은 서버 왕복 없는 FE 정규식 연산이며 비가역(history 미적재) 정책입니다 — KT 변환은 서식 태그(<code>&lt;b&gt;</code> 등)·<code>&lt;br&gt;</code>·공백을 lookahead 로 건너뛴 실질 문장 끝의 마침표·느낌표만 제거하고, 실행 확인·완료 팝업은 GUI 정본 <code>SubtitleAlertModal</code>(440px 가운데 정렬)로 띄우며 확인 팝업의 [자세히 보기] 링크가 변환 규칙 팝업(KtRuleDialog)을 겹쳐 열고 완료 팝업에 변경된 자막 개수를 표시합니다. 검수 완료 시 <code>requestLink()</code>가 <code>buildSmi()</code>로 완성 SMI 문자열을 만들어 E6로 최종 저장하고 작업 상태를 연동대기(W)로 전이합니다.</p>
-    <p>편집기 앞단인 자막 작업 목록(<code>SubtitleListPage</code>)은 전 메뉴 공통 컴포넌트로 정리됐습니다. ID/명 2단 셀은 <code>IdNameCell</code>, 행 [검수] CTA는 <code>TableActionButton</code>, 로딩은 <code>TableLoading</code>, 0건 화면은 <code>ListEmptyState</code>의 3-way 분기를 쓰는데, 자막은 자막언어·CC자막 필터가 공통 <code>SearchData</code> 밖의 로컬 상태라 <code>store.hasActiveFilters || subtitleLang !== LANG_ALL || ccFilter !== CC_ALL</code>로 "필터 결과 없음" 판정을 보강합니다. 조회기간 프리셋·달력 팝오버·일괄액션 활성 판정도 로컬 복제본을 지우고 <code>shared/</code> 단일 구현을 참조합니다. 컬럼은 <strong>§8 grow 관용구</strong>로 재선언되면서 구 코드의 <code>result</code>(결과) 합본 240px 컬럼이 <strong>1055 와이어 잔재</strong>로 판정돼 다른 메뉴와 동일하게 상태(120)+액션(84) 두 컬럼으로 분리됐고, 긴급 84→65·장르 162→154·입수일시 140→120으로 폭이 교정됐습니다. 우측 상세패널도 공통 <code>PanelInfoTable</code>·<code>GenrePath</code>·<code>UrgentBadge</code>·<code>PanelActionButton</code>으로 바뀌면서 작업이력의 <strong>엔진 버전 항목이 제거</strong>됐습니다(GUI 정본 삭제 + API 리스트 v1.0.3 폐기 표시 → v1.0.4 공통#3 응답 필드 실삭제).</p>
+    <p>편집기 앞단인 자막 작업 목록(<code>SubtitleListPage</code>)은 전 메뉴 공통 컴포넌트로 정리됐습니다. ID/명 2단 셀은 <code>IdNameCell</code>, 행 [검수] CTA는 <code>TableActionButton</code>, 로딩은 <code>TableLoading</code>, 0건 화면은 <code>ListEmptyState</code>의 3-way 분기를 쓰는데, 자막은 자막언어·CC자막 필터가 공통 <code>SearchData</code> 밖의 로컬 상태라 <code>store.hasActiveFilters || subtitleLang !== LANG_ALL || ccFilter !== CC_ALL</code>로 "필터 결과 없음" 판정을 보강합니다. 검색줄 우측에는 Flipbook ST-001 #10 「현재 설정 엔진 / [엔진변경]」이 신설되어(AI자막#3 조회·#4 변경) 현재 엔진명을 라벨로 보여주고 [엔진변경] 클릭 시 드롭다운 팝업으로 전환합니다 — 공용 헤더에 tail 슬롯이 없어 얼굴인식 [배역 인식] 버튼 선례를 따라 검색줄에 배치한 의도된 GUI 편차입니다. 조회기간 프리셋·달력 팝오버·일괄액션 활성 판정도 로컬 복제본을 지우고 <code>shared/</code> 단일 구현을 참조합니다. 컬럼은 <strong>§8 grow 관용구</strong>로 재선언되면서 구 코드의 <code>result</code>(결과) 합본 240px 컬럼이 <strong>1055 와이어 잔재</strong>로 판정돼 다른 메뉴와 동일하게 상태(120)+액션(84) 두 컬럼으로 분리됐고, 긴급 84→65·장르 162→154·입수일시 140→120으로 폭이 교정됐습니다. 우측 상세패널도 공통 <code>PanelInfoTable</code>·<code>GenrePath</code>·<code>UrgentBadge</code>·<code>PanelActionButton</code>으로 바뀌면서 작업이력의 <strong>엔진 버전 항목이 제거</strong>됐습니다(GUI 정본 삭제 + API 리스트 v1.0.3 폐기 표시 → v1.0.4 공통#3 응답 필드 실삭제).</p>
     <p>편집기 쪽 이번 정합은 국소적입니다. 다중 바꾸기 팝업의 [적용]이 팝업을 닫지 않는 <strong>연속 적용형</strong>이라는 점이 GUI 정본 3컷 대조로 확정돼(적용 후 닫힘 상태가 어디에도 없음) 결과는 토스트+상태바로만 알리고 팝업은 X·백드롭으로만 닫도록 근거가 코드에 명문화됐습니다. 편집 리스트 테이블은 공통 <code>DataTable</code> 기본값(medium 헤더 36px)이 적용되지 않도록 <code>--v-table-head-h: 48px</code>를 핀으로 고정했고, 오류 일괄수정·선택해서 바꾸기 다이얼로그는 래퍼가 이미 <code>radius 8</code>을 주므로 헤더셀 radius를 0으로 꺼 이중 라운드를 없앴습니다. 자산 쪽에서는 <code>src/assets/icons/subtitle-*.svg</code> 10개가 참조 0곳으로 확인돼 삭제되고 스프라이트 심볼(<code>i-subtitle-*</code>) 단일 배달 경로로 일원화됐습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트 — 대량 트랙 성능</div>
@@ -74,13 +74,13 @@ sequenceDiagram
 
     LIST->>PAGE: /subtitle/:jobId/edit 진입 (state: jobState·language)
     PAGE->>ST: init(jobId, {entryState, language})
-    ST->>API: E7 GET /alti/status (점유 확인)
+    ST->>API: fetchReviewTarget(contentId) — VAMS 신규 GET /api/subtitle-result/contents/{contentId}(v1.0.5)
+    API-->>ST: ccContentsId·language·videoUrl·audioUrl (부작용 없음, 락 아님)
+    ST->>API: E7 GET /alti/status(ccContentsId, language, contentId) — 점유 확인
     API-->>ST: state
     Note over ST: RUNNING이면 sessionState='denied' 진입 차단
-    ST->>API: E1 GET /alti/content (콘텐츠 메타)
-    API-->>ST: contentId·language·videoUrl·audioUrl
     ST->>API: E4 GET /alti/temporary (임시저장 복구)
-    API-->>ST: captions·selectCaption (204면 initialCaptions 폴백)
+    API-->>ST: captions·selectCaption (204면 원본 자막 직접 로드·파싱 폴백)
     ST-->>PAGE: trackStatus='ready' (트랙 구성·history clear)
     PAGE->>SOCK: connect(conId) — WS 세션 = 편집 락
     SOCK-->>ST: setSessionState('connected') → canEdit
@@ -96,7 +96,7 @@ sequenceDiagram
     ST->>API: E6 POST /alti/save (buildSmi 완성 SMI)
     ST->>ST: currentJobState='W' · closeSocket(true) 재연결 억제
       </div>
-      <p class="cap"><strong>흐름.</strong> 진입 시 E7→E1→E4 순으로 점유 확인·메타·임시저장을 복구하고, WS 세션 연결이 곧 편집 락입니다. 편집 트랜잭션마다 검수중(R) 전이와 history 적재가 일어나며, E5 임시저장을 거쳐 E6 최종저장(SMI) 성공 시 연동대기(W)로 넘어갑니다.</p>
+      <p class="cap"><strong>흐름.</strong> 진입 시 메타(부작용 없는 VAMS 신규 API)→E7 점유 확인→E4 임시저장 순으로 복구하고, WS 세션 연결이 곧 편집 락입니다. 편집 트랜잭션마다 검수중(R) 전이와 history 적재가 일어나며, E5 임시저장을 거쳐 E6 최종저장(SMI) 성공 시 연동대기(W)로 넘어갑니다.</p>
     </div>
   </section>
 
@@ -180,30 +180,42 @@ classDiagram
   <section id="code">
     <h2>핵심 코드</h2>
     <div class="snippet">
-      <div class="sc"><code>src/features/subtitle/edit/stores/subtitleEditor.ts</code> — 진입 시퀀스 init() (E7→E1→E4, 발췌)</div>
-<pre><code>// rev.3 진입 시퀀스 — E7 status → E1 content → E4 temporary(복구)
-const statusResult = await getStatus(cId, langForE7)            // E7: 점유 확인
+      <div class="sc"><code>src/features/subtitle/edit/stores/subtitleEditor.ts</code> — 진입 시퀀스 init() (메타→E7→E4, 발췌)</div>
+<pre><code>// ① 메타 취득 — VAMS GET /api/subtitle-result/contents/{contentId}(v1.0.5 신규, 부작용 없음).
+//    점유 확인(API0003)보다 먼저 부른다 — status 에 넘길 ccContentsId·language 를
+//    이 응답에서 확정할 수 있다(둘 다 라우트 파라미터로는 모른다).
+const meta = await fetchReviewTarget(cId)
+const lang = opts?.language ?? meta.language          // F1: 전달값(리스트) 우선, 없으면 메타 정본
+contentId.value = meta.contentId
+language.value = lang
+ccContentsId.value = meta.ccContentsId
+videoUrl.value = resolveBeAssetUrl(meta.videoUrlPath, SUBTITLE_ASSET_SOURCE_API)
+audioUrl.value = meta.audioUrlPath
+
+// ② 점유 확인 — API0003. 정의서 키축(ccContentsId)과 alfaeditor 내부 축(contentId)이
+//    달라 두 값을 함께 넘긴다.
+let statusResult: { state: string } = { state: 'STOP' }
+try {
+  statusResult = await getStatus(meta.ccContentsId, lang, meta.contentId)
+} catch {
+  // 조회 실패는 STOP(점유 없음)으로 간주 — 진입 허용
+}
 if (statusResult.state === 'RUNNING') {
-  sessionState.value = 'denied'                                 // 타인 점유 → 진입 차단
+  sessionState.value = 'denied'                       // 타인 점유 → 진입 차단
   trackStatus.value = 'ready'
   return
 }
 
-const meta = await fetchContent(cId, langForE7)                 // E1: 콘텐츠 메타
-contentId.value = meta.contentId
-language.value = meta.language                                  // E1 응답 language가 정본
-videoUrl.value = meta.videoUrlPath
-audioUrl.value = meta.audioUrlPath
-
+// ③ E4: 임시저장 복구(언어 확정 후 조회)
 let lines: SubtitleLine[] = []
-const tmp = await fetchTemporary(meta.contentId, meta.language) // E4: 임시저장 복구
+const tmp = await fetchTemporary(meta.contentId, lang)
 if (tmp !== null) {
-  lines = tmp.captions                                          // E4 200: 복구
+  lines = tmp.captions                                // E4 200: 복구
     .map((c, i) =&gt; toSubtitleLine(c, i))
     .sort((a, b) =&gt; a.startMs - b.startMs)
     .map((l, i) =&gt; ({ ...l, no: i + 1 }))
-} else if (meta.initialCaptions &amp;&amp; meta.initialCaptions.length &gt; 0) {
-  lines = meta.initialCaptions.map((c, i) =&gt; toSubtitleLine(c, i)) // 204: 폴백
+} else {
+  // E4 204: 원본 자막을 직접 로드·파싱(포맷 자동감지). 그마저 실패하면 빈 트랙.
 }</code></pre>
     </div>
     <div class="snippet">
@@ -256,16 +268,17 @@ export function applyKtFormatToLines(lines: SubtitleLine[]): {
     <h2>관련 소스</h2>
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/pages/SubtitleEditPage.vue" target="_blank" rel="noopener">subtitle/edit/pages/SubtitleEditPage.vue</a><span class="src">bare 풀스크린 편집 화면 — 스토어·단축키·소켓·다이얼로그 18종 배선, dirty 이탈 가드</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/stores/subtitleEditor.ts" target="_blank" rel="noopener">subtitle/edit/stores/subtitleEditor.ts</a><span class="src">편집 Pinia 스토어 — init(E7→E1→E4)·3자 동기화 단일 진실·편집 액션·save/requestLink</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/stores/subtitleEditor.ts" target="_blank" rel="noopener">subtitle/edit/stores/subtitleEditor.ts</a><span class="src">편집 Pinia 스토어 — init(메타→E7→E4, 2026-08 순서 정정)·3자 동기화 단일 진실·편집 액션·save/requestLink</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/composables/useWaveform.ts" target="_blank" rel="noopener">subtitle/edit/composables/useWaveform.ts</a><span class="src">wavesurfer.js + Regions 래퍼 — 라인 ↔ region 양방향 동기·루프 차단·빈 구간 드래그 삽입</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/composables/useSubtitleShortcuts.ts" target="_blank" rel="noopener">subtitle/edit/composables/useSubtitleShortcuts.ts</a><span class="src">단축키 디스패처 — 컨텍스트 3종 판정·S/D/A/F/Q/W·e.code 판정(IME 대응)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/composables/useEditHistory.ts" target="_blank" rel="noopener">subtitle/edit/composables/useEditHistory.ts</a><span class="src">undo/redo 메멘토 스택(최대 100단계) — 줄바꿈·KRCC/KT 변환은 미적재 정책</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/composables/useSubtitleSocket.ts" target="_blank" rel="noopener">subtitle/edit/composables/useSubtitleSocket.ts</a><span class="src">WS /alti/socket 세션 래퍼 — 세션=락·ping/pong·5분 자동저장 트리거·dev 타이머 폴백</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/composables/useSubtitleTransform.ts" target="_blank" rel="noopener">subtitle/edit/composables/useSubtitleTransform.ts</a><span class="src">KRCC 바꾸기 / KT 포맷 변환 — FE 정규식 순수함수(서식 태그 lookahead), 비가역 정책 · 확인/완료/규칙 팝업 배선</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/queries.ts" target="_blank" rel="noopener">subtitle/edit/queries.ts</a><span class="src">alfaeditor 계약 E1/E4/E5/E6/E7/E8 fetch 함수 + queryKey — 식별자 (contentId, language)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/queries.ts" target="_blank" rel="noopener">subtitle/edit/queries.ts</a><span class="src">fetchReviewTarget(VAMS 신규 메타, v1.0.5, 舊 E1 alfaeditor 대체) · alfaeditor E4/E5(postTemporary)/E6(postSave)/E7(getStatus)/E8(fetchPeaks) · fetchOriginSubtitle</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/routes.ts" target="_blank" rel="noopener">subtitle/routes.ts</a><span class="src">자막 라우트 — 목록(/subtitle)과 bare 편집(/subtitle/:jobId/edit) 분리</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/edit/components/dialogs/MultiReplaceDialog.vue" target="_blank" rel="noopener">subtitle/edit/components/dialogs/MultiReplaceDialog.vue</a><span class="src">다중 바꾸기 — [적용] 후 팝업 유지(연속 적용형) 근거 명문화, 닫기는 X·백드롭만</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/pages/SubtitleListPage.vue" target="_blank" rel="noopener">subtitle/pages/SubtitleListPage.vue</a><span class="src">자막 목록 — 공통 IdNameCell/TableActionButton/TableLoading/ListEmptyState 채택, 로컬 언어·CC 필터를 빈상태 판정에 합산</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/pages/SubtitleListPage.vue" target="_blank" rel="noopener">subtitle/pages/SubtitleListPage.vue</a><span class="src">자막 목록 — 공통 IdNameCell/TableActionButton/TableLoading/ListEmptyState 채택, 로컬 언어·CC 필터를 빈상태 판정에 합산, 검색줄 우측 현재 엔진 라벨+[엔진변경]</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/components/SubtitleEngineModal.vue" target="_blank" rel="noopener">subtitle/components/SubtitleEngineModal.vue</a><span class="src">엔진변경 팝업(Flipbook ST-001 #10, AI자막#4) — 드롭다운으로 엔진 선택·변경 요청</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/composables/useSubtitleColumns.ts" target="_blank" rel="noopener">subtitle/composables/useSubtitleColumns.ts</a><span class="src">§8 grow 컬럼 — result 합본 컬럼(와이어 잔재) 해체 → 상태 120 + 액션 84 분리, 긴급/장르/입수 폭 교정</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/subtitle/components/SubtitleDetailPanel.vue" target="_blank" rel="noopener">subtitle/components/SubtitleDetailPanel.vue</a><span class="src">우측 상세패널 — 공통 PanelInfoTable·GenrePath·UrgentBadge·PanelActionButton 채택, 엔진 버전 행 제거</span></li>
     </ul>

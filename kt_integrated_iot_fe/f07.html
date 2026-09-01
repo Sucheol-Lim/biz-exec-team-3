@@ -52,6 +52,8 @@
     <p>API는 BFF의 <code>/bff/monitor/*</code> 경로를 사용합니다. 디바이스는 <code>deviceApi.deviceList()</code>/<code>deviceDetail()</code>/<code>deleteDevice()</code>, 구역은 <code>commonApi</code>의 <code>areaList</code>/<code>areaDetail</code>/<code>registArea</code>/<code>editArea</code>/<code>deleteArea</code> 및 구역-디바이스 연동(<code>areaDeviceList</code>/<code>areaDeviceRegist</code>/<code>areaDeviceDelete</code> — 목록은 페이지·검색 타입·키워드 파라미터를 지원), 서비스 대상은 <code>serviceTargets</code>/<code>serviceTargetDetail</code>/<code>deleteServiceTarget</code>이 담당합니다. 마커 설정은 <code>areaMarkersList</code>/<code>areaMarkersUpsert</code>로 구역 단위 마커를 관리합니다. <code>deviceApi</code>에는 관리 CRUD 외에 위젯·현황용 조회(통신상태 수신 현황 <code>connectionStatusReceived</code>, 탄소중립 일별 수거 중량 <code>collWeight</code>/<code>collReduceWeight</code>)가, <code>commonApi</code>에는 사용자 약관 동의(<code>updateUserStipulation</code>)와 무인증 공개 페이지에서 호출하는 SMS 수신동의(<code>smsConsent</code> — fire-and-forget이라 항상 <code>skipError</code>) 엔드포인트가 추가되어 있습니다.</p>
     <p>조회는 React Query로 페이지네이션·필터(검색 타입·키워드·정렬·삭제 포함 여부)를 적용하고, 등록/수정/삭제는 Mutation으로 처리한 뒤 목록을 무효화·갱신합니다. 모든 요청은 <code>ApiClient</code> 인터셉터가 Bearer 토큰과 <code>unitServiceCode</code> 헤더를 자동 주입하고(세션에 site가 없으면 URL 첫 경로 세그먼트로 보정), 응답 오류 중 <code>BPG-</code> 코드의 업무 검증 오류는 서버 메시지를 그대로 오류 다이얼로그에 노출합니다. 구역 편집 화면의 KT 지도 SDK 지도는 좌표값을 <code>parseFloatLatData</code>/<code>parseFloatLngData</code>와 <code>DEFAULT_MAP_CENTER</code> 공용 상수로 fallback 처리합니다.</p>
     <p>도메인 API 시그니처에는 공통 요청 옵션 <code>ApiRequestOptions</code>(<code>requestMode</code>·<code>skipError</code>·<code>signal</code>·<code>timeout</code>만 뽑아낸 axios 설정 타입)가 선택 인자로 추가되었습니다. <code>deviceApi.deviceList</code>/<code>deviceDetail</code>/<code>deviceImage</code>/<code>markerList</code>/<code>propertyDetail</code> 등 조회 계열이 모두 이 옵션을 받아 호출부에서 <code>AbortSignal</code>과 백그라운드 요청 모드를 내려보낼 수 있습니다. <code>commonApi</code>에는 토큰 갱신(<code>refreshToken</code>)과 상세코드 목록 조회(<code>getDetailCodes(groupCode)</code> — 예: <code>KEPCO_HQ</code> 한전본부 목록)가 추가되었고, 서비스 소개 조회는 <code>unitServiceCode</code>를 인터셉터가 항상 주입하므로 <code>serviceTargetId</code> 인자를 없애고 <code>getServiceIntro(introType)</code>로 단순화되었습니다.</p>
+    <p>서비스 대상 목록 조회는 내부 공용 함수 <code>getServiceTargets(params, unitServiceCode)</code>로 한 번 감싸고, 화면 상단(헤더·사이드바)에서 쓰는 전체 목록은 <code>commonApi.headerServiceTargets(unitServiceCode)</code>로 따로 노출했습니다. 이 호출은 고정 파라미터 <code>HEADER_SERVICE_TARGET_PARAMS</code>(<code>page 0</code>·<code>size 10000</code>·<code>sortField: 'SERVICE_TARGET_NAME'</code>·<code>sortOrder: 'ASC'</code>)를 쓰므로, 상단 서비스 대상 목록이 항상 이름순으로 정렬되어 나옵니다. <code>Header</code>·<code>Sidebar</code>가 직접 <code>serviceTargets({ page: 0, size: 10000 })</code>를 부르던 자리는 모두 이 함수로 교체되었습니다.</p>
+    <p>디바이스 등록·수정 화면(<code>DeviceEdit</code>)은 사이트별 하위 화면을 <code>React.lazy</code> + <code>Suspense</code>로 분리 로딩하도록 바뀌었습니다. 정적 import 시절에는 현재 사이트에서 쓰지 않는 사이트의 지도 SDK까지 함께 로드되어 등록 화면이 중단되는 문제가 있었기 때문입니다. AI산업안전DX 등록 화면(<code>DeviceEditAidx</code>)은 모델·구역 목록의 <code>queryFn</code> 안에서 <code>formik.setFieldValue</code>를 호출하던 구조를 걷어내고, 조회 결과를 <code>useEffect</code>에서 "등록 모드이고 값이 비어 있을 때만" 채우도록 옮겨 반복 갱신을 없앴습니다. 설치일 <code>CustomPicker</code>에는 <code>resetOnPickerTypeChange={false}</code>를 주어, <code>pickerType</code> 변화로 날짜가 오늘로 되돌아가지 않게 했습니다.</p>
     <p>스마트그린 관리 화면은 헤더의 가상 "전체" 항목(<code>ALL_SERVICE_TARGET</code>, id <code>ALL</code>)을 서비스대상 선택지에서 제외하도록 정리되었습니다. 미선택 상태가 이미 전체 조회이기 때문입니다. 디바이스 목록(<code>DeviceListSmartGreen</code>)과 AI산업안전DX 디바이스 목록(<code>DeviceListAidx</code>)의 CSV 다운로드 버튼이 다시 활성화되었고, 다운로드는 화면 입력값(draft)이 아니라 실제 적용된 <code>searchParams</code>를 사용하도록 바로잡혔습니다. 서비스대상 목록·CSV는 <code>smartGreenApi.serviceTargets(params, download, site.realcode)</code>로 <code>unitServiceCode</code> 헤더를 명시 전달하고, 코스 삭제 후 현재 페이지가 비면 앞 페이지로 이동합니다. 디바이스 편집(<code>DeviceEditSmartGreen</code>)은 서비스대상(골프장) 변경 시 설치 코스·홀과 <code>deviceName1/2</code>를 초기화하되 <code>useRef</code> 가드로 최초 마운트에서는 건너뛰어, 수정 진입 시 기존 값이 지워지지 않게 합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
@@ -66,6 +68,7 @@
 sequenceDiagram
     autonumber
     participant List as DeviceList / ZoneList / ServiceTargetList
+    participant Edit as DeviceEdit (사이트별 lazy)
     participant RQ as React Query
     participant API as deviceApi / commonApi
     participant Client as ApiClient (interceptor)
@@ -76,9 +79,10 @@ sequenceDiagram
     API-&gt;&gt;Client: GET (Authorization, unitServiceCode 주입)
     Client-&gt;&gt;BFF: /bff/monitor/devices | /areas | /targets
     BFF--&gt;&gt;List: rows + paging
-    List-&gt;&gt;API: detail/:id 조회 또는 등록/수정/삭제
+    List-&gt;&gt;Edit: 편집 화면 진입 (사이트별 화면 lazy import + Suspense)
+    Edit-&gt;&gt;API: 상세 조회 또는 등록/수정/삭제
     API-&gt;&gt;BFF: GET/POST/PUT/DELETE
-    BFF--&gt;&gt;List: 결과 → 목록 invalidate/refetch
+    BFF--&gt;&gt;Edit: 결과 → 목록 invalidate/refetch
       </div>
       <p class="cap"><strong>흐름.</strong> 목록·상세·편집 화면이 도메인 API를 통해 BFF에 CRUD를 수행하며, 인증 헤더는 <code>ApiClient</code> 인터셉터가 일괄 주입합니다.</p>
     </div>
@@ -102,7 +106,8 @@ classDiagram
         +editArea(areaId, params)
         +deleteArea(areaId)
         +areaDeviceList(areaId, params)
-        +serviceTargets(params)
+        +serviceTargets(params, unitServiceCode)
+        +headerServiceTargets(unitServiceCode)
         +serviceTargetDetail(id)
         +deleteServiceTarget(id)
         +areaMarkersUpsert(areaId, body)
@@ -129,17 +134,27 @@ classDiagram
         +Detail
         +Edit
     }
+    class DeviceEdit {
+        +SitePage(id, code, data) Element
+        +lazy 사이트별 편집 화면
+    }
+    class DeviceEditAidx {
+        -formik
+        +useEffect 모델·구역 기본값 채움
+    }
 
     ManagePage ..&gt; deviceApi : 디바이스 CRUD
     ManagePage ..&gt; commonApi : 구역/서비스대상 CRUD
     ManagePage ..&gt; smartGreenApi : 스마트그린 디바이스·골프장
+    ManagePage --&gt; DeviceEdit : 디바이스 등록·수정 진입
+    DeviceEdit --&gt; DeviceEditAidx : SITE_CODES.DX 분기 (Suspense)
     deviceApi ..&gt; ApiRequestOptions : 선택 인자
     commonApi ..&gt; ApiRequestOptions : 선택 인자
     deviceApi --&gt; ApiClient
     commonApi --&gt; ApiClient
     smartGreenApi --&gt; ApiClient
       </div>
-      <p class="cap"><strong>관계.</strong> 관리 화면이 <code>deviceApi</code>·<code>commonApi</code>·<code>smartGreenApi</code>를 통해 CRUD를 수행하고, 세 모듈 모두 <code>ApiClient</code>(공통 인터셉터)를 거쳐 BFF와 통신합니다. 조회 계열 함수는 <code>ApiRequestOptions</code>를 선택 인자로 받아 <code>AbortSignal</code>·요청 모드·타임아웃을 호출부에서 지정할 수 있습니다.</p>
+      <p class="cap"><strong>관계.</strong> 관리 화면이 <code>deviceApi</code>·<code>commonApi</code>·<code>smartGreenApi</code>를 통해 CRUD를 수행하고, 세 모듈 모두 <code>ApiClient</code>(공통 인터셉터)를 거쳐 BFF와 통신합니다. 조회 계열 함수는 <code>ApiRequestOptions</code>를 선택 인자로 받아 <code>AbortSignal</code>·요청 모드·타임아웃을 호출부에서 지정할 수 있습니다. 디바이스 등록·수정은 <code>DeviceEdit</code>이 사이트 코드로 분기하되 하위 화면을 지연 로딩해, 쓰지 않는 사이트의 지도 SDK가 함께 끌려오지 않게 합니다.</p>
     </div>
   </section>
 
@@ -179,6 +194,89 @@ deleteArea: (areaId) =&gt; apiClient.delete(`/bff/monitor/areas/${areaId}`).then
 // 상세코드 목록 조회 (예: groupCode='KEPCO_HQ' -&gt; 한전본부 목록)
 getDetailCodes: (groupCode: string) =&gt;
   apiClient.get(`/bff/monitor/${groupCode}/detail-codes`).then((res) =&gt; res.data),</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/api/common.ts</code> — 상단 서비스 대상 목록 전용 조회(이름순 고정)</div>
+<pre><code>type ServiceTargetListParams = {
+  size: number;
+  page: number;
+  serviceTargetName?: string;
+  serviceTargetId?: string;
+  serviceType?: string;
+  sortField?: 'SERVICE_TARGET_NAME';
+  sortOrder?: 'ASC' | 'DESC';
+};
+
+const HEADER_SERVICE_TARGET_PARAMS: ServiceTargetListParams = {
+  page: 0,
+  size: 10000,
+  sortField: 'SERVICE_TARGET_NAME',
+  sortOrder: 'ASC',
+};
+
+const getServiceTargets = (params: ServiceTargetListParams, unitServiceCode?: string) =&gt;
+  apiClient.get('/bff/monitor/targets', {
+    headers: { ...(unitServiceCode &amp;&amp; { unitServiceCode }) },
+    params: {
+      ...params,
+      serviceTargetId: params.serviceTargetId?.trim() || undefined,
+      serviceTargetName: params.serviceTargetName?.trim() || undefined,
+      serviceType: params.serviceType?.trim() || undefined,
+    },
+  }).then((res) =&gt; res.data);
+
+serviceTargets: getServiceTargets,
+headerServiceTargets: (unitServiceCode?: string) =&gt;
+  getServiceTargets(HEADER_SERVICE_TARGET_PARAMS, unitServiceCode),
+
+// Header.tsx / Sidebar.tsx
+const serviceTargets = await commonApi.headerServiceTargets();</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/device/DeviceEdit.tsx</code> — 사이트별 편집 화면 지연 로딩</div>
+<pre><code>// 2026-08-20: 현재 사이트에서 사용하지 않는 지도 SDK까지 로드되어 등록 화면이 중단되지 않도록
+// 사이트별 화면을 분리 로딩한다.
+const DeviceEditAidx = lazy(() =&gt; import('./aidx/DeviceEditAidx'));
+const DeviceEditBell = lazy(() =&gt; import('./safemateBell/DeviceEditBell'));
+const DeviceEditFire = lazy(() =&gt; import('./safemateFire/DeviceEditFire'));
+const DeviceEditRoof = lazy(() =&gt; import('./safemateRoof/DeviceEditRoof'));
+const DeviceEditMonitor = lazy(() =&gt; import('./safemateMonitoring/DeviceEditMonitor'));
+const DeviceEditSmartGreen = lazy(() =&gt; import('./smartgreen/DeviceEditSmartGreen'));
+
+const SitePage = ({ id, code, data }: SitePageProp) =&gt; {
+  let sitePage = null;
+  switch (code) {
+    case SITE_CODES.DX:
+      sitePage = &lt;DeviceEditAidx id={id} data={data} /&gt;;
+      break;
+    // ... 나머지 사이트도 동일하게 sitePage 에 담고 break
+  }
+  return &lt;Suspense fallback={null}&gt;{sitePage}&lt;/Suspense&gt;;
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/device/aidx/DeviceEditAidx.tsx</code> — 조회 중 폼 갱신 분리(반복 갱신 제거)</div>
+<pre><code>const { setFieldValue } = formik;
+const { modelId, areaId } = formik.values;
+
+useEffect(() =&gt; {
+  const firstModelId = modelDataList?.[0]?.id;
+  if (id !== 'regist' || !firstModelId || modelId) return;
+
+  // 2026-08-20: 조회 함수의 렌더 상태 변경을 분리해 등록 화면의 반복 갱신을 방지한다.
+  void setFieldValue('modelId', firstModelId, false);
+}, [id, modelDataList, modelId, setFieldValue]);
+
+useEffect(() =&gt; {
+  const firstAreaId = areaList?.[0]?.id;
+  if (id !== 'regist' || !firstAreaId || areaId) return;
+
+  // 2026-08-20: 조회 완료 뒤 등록값이 비어 있을 때만 폼을 초기화해 중첩 상태 갱신을 방지한다.
+  void setFieldValue('areaId', firstAreaId, false);
+}, [id, areaList, areaId, setFieldValue]);
+
+// 설치일 선택기는 pickerType 변경으로 오늘 날짜로 리셋되지 않게 한다
+&lt;CustomPicker pickerType="date" date={formik.values.installDate} resetOnPickerTypeChange={false} ... /&gt;</code></pre>
     </div>
     <div class="snippet">
       <div class="sc"><code>src/pages/device/smartgreen/DeviceListSmartGreen.tsx</code> — 가상 "전체" 제외 · CSV 다운로드 복구</div>
@@ -226,7 +324,10 @@ useEffect(() =&gt; {
     <h2>관련 소스</h2>
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/device.ts" target="_blank" rel="noopener">src/api/device.ts</a><span class="src">디바이스 목록/상세/삭제 API</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/common.ts" target="_blank" rel="noopener">src/api/common.ts</a><span class="src">구역(Area)·서비스대상 CRUD · 구역-디바이스 연동 · 마커 upsert</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/common.ts" target="_blank" rel="noopener">src/api/common.ts</a><span class="src">구역(Area)·서비스대상 CRUD · 구역-디바이스 연동 · 마커 upsert · headerServiceTargets(이름순 고정)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/device/DeviceEdit.tsx" target="_blank" rel="noopener">src/pages/device/DeviceEdit.tsx</a><span class="src">디바이스 등록·수정 진입 · 사이트별 편집 화면 lazy 분리 로딩</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/device/aidx/DeviceEditAidx.tsx" target="_blank" rel="noopener">src/pages/device/aidx/DeviceEditAidx.tsx</a><span class="src">AI산업안전DX 디바이스 등록·수정 · 모델/구역 기본값 채움 분리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/search/CustomPicker.tsx" target="_blank" rel="noopener">src/components/search/CustomPicker.tsx</a><span class="src">날짜 선택기 · resetOnPickerTypeChange 옵션</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/serviceTarget.ts" target="_blank" rel="noopener">src/api/serviceTarget.ts</a><span class="src">서비스 대상 도메인 API</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/area.ts" target="_blank" rel="noopener">src/api/area.ts</a><span class="src">구역 도메인 API</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/device/smartgreen/DeviceListSmartGreen.tsx" target="_blank" rel="noopener">src/pages/device/smartgreen/DeviceListSmartGreen.tsx</a><span class="src">스마트그린 디바이스 목록 · 가상 "전체" 제외 · CSV 다운로드</span></li>

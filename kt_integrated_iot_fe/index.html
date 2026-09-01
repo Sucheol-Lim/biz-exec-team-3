@@ -205,7 +205,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3945988107" target="_blank" rel="noopener">KT IoT 통합 관제 (3945988107)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-08-07 · 8ffaf142 Merge branch 'fix/20260807-airmon-marker-list-without-sido' into main</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-08-28 · bd10971d Merge branch 'feature/20260828-sms-receiver-delete-template-sequence' into main</div></div>
       <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>kt_iot</code> / 0.0.1 (.env.prd VITE_VERSION)</div></div>
     </div>
   </div>
@@ -272,14 +272,14 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
     <div class="cards">
       <a class="card" href="f01.html"><div class="t">멀티 사이트 통합 관제</div><div class="d">Air Map·AI산업안전DX·SafeMate(4종)·한전 AMI·SMART GREEN을 하나의 콘솔에서 사이트 단위로 분기해 관제합니다. URL은 모두 <code>/:site</code>로 시작합니다.</div></a>
       <a class="card" href="f02.html"><div class="t">지도형 대시보드</div><div class="d">KT 자체 지도 SDK(kt-map-sdk-js / geomaster / geoanalysis) 기반으로 디바이스·시설물·이벤트 마커를 지도에 표출하고, 마커 다이얼로그·그리기 컨트롤을 제공합니다.</div></a>
-      <a class="card" href="f03.html"><div class="t">카드형 종합 현황</div><div class="d">react-grid-layout 기반 위젯 그리드로 실시간 디바이스·시설물 현황, 이벤트 현황 등을 카드 형태로 구성하고 배치를 저장합니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">카드형 종합 현황</div><div class="d">react-grid-layout 기반 위젯 그리드로 실시간 디바이스·시설물 현황, 이벤트 현황 등을 카드 형태로 구성합니다. 배치와 위젯 On/Off 상태는 사이트별로 저장되며, 저장 스키마는 버전 기반으로 마이그레이션됩니다.</div></a>
       <a class="card" href="f04.html"><div class="t">실시간 이벤트 수신</div><div class="d">STOMP over WebSocket으로 관제 이벤트를 실시간 수신합니다. GZIP 페이로드를 pako로 해제하고, 알림(Alarm)·이벤트 마커로 라우팅합니다.</div></a>
       <a class="card" href="f05.html"><div class="t">통계 요약·분석</div><div class="d">Nivo·D3 차트로 측정소별 비교, 이벤트·디바이스 통계, AI산업안전DX 설비 이용률·자원환경, SMART GREEN 생육 디바이스 분석 등을 시각화합니다.</div></a>
       <a class="card" href="f06.html"><div class="t">이력 조회</div><div class="d">이벤트 발생 이력, 디바이스 제어·등록/삭제 이력, 문자 발송 이력 등을 조회하고 Content-Disposition 기반 파일 다운로드를 지원합니다.</div></a>
       <a class="card" href="f07.html"><div class="t">디바이스·서비스대상·구역 관리</div><div class="d">디바이스, 서비스 대상, 구역(Zone)을 목록·상세·등록·수정·삭제하는 관제용 관리 페이지를 제공합니다.</div></a>
       <a class="card" href="f08.html"><div class="t">SMS 발송 및 알림 설정</div><div class="d">이벤트 대상에 대한 SMS 발송(sms-send)과 알림 설정(sms-alert-settings)을 운영합니다. 수신자용 무인증 SMS 수신동의 페이지(sms-consent)도 제공합니다.</div></a>
       <a class="card" href="f09.html"><div class="t">AI 에이전트 대화</div><div class="d">WebSocket의 threadId·isActiveAgent 판별로 에이전트 응답을 분리 수신하며, aiagent 모달에서 스레드·메시지 기반 대화를 제공합니다.</div></a>
-      <a class="card" href="f10.html"><div class="t">게시판·자료실·문의</div><div class="d">공지사항(notice), 자료실(resource), 문의(contact-us)를 목록·상세·편집 단위로 제공합니다. 자료실은 파일 확장자 제한 등 보안성 검증이 반영되어 있습니다.</div></a>
+      <a class="card" href="f10.html"><div class="t">게시판·자료실·문의</div><div class="d">공지사항(notice), 자료실(resource), 문의(contact-us)를 목록·상세·편집 단위로 제공합니다. 홈 진입 시 팝업 공지를 최대 3개까지 계단식으로 노출하며, 자료실은 파일 확장자 제한 등 보안성 검증이 반영되어 있습니다.</div></a>
       <a class="card" href="f11.html"><div class="t">권한 기반 사이트 전환 제어</div><div class="d">SiteGuard·checkPermission이 권한 레벨에 따라 사이트 간 전환을 판정합니다. 부적합 접근 시 WebSocket 해제·세션 정리 후 로그인으로 이동합니다.</div></a>
       <a class="card" href="f12.html"><div class="t">보안 로그인·마스킹</div><div class="d">RSA(jsrsasign) 암호화와 Google reCAPTCHA v3 토큰 기반 로그인, 개인정보 마스킹/해제, OTP·비밀번호 변경 등 인증 모달을 제공합니다.</div></a>
       <a class="card" href="f13.html"><div class="t">과천 관제센터 특화 화면</div><div class="d">Air Map 하위 과천 진입점에 통신 상태·미수신·센싱 오류·전송 실패 등 측정망 운영 특화 화면을 별도로 제공합니다.</div></a>
@@ -308,14 +308,14 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
    ├─ layout/              # MainLayout/AuthLayout, Header, Sidebar, Footer, menu/, popup/
    ├─ pages/               # 화면 (사이트·기능별 페이지, React.lazy 코드 스플리팅)
    ├─ components/          # 재사용 컴포넌트 (chart, map, table, widget, markerDialog, search ...)
-   ├─ modal/               # 모달 (auth, search, aiagent, Alarm, CommonModal, ErrorDialog)
+   ├─ modal/               # 모달 (auth, search, aiagent, notice/NoticePopup, Alarm, CommonModal, ErrorDialog)
    ├─ modules/autoRefresh/ # 자동 갱신 모듈 (Boundary·Route·policy·logger·QueryOptions factory)
    ├─ contexts/            # Context Provider (Config, Header, WebSocket, HomeMapState, DrawControl ...)
    ├─ hooks/               # 커스텀 훅 (차트, 검색, 즐겨찾기, 지도 컨트롤, 날짜 등)
    ├─ api/                 # ApiClient(Axios) + 도메인별 호출 모듈
    ├─ themes/              # MUI 테마 커스터마이징 (palette, typography, components)
    ├─ types/               # 타입 정의 (api.d.ts, react-query.d.ts, config, theme, widget, favorite ...)
-   ├─ utils/               # 유틸 (util, rsa, MapUtils, localStorage, airQuality, token, smartGreenTargetScope ...)
+   ├─ utils/               # 유틸 (util, rsa, MapUtils, localStorage, airQuality, token, widgetLayoutConfig, smartGreenTargetScope ...)
    └─ assets/              # 이미지·맵 리소스 (메뉴 아이콘 SVG 등)</pre>
     <h3>주요 모듈 · 클래스</h3>
     <div class="table-wrap">
@@ -323,9 +323,9 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
         <thead><tr><th>모듈/파일</th><th>역할</th></tr></thead>
         <tbody>
           <tr><td><code>src/main.tsx</code></td><td>앱 부트스트랩. ReCaptcha → Config → Header → MUI 테마 → QueryClient → WebSocket → HomeMapState → DrawControl → BrowserRouter → AliveScope → ErrorDialog → Routes 순으로 Provider를 구성합니다. <code>Alt + V</code>로 버전/업데이트 일자를 표시합니다.</td></tr>
-          <tr><td><code>src/config.ts</code></td><td>사이트 목록(SITE_LIST), 메뉴(SITE_MENU), 권한(USER_ROLES), 레이아웃/그리드 상수, AI산업안전DX 서비스 타입 등 전역 상수를 정의합니다. AI산업안전DX 메뉴는 서비스 타입 5종(산업대기질·자원순환·산업환경·탄소중립·제조공정)에 유형 미지정을 뜻하는 '전체'(<code>AIDX_ALL_SERVICE_TYPE</code>) 항목이 더해진 하위 메뉴로 분화됩니다. 로그인 화면 하단 문의처는 <code>LOGIN_CONTACT_INFO</code>에 사이트 코드별로 정의합니다.</td></tr>
+          <tr><td><code>src/config.ts</code></td><td>사이트 목록(SITE_LIST), 메뉴(SITE_MENU), 권한(USER_ROLES), 레이아웃/그리드 상수, AI산업안전DX 서비스 타입 등 전역 상수를 정의합니다. AI산업안전DX 메뉴는 서비스 타입 5종(산업대기질·자원순환·산업환경·탄소중립·제조공정)에 유형 미지정을 뜻하는 '전체'(<code>AIDX_ALL_SERVICE_TYPE</code>) 항목이 더해진 하위 메뉴로 분화됩니다. 로그인 화면 하단 문의처는 <code>LOGIN_CONTACT_INFO</code>에 사이트 코드별로 정의합니다. 홈 위젯 저장 스키마 버전(<code>WIDGET_LAYOUT_VERSION</code>)과 사이트별 위젯 On/Off 저장소(<code>hiddenWidgetSites</code>) 기본값도 여기에서 관리합니다.</td></tr>
           <tr><td><code>src/routes/route.tsx</code></td><td>모든 경로가 <code>/:site</code>로 시작. SiteGuard가 URL site 유효성과 권한 기반 전환 가능 여부(hasRole)를 검사하며 페이지는 전부 React.lazy로 스플리팅됩니다. <code>/:site/sms-consent</code>는 SiteGuard·ProtectedRoute를 타지 않는 무인증 공개 라우트로 별도 등록됩니다. Home·Overview 라우트는 <code>AutoRefreshRoute</code>로 감싸 자동 갱신 스코프(<code>home</code>/<code>overview</code>)를 지정합니다. 사이트 URL 세그먼트는 <code>airbiz</code>(Air Map)·<code>factorydx</code>(AI산업안전DX)·<code>airmon</code>(과천 관제센터)로 변경되었습니다.</td></tr>
-          <tr><td><code>src/modules/autoRefresh/</code></td><td>유휴 상태 자동 데이터 갱신 모듈. <code>policy.ts</code>가 활성화 플래그(<code>VITE_AUTO_REFRESH_ENABLED</code>)·주기 5분·요청 타임아웃 30초를 정의하고, <code>AutoRefreshRoute</code>가 <code>{sitePath}:{scope}</code> key로 <code>AutoRefreshBoundary</code>를 재마운트합니다. Boundary는 disposed/paused/hidden/offline/사이트 동기화 여부를 검사해 백그라운드 재조회를 수행하고 commit 가드로 캐시 반영을 판정합니다. <code>createAutoRefreshQueryOptions</code>는 foreground·background가 동일 fetcher를 공유하도록 강제하며, <code>useAutoRefreshActivity</code>는 postpone/pause/resume 제어를 제공합니다.</td></tr>
+          <tr><td><code>src/modules/autoRefresh/</code></td><td>유휴 상태 자동 데이터 갱신 모듈. <code>policy.ts</code>가 활성화 플래그(<code>VITE_AUTO_REFRESH_ENABLED</code>)·주기 1분(2026-08-24 5분에서 단축)·요청 타임아웃 30초를 정의하고, <code>AutoRefreshRoute</code>가 <code>{sitePath}:{scope}</code> key로 <code>AutoRefreshBoundary</code>를 재마운트합니다. Boundary는 disposed/paused/hidden/offline/사이트 동기화 여부를 검사해 백그라운드 재조회를 수행하고 commit 가드로 캐시 반영을 판정합니다. <code>createAutoRefreshQueryOptions</code>는 foreground·background가 동일 fetcher를 공유하도록 강제하며, <code>useAutoRefreshActivity</code>는 postpone/pause/resume 제어를 제공합니다.</td></tr>
           <tr><td><code>src/types/react-query.d.ts</code></td><td>TanStack React Query의 <code>Register.queryMeta</code>를 모듈 확장해 <code>autoRefresh</code> 메타(scope·backgroundFetch)를 타입 수준에서 등록합니다.</td></tr>
           <tr><td><code>src/routes/ProtectedRoute.tsx</code></td><td>세션의 <code>site.code</code> 유무로 로그인 여부를 판단해 인증 후 화면(MainLayout)을 보호합니다.</td></tr>
           <tr><td><code>src/api/ApiClient.ts</code></td><td>Axios 인스턴스. baseURL은 <code>VITE_API_PATH</code>. 요청 시 accessToken을 Bearer로, realcode를 <code>unitServiceCode</code> 헤더로 주입. 401 시 세션 정리·로그인 리다이렉트, 그 외 에러는 공통 ErrorDialog 처리(<code>BPG-*</code> 업무 검증 에러는 서버 message를 그대로 노출).</td></tr>
@@ -358,7 +358,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
           <tr><td>지도 SDK</td><td>kt-map-sdk-js / geomaster / geoanalysis</td><td>^0.3.2 / ^0.1.9 / ^0.0.5</td><td>KT 자체 지도 SDK, geoanalysis 워커 빌드 시 복사</td></tr>
           <tr><td>실시간 통신</td><td>@stomp/stompjs / pako</td><td>^7.3.0 / ^2.1.0</td><td>STOMP over WebSocket, GZIP 페이로드 해제</td></tr>
           <tr><td>폼/검증</td><td>Formik / Yup</td><td>^2.4.9 / ^1.7.1</td><td>폼 상태·스키마 검증</td></tr>
-          <tr><td>보안/인증</td><td>jsrsasign / reCAPTCHA v3 / DOMPurify</td><td>^11.1.0 / - / ^3.4.11</td><td>RSA(src/utils/rsa.ts), react-google-recaptcha-v3, HTML sanitize</td></tr>
+          <tr><td>보안/인증</td><td>jsrsasign / reCAPTCHA v3 / DOMPurify</td><td>^11.1.0 / - / ^3.4.13</td><td>RSA(src/utils/rsa.ts), react-google-recaptcha-v3, HTML sanitize</td></tr>
           <tr><td>레이아웃</td><td>react-grid-layout / react-resizable</td><td>^1.5.2 / ^3.0.5</td><td>위젯 그리드 배치</td></tr>
           <tr><td>날짜/로깅</td><td>dayjs / loglevel</td><td>^1.11.18 / ^1.9.2</td><td>customParseFormat, src/logger.ts</td></tr>
           <tr><td>린트/포맷</td><td>ESLint / Prettier</td><td>ESLint 9</td><td>typescript-eslint, eslint-plugin-react(-hooks/-refresh)</td></tr>
@@ -389,13 +389,13 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
     <ol class="steps">
       <li><span class="st">조회 요청</span><span class="sd">페이지 진입 시 React Query 훅이 도메인 API 모듈을 호출하며, ApiClient가 baseURL·인증 헤더를 적용해 BFF REST API로 요청합니다.</span></li>
       <li><span class="st">캐싱 · 렌더링</span><span class="sd">응답은 React Query 캐시에 저장되고 차트(Nivo/D3)·테이블·위젯으로 렌더링됩니다. KeepAlive로 페이지 전환 시 상태가 보존됩니다.</span></li>
-      <li><span class="st">파일 다운로드</span><span class="sd">이력·통계 다운로드 요청은 <code>downloadFileFromResponse</code>가 Content-Disposition 헤더를 해석해 파일로 저장합니다.</span></li>
+      <li><span class="st">파일 다운로드</span><span class="sd">이력·통계 다운로드 요청은 <code>downloadFileFromResponse</code>가 Content-Disposition 헤더를 해석해 파일로 저장합니다. 목록 하단의 CSV 다운로드는 <code>*.csv</code> 엔드포인트를, 에어맵 종합/측정소별 분석의 '전체 분석 다운로드'는 <code>analytics.xlsx</code> 엔드포인트를 blob으로 받아 처리합니다.</span></li>
       <li><span class="st">오류 처리</span><span class="sd">401이면 세션을 비우고 <code>/:site/login</code>으로 리다이렉트하며, 그 외 오류는 공통 ErrorDialog(네트워크 오류 status 999)로 표시합니다.</span></li>
     </ol>
     <h3>4. 유휴 자동 갱신 (auto-refresh)</h3>
     <ol class="steps">
       <li><span class="st">Boundary 마운트</span><span class="sd">Home·Overview 라우트를 감싼 <code>AutoRefreshRoute</code>가 <code>{sitePath}:{scope}</code>를 key로 <code>AutoRefreshBoundary</code>를 마운트합니다. 사이트가 바뀌면 key가 바뀌어 Boundary가 통째로 재마운트되고 새 타이머가 시작됩니다.</span></li>
-      <li><span class="st">타이머 예약</span><span class="sd">기본 5분(<code>AUTO_REFRESH_INTERVAL_MS</code>) 주기로 다음 실행을 예약합니다. 폐기(disposed)·일시정지(paused)·문서 비가시(hidden)·오프라인·세션 사이트 불일치 중 하나라도 해당하면 예약을 건너뜁니다.</span></li>
+      <li><span class="st">타이머 예약</span><span class="sd">기본 1분(<code>AUTO_REFRESH_INTERVAL_MS</code>) 주기로 다음 실행을 예약합니다. 폐기(disposed)·일시정지(paused)·문서 비가시(hidden)·오프라인·세션 사이트 불일치 중 하나라도 해당하면 예약을 건너뜁니다.</span></li>
       <li><span class="st">사용자 활동 반영</span><span class="sd">조회 조건 변경 등 사용자 활동이 있으면 <code>useAutoRefreshActivity</code>의 <code>postponeAutoRefresh</code>로 다음 실행 시각을 미루고, 위젯 편집모드처럼 갱신이 곤란한 구간은 <code>pauseAutoRefresh</code>/<code>resumeAutoRefresh</code>로 멈췄다 재개합니다.</span></li>
       <li><span class="st">토큰 갱신 후 백그라운드 조회</span><span class="sd">실행 시점에 세션 스냅샷(userId·accessToken·refreshToken)을 확인해 <code>commonApi.refreshToken</code>으로 토큰을 갱신한 뒤, 활성 Query의 <code>meta.autoRefresh.backgroundFetch</code>를 호출해 화면 로딩 표시 없이 데이터를 다시 가져옵니다.</span></li>
       <li><span class="st">commit 가드</span><span class="sd">응답 도착 시 폐기·일시정지·pause 세대 불일치·사이트 불일치·Query 인스턴스 교체·비활성 Query·foreground 조회 진행 중·조회 시작 이후 dataUpdateCount 변동을 순서대로 검사해, 하나라도 걸리면 결과를 버리고 캐시를 덮어쓰지 않습니다.</span></li>
@@ -441,23 +441,23 @@ npm run release</code></pre>
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>2026-07-24 ~ 2026-08-07(175 커밋, 병합 제외 125 커밋)은 자동 갱신 모듈 도입과 운영 배포 준비가 중심입니다. 가장 큰 변화는 <code>src/modules/autoRefresh/</code> 신설로, Home·Overview 화면이 유휴 5분마다 토큰 갱신과 함께 백그라운드로 데이터를 다시 가져오고 위젯 편집모드·사용자 활동 시에는 pause/postpone으로 미루도록 정리되었습니다. 사이트 URL 세그먼트가 운영 규칙에 맞춰 <code>air→airbiz</code>·<code>dx→factorydx</code>·<code>gwacheon→airmon</code>으로 변경되었고, AI산업안전DX 유형 드롭다운에 '전체' 항목이 추가되었습니다. 지도 쪽은 마커 소스를 통합해 서로 다른 유형·등급이 한 클러스터에 묶이는 이종 클러스터 표시와 툴팁 아이콘이 도입되며 <code>MapUtils.ts</code>가 크게 개편되었습니다. 그 밖에 상태별 색상 범례 위젯(<code>status_color_legend</code>) 추가와 등급색 체계 확대 적용, 국가관측망·스마트그린·산업환경DX CSV 다운로드 구현 및 수정, 로그인 화면 문의처·개인정보 처리방침 링크·과천 전용 GUI 적용, 비밀번호 변경 흐름(재사용 441·반복 실패 429 안내) 정비, 한전 AMI 회선 처리 현황의 한전본부 필터를 <code>KEPCO_HQ</code> 공통코드 조회로 전환하는 작업이 진행되었습니다. 배포 측면에서는 <code>.env.prod</code>가 운영 프로필 <code>.env.prd</code>로 정리되고 CI 워크플로가 <code>ci-dev.yml</code>·<code>ci-main.yml</code>로 재편되었습니다.</p>
+    <p>2026-08-07 ~ 2026-08-28(135 커밋, 병합 제외 96 커밋)은 게시판·홈 위젯·에어맵 분석 다운로드를 운영 피드백에 맞춰 다듬는 작업이 중심입니다. 가장 손이 많이 간 영역은 게시판(공지사항·자료실·문의)으로, 세 화면 모두 <code>queryKeys.ts</code>를 두어 쿼리 키를 <code>unitServiceCode</code> 단위로 정리하고 CRUD 직후 상세 재요청을 막도록 캐시 정합성을 손봤으며, 목록 복귀 동선은 <code>src/pages/boardNavigation.ts</code>가 라우트 state에 쌓인 깊이를 읽어 뒤로가기 횟수를 계산하도록 바뀌었습니다. 여기에 공지사항 팝업 노출(<code>popupYn</code>)이 새로 붙어, 홈 진입 시 <code>/bff/monitor/boards/notice/popup</code>으로 받은 팝업 공지를 <code>src/modal/notice/NoticePopup.tsx</code>가 최대 3개(<code>MAX_POPUP_NOTICE_COUNT</code>)까지 계단식으로 겹쳐 띄우고 "오늘 하루 보지 않기"를 쿠키로 기억합니다. 팝업 GUI는 목업 개정에 따라 여러 차례 재조정되었습니다. 홈 위젯 쪽에서는 에어맵의 "장애(미수신) 현황" 위젯이 제거되고, 이미 저장된 사용자 레이아웃을 정리하기 위해 <code>src/utils/widgetLayoutConfig.ts</code>와 <code>WIDGET_LAYOUT_VERSION</code> 기반 마이그레이션이 도입되었습니다. 위젯 On/Off 표시 상태도 <code>hiddenWidgetSites</code>로 사이트별 영속화되었고, 저장값이 빈 배열이면 "위젯 0개"로 인정하도록 기본값 판정 규칙이 정리되었습니다. 에어맵 분석은 종합 분석·측정소별 분석의 "전체 분석 다운로드"가 <code>area/analytics.xlsx</code>·<code>device/analytics.xlsx</code> 엔드포인트를 쓰는 xlsx로 전환되었고, 전 측정소 다운로드에 조회 조건·정렬(<code>orderType</code>)·<code>serviceTargetId</code>가 반영되면서 최대 조회 기간이 31일로 제한되었습니다. 측정 항목도 실외 공기질 탭에 온도·습도가 추가되고 유동인구·신호등·VOCs·CO가 빠지는 식으로 조정되었으며, 조회 기준단위에 10분·1분이 추가되었습니다. 알림 SMS 설정에는 소음 항목과 카드 되돌리기 버튼이 들어갔고, 임계치와 문구를 짝으로 검증하도록 저장 규칙이 정리되었으며 수신자 삭제 API는 값이 있는 알람 템플릿 시퀀스만 전달하도록 바뀌었습니다. 한전 AMI는 종합현황 화면이 KPI 카드 제거·필터/상세 필드 매핑 재정비로 크게 개편되었고, 한전본부 목록은 하드코딩 대신 <code>useKepcoHqOptions</code>가 <code>KEPCO_HQ</code> 공통코드를 조회하도록 정리되었습니다. 그 밖에 스마트 검색 결과를 접근 가능한 메뉴 기준으로 걸러내는 <code>smartSearchFilter.ts</code> 추가, 산업안전DX 디바이스 등록 화면의 지도 SDK 로딩·반복 갱신 오류 수정, 과천 관제센터 마커 팝업 전용 단건 조회(<code>gwacheonApi.deviceDetail</code>) 도입, 취약점 리포트에 따른 의존성 상향(dompurify 3.4.13 등)이 이뤄졌고, 유휴 자동 갱신 주기는 5분에서 1분으로 단축되었습니다.</p>
     <ul class="commits">
-      <li><span class="date">2026-08-07</span><span class="msg">[Fix] 과천 관제센터 시/도 미선택 상태에서 마커가 조회되지 않던 문제</span></li>
-      <li><span class="date">2026-08-07</span><span class="msg">[Fix] 과천관제센터 로그인 GUI 적용</span></li>
-      <li><span class="date">2026-08-06</span><span class="msg">[Fix] 한전본부(KEPCO_HQ) detail-codes 응답 필드명 불일치로 hqId 필터가 undefined로 빠지던 문제 수정</span></li>
-      <li><span class="date">2026-08-06</span><span class="msg">[Feature] 지도 마커 소스 통합 및 이종 클러스터 표시</span></li>
-      <li><span class="date">2026-08-06</span><span class="msg">[Fix] 비밀번호 변경 시 이전 비밀번호 재사용(441) 안내 팝업 추가</span></li>
-      <li><span class="date">2026-08-06</span><span class="msg">[Fix] 설비가동률분석 조회기간 무제한으로 인한 504 타임아웃 방지</span></li>
-      <li><span class="date">2026-08-05</span><span class="msg">[Fix] 한전AMI 로그인 화면에 개인정보 처리방침 링크 노출</span></li>
-      <li><span class="date">2026-08-04</span><span class="msg">[Feature] 국가관측망 현황 CSV 다운로드 구현</span></li>
-      <li><span class="date">2026-08-03</span><span class="msg">한전 AMI 메뉴 항목(현황, 배전선로 작업현황) 재노출</span></li>
-      <li><span class="date">2026-08-03</span><span class="msg">[UI] 에어맵 국가관측망 막대 그래프 값 기반 등급 색상 적용</span></li>
-      <li><span class="date">2026-07-30</span><span class="msg">[Feature] AI산업안전DX 유형 드롭다운에 '전체' 항목 추가</span></li>
-      <li><span class="date">2026-07-30</span><span class="msg">[Fix] 자동 조회 연계 토큰 갱신 추가</span></li>
-      <li><span class="date">2026-07-29</span><span class="msg">[Feature] 로그인 화면 하단에 이메일 문의·기업고객센터 안내 추가</span></li>
-      <li><span class="date">2026-07-28</span><span class="msg">[Fix] Air Map/AI산업안전DX URL 경로 변경 (air-&gt;airbiz, dx-&gt;factorydx)</span></li>
-      <li><span class="date">2026-07-24</span><span class="msg">[Feature] Home·Overview 유휴 자동 갱신 적용</span></li>
+      <li><span class="date">2026-08-28</span><span class="msg">[Fix] 과천관제센터 마커 팝업 현재상태 오표시 수정</span></li>
+      <li><span class="date">2026-08-28</span><span class="msg">[Feature] SMS 수신자 삭제 API에 알람 템플릿 시퀀스 파라미터 추가</span></li>
+      <li><span class="date">2026-08-27</span><span class="msg">[Feat] 홈 위젯 닫기 상태 영속화 및 빈 상태 UX를 적용한다</span></li>
+      <li><span class="date">2026-08-26</span><span class="msg">[Fix] 위젯 On/Off 상태를 사이트별로 저장하고 사용자 지역 관리 패널의 강제 제어와 분리한다</span></li>
+      <li><span class="date">2026-08-26</span><span class="msg">[Fix] 전 측정소 다운로드 최대 조회 기간을 31일로 변경</span></li>
+      <li><span class="date">2026-08-26</span><span class="msg">[Fix] 스마트 검색 메뉴 필터링 및 중복 ID 제거</span></li>
+      <li><span class="date">2026-08-26</span><span class="msg">[UI] 알림 SMS 설정 카드에 되돌리기 버튼을 넣는다</span></li>
+      <li><span class="date">2026-08-25</span><span class="msg">[Feature] 에어맵 종합 분석 전체 분석 다운로드를 xlsx로 전환한다</span></li>
+      <li><span class="date">2026-08-25</span><span class="msg">[Feature] 에어맵에서 '장애(미수신) 현황' 위젯 제거 및 기존 사용자 레이아웃 정리</span></li>
+      <li><span class="date">2026-08-24</span><span class="msg">[Fix] 자동 데이터 조회 주기를 5분에서 1분으로 변경</span></li>
+      <li><span class="date">2026-08-24</span><span class="msg">[Feature] 에어맵 조회 기준단위에 10분·1분을 추가한다</span></li>
+      <li><span class="date">2026-08-24</span><span class="msg">[Feature] 홈 진입 시 팝업노출 공지사항 표시 기능 추가</span></li>
+      <li><span class="date">2026-08-18</span><span class="msg">취약점 리포트에 따라 의존성 패키지 버전을 상향한다</span></li>
+      <li><span class="date">2026-08-14</span><span class="msg">fix(common): 게시판 CRUD 이력 및 캐시 정합성 개선</span></li>
+      <li><span class="date">2026-08-11</span><span class="msg">feat(ami): 한전 AMI 화면 필터 및 표시 개선</span></li>
     </ul>
   </section>
 

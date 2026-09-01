@@ -51,9 +51,12 @@
     <p>SMS 발송 화면(<code>pages/smsSend/index.tsx</code>)은 SMS 수신 대상자를 목록·검색·등록·수정·삭제합니다. 대상자 조회는 <code>safemateApi.smsControl()</code>·<code>smsControlServiceTarget()</code>로, 등록/수정/삭제는 <code>registerSmsUser</code>·<code>updateSmsUser</code>·<code>deleteSmsUser</code>로 처리합니다. 발송 설정은 <code>updateSmsControlSetting</code>으로 사용자별 설정을 저장합니다. 검색은 이름·전화번호 필터를 지원하고, 테이블(<code>SmsSendTable</code>)에서 대상자 행을 선택해 수정 다이얼로그를 엽니다.</p>
     <p>개인정보(전화번호 등)는 기본적으로 마스킹되어 표시되며, 마스킹 해제는 별도 인증 모달(<code>ChangeMask</code>)을 거칩니다. 최근 KT 보안성 검증 반영으로 일부 사이트에서 마스킹 해제 버튼이 미노출 처리되었습니다.</p>
     <p>알림 설정 화면(<code>pages/smsAlarm/index.tsx</code>)은 세션 <code>site.code</code>로 분기하며, 현재 Air Map(<code>SITE_CODES.AIRMAP</code>)에 대해 공기질 알림 SMS 설정(<code>AirMapAlarm</code>)을 제공합니다. 설정 조회·저장·초기화와 측정소·수신자 목록은 <code>airmapApi</code>의 <code>push/sms/setting</code> 계열 엔드포인트(<code>getSmsSettingDetail</code>·<code>saveSmsSettings</code>·<code>resetSmsSetting</code>·<code>getSmsSettingDevices</code>·<code>getSmsReceivers</code>·<code>saveSmsReceiver</code> 등)로 처리합니다. 라우팅상 발송은 <code>/:site/sms-send</code>, 알림 설정은 <code>/:site/sms-alert-settings</code>로 진입합니다.</p>
-    <p><code>AirMapAlarm</code>은 공통 SMS 설정을 formik + Yup 폼으로 관리하며 저장 클릭 시점에만 검증합니다. SMS 발송 여부가 OFF면 나머지 필수값 검증을 생략해 OFF 상태 저장을 허용하고, ON일 때는 발송시간(평일/주말)·발신자 번호·발송 시작/종료 시간·재전송 주기·항목별 임계치/템플릿을 검증해 누락 항목을 <code>RequiredFieldAlertPopup</code>에 표시합니다. 저장 시 측정소를 선택하지 않았거나, 기준 측정소 사용 초과 비율 사용 시 기준 측정소가 없으면 <code>StationSelectAlertPopup</code>이 표시됩니다. 설정 초기화는 <code>resetSmsSetting</code> API와 연동됩니다. 하단의 측정소별 알림 수신 설정은 측정소 목록을 서버 페이지네이션(<code>page</code>·<code>size</code>)으로 조회하고, 측정소 선택 시 <code>getSmsReceivers</code>로 수신자 목록을 불러와 수신자(측정소당 최대 10명, 초과 시 <code>MaxReceiverAlertPopup</code>)별 SMS·미세/초미세먼지·온도·습도 수신 여부를 편집한 뒤 <code>saveSmsReceiver</code>로 템플릿 시퀀스와 함께 저장합니다. 서버가 오류 <code>resultCode</code>를 반환하면 <code>ServerMessageAlertPopup</code>으로 서버 메시지를 노출합니다.</p>
+    <p><code>AirMapAlarm</code>은 공통 SMS 설정을 formik + Yup 폼으로 관리하며 저장 클릭 시점에만 검증합니다. SMS 발송 여부가 OFF면 나머지 필수값 검증을 생략해 OFF 상태 저장을 허용하고, ON일 때는 발송시간(평일/주말)·발신자 번호·발송 시작/종료 시간·재전송 주기·항목별 임계치/템플릿을 검증해 누락 항목을 <code>RequiredFieldAlertPopup</code>에 표시합니다. 저장 시 측정소를 선택하지 않았거나, 기준 측정소 사용 초과 비율 사용 시 기준 측정소가 없으면 <code>StationSelectAlertPopup</code>이 표시됩니다. 설정 초기화는 <code>resetSmsSetting</code> API와 연동됩니다. 하단의 측정소별 알림 수신 설정은 측정소 목록을 서버 페이지네이션(<code>page</code>·<code>size</code>)으로 조회하고, 측정소 선택 시 <code>getSmsReceivers</code>로 수신자 목록을 불러와 수신자(측정소당 최대 10명, 초과 시 <code>MaxReceiverAlertPopup</code>)별 SMS·미세/초미세먼지·온도·습도·소음 수신 여부를 편집한 뒤 <code>saveSmsReceiver</code>로 템플릿 시퀀스와 함께 저장합니다. 서버가 오류 <code>resultCode</code>를 반환하면 <code>ServerMessageAlertPopup</code>으로 서버 메시지를 노출합니다.</p>
+    <p>측정 항목에 소음(<code>noise</code>)이 추가되어 임계치·템플릿 카드, 수신자 알림 항목 체크박스, 응답/요청 타입(<code>noiseLimitRate</code>·<code>noiseTemplate</code>·<code>noiseYn</code>·<code>noiseTemplateSequence</code>)이 모두 다섯 항목 체계로 확장되었습니다. 소음 템플릿 시퀀스는 기존 측정소 응답에 없을 수 있어 선택 필드로 다룹니다. 카드가 다섯 장이 되면서 최소 너비는 고정값 대신 사이드바 상태(<code>miniDrawer</code>)에 따라 <code>CARD_MIN_WIDTH_EXPANDED</code>(280px)와 <code>CARD_MIN_WIDTH_MINI</code>(320px)로 갈라지고, 수신자 테이블 최소 너비도 610px로 넓어졌습니다.</p>
+    <p>저장 검증은 "다섯 항목 전부 필수"에서 "짝으로만 맞으면 일부만 저장 가능"으로 완화되었습니다. <code>messageSchema</code>는 임계치가 있을 때만 메시지를 필수로 걸고, 반대로 메시지만 사용자가 채운 항목은 <code>findUnpairedMessage()</code>가 기본 템플릿과 대조해 잡아냅니다. 이 경우 누락 항목을 팝업 맨 앞에 올리고 "임계치를 입력한 항목은 메시지도 함께 입력해야 합니다" 같은 안내 문구(<code>notice</code>)를 <code>RequiredFieldAlertPopup</code>에 함께 표시합니다. 임계치를 한 항목도 넣지 않으면 어떤 조건에도 발송되지 않으므로 <code>hasAnyThreshold()</code>로 따로 막습니다. 저장 시 임계치가 없는 항목의 템플릿은 <code>templateForSave()</code>가 빈 문자열로 보내고, 값이 있는 템플릿은 앞뒤 공백을 <code>trim</code>해 화면 표시와 서버 저장값이 어긋나지 않게 합니다.</p>
+    <p>각 카드에는 "되돌리기"가 붙었습니다. 되돌리기의 기준은 <code>formik.initialValues</code>가 아니라 서버 응답을 담아 둔 <code>savedMessages</code> 상태입니다. 측정소 선택 경로가 <code>setValues</code>라 <code>initialValues</code>가 갱신되지 않기 때문입니다. 임계치와 문구를 한꺼번에 되돌리며, 값이 저장값과 다를 때만 버튼이 보여 "이 카드는 수정되었다"는 신호로도 쓰입니다. 수신자 삭제·초기화 API는 파라미터가 정리되어, 초기화(<code>resetSmsReceivers</code>)는 <code>alarmId</code>만 보내고 삭제(<code>deleteSmsReceiver</code>)는 값이 실제로 있는 템플릿 시퀀스만 쿼리에 남깁니다(빈 값이면 키 자체를 제외). 설정 초기화(<code>resetSmsSetting</code>)도 상세 조회와 동일하게 선택 측정소의 <code>alarmId</code>만 전달하며, 측정소를 고르지 않았으면 먼저 <code>StationSelectAlertPopup</code>으로 선택을 요구합니다. 수신자 저장·삭제·초기화와 설정 저장 후에는 <code>smsSettingDevices</code>(및 필요 시 <code>smsReceivers</code>) 쿼리를 무효화해 좌측 목록의 "등록 수신자 수"와 새로 발급된 알람 템플릿 시퀀스를 최신값으로 되받습니다.</p>
     <p>측정소를 선택하면 <code>getSmsSettingDetail</code>로 그 측정소의 저장된 설정을 불러와 폼 전체에 반영합니다. 반영 규칙은 항목별로 다릅니다. 상단 검색 조건(발송 여부·발송요일·발신자 번호·발송 시간·재전송 주기·사용 초과 비율)은 응답에 값이 없으면 기존(서비스대상 기준) 값을 유지하고, 임계치·템플릿은 측정소별 값이므로 응답으로 덮어씁니다. 아직 설정을 저장한 적 없는 측정소는 응답이 없거나 값 필드가 모두 비어 있는데, 이를 <code>SETTING_VALUE_KEYS</code> 목록으로 검사하는 <code>hasSmsSetting()</code>이 판별해 폼을 초기값으로 되돌리고 기준 측정소만 선택한 측정소로 지정합니다. 또 이전 측정소의 응답이 새 측정소에 섞이지 않도록 <code>keepPreviousData</code>를 걷어내고 <code>isFetching</code> 동안에는 폼을 건드리지 않습니다.</p>
-    <p>입력·표시 편의도 보완되었습니다. 발신자 번호는 <code>formatPhoneNumber()</code>가 입력 즉시 하이픈을 넣어 주며, 서울 지역번호(<code>02</code>)와 10자리 번호의 국번 자릿수를 구분해 <code>02-123-4567</code>·<code>031-123-4567</code>·<code>010-1234-5678</code>을 모두 올바르게 끊습니다(숫자 11자리로 절삭). 화면이 좁아지면 SMS 설정 카드와 측정소·수신자 테이블이 카드 영역을 벗어나므로, <code>horizontalScrollSx</code>로 가로 스크롤을 주고 테이블 최소 너비(<code>STATION_TABLE_MIN_WIDTH</code> 480px · <code>RECEIVER_TABLE_MIN_WIDTH</code> 540px)와 카드 최소 너비(임계치 입력 280px + 좌우 여백)를 상수로 고정했습니다. 스크롤바 스타일은 <code>NormalTable</code>과 동일하게 맞춥니다.</p>
+    <p>입력·표시 편의도 보완되었습니다. 발신자 번호는 <code>formatPhoneNumber()</code>가 입력 즉시 하이픈을 넣어 주며, 서울 지역번호(<code>02</code>)와 10자리 번호의 국번 자릿수를 구분해 <code>02-123-4567</code>·<code>031-123-4567</code>·<code>010-1234-5678</code>을 모두 올바르게 끊습니다(숫자 11자리로 절삭). 화면이 좁아지면 SMS 설정 카드와 측정소·수신자 테이블이 카드 영역을 벗어나므로, <code>horizontalScrollSx</code>로 가로 스크롤을 주고 테이블 최소 너비(<code>STATION_TABLE_MIN_WIDTH</code> 480px · <code>RECEIVER_TABLE_MIN_WIDTH</code> 610px)를 상수로 고정했습니다. 스크롤바 스타일은 <code>NormalTable</code>과 동일하게 맞춥니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       대상자 등록·수정은 다이얼로그(<code>SmsTargetRegisterDialog</code>/<code>SmsTargetModifyDialog</code>)로 분리해, 목록 화면은 조회·검색에 집중하고 입력 검증은 다이얼로그에서 처리합니다. 알림 설정 쪽에서는 "설정이 없는 측정소"와 "설정을 불러오는 중"을 서로 다른 상태로 구분하는 것이 핵심입니다. 전자는 초기값 리셋, 후자는 폼 미변경으로 처리해야 이전 측정소 값이 잔류하지 않습니다.
@@ -99,18 +102,29 @@ sequenceDiagram
             Alarm-&gt;&gt;Alarm: resetForm(initialSmsAlarmSettings) + 기준 측정소만 지정
         end
     end
+    opt 카드 되돌리기
+        Alarm-&gt;&gt;Alarm: resetMessageCard(항목) — savedMessages 로 임계치와 문구 동시 복원
+    end
     Alarm-&gt;&gt;Alarm: handleSave() — formik/Yup 검증 (OFF면 검증 생략)
-    alt 측정소·기준 측정소·필수값 누락
-        Alarm-&gt;&gt;Alarm: StationSelect / RequiredField 팝업 표시
+    alt 측정소·기준 측정소 미선택
+        Alarm-&gt;&gt;Alarm: StationSelectAlertPopup 표시
+    else 임계치와 메시지 짝 불일치 또는 임계치 전무
+        Alarm-&gt;&gt;Alarm: findUnpairedMessage / hasAnyThreshold 결과를 notice 와 함께 팝업 표시
     else 검증 통과
-        Alarm-&gt;&gt;AApi: saveSmsSettings(smsSendStatus Y/N, 임계치·템플릿)
+        Alarm-&gt;&gt;AApi: saveSmsSettings(smsSendStatus Y/N, 5개 항목 임계치·templateForSave 템플릿)
+        Alarm-&gt;&gt;Alarm: smsSettingDevices 무효화 (새 알람 템플릿 시퀀스 수신)
     end
     opt 측정소별 수신자 설정
         Alarm-&gt;&gt;AApi: getSmsReceivers(alarmId)
-        Alarm-&gt;&gt;AApi: saveSmsReceiver(수신자 최대 10명 + 템플릿 시퀀스)
+        Alarm-&gt;&gt;AApi: saveSmsReceiver(수신자 최대 10명 + 템플릿 시퀀스 5종)
+        Alarm-&gt;&gt;Alarm: smsSettingDevices, smsReceivers 무효화 (등록 수신자 수 갱신)
+    end
+    opt 수신자 삭제·초기화
+        Alarm-&gt;&gt;AApi: deleteSmsReceiver(alarmId, receiverId, 값 있는 템플릿 시퀀스만)
+        Alarm-&gt;&gt;AApi: resetSmsReceivers(alarmId)
     end
       </div>
-      <p class="cap"><strong>흐름.</strong> 발송 대상자를 조회·검색하고, 다이얼로그로 등록/수정하며, 마스킹 해제는 인증 모달을 거칩니다. 알림 설정 화면(<code>AirMapAlarm</code>)은 측정소를 고르면 그 측정소의 저장 여부에 따라 폼을 병합하거나 초기값으로 되돌린 뒤, formik 검증을 거쳐 공통 설정과 측정소별 수신자를 각각 저장합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 발송 대상자를 조회·검색하고, 다이얼로그로 등록/수정하며, 마스킹 해제는 인증 모달을 거칩니다. 알림 설정 화면(<code>AirMapAlarm</code>)은 측정소를 고르면 그 측정소의 저장 여부에 따라 폼을 병합하거나 초기값으로 되돌린 뒤, 임계치·메시지 짝 검증을 거쳐 공통 설정과 측정소별 수신자를 각각 저장하고, 저장·삭제 후에는 측정소 목록 쿼리를 다시 받아 등록 수신자 수와 템플릿 시퀀스를 맞춥니다.</p>
     </div>
   </section>
 
@@ -146,23 +160,38 @@ classDiagram
         -formik SmsAlarmSettings
         -selectedStation
         -baseStation
+        -savedMessages
+        -popupNotice
         +handleSave()
         +executeReset()
         +handleStationSave()
         +executeStationSave()
+        +resetMessageCard(type)
     }
     class SmsAlarmHelpers {
         +hasSmsSetting(detail) boolean
         +applySelectedStationDetailToSettings(current, detail)
         +mapDetailToSettings(detail)
+        +hasAnyThreshold(messages) boolean
+        +findUnpairedMessage(messages)
+        +templateForSave(item) string
         +formatPhoneNumber(value) string
         +horizontalScrollSx(mode)
     }
     class SmsSettingCard {
         -threshold
         -message
-        +THRESHOLD_INPUT_MIN_WIDTH
-        +CARD_MIN_WIDTH
+        -defaultThreshold
+        -defaultMessage
+        +onReset()
+        +CARD_MIN_WIDTH_EXPANDED
+        +CARD_MIN_WIDTH_MINI
+    }
+    class SmsAlarmTypes {
+        +messages pm10 pm25 temperature humidity noise
+        +Receiver 항목별 수신 여부 noise 포함
+        +StationTemplate noiseTemplateSequence
+        +initialSmsAlarmSettings
     }
     class airmapApi {
         +getSmsSettingDetail(params)
@@ -189,10 +218,11 @@ classDiagram
     AirMapAlarmPage --&gt; AirMapAlarm : AIRMAP 분기
     AirMapAlarm ..&gt; airmapApi : 알림 설정·수신자 조회/저장/초기화
     AirMapAlarm ..&gt; SmsAlarmPopups : 확인·안내 팝업
-    AirMapAlarm ..&gt; SmsAlarmHelpers : 응답 병합·판별·입력 포맷
-    AirMapAlarm o-- SmsSettingCard : 항목별 임계치/템플릿 카드
+    AirMapAlarm ..&gt; SmsAlarmHelpers : 응답 병합·짝 검증·저장 정규화
+    AirMapAlarm ..&gt; SmsAlarmTypes : 폼 상태·초기 템플릿
+    AirMapAlarm o-- SmsSettingCard : 5개 항목 임계치/템플릿 카드
       </div>
-      <p class="cap"><strong>관계.</strong> <code>SmsSend</code>가 <code>safemateApi</code>의 sms-control 엔드포인트로 대상자를 관리하고, 마스킹 해제는 <code>ChangeMask</code>가 담당합니다. 알림 설정은 <code>AirMapAlarmPage</code>가 사이트 분기 후 <code>AirMapAlarm</code>이 <code>airmapApi</code>의 push/sms/setting 엔드포인트로 공통 설정과 측정소별 수신자를 조회·저장·초기화합니다. 응답을 폼에 병합·판별하는 순수 함수와 입력 포맷·레이아웃 상수는 파일 상단 헬퍼로 분리되어 있고, 항목별 임계치/템플릿 입력은 <code>SmsSettingCard</code>가 담당합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>SmsSend</code>가 <code>safemateApi</code>의 sms-control 엔드포인트로 대상자를 관리하고, 마스킹 해제는 <code>ChangeMask</code>가 담당합니다. 알림 설정은 <code>AirMapAlarmPage</code>가 사이트 분기 후 <code>AirMapAlarm</code>이 <code>airmapApi</code>의 push/sms/setting 엔드포인트로 공통 설정과 측정소별 수신자를 조회·저장·초기화합니다. 응답 병합·짝 검증·저장 정규화 순수 함수와 입력 포맷·레이아웃 상수는 파일 상단 헬퍼로 분리되어 있고, 미세먼지·초미세먼지·온도·습도·소음 다섯 항목의 임계치/템플릿 입력과 되돌리기는 <code>SmsSettingCard</code>가 담당합니다.</p>
     </div>
   </section>
 
@@ -255,8 +285,68 @@ await airmapApi.saveSmsSettings({
   sendEndTime: values.sendTimeRange.end,
   resendIntervalMin: values.resendInterval,
   usageOverRate: values.usageRatio,
-  // ...pm10/pm25/온도/습도 임계치(LimitRate)·템플릿(Template)
+  // ...pm10/pm25/온도/습도/소음 임계치(LimitRate)·템플릿(Template)
 });</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/smsAlarm/AirMapAlarm.tsx</code> — 임계치·메시지 짝 검증과 저장 시 템플릿 정규화</div>
+<pre><code>// 임계치를 입력한 항목은 메시지도 필수다. 5개 항목을 전부 채워야만 저장되던 제약을 푼다.
+const messageSchema = (label: string) =&gt;
+  Yup.object({
+    threshold: Yup.number(),
+    message: Yup.string().trim().when('threshold', {
+      is: (threshold?: number) =&gt; threshold !== undefined &amp;&amp; threshold !== null,
+      then: (schema) =&gt; schema.required(`${label} 메시지`),
+      otherwise: (schema) =&gt; schema,
+    }),
+  });
+
+// 임계치를 한 항목도 입력하지 않으면 어떤 조건에도 SMS가 발송되지 않으므로 저장을 막는다
+const hasAnyThreshold = (messages: SmsAlarmSettings['messages']): boolean =&gt;
+  Object.values(messages).some((item) =&gt; item.threshold !== undefined);
+
+// 메시지만 채워진 반대 경우는 기본 템플릿과 비교해 따로 잡고, 안내 문구를 함께 돌려준다
+const findUnpairedMessage = (messages) =&gt; {
+  for (const [key, item] of Object.entries(messages)) {
+    const label = MESSAGE_LABELS[key] ?? key;
+    const hasThreshold = item.threshold !== undefined;
+    if (hasThreshold &amp;&amp; !item.message?.trim()) {
+      return { path: `messages.${key}.message`, field: `${label} 메시지`,
+               notice: '임계치를 입력한 항목은 메시지도 함께 입력해야 합니다.' };
+    }
+    // 기본 문구 그대로면 "입력하지 않음"으로 본다 (isMessageFilledByUser)
+  }
+  return null;
+};
+
+// 임계치가 없는 항목은 발송에 쓰이지 않으므로 템플릿도 빈 값으로 보낸다.
+// 값이 있으면 저장 시점에만 앞뒤 공백을 제거해 화면 비교 기준(trim)과 어긋나지 않게 한다.
+const templateForSave = (item: { threshold?: number; message: string }): string =&gt;
+  item.threshold === undefined ? '' : item.message.trim();</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/smsAlarm/components/SmsSettingCard.tsx</code> — 카드 되돌리기와 사이드바 연동 최소 너비</div>
+<pre><code>// 카드 최소 너비 — 소음 카드가 추가돼 한 줄에 5장이 들어가야 한다.
+// 사이드바가 펼쳐지면 그만큼(170px) 좁아지므로 카드 최소 너비도 함께 줄인다.
+const CARD_MIN_WIDTH_EXPANDED = 280;
+const CARD_MIN_WIDTH_MINI = 320;
+
+const { mode, miniDrawer } = useContext(ConfigContext);
+const cardMinWidth = miniDrawer ? CARD_MIN_WIDTH_MINI : CARD_MIN_WIDTH_EXPANDED;
+
+// 임계치든 문구든 저장값과 다르면 되돌리기를 보여준다.
+// 버튼이 보이는 것 자체가 "이 카드는 초기값과 다르다"는 신호가 된다.
+const isThresholdChanged = threshold !== defaultThreshold;
+const isMessageChanged = defaultMessage !== undefined &amp;&amp; message.trim() !== defaultMessage.trim();
+const canReset = Boolean(onReset) &amp;&amp; (isThresholdChanged || isMessageChanged);
+
+// AirMapAlarm.tsx — 되돌리기 기준은 서버에서 받아 폼에 채운 값(savedMessages)이다.
+// 측정소 선택 경로가 setValues라 formik.initialValues는 갱신되지 않는다.
+const resetMessageCard = (type: 'pm10' | 'pm25' | 'temperature' | 'humidity' | 'noise') =&gt; {
+  const saved = savedMessages[type];
+  updateMessage(type, 'threshold', saved.threshold);
+  updateMessage(type, 'message', saved.message);
+};</code></pre>
     </div>
     <div class="snippet">
       <div class="sc"><code>src/pages/smsAlarm/AirMapAlarm.tsx</code> — SMS OFF면 필수값 검증 생략(OFF 상태 저장 허용)</div>
@@ -278,8 +368,8 @@ const settingsValidationSchema = Yup.object({
 const SETTING_VALUE_KEYS = [
   'smsSendStatus', 'sendDayType', 'senderPhoneNumber', 'sendStartTime', 'sendEndTime',
   'resendIntervalMin', 'usageOverRate',
-  'pm10LimitRate', 'pm25LimitRate', 'temperatureLimitRate', 'humidityLimitRate',
-  'pm10Template', 'pm25Template', 'temperatureTemplate', 'humidityTemplate',
+  'pm10LimitRate', 'pm25LimitRate', 'temperatureLimitRate', 'humidityLimitRate', 'noiseLimitRate',
+  'pm10Template', 'pm25Template', 'temperatureTemplate', 'humidityTemplate', 'noiseTemplate',
 ] as const;
 
 // 설정이 저장되지 않은 측정소는 응답이 없거나 값 필드가 모두 비어 있다
@@ -340,8 +430,10 @@ onChange={(e) =&gt; updateSettings('senderNumber', formatPhoneNumber(e.target.va
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsAlarm/index.tsx" target="_blank" rel="noopener">src/pages/smsAlarm/index.tsx</a><span class="src">사이트별 공기질 알림 SMS 설정 분기</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsAlarm/AirMapAlarm.tsx" target="_blank" rel="noopener">src/pages/smsAlarm/AirMapAlarm.tsx</a><span class="src">공기질 알림 SMS 설정 본문 — formik/Yup 검증·측정소별 수신자 설정</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsAlarm/SmsAlarmPopups.tsx" target="_blank" rel="noopener">src/pages/smsAlarm/SmsAlarmPopups.tsx</a><span class="src">저장/초기화 확인·필수값 누락·측정소 선택·서버 메시지 안내 팝업 모음</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsAlarm/components/SmsSettingCard.tsx" target="_blank" rel="noopener">src/pages/smsAlarm/components/SmsSettingCard.tsx</a><span class="src">항목별 임계치/템플릿 카드 · 최소 너비 상수</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/airmap.ts" target="_blank" rel="noopener">src/api/airmap.ts</a><span class="src">airmap push/sms/setting 조회·저장·측정소 목록 API</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsAlarm/components/SmsSettingCard.tsx" target="_blank" rel="noopener">src/pages/smsAlarm/components/SmsSettingCard.tsx</a><span class="src">항목별 임계치/템플릿 카드 · 되돌리기 · 사이드바 상태별 최소 너비</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/smsAlarm/types.ts" target="_blank" rel="noopener">src/pages/smsAlarm/types.ts</a><span class="src">SmsAlarmSettings·Receiver·StationTemplate (소음 항목 포함) · 기본 템플릿 문구</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/airmap.ts" target="_blank" rel="noopener">src/api/airmap.ts</a><span class="src">airmap push/sms/setting 조회·저장·측정소 목록 API · 수신자 삭제/초기화 파라미터 정리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/types/api.d.ts" target="_blank" rel="noopener">src/types/api.d.ts</a><span class="src">SMS 설정·수신자 요청/응답 타입 (noiseLimitRate·noiseTemplate·noiseYn 등)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modal/auth/ChangeMask.tsx" target="_blank" rel="noopener">src/modal/auth/ChangeMask.tsx</a><span class="src">개인정보 마스킹 해제 인증 모달</span></li>
     </ul>
     <div class="sibling-nav">

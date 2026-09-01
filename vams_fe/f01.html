@@ -22,7 +22,7 @@
       <span class="badge gray">관리자 웹앱 (Vue 3 SPA)</span>
     </div>
     <h1>대시보드 (통합 AI 작업 목록)</h1>
-    <p class="one-liner">포스터·썸네일·자막 등 전 AI 엔진의 작업(Job)을 단일 목록에서 조회·필터링하는 VAMS 홈 화면입니다. 서비스 타입 다중 필터(8종)·상태칩(7종)·상태칩별 동적 정렬을 제공하고, 검색 조건은 <code>vams:listQuery:dashboard</code> 키로 localStorage에 영속되어 재방문 시 복원됩니다. 리스트 툴바·테이블 셀·빈 상태·상세패널은 전 메뉴 공통 컴포넌트로 승격되었고, 이 화면이 툴바 공통화의 정본 파일럿입니다.</p>
+    <p class="one-liner">포스터·썸네일·자막 등 전 AI 엔진의 작업(Job)을 단일 목록에서 조회·필터링하는 VAMS 홈 화면입니다. 서비스 타입 다중 필터(9종 — 개인화 포스터·개인화 하이라이트 분리)·상태칩(7종)·상태칩별 동적 정렬을 제공하고, 검색 조건은 <code>vams:listQuery:dashboard</code> 키로 localStorage에 영속되어 재방문 시 복원됩니다. 리스트 필터·툴바·테이블 셀·빈 상태·상세패널은 전 메뉴 공통 컴포넌트로 승격되었고, 목록·상세 조회 모두 실 BE 공통 시트(공통#1/#2/#3/#6/#7)로 전환된 상태입니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/vams_fe" target="_blank" rel="noopener"><code>vams_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
@@ -48,13 +48,13 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>대시보드는 VAMS 로그인 후 처음 만나는 홈 화면으로, 포스터·썸네일·자막·개인화·구간마킹·얼굴인식(CI)·골라보기·하이라이트 8개 서비스 타입의 AI 작업을 하나의 목록으로 통합 조회합니다. 화면은 <code>DashboardListPage.vue</code>가 <code>ContentListLayout</code> 슬롯 합성으로 구성하며, 검색(<code>SearchBox</code>+최근검색)·상태칩 7종(전체/대기/검수필요/실패/검수중/검수완료/연동완료)·AI작업 다중 칩·조회기간 프리셋(1/5/15일/직접설정 달력)·긴급만 보기 스위치를 검색 조건으로 제공합니다. 상태칩 노출 옵션은 메뉴별 로컬 정의로 어긋나던 것을 <code>domain/statusChip.ts</code>의 <code>statusChipOptions()</code> 단일 소스로 통합했고, 페이지당 건수도 <code>domain/pageSize.ts</code> 공통 정책(10/20/50, 기본 20)을 따릅니다.</p>
-    <p>10개 리스트 페이지에 복붙돼 있던 툴바 마크업은 이 화면을 파일럿으로 공통 컴포넌트 4종에 이관됐습니다. <code>ListToolbar</code>가 Figma <em>Header/Table</em> 정본(타이틀 바 24h + 서브 바 32h)을 컨테이너로 제공하고, 그 안에 카운트(<code>ToolbarCount</code> — 총 N건·선택 N건), 조회기간(<code>DateRangeControl</code> — 프리셋 박스 + 기간 표시 + 달력 팝오버), 정렬·페이지당 드롭다운(<code>ToolbarBox</code>)이 슬롯으로 주입됩니다. 테이블 본문도 ID/명 2단 셀(<code>IdNameCell</code>)·행 CTA(<code>TableActionButton</code> — min-width 64 셀 규칙)·로딩(<code>TableLoading</code>)·빈 상태(<code>ListEmptyState</code>)로 공통화됐고, 긴급 표식은 콘텐츠 셀 인라인에서 65px 전용 컬럼으로 분리됐습니다. 컬럼 폭 모델도 패널 개폐 분기(<code>panelOpen</code>)로 두 벌을 손튜닝하던 방식을 버리고, 콘텐츠=흡수 주열(<code>grow:1</code>)·시리즈=양보 보조열(<code>grow:0</code>)·나머지=tier 고정폭이라는 <strong>§8 grow 관용구</strong>로 재선언해 컨테이너 폭만으로 전 상태가 재현됩니다.</p>
-    <p>검색 조건 상태는 공통 팩토리 <code>createListQueryStore('dashboard')</code>가 만든 Pinia 싱글톤 스토어가 담당합니다. 스토어는 <code>@vueuse/core</code>의 <code>useStorage</code>로 <code>vams:listQuery:dashboard</code> 키에 화이트리스트(상태칩·서비스타입·장르 2단·작업유형·조회기간 프리셋·정렬 등 — <code>keyword</code>·<code>page</code>는 제외)를 영속해, 다른 메뉴에 다녀와도 필터가 유지됩니다. 복원 시 <code>size</code>는 <code>normalizePageSize()</code>로 정본 옵션(10/20/50)에 정규화되어, 옵션 배열 변경 전의 영속값(예: 100)이 남아 있어도 기본값으로 폴백합니다. 스토어는 <code>hasActiveFilters</code> computed 도 함께 노출하는데, 필터 필드(키워드·상태칩·서비스타입·장르 2단·작업유형·API명·조회기간·긴급) 중 하나라도 기본값과 다르면 참이 되어 0건 화면을 "조건에 맞는 작업이 없습니다"와 "등록된 작업이 없습니다"로 갈라 줍니다 — 정렬·페이지네이션은 결과를 0건으로 만드는 필터가 아니라 판정에서 제외합니다. 조회는 <code>toListQuery()</code>가 <code>SearchData</code>를 쿼리 파라미터로 변환(서비스타입 CSV, 상태칩→<code>jobStates</code> 코드 변환)해 TanStack Vue Query의 <code>queryKey</code>로 삼는 구조라, 필터를 바꾸면 자동 재조회됩니다. 응답 DTO는 <code>api/adapters/dashboard.ts</code>에서만 도메인 모델(<code>DashboardJobRow</code>)로 변환되어 화면은 DTO를 직접 만지지 않습니다.</p>
-    <p>행 단위 액션은 상태 기반 CTA로 결정됩니다. <code>useDashboardActions().ctaFor()</code>가 내부 상태코드 10종(P·I·F·S·R·V·W·T·E·L) 중 검수 가능 상태(S·V·L)와 연동실패(E)를 [검수]로 매핑하고(상태별 단건 액션 정책 v2 — 단건 [재처리요청]은 삭제되어 실패(F) 건은 툴바의 일괄 재처리요청으로만 처리, 연동실패도 [검수]로 통일), [검수]는 <code>reviewRoute()</code>로 서비스 타입별 상세 화면(<code>/poster/:jobId</code> 등)으로 라우팅합니다. 일괄 연동/재처리 버튼의 활성 여부는 선택 행들의 상태 조합을 보는 <code>useBulkActionEligibility</code>가 판정하는데, 8개 메뉴가 같은 허용집합(연동=S·V·E / 재처리=F)을 복제하고 있던 것을 행 타입만 제네릭으로 받는 <code>shared/composables</code> 단일 구현으로 승격했습니다. 같은 정리로 조회기간 프리셋 <code>datePresetOptions</code> 9벌은 <code>shared/lib/datePreset.ts</code>로, 달력 팝오버 <code>DateRangeCalendarPopover</code> 9벌은 <code>shared/components/composite/date-picker/</code>로 합쳐졌습니다. 우측 상세 패널(<code>DashboardDetailPanel</code>)도 자체 <code>&lt;dl&gt;</code> 마크업을 공통 <code>PanelInfoTable</code>(행별 <code>#label-*</code>/<code>#value-*</code> 슬롯)로 바꾸고 장르 경로는 <code>GenrePath</code>, 긴급 표식은 <code>UrgentBadge</code>, 상태 카드 CTA는 <code>PanelActionButton</code>을 씁니다. 이때 작업이력의 <strong>엔진 버전 항목은 제거</strong>됐습니다 — GUI 정본에서 항목이 빠지고 API 리스트 v1.0.3 「작업이력 조회」가 <code>enginVersion</code>을 폐기 표시한 뒤 v1.0.4에서 공통#3 응답 필드가 실제로 삭제되어, 도메인 모델과 어댑터의 <code>normalizeEngineVersion</code>까지 8개 메뉴에서 함께 걷어냈습니다.</p>
+    <p>대시보드는 VAMS 로그인 후 처음 만나는 홈 화면으로, 포스터·썸네일·자막·개인화 포스터·개인화 하이라이트·구간마킹·얼굴인식(CI)·골라보기·하이라이트 9개 서비스 타입의 AI 작업을 하나의 목록으로 통합 조회합니다. 화면은 <code>DashboardListPage.vue</code>가 <code>ContentListLayout</code> 슬롯 합성으로 구성하며, 검색(<code>SearchBox</code>+최근검색)·상태칩 7종(전체/대기/검수필요/실패/검수중/검수완료/연동완료)·AI작업 다중 칩(전체 토글 + 9종)·조회기간 프리셋(1/5/15일/직접설정 달력)·긴급만 보기 스위치를 검색 조건으로 제공합니다. AI작업 9종 분화는 Flipbook Revision v0.9.30("LNB, AI작업칩: 개인화 포스터, 개인화 하이라이트 추가")로 개인화 칩이 <code>SEGIMAGE</code>·<code>SEGHIGH</code> 2코드로 나뉜 결과입니다. 상태칩 노출 옵션은 메뉴별 로컬 정의로 어긋나던 것을 <code>domain/statusChip.ts</code>의 <code>statusChipOptions()</code> 단일 소스로 통합했고, 페이지당 건수도 <code>domain/pageSize.ts</code> 공통 정책(10/20/50, 기본 20)을 따르며, 정렬 라벨도 3갈래로 갈렸던 표기를 <code>domain/sortLabel.ts</code>의 <code>SORT_LABELS</code> 단일 소스(최신입수순/오래된입수순/검수필요·실패 우선)로 정리했습니다.</p>
+    <p>리스트 페이지에 복붙돼 있던 필터·툴바 마크업은 이 화면을 파일럿으로 공통 컴포넌트에 이관됐습니다. 상태칩·AI작업 칩 행은 <code>FilterBar</code>+<code>FilterField</code>(범용 필터 슬롯) 조합 위에 상태칩 전용 <code>StatusFilterField</code>가 얹히고, <code>ListToolbar</code>가 Figma <em>Header/Table</em> 정본(타이틀 바 24h + 서브 바 32h)을 컨테이너로 제공하는 그 안에 카운트(<code>ToolbarCount</code> — 총 N건·선택 N건), 조회기간(<code>DateRangeControl</code> — 프리셋 박스 + 기간 표시 + 달력 팝오버), 정렬·페이지당 드롭다운(<code>ToolbarBox</code>)이 슬롯으로 주입됩니다. 이 v-model·핸들러 배선(datePreset·size·값라벨·달력 개폐) 자체도 10개 리스트 페이지가 동일하게 복붙하던 것을 <code>useListToolbar</code> 한 곳으로 모았습니다. 테이블 본문도 ID/명 2단 셀(<code>IdNameCell</code>)·행 CTA(<code>TableActionButton</code> — min-width 64 셀 규칙)·로딩(<code>TableLoading</code>)·빈 상태(<code>ListEmptyState</code>)로 공통화됐고, 상태 셀은 배지+원본변경 아이콘 마크업이 8개 메뉴에서 드리프트하던 것을 <code>StatusChangedCell</code>(<code>StatusBadge</code> dot + 16px 경고 아이콘, gap 6)로 일원화했습니다. 긴급 표식은 콘텐츠 셀 인라인에서 65px 전용 컬럼으로 분리됐고, 우측 상세패널 열림/닫힘 상태기계도 <code>useListDetailPanel</code>(닫기 트리거 3종 — ×·ESC·체크박스 선택 + 홈 전용 같은 행 재클릭 토글)로 공통화됐습니다. 컬럼 폭 모델도 패널 개폐 분기(<code>panelOpen</code>)로 두 벌을 손튜닝하던 방식을 버리고, 콘텐츠=흡수 주열(<code>grow:1</code>)·시리즈=양보 보조열(<code>grow:0</code>)·나머지=tier 고정폭이라는 <strong>§8 grow 관용구</strong>로 재선언해 컨테이너 폭만으로 전 상태가 재현됩니다.</p>
+    <p>검색 조건 상태는 공통 팩토리 <code>createListQueryStore('dashboard')</code>가 만든 Pinia 싱글톤 스토어가 담당합니다. 스토어는 <code>@vueuse/core</code>의 <code>useStorage</code>로 <code>vams:listQuery:dashboard</code> 키에 화이트리스트(상태칩·서비스타입·장르 2단·작업유형·조회기간 프리셋·정렬 등 — <code>keyword</code>·<code>page</code>는 제외)를 영속해, 다른 메뉴에 다녀와도 필터가 유지됩니다. 복원 시 <code>size</code>는 <code>normalizePageSize()</code>로, <code>datePreset</code>은 <code>normalizeDatePreset()</code>으로 각각 정본 집합에 정규화되고, <code>dateRange</code>는 <code>restoreDateRange()</code>가 프리셋(1/5/15일)이면 <strong>오늘 기준으로 재계산</strong>합니다 — 어제 저장한 절대 날짜를 그대로 복원하면 버튼 라벨은 "1일"인데 실제 조회는 어제 날짜로 나가던 문제(실측: startDt=endDt가 하루 전으로 굳어 0건)를 막기 위한 조치이며, 'custom'(직접설정)만 저장된 절대 범위를 유지합니다. 스토어는 <code>hasActiveFilters</code> computed 도 함께 노출하는데, 필터 필드(키워드·상태칩·서비스타입·장르 2단·작업유형·API명·조회기간·긴급) 중 하나라도 기본값과 다르면 참이 되어 0건 화면을 "조건에 맞는 작업이 없습니다"와 "등록된 작업이 없습니다"로 갈라 줍니다 — 정렬·페이지네이션은 결과를 0건으로 만드는 필터가 아니라 판정에서 제외합니다. 조회는 <code>toListQuery()</code>가 <code>SearchData</code>를 <strong>공통#1 계약 단일 소스</strong>인 <code>api/contentListQuery.ts</code>의 <code>toContentListQuery()</code>에 위임해 쿼리 파라미터로 변환하고, 그 출력이 TanStack Vue Query의 <code>queryKey</code>가 되어 필터를 바꾸면 자동 재조회됩니다. 응답 DTO는 <code>api/adapters/dashboard.ts</code>에서만 도메인 모델(<code>DashboardJobRow</code>)로 변환되어 화면은 DTO를 직접 만지지 않습니다.</p>
+    <p>행 단위 액션은 상태 기반 CTA로 결정됩니다. <code>useDashboardActions().ctaFor()</code>가 내부 상태코드 10종(P·I·F·S·R·V·W·T·E·L) 중 검수 가능 상태(S·V·L)와 연동실패(E)를 [검수]로 매핑하고(상태별 단건 액션 정책 v2 — 단건 [재처리요청]은 삭제되어 실패(F) 건은 툴바의 일괄 재처리요청으로만 처리, 연동실패도 [검수]로 통일), [검수]는 <code>reviewRoute()</code>가 <code>domain/serviceRoute.ts</code>의 단일 정본(<code>serviceTypeRoute()</code>)에 위임해 서비스 타입별 상세 화면으로 라우팅합니다(개인화 하이라이트는 <code>contentId</code> 도 함께 실어 보냄). 일괄 연동/재처리 버튼의 활성 여부는 선택 행들의 상태 조합을 보는 <code>useBulkActionEligibility</code>가 판정하는데, 8개 메뉴가 같은 허용집합(연동=S·V·E / 재처리=F)을 복제하고 있던 것을 행 타입만 제네릭으로 받는 <code>shared/composables</code> 단일 구현으로 승격했습니다. 같은 정리로 조회기간 프리셋 <code>datePresetOptions</code> 9벌은 <code>shared/lib/datePreset.ts</code>로, 달력 팝오버 <code>DateRangeCalendarPopover</code> 9벌은 <code>shared/components/composite/date-picker/</code>로 합쳐졌습니다. 우측 상세 패널(<code>DashboardDetailPanel</code>)도 자체 <code>&lt;dl&gt;</code> 마크업을 공통 <code>PanelInfoTable</code>(행별 <code>#label-*</code>/<code>#value-*</code> 슬롯)로 바꾸고 장르 경로는 <code>GenrePath</code>, 긴급 표식은 <code>UrgentBadge</code>, 상태 카드 CTA는 <code>PanelActionButton</code>을 씁니다. 콘텐츠정보 섹션은 콘텐츠 유형·해상도 2필드가 추가돼 <strong>공통 정본 10필드</strong>(시리즈ID/명·콘텐츠ID·회차명·장르/세부장르·콘텐츠유형·해상도·원본URL·트랜스코드경로·입수일)로 완성됐고, 원본 URL 행에는 <code>isChangedOriginPath</code>가 참일 때 경고 아이콘+툴팁이 붙습니다. 작업이력 섹션의 <strong>엔진 버전 항목은 제거</strong>됐습니다 — GUI 정본에서 항목이 빠지고 API 리스트 v1.0.3 「작업이력 조회」가 <code>enginVersion</code>을 폐기 표시한 뒤 v1.0.4에서 공통#3 응답 필드가 실제로 삭제되어, 도메인 모델과 어댑터의 <code>normalizeEngineVersion</code>까지 8개 메뉴에서 함께 걷어냈습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
-      기본 정렬은 "검수필요·실패 우선"(<code>PRIORITY</code>)이지만 상태칩이 <code>all</code>이 아니면 우선순위 정렬이 무의미하므로 <code>toListQuery()</code>가 <code>LATEST</code>로 강등하는 가드를 둡니다. 상태칩 변경 시에도 칩별 기본 정렬(<code>SORT_BY_CHIP</code>)로 자동 전환됩니다. 반응형 컬럼은 <code>DataTable</code> 내부의 <code>useColumnLayout</code>이 담당하는데, flexbox 결합 분배 알고리즘으로 폭을 계산해 px로 주입하되 <strong>활성 조건이 "<code>grow&gt;0</code> 컬럼 1개 이상"</strong>이라, <code>grow</code>를 선언하지 않은 기존 화면은 레거시 고정폭 경로를 그대로 타 회귀가 없습니다(가상 스크롤 경로는 범위 밖). 백엔드 미연동 개발 단계라 dev 서버에서는 MSW가 <code>DASHBOARD_API</code> 경로를 인터셉트해 fixtures를 반환합니다.
+      기본 정렬은 "검수필요·실패 우선"(<code>PRIORITY</code>)이지만 상태칩이 <code>all</code>이 아니면 우선순위 정렬이 무의미하므로 <code>toContentListQuery()</code>가 <code>LATEST</code>로 강등하는 가드를 둡니다. 상태칩 변경 시에도 칩별 기본 정렬(<code>SORT_BY_CHIP</code>)로 자동 전환됩니다. 반응형 컬럼은 <code>DataTable</code> 내부의 <code>useColumnLayout</code>이 담당하는데, flexbox 결합 분배 알고리즘으로 폭을 계산해 px로 주입하되 <strong>활성 조건이 "<code>grow&gt;0</code> 컬럼 1개 이상"</strong>이라, <code>grow</code>를 선언하지 않은 기존 화면은 레거시 고정폭 경로를 그대로 타 회귀가 없습니다(가상 스크롤 경로는 범위 밖). 홈은 2026-08-31에 <strong>전 경로가 실 BE 공통 시트로 이관</strong>됐습니다 — 목록은 공통#1(<code>/api/content-info/list</code>, <code>serviceType</code> 생략=전 메뉴 합집합), 상세는 합본 엔드포인트가 없어 공통#3(작업이력, <code>contentId</code> 확보) → 공통#2(콘텐츠정보) 순차 조인이며, 일괄 연동·재처리는 공통#6·#7입니다. dev 서버에서는 이 실경로들을 MSW가 인터셉트합니다.
     </div>
   </section>
 
@@ -69,14 +69,15 @@ sequenceDiagram
     participant ST as listQuery store (dashboard)
     participant LS as localStorage
     participant VQ as Vue Query
-    participant API as http.ts (dev는 MSW)
+    participant API as http.ts (공통#1, dev는 MSW)
     participant AD as adapters/dashboard.ts
 
     OP->>PG: 대시보드(홈) 진입
     PG->>ST: useDashboardListParams()
     ST->>LS: useStorage(vams:listQuery:dashboard) 복원
     LS-->>ST: 영속 화이트리스트 병합 (keyword·page 제외)
-    Note over ST,VQ: searchData → toListQuery() → queryKey 입력 computed
+    ST->>ST: normalizePageSize·normalizeDatePreset·restoreDateRange (stale 방지)
+    Note over ST,VQ: searchData → toListQuery() → toContentListQuery() → queryKey 입력 computed
     PG->>VQ: useQuery(dashboardKeys.list(params), fetchDashboard)
     VQ->>API: httpGet(DASHBOARD_API.list, params)
     API-->>VQ: DashboardListResponseDto
@@ -146,6 +147,12 @@ classDiagram
         +postLink(payload)
         +postReprocess(payload)
     }
+    class ContentListQueryLib {
+        &lt;&lt;shared&gt;&gt;
+        +toContentListQuery(s, opts) 공통#1 계약 단일 소스
+        +toSpecDate(iso)
+        +defaultRange(days)
+    }
     class DashboardAdapter {
         +toDashboardRow(dto) DashboardJobRow
         +toDashboardList(dto)
@@ -170,11 +177,28 @@ classDiagram
         ToolbarBox 정렬 페이지당
         DateRangeControl 프리셋 달력팝오버
     }
+    class UseListToolbar {
+        &lt;&lt;composable&gt;&gt;
+        +datePresetModel · calendarOpen
+        +currentPage · currentSize
+        +sortValueLabel · pageSizeValueLabel · datePresetValueLabel
+    }
+    class FilterRowUi {
+        FilterBar · FilterField 범용 슬롯
+        StatusFilterField 상태칩 7종 전용
+    }
+    class UseListDetailPanel {
+        &lt;&lt;composable&gt;&gt;
+        +panelOpen · selectedKey · selectedRow
+        +onRowClick 닫기트리거 x·ESC·체크박스(+홈 재클릭 토글)
+        +bindRows(rows, isFetching) stale 재동기
+    }
     class ListTableUi {
         IdNameCell 2단 셀
         TableActionButton min-width 64
         TableLoading 스켈레톤
         ListEmptyState 3-way 분기
+        StatusChangedCell 배지 + 원본변경 아이콘
     }
     class UseDashboardColumns {
         -isNarrow useMediaQuery 1280
@@ -191,6 +215,7 @@ classDiagram
         +DATE_PRESET_OPTIONS 1 5 15 custom
         +presetToDateRange(p)
         +useBulkActionEligibility(rows) 제네릭 행타입
+        +SORT_LABELS 정렬 라벨 SSOT
     }
 
     DashboardListPage --> ListQueryStore : searchData 구독 · patch
@@ -199,51 +224,70 @@ classDiagram
     DashboardListPage ..> DomainPolicy : 상태칩·페이지당 옵션 SSOT
     DashboardListPage --> DashboardQueries : useQuery(fetchDashboard)
     DashboardQueries --> DashboardAdapter : DTO → 도메인 변환
-    DashboardQueries ..> ListQueryStore : toListQuery(searchData)
+    DashboardQueries ..> ContentListQueryLib : toListQuery → toContentListQuery
+    ContentListQueryLib ..> ListQueryStore : SearchData 소비
     DashboardListPage --> UseDashboardActions : CTA · 일괄 액션
     UseDashboardActions --> DashboardQueries : postLink · postReprocess
     DashboardListPage --> ReviewRoute : 검수 상세 라우팅
     DashboardListPage --> ListToolbarUi : 툴바 슬롯 합성
+    DashboardListPage --> UseListToolbar : datePreset · size · 값라벨 배선
+    DashboardListPage --> FilterRowUi : 상태칩 · AI작업칩 필터 행
+    DashboardListPage --> UseListDetailPanel : 패널 열림닫힘 상태기계
     DashboardListPage --> ListTableUi : filtered = hasActiveFilters 주입
     DashboardListPage --> UseDashboardColumns : ColumnDef 선언
     UseDashboardColumns ..> UseColumnLayout : grow · minWidth 소비
-    DashboardListPage ..> SharedListLib : 조회기간 프리셋 · 일괄 활성 판정
-    ListToolbarUi ..> SharedListLib : DATE_PRESET_OPTIONS
+    DashboardListPage ..> SharedListLib : 조회기간 프리셋 · 일괄 활성 판정 · 정렬 라벨
+    UseListToolbar ..> SharedListLib : DATE_PRESET_OPTIONS
       </div>
-      <p class="cap"><strong>관계.</strong> 페이지는 공통 팩토리로 만든 <code>listQuery</code> 스토어의 <code>searchData</code>만 구독하고, feature 레이어의 <code>queries.ts</code>가 스토어 상태를 쿼리 파라미터로 변환합니다. DTO 접근은 어댑터 한 곳으로 봉인되며, 상태칩 노출 옵션·페이지당 건수 같은 공통 정책값은 <code>domain/statusChip.ts</code>·<code>domain/pageSize.ts</code> 단일 소스를 참조합니다. 툴바·테이블 셀 UI와 조회기간 프리셋·일괄 활성 판정은 feature 밖(<code>shared/</code>)으로 승격돼, 페이지는 데이터와 정책만 주입하는 껍데기로 남습니다.</p>
+      <p class="cap"><strong>관계.</strong> 페이지는 공통 팩토리로 만든 <code>listQuery</code> 스토어의 <code>searchData</code>만 구독하고, feature 레이어의 <code>queries.ts</code>가 그 상태를 <code>shared/api</code>의 공통#1 계약(<code>toContentListQuery</code>)에 위임해 쿼리 파라미터로 변환합니다. DTO 접근은 어댑터 한 곳으로 봉인되며, 상태칩·페이지당 건수·정렬 라벨 같은 공통 정책값은 <code>domain/statusChip.ts</code>·<code>domain/pageSize.ts</code>·<code>domain/sortLabel.ts</code> 단일 소스를 참조합니다. 필터 행·툴바 배선·패널 상태기계·테이블 셀 UI는 feature 밖(<code>shared/</code>)으로 승격돼, 페이지는 데이터와 정책만 주입하는 껍데기로 남습니다.</p>
     </div>
   </section>
 
   <section id="code">
     <h2>핵심 코드</h2>
     <div class="snippet">
-      <div class="sc"><code>src/features/dashboard/queries.ts</code> — searchData → 쿼리 파라미터 변환과 PRIORITY 가드</div>
-<pre><code>export function toListQuery(s: SearchData): DashboardListQueryParams {
-  // PRIORITY 가드 — 상태칩이 all 이 아니면 LATEST 로 강등
+      <div class="sc"><code>src/features/dashboard/queries.ts</code> — searchData → 공통#1 쿼리 파라미터(공용 계약 위임, 2026-08-31 실 BE 이관)</div>
+<pre><code>/**
+ * SearchData(listQuery store) → 공통#1 쿼리파라미터.
+ * 홈 고유값은 serviceType 이 가변이라는 것뿐이다.
+ *   · AI작업 칩이 비었으면 → 키 자체를 싣지 않는다 = 전 메뉴 합집합(홈의 기본 상태)
+ *   · 칩을 고르면 → 그 코드를 싣는다(BE 가 묶음코드를 실제코드로 확장해 준다).
+ * PRIORITY 강등은 공용 기본값(LATEST)을 쓴다.
+ */
+export function toListQuery(s: SearchData): DashboardListQueryParams {
+  return toContentListQuery(s, { serviceType: [...s.serviceTypes] })
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/api/contentListQuery.ts</code> — 공통#1 파라미터 계약 단일 소스(13개 메뉴 공용)</div>
+<pre><code>export function toContentListQuery(
+  s: SearchData,
+  opts: ContentListQueryOptions,
+): ContentListQueryParams {
+  const demote = opts.demotePriority ?? (() =&gt; 'LATEST' as SortType)
   const sortType: SortType =
-    s.sortType === 'PRIORITY' &amp;&amp; s.statusChip !== 'all' ? 'LATEST' : s.sortType
+    s.sortType === 'PRIORITY' &amp;&amp; s.statusChip !== 'all' ? demote(s.statusChip) : s.sortType
 
-  const base: DashboardListQueryParams = {
-    page: String(s.page),
-    size: String(s.size),
-    sortType,
+  // 날짜는 필수다(생략 시 VALIDATION_FAILED) → 스토어에 없으면 기본 범위(60일)를 만든다.
+  const range = s.dateRange
+    ? { from: toSpecDate(s.dateRange.from), to: toSpecDate(s.dateRange.to) }
+    : defaultRange(opts.defaultRangeDays, opts.now)
+
+  const params: ContentListQueryParams = {
+    page: String(s.page), size: String(s.size), sortType,
+    startDate: range.from, endDate: range.to,
   }
 
-  // AI작업 필터(다중) — 비었으면 전체
-  if (s.serviceTypes.length &gt; 0) {
-    base.serviceTypes = s.serviceTypes.join(',')
-  }
+  // 빈 배열은 명시적 전체다 — 키를 싣지 않는다(빈 값을 실으면 BE 가 0건을 준다)
+  const svc = opts.serviceType
+  if (svc !== undefined &amp;&amp; (!Array.isArray(svc) || svc.length &gt; 0)) params.serviceType = svc
+  if (s.keyword) params.searchWord = s.keyword
 
-  if (s.keyword) {
-    base.keyword = s.keyword
-  }
-
-  const states = CHIP_TO_STATES[s.statusChip]   // 상태칩 → 내부 상태코드 목록
-  if (states.length &gt; 0) {
-    base.jobStates = states.join(',')
-  }
-  ...
-  return base
+  // 칩이 묶는 상태를 전부 싣는다(다중 지원). '전체' 칩은 빈 배열이라 키가 빠진다.
+  const states = CHIP_TO_STATES[s.statusChip]
+  if (states.length &gt; 0) params.progressState = [...states]
+  if (s.urgentOnly) params.isUrgent = 'Y'
+  return params
 }</code></pre>
     </div>
     <div class="snippet">
@@ -258,14 +302,20 @@ classDiagram
       { mergeDefaults: true },
     )
 
-    // searchData 초기값 = 기본값 + 영속 화이트리스트 머지
-    // size 는 정본 옵션(10/20/50)으로 정규화 — 옵션 배열 변경 전 영속값(예: 100)이 남아 있으면
-    // 드롭다운 라벨이 빈 문자열이 되므로 기본값으로 폴백한다.
+    // searchData 초기값 = 기본값 + 영속 화이트리스트 머지.
+    // size·datePreset 은 정본 집합으로 정규화 — 옵션 배열 변경 전 영속값이 남아 있으면
+    // 드롭다운 라벨이 빈 문자열이 되거나(size) presetToDateRange 산술이 깨진다(datePreset).
+    // dateRange 는 restoreDateRange() 가 프리셋(1/5/15)이면 "오늘 기준"으로 재계산한다 —
+    // 어제 저장한 절대 날짜를 그대로 복원하면 라벨(1일)과 실제 조회 날짜가 어긋난다.
     const merged = { ...defaultSearchData(), ...persisted.value }
+    const datePreset = normalizeDatePreset(merged.datePreset)
     const searchData = reactive&lt;SearchData&gt;({
       ...merged,
+      datePreset,
       size: normalizePageSize(merged.size),
+      dateRange: restoreDateRange(datePreset, merged.dateRange),
     })
+    persisted.value = pickPersisted(searchData) // 정규화 결과 즉시 되쓰기(stale 값 정리)
 
     // searchData 변경 → 영속 화이트리스트 동기화
     watch(
@@ -350,22 +400,27 @@ function ctaFor(jobState: JobState): CtaConfig | null {
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/pages/DashboardListPage.vue" target="_blank" rel="noopener">src/features/dashboard/pages/DashboardListPage.vue</a><span class="src">홈 화면 — ContentListLayout 합성 · 상태칩 7/AI작업 칩 8 · SORT_BY_CHIP 동적 정렬 · 상세 패널</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/queries.ts" target="_blank" rel="noopener">src/features/dashboard/queries.ts</a><span class="src">toListQuery(서비스타입 CSV·PRIORITY 가드) · dashboardKeys · fetchDashboard/postLink/postReprocess</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/pages/DashboardListPage.vue" target="_blank" rel="noopener">src/features/dashboard/pages/DashboardListPage.vue</a><span class="src">홈 화면 — ContentListLayout 합성 · 상태칩 7/AI작업 칩 9 · SORT_BY_CHIP 동적 정렬 · 상세 패널</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/queries.ts" target="_blank" rel="noopener">src/features/dashboard/queries.ts</a><span class="src">toListQuery(공통#1 위임) · dashboardKeys · fetchDashboard/fetchDashboardDetail(#3→#2 순차조인)/postLink/postReprocess — 2026-08-31 전 경로 실 BE 이관</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/contentListQuery.ts" target="_blank" rel="noopener">src/api/contentListQuery.ts</a><span class="src">공통#1 콘텐츠 리스트 파라미터 계약 단일 소스(13개 메뉴 공용) — toContentListQuery · toSpecDate(ISO) · defaultRange(60일)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/composables/useDashboardStore.ts" target="_blank" rel="noopener">src/features/dashboard/composables/useDashboardStore.ts</a><span class="src">createListQueryStore('dashboard') 싱글톤 + listQueryParams computed</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/stores/listQuery.ts" target="_blank" rel="noopener">src/shared/stores/listQuery.ts</a><span class="src">메뉴별 listQuery 스토어 팩토리 — SearchData · useStorage 영속(vams:listQuery:&lt;slug&gt;)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/adapters/dashboard.ts" target="_blank" rel="noopener">src/api/adapters/dashboard.ts</a><span class="src">DTO → 도메인 어댑터 — parseJobState · toStatusChip · maskActor (engineVersion 정규화는 API v1.0.4 폐기 반영해 제거)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/stores/listQuery.ts" target="_blank" rel="noopener">src/shared/stores/listQuery.ts</a><span class="src">메뉴별 listQuery 스토어 팩토리 — SearchData · useStorage 영속 · normalizeDatePreset/restoreDateRange(stale 조회기간 방지)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/adapters/dashboard.ts" target="_blank" rel="noopener">src/api/adapters/dashboard.ts</a><span class="src">DTO → 도메인 어댑터 — toScreenServiceType(미지 코드 통과) · toDashboardJobHistory · toDashboardContentInfo(engineVersion 제거, contentType·resolution 반영)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/composables/useDashboardColumns.ts" target="_blank" rel="noopener">src/features/dashboard/composables/useDashboardColumns.ts</a><span class="src">§8 grow 컬럼 선언 — 긴급 65 전용 컬럼 · 콘텐츠 흡수(grow:1) · 시리즈 양보(grow:0) · 1280 tier 고정폭</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/components/composite/data-table/useColumnLayout.ts" target="_blank" rel="noopener">src/shared/components/composite/data-table/useColumnLayout.ts</a><span class="src">DataTable 컬럼 반응형 엔진 — flexbox 결합 분배 → px 주입, growMode 게이트(레거시 고정폭 무접촉)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/components/composite/toolbar/ListToolbar.vue" target="_blank" rel="noopener">src/shared/components/composite/toolbar/ListToolbar.vue</a><span class="src">리스트 툴바 컨테이너(Figma Header/Table 정본) — title/title-tail/count/bulk/controls 슬롯 (ToolbarCount·ToolbarBox·DateRangeControl 동일 디렉터리)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/composables/useListToolbar.ts" target="_blank" rel="noopener">src/shared/composables/useListToolbar.ts</a><span class="src">리스트 툴바 v-model·핸들러 공통화 — datePreset/size/값라벨/달력 개폐 배선 1본화(10개 리스트 페이지)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/composables/useListDetailPanel.ts" target="_blank" rel="noopener">src/shared/composables/useListDetailPanel.ts</a><span class="src">우측 상세패널 열림/닫힘 상태기계 공통화 — 닫기트리거 x·ESC·체크박스(+홈 전용 같은행 재클릭 토글) · bindRows stale 재동기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/components/composite/StatusChangedCell.vue" target="_blank" rel="noopener">src/shared/components/composite/StatusChangedCell.vue</a><span class="src">리스트 상태 셀 공통화 — StatusBadge(dot) + 원본변경 경고 아이콘/툴팁(8개 메뉴 드리프트 정리)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/components/composite/ListEmptyState.vue" target="_blank" rel="noopener">src/shared/components/composite/ListEmptyState.vue</a><span class="src">빈 상태 3-way(로드실패 &gt; 필터결과없음 &gt; 데이터없음) — filtered 는 store.hasActiveFilters 주입</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/lib/datePreset.ts" target="_blank" rel="noopener">src/shared/lib/datePreset.ts</a><span class="src">조회기간 프리셋 공통 — DATE_PRESET_OPTIONS(1/5/15/직접) · presetToDateRange · 표시 헬퍼 (feature 9벌 복제 승격)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/lib/datePreset.ts" target="_blank" rel="noopener">src/shared/lib/datePreset.ts</a><span class="src">조회기간 프리셋 공통 — DATE_PRESET_OPTIONS(1/5/15/직접) · presetToDateRange · normalizeDatePreset · 표시 헬퍼 (feature 9벌 복제 승격)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/composables/useBulkActionEligibility.ts" target="_blank" rel="noopener">src/shared/composables/useBulkActionEligibility.ts</a><span class="src">일괄액션 활성 판정 제네릭 — 연동 허용 S·V·E / 재처리 허용 F (8벌 복제 승격)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/components/DashboardDetailPanel.vue" target="_blank" rel="noopener">src/features/dashboard/components/DashboardDetailPanel.vue</a><span class="src">우측 상세패널 — 공통 PanelInfoTable(#label-*/#value-* 슬롯)·GenrePath·UrgentBadge·PanelActionButton 채택</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/domain/sortLabel.ts" target="_blank" rel="noopener">src/domain/sortLabel.ts</a><span class="src">정렬 옵션 라벨 SSOT — SORT_LABELS(검수필요·실패 우선/최신입수순/오래된입수순), 3갈래 표기 드리프트 통합</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/components/DashboardDetailPanel.vue" target="_blank" rel="noopener">src/features/dashboard/components/DashboardDetailPanel.vue</a><span class="src">우측 상세패널 — 공통 PanelInfoTable(#label-*/#value-* 슬롯, 콘텐츠정보 10필드)·GenrePath·CopyValueField·UrgentBadge·PanelActionButton 채택</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/composables/useDashboardActions.ts" target="_blank" rel="noopener">src/features/dashboard/composables/useDashboardActions.ts</a><span class="src">단건/일괄 연동·재처리 mutation — ctaFor 상태 매핑(v2: S·V·L·E→검수) · confirm → 토스트 → invalidate</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/domain/statusChip.ts" target="_blank" rel="noopener">src/domain/statusChip.ts</a><span class="src">상태 필터칩 노출 옵션 단일 소스 — 정본 7칩 statusChipOptions() (메뉴별 로컬 정의 발산 통합)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/domain/pageSize.ts" target="_blank" rel="noopener">src/domain/pageSize.ts</a><span class="src">페이지당 건수 공통 정책 — PAGE_SIZE_OPTIONS(10/20/50) · DEFAULT_PAGE_SIZE(20) · normalizePageSize</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/reviewRoute.ts" target="_blank" rel="noopener">src/features/dashboard/reviewRoute.ts</a><span class="src">[검수] → 서비스 타입별 상세 라우트 매핑 (/poster·/thumbnail·/subtitle 등)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/dashboard/reviewRoute.ts" target="_blank" rel="noopener">src/features/dashboard/reviewRoute.ts</a><span class="src">[검수] → serviceRoute.ts 단일 정본(serviceTypeRoute) 위임 라우팅 — 개인화 하이라이트는 contentId 동반</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">기능 목록</a>

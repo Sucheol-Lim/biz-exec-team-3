@@ -205,8 +205,8 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3771728412" target="_blank" rel="noopener">Confluence — RMS FE (3771728412)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-08-07 · 82aca440 Device Group Detail 에 Device list 에 뱃지 제거</div></div>
-      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>mantis-react-ts</code> / package.json 1.2.0, 운영 빌드 2.2.26</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-09-01 · 57ed0be3 ai, minipc env 삭제</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>mantis-react-ts</code> / package.json 1.2.0, 운영 빌드 2.2.26 (XLSmart 2.3.4)</div></div>
     </div>
   </div>
 </header>
@@ -231,7 +231,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
     <h2>개요</h2>
     <p>RMS FrontEnd(<code>rms_fe</code>)는 Altimedia RMS(Remote Management System)의 관리자용 웹 UI입니다. 운영자가 브라우저로 접속해 현장에 배포된 다수의 Android 기반 셋톱박스(STB)/OTT 단말을 원격으로 모니터링하고 제어하는 단일 페이지 애플리케이션(SPA)입니다. 빌드 산출물은 정적 자원으로 패키징되어 <code>/rms-ui</code> 경로 하위에 배포되며, 사내 접속 URL은 <code>https://rms.altimedia.com/rms-ui/index.html</code>입니다.</p>
     <p>대상 사용자는 운영자 PC의 데스크톱 브라우저이며, 관리 대상은 Android STB/OTT 디바이스입니다. 화면은 모니터링 대시보드, VoC(고객 응대), 단말(Device) 관리, 앱(App) 관리, OTA(펌웨어) 관리, 관리자(Administrator) 설정, Master 정책, Workflow, 웹 터미널, AI 챗봇 등 운영자가 단말 생애주기 전반을 다룰 수 있도록 구성되어 있습니다.</p>
-    <p>이 프론트엔드는 단일 코드베이스를 여러 사이트에 공통 배포하는 멀티 타깃 구조입니다. <code>.env.*</code> 파일과 <code>src/utils/env.ts</code>의 <code>REACT_APP_TARGET</code> 값으로 사이트를 구분하며, 확인된 타깃은 <code>KT</code>, <code>OBE</code>, <code>TTG</code>, <code>XLSmart</code>, <code>IBC</code>, <code>GLOBAL</code>(기본값)입니다. 타깃별로 웹 터미널, 고급 메시지, 런처 리셋, WiFi 메뉴 노출, 위치 지도/네트워크 위젯, 챗봇 노출, 단말 식별자 필드(KT는 <code>deviceSiteId</code>, 그 외 <code>deviceId</code>) 등이 분기되며, XLSmart는 Illegal Devices 위젯과 KPI 위젯 5개(대시보드 cols 20) 레이아웃을 추가로 사용합니다. IBC 타깃에는 이상 감지(anomalyDetect) 모듈·AI 챗봇·웹 터미널 분기가 활성화되어 있습니다.</p>
+    <p>이 프론트엔드는 단일 코드베이스를 여러 사이트에 공통 배포하는 멀티 타깃 구조입니다. <code>.env.*</code> 파일과 <code>src/utils/env.ts</code>의 <code>REACT_APP_TARGET</code> 값으로 사이트를 구분하며, 확인된 타깃은 <code>KT</code>, <code>OBE</code>, <code>TTG</code>, <code>XLSmart</code>, <code>IBC</code>, <code>GLOBAL</code>(기본값)입니다. 타깃별로 웹 터미널(OBE·TTG·XLSmart·IBC), 고급 메시지, 런처 리셋, WiFi 메뉴 노출, 펌웨어 설치 명령(TTG 제외), 위치 지도/네트워크 위젯, 챗봇 노출, 단말 대표 식별자(<code>DEV_MAIN_KEY</code> — KT는 <code>deviceSiteId</code>, XLSmart는 <code>serial</code>, 그 외 <code>deviceId</code>) 등이 분기됩니다. XLSmart는 Illegal Devices 위젯과 KPI 위젯 5개(대시보드 cols 20) 레이아웃에 더해 Microsoft 계정 SSO 로그인을 사용하고, IBC 타깃에는 이상 감지(anomalyDetect) 모듈·AI 챗봇·웹 터미널 분기가 활성화되며 <code>menuPermissions.excludedMenuCodes</code>로 Workflow 메뉴가 제외됩니다.</p>
     <div class="callout">
       <div class="ct">단말 연동 기본 흐름</div>
       운영자가 Management 메뉴의 Excel import로 단말 정보를 서버에 등록한 뒤 단말을 부팅하면, 단말의 RMS Client가 등록 정보를 바탕으로 인증하고 상태/정보를 서버에 올립니다. Screen Share·Terminal 같은 실시간 기능은 단말이 accessToken을 받아 connection 된 상태에서만 동작합니다(Confluence "RMS FE 단말 연동 방법").
@@ -245,16 +245,16 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <a class="card" href="f02.html"><div class="t">시스템 모니터링 · Quick Operation</div><div class="d">시스템 상태 화면(<code>dashboardSystem</code>)과 다수 단말에 명령을 일괄 적용하는 Quick Operation 화면을 제공합니다. Grafana(node-exporter) 모니터링과도 연계됩니다.</div></a>
       <a class="card" href="f03.html"><div class="t">배치 리포트</div><div class="d">배치로 집계된 리포트 목록과 상세(<code>batchReport</code>/<code>batchReportDetail</code>)를 조회하고, react-csv로 결과를 내보낼 수 있습니다.</div></a>
       <a class="card" href="f04.html"><div class="t">VoC 고객 응대</div><div class="d">VoC 대시보드와 에이전트별 단말 조회 화면(<code>agentDevicelist</code>)을 제공해 상담원이 특정 가입자 단말의 상태를 빠르게 확인하도록 지원합니다.</div></a>
-      <a class="card" href="f05.html"><div class="t">단말(Device) 관리</div><div class="d">단말 목록/상세, 단말 편집, 그룹 관리, 단말 정책(STB Policy)을 다룹니다. Excel import로 단말을 등록하고 그룹 단위 일괄 운영이 가능하며, Locked Devices 탭에서 잠금 단말과 잠금 사유(lockReason)를 관리합니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">단말(Device) 관리</div><div class="d">단말 목록/상세, 단말 편집, 그룹 관리, 단말 정책(STB Policy)을 다룹니다. Excel import로 단말을 등록하고 그룹 단위 일괄 운영이 가능하며, Locked Devices 탭에서 잠금 단말과 잠금 사유(lockReason)를 관리하며 Excel import와 잠금 해제(UNLOCK) 명령을 지원합니다.</div></a>
       <a class="card" href="f06.html"><div class="t">앱(App) 관리</div><div class="d">패키지 목록·설치, 기본 패키지(DefaultPackage), 앱 정책(AppPolicy) 등록/수정을 지원합니다. OBE 사이트에서는 패키지명 대신 앱 이름(appName)으로 표시합니다.</div></a>
       <a class="card" href="f07.html"><div class="t">OTA(펌웨어) 관리</div><div class="d">펌웨어 목록(<code>fwList</code>)과 펌웨어 설치(<code>fwInstall</code>) 화면으로 단말 펌웨어 OTA 업데이트를 운영합니다.</div></a>
       <a class="card" href="f08.html"><div class="t">관리자 · 역할(Role) 관리</div><div class="d">관리자 계정 등록/상세, 역할(Role) 기반 권한, 알림 설정(AlertSetting, 메일/OTT/Network Offline 알림 편집), 운영 이력(OperationHistory)을 관리합니다. 로그인·마스킹 접속 이력을 보는 History 탭과 Level3 계정용 개인정보 마스킹 전환 스위치가 추가되었습니다. KT 타깃은 LDAP 기반 가입 신청 승인/거절(Pending Approval) 탭을 별도 제공합니다.</div></a>
       <a class="card" href="f09.html"><div class="t">Master 정책 설정</div><div class="d">단말(STB)·앱 디바이스 정책을 등록·수정하는 Master 화면(<code>devicePolicyStb*</code>/<code>devicePolicyApp*</code>)으로 사이트 공통 정책을 정의합니다.</div></a>
       <a class="card" href="f10.html"><div class="t">실시간 원격 제어 · 화면 공유</div><div class="d">WebSocket 시그널 서버와 SSE로 단말 상태/이벤트를 수신하며 Screen Share, 원격 명령, 디바이스 모달 폴링(10초) 등 실시간 제어를 수행합니다.</div></a>
-      <a class="card" href="f11.html"><div class="t">웹 터미널</div><div class="d">@xterm/xterm 기반 웹 터미널(<code>pages/terminal</code>)로 단말에 원격 셸을 연결합니다(wetty 연동). OBE·TTG·IBC 타깃에서만 활성화됩니다.</div></a>
+      <a class="card" href="f11.html"><div class="t">웹 터미널</div><div class="d">@xterm/xterm 기반 웹 터미널(<code>pages/terminal</code>)로 단말에 원격 셸을 연결합니다(wetty 연동). OBE·TTG·XLSmart·IBC 타깃에서만 활성화됩니다.</div></a>
       <a class="card" href="f12.html"><div class="t">AI 챗봇</div><div class="d">사내 패키지 <code>@altimedia/rms-chatbot-ui</code>를 연동한 챗봇 팝업입니다. 디바이스/사용자 정보 요청과 화면 공유·앱 설치·펌웨어 OTA 등으로의 네비게이션을 처리하며 IBC 타깃에서만 노출됩니다.</div></a>
       <a class="card" href="f13.html"><div class="t">국제화(i18n)</div><div class="d">i18next/react-i18next로 다국어를 지원합니다. 로케일은 <code>en</code>·<code>fr</code>·<code>tr</code>·<code>du</code>가 포함되어 글로벌 사이트 대응이 가능합니다.</div></a>
-      <a class="card" href="f14.html"><div class="t">사이트별 기능 분기</div><div class="d"><code>REACT_APP_TARGET</code>에 따라 모듈 권한·위젯 권한·정책 주기·식별자 필드를 분기해 KT/OBE/TTG/XLSmart/IBC/GLOBAL을 한 코드베이스로 운영합니다.</div></a>
+      <a class="card" href="f14.html"><div class="t">사이트별 기능 분기</div><div class="d"><code>REACT_APP_TARGET</code>에 따라 모듈 권한·위젯 권한·메뉴 노출·정책 주기·대표 식별자(<code>DEV_MAIN_KEY</code>)를 분기해 KT/OBE/TTG/XLSmart/IBC/GLOBAL을 한 코드베이스로 운영합니다.</div></a>
     </div>
   </section>
 
@@ -271,11 +271,11 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
 ├── compress.js               # 빌드 결과 압축 (postbuild)
 ├── set-version.js / release.js / delete-unused-assets.js
 ├── .env.local / .env.kt / .env.obe / .env.ttg / .env.ttg.aws
-│   / .env.ttg_staging / .env.demo / .env.eu / .env.alti / .env.ai
-│   / .env.xl / .env.xl_prod   # rmsai_one → xl_prod 로 개명
+│   / .env.ttg_staging / .env.demo / .env.eu / .env.alti
+│   / .env.xl / .env.xl_prod   # .env.ai / .env.minipc 는 삭제됨
 ├── Dockerfile / infra/helm/  # 컨테이너·Helm·nginx 배포 리소스 (구 eks/ 이전,
 │                             #   xlsmart/ rms-ui-app 차트·buildspec 포함)
-├── public/ , vendor/ , diagrams/
+├── public/ , vendor/ , diagrams/ , docs/ , CLAUDE.md
 └── src/
     ├── index.tsx             # 엔트리포인트 (ReactDOM 렌더링)
     ├── App.tsx               # 최상위 Provider 트리·라우터·전역 단축키
@@ -283,14 +283,13 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
     ├── routes/               # MainRoutes / LoginRoutes / ExceptionalRoutes
     ├── pages/                # monitoring, voc, management, appmanagement,
     │                         #   ota, administrator, master, workflow,
-    │                         #   device, agents, terminal, auth, maintenance
+    │                         #   device, terminal, auth, maintenance
     ├── _api/                 # axios 래퍼 (AxiosRequest, Devices, Dashboard, ...)
-    ├── store/reducers/       # auth, menu, deviceInfo, enrolledDevice,
-    │                         #   notification, snackbar
+    ├── store/reducers/       # auth, menu, notification, snackbar
     ├── contexts/             # JWTContext, PermissionContext, ChatContext,
     │                         #   TaskContext, ConfigContext, MaskingContext
     ├── hooks/                # useAuth, useSSEController, useTable,
-    │                         #   useDeviceGroup, usePagination ...
+    │                         #   useDeviceGroup, useConfig ...
     ├── layout/ components/ sections/ chatbot/
     ├── themes/ styles/ assets/
     ├── locales/              # i18n (en, fr, tr, du, i18n.ts)
@@ -305,15 +304,16 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
           <tr><td>라우팅</td><td><code>src/routes/MainRoutes.tsx</code></td><td>전 페이지를 <code>lazy</code>+<code>Loadable</code> 코드 스플리팅. 메인 영역을 AuthGuard + PermissionGuard + MainLayout으로 감싸고, <code>/monitoring/dashboard/:id</code> 상세는 가드 밖 별도 경로로 노출. <code>mailreport</code> 경로는 타깃 무관 AlertSetting으로 통합. <code>quickOperation/:detectId</code>(QuickOperationMain), <code>surveySetting/:id</code>(SurveyDetail), <code>operationHistory</code>(OperationHistory 전용 페이지) 경로가 추가됨.</td></tr>
           <tr><td>API 계층</td><td><code>src/_api/AxiosRequest.tsx</code></td><td><code>beAxios</code>가 <code>REACT_APP_RMS_BE_SERVER_URL</code>을 baseURL로 사용. 요청 인터셉터에서 sessionStorage의 accessToken을 authorization 헤더에 주입하고 <code>Time-Zone</code> 헤더 추가, 인증 엔드포인트(<code>/api/v1/auth</code>)는 토큰을 비움. 콜백 스타일 <code>request</code> 헬퍼로 multipart 폼·더미 데이터 지원.</td></tr>
           <tr><td>도메인 API 모듈</td><td><code>src/_api/*.tsx</code></td><td>Devices, Dashboard, Firmware, User, Voc, Parameter, Mail, App, deviceGroupApi, CommonCode 등으로 기능별 분리.</td></tr>
-          <tr><td>상태 관리</td><td><code>src/store/reducers</code></td><td>Redux Toolkit 슬라이스(auth, menu, deviceInfo, enrolledDevice, notification, snackbar). 서버 데이터 캐싱은 react-query 담당.</td></tr>
-          <tr><td>인증·권한</td><td><code>src/contexts</code>, <code>utils/route-guard</code></td><td>JWTContext가 JWT 로그인/세션, PermissionContext+PermissionGuard가 역할(Role) 기반 화면 접근을 통제. 세션 타임아웃은 <code>REACT_APP_RMS_SESSION_TIMEOUT</code>(기본 30).</td></tr>
-          <tr><td>사이트 분기</td><td><code>src/utils/env.ts</code></td><td><code>modulePermissions</code>(terminal, advancedMesage, launcherReset, chatbot, enbaleWifi, anomalyDetect), <code>widgetPermissions</code>(deviceLocationMap, deviceBrandModel, networkInterface, disableEditMode, illegalDevices, KPIWidgetCount, widgetCols), <code>adminPermissions</code>(KT 전용 pendingApprovalTab·LDAP 항목 등), <code>stpPolicyPeriodMin</code>, <code>ID_FIELD</code> 등을 타깃별로 분기. 분기 판정이 <code>hooks/useTarget.ts</code> 훅에서 <code>utils/env.ts</code>의 순수 함수 <code>isTarget(only, except)</code>로 옮겨졌고, <code>components/TargetGuard.tsx</code>가 이를 사용해 자식 엘리먼트를 타깃 조건부로 렌더링합니다.</td></tr>
+          <tr><td>상태 관리</td><td><code>src/store/reducers</code></td><td>Redux Toolkit 슬라이스(auth, menu, notification, snackbar). 미사용 슬라이스 deviceInfo·enrolledDevice는 제거되었고, 서버 데이터 캐싱은 react-query가 담당합니다.</td></tr>
+          <tr><td>인증·권한</td><td><code>src/contexts</code>, <code>utils/route-guard</code></td><td>JWTContext가 JWT 로그인/세션, PermissionContext+PermissionGuard가 역할(Role) 기반 화면 접근을 통제. 세션 타임아웃은 <code>REACT_APP_RMS_SESSION_TIMEOUT</code>(기본 30). XLSmart 타깃은 Microsoft 계정 SSO를 지원해 로그인 화면이 <code>?code=</code> 파라미터를 <code>POST /api/v1/auth/sso/exchange</code>로 교환합니다. 로그인 직후 JWTContext는 <code>menuPermissions.excludedMenuCodes</code>에 해당하는 메뉴를 걸러 내비게이션을 구성합니다.</td></tr>
+          <tr><td>사이트 분기</td><td><code>src/utils/env.ts</code></td><td><code>modulePermissions</code>(terminal, installFw, advancedMesage, launcherReset, chatbot, enbaleWifi, anomalyDetect, ssoLogin), <code>widgetPermissions</code>(deviceLocationMap, deviceBrandModel, networkInterface, disableEditMode, illegalDevices, KPIWidgetCount, widgetCols), <code>menuPermissions</code>(excludedMenuCodes — IBC는 WORKFLOW 제외), <code>adminPermissions</code>(KT 전용 pendingApprovalTab·LDAP 항목 등), <code>stpPolicyPeriodMin</code>, <code>ID_FIELD</code>, 화면 전반의 대표 식별자 <code>DEV_MAIN_KEY</code>, <code>useIsoTimestamp</code>(XLSmart·IBC), <code>quickOperationInprogress</code>(OBE), <code>hasSerialNumber</code>(XLSmart) 등을 타깃별로 분기. 분기 판정이 <code>hooks/useTarget.ts</code> 훅에서 <code>utils/env.ts</code>의 순수 함수 <code>isTarget(only, except)</code>로 옮겨졌고, <code>components/TargetGuard.tsx</code>가 이를 사용해 자식 엘리먼트를 타깃 조건부로 렌더링합니다.</td></tr>
           <tr><td>개인정보 마스킹</td><td><code>src/contexts/MaskingContext.tsx</code></td><td>MaskingProvider가 MainLayout 최상단을 감싸 마스킹 상태를 공급. <code>roleLevel === 'Level3'</code>인 계정만 권한을 가지며 <code>/api/v1/masking/status</code>로 현재 상태를 읽고 <code>/api/v1/masking/{on|off}</code>로 전환합니다(전환 시 사유 전달 후 페이지 리로드). 헤더 Profile 팝오버의 스위치로 조작합니다.</td></tr>
           <tr><td>접속·마스킹 이력</td><td><code>src/pages/administrator/administer/historyList.tsx</code></td><td>Administrator 화면에 History 탭을 추가해 <code>/api/v1/login-histories</code>·<code>/api/v1/masking-histories</code>를 조회합니다. 검색·정렬(<code>createDt</code> 내림차순 기본)과 Excel 다운로드를 지원합니다.</td></tr>
           <tr><td>정책 UI 섹션</td><td><code>src/pages/master/policy/components</code></td><td>STB/App 정책 등록·수정 4개 화면에 중복돼 있던 UI를 <code>StbRebootSection</code>·<code>StbConditionSection</code>·<code>StbPeriodSection</code>·<code>StbAutoLaunchSection</code>·<code>PolicyActionSection</code>으로 분리해 공유합니다.</td></tr>
           <tr><td>실시간 통신</td><td>WS / SSE</td><td>WebSocket 시그널 서버(<code>REACT_APP_SIGNAL_BE_WS</code>)와 SSE(<code>useSSEController</code>, <code>REACT_APP_RMS_SSE_TIMEOUT</code>)로 단말 상태·원격 제어 이벤트 수신.</td></tr>
           <tr><td>이상 감지</td><td><code>src/pages/monitoring/anomalyDetect</code></td><td>IBC 타깃 전용 이상 감지 모듈. <code>index.tsx</code>가 all/cpu/memory/network/crash 5개 탭(<code>TU_CPU</code>·<code>TU_MEMORY</code>·<code>TU_NETWORK</code>·<code>TU_APP_CRASH</code>)을 묶고, IssueList·IssueSearch·TopRecurringIssues·anomalyAccordionList·ViewDevicesModal·SelectDevicesApplyModal·SendCommandModal·StopCommandModal로 구성됩니다. 반복 UI는 <code>components/InfoBox.tsx</code>·<code>InfoRow.tsx</code>로 분리했고, <code>?deviceId=</code> 쿼리 파라미터로 특정 단말 딥링크 진입을 지원하며 AI 분석 상태를 폴링합니다.</td></tr>
-          <tr><td>이상 감지 API</td><td><code>src/_api/Devices.tsx</code></td><td><code>/api/v1/quick-operation-issues</code> 계열 엔드포인트를 추가 — 목록·상세·<code>/stats</code>·<code>/recurring</code>·<code>/{issueId}/devices</code>·<code>/{issueId}/commands</code>(전송)·<code>commands/pause|resume|stop</code>·<code>my-command-history</code>. AI 분석은 <code>/api/v1/anomaly-detections/dispatch</code>로 실행하고 <code>runs/latest</code>로 상태를 확인합니다.</td></tr>
+          <tr><td>이상 감지 API</td><td><code>src/_api/Devices.tsx</code></td><td><code>/api/v1/quick-operation-issues</code> 계열 엔드포인트를 추가 — 목록·상세·<code>/stats</code>·<code>/recurring</code>·<code>/{issueId}/devices</code>·<code>/{issueId}/commands</code>(전송)·<code>commands/pause|resume|stop</code>·<code>my-command-history</code>. AI 분석은 <code>/api/v1/anomaly-detections/dispatch</code>로 실행하고 <code>runs/latest</code>로 상태를 확인합니다. 이슈 집계 초기화는 <code>/api/v1/quick-operation-issues/reset</code>이며, Quick Operation 상태 조회 경로가 <code>/api/v1/quick-operation-issues</code>로 바뀌고 OBE 타깃은 명령 전송 시 <code>/api/v1/quick/operation/{id}/inprogress</code>를 추가 호출합니다.</td></tr>
+          <tr><td>명령 권한 코드 체계</td><td><code>src/pages/administrator/administer/components/CommandPermission.tsx</code></td><td>Role 권한이 저장하는 커맨드 코드를 Device List 일괄 명령(<code>types/devicePageList.ts</code>) 기준으로 통일하고, Device 상세 단일 명령(<code>pages/device/commands.tsx</code>)은 <code>types/management.ts</code>의 <code>permCommands</code> 매핑으로 대조합니다. 세 코드 체계의 차이와 함정은 저장소의 <code>docs/device-command-architecture.md</code>에 정리되어 있습니다.</td></tr>
           <tr><td>AI 챗봇</td><td><code>src/chatbot</code>, <code>contexts/ChatContext.tsx</code></td><td>사내 패키지 <code>@altimedia/rms-chatbot-ui</code>를 연동. <code>useChat</code>의 <code>registOnChatbot</code>/<code>sendToFrontend</code>로 챗봇과 요청/응답 전문을 주고받음(Confluence "RMS FE AI Agent").</td></tr>
         </tbody>
       </table>
@@ -338,7 +338,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
           <tr><td>서버 상태</td><td>react-query</td><td>^3.39.3</td><td>API 캐싱/패칭</td></tr>
           <tr><td>UI 라이브러리</td><td>MUI(Material UI) 계열 / antd / Emotion</td><td>^5.10.9 / 5.8.1 / ^11</td><td>Mantis React 테마(<code>mantis-react-ts</code>)</td></tr>
           <tr><td>차트/시각화</td><td>ApexCharts / Nivo</td><td>3.35.5 / ^0.88.0</td><td>react-apexcharts, bar/line/pie</td></tr>
-          <tr><td>지도</td><td>Leaflet / react-leaflet(-cluster)</td><td>^1.9.4 / ^4.2.1</td><td>단말 위치 지도 위젯</td></tr>
+          <tr><td>지도</td><td>Leaflet / react-leaflet(-cluster)</td><td>^1.9.4 / ^4.2.1</td><td>단말 위치 지도 위젯, CARTO 타일(<code>REACT_APP_CARTO_MAP_KEY</code>)</td></tr>
           <tr><td>폼/검증</td><td>Formik / Yup</td><td>^2.2.9 / ^0.32.11</td><td>입력 폼 검증</td></tr>
           <tr><td>국제화</td><td>i18next / react-i18next</td><td>^23.6.0 / ^15.1.1</td><td>로케일 en, fr, tr, du</td></tr>
           <tr><td>HTTP</td><td>axios</td><td>^1.16.1</td><td><code>beAxios</code> 인스턴스·인터셉터</td></tr>
@@ -346,7 +346,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
           <tr><td>인증</td><td>jsonwebtoken (JWT)</td><td>^9.0.0</td><td>토큰 sessionStorage 보관</td></tr>
           <tr><td>터미널</td><td>@xterm/xterm + addon-fit</td><td>^5.5.0</td><td>웹 터미널(wetty 연동)</td></tr>
           <tr><td>표/그리드/DnD</td><td>react-table / react-grid-layout / react-window / react-dnd</td><td>^7.8.0 / ^1.5.0 / —</td><td>드래그 가능한 대시보드 그리드</td></tr>
-          <tr><td>AI 챗봇</td><td>@altimedia/rms-chatbot-ui</td><td>0.1.58 (사내 tgz)</td><td><code>vendor/</code> 로컬 패키지</td></tr>
+          <tr><td>AI 챗봇</td><td>@altimedia/rms-chatbot-ui</td><td>0.1.81 (사내 tgz)</td><td><code>vendor/</code> 로컬 패키지</td></tr>
           <tr><td>기타</td><td>dayjs, lodash, notistack, framer-motion, loglevel, react-csv</td><td>—</td><td>유틸·스낵바·애니메이션</td></tr>
           <tr><td>코드 품질</td><td>ESLint / Prettier</td><td>^7 / ^2.7.1</td><td>eslint-config-react-app</td></tr>
           <tr><td>배포</td><td>Docker / Kubernetes(Helm) / nginx</td><td>node:20.11.1</td><td><code>infra/helm</code> (nginx·appicon·xlsmart 차트)</td></tr>
@@ -360,7 +360,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
 
     <h3>운영자 로그인 · 권한 진입</h3>
     <ol class="steps">
-      <li><span class="st">로그인 화면 진입</span><span class="sd">LoginRoutes로 진입해 운영자 계정/비밀번호를 입력합니다. JWTContext가 <code>/api/v1/auth</code>로 인증 요청을 보냅니다(이때 authorization 헤더는 비움).</span></li>
+      <li><span class="st">로그인 화면 진입</span><span class="sd">LoginRoutes로 진입해 운영자 계정/비밀번호를 입력합니다. JWTContext가 <code>/api/v1/auth</code>로 인증 요청을 보냅니다(이때 authorization 헤더는 비움). XLSmart 타깃은 Microsoft 로그인 버튼을 함께 노출하며, 리디렉션으로 돌아온 <code>?code=</code> 값을 <code>/api/v1/auth/sso/exchange</code>에 넘겨 토큰을 받습니다.</span></li>
       <li><span class="st">토큰 발급·보관</span><span class="sd">발급된 accessToken을 sessionStorage에 저장합니다. 이후 모든 요청은 axios 인터셉터가 토큰과 <code>Time-Zone</code> 헤더를 자동 주입합니다.</span></li>
       <li><span class="st">AuthGuard · PermissionGuard</span><span class="sd">메인 라우트는 AuthGuard로 로그인 여부를, PermissionGuard로 역할(Role) 기반 메뉴 접근 권한을 검사합니다. 통과하면 MainLayout과 좌측 Navigation이 렌더링됩니다.</span></li>
       <li><span class="st">사이트 분기 적용</span><span class="sd"><code>REACT_APP_TARGET</code>에 따라 modulePermissions/widgetPermissions가 평가되어 터미널·챗봇·WiFi 메뉴·위젯 노출과 단말 식별자 필드가 결정됩니다.</span></li>
@@ -428,30 +428,30 @@ yarn buildProd --target=xl_prod  # XLSmart 운영 (구 rmsai_one)
 yarn build:dev                # dotenv -e .env.dev react-app-rewired build
 yarn build:ttg / build:aws    # .env.ttg/.env.aws + postbuild compress.js
 yarn test                     # react-scripts test (CRA Jest)</code></pre>
-    <p>산출물은 정적 자원(<code>build/</code>)으로 빌드되어 <code>/rms-ui</code> 경로에 배포됩니다. 컨테이너 배포는 <code>docker build -t rms-ui .</code>(빌드 후 <code>serve</code>로 8080 서빙)이며, Kubernetes는 <code>infra/helm</code>의 차트와 <code>infra/helm/nginx/nginx.conf</code>로 서빙합니다(XLSmart AWS 배포는 <code>infra/helm/xlsmart/rms-ui-app</code> 차트·buildspec 사용, 빌드 타깃은 <code>xl_prod</code>이고 호스트는 <code>xlsmart.rmsai.one</code>입니다). 환경 설정은 <code>.env.local / .env.kt / .env.obe / .env.ttg / .env.ttg.aws / .env.ttg_staging / .env.demo / .env.eu / .env.alti / .env.ai / .env.xl / .env.xl_prod</code> 등 사이트별 파일로 분리됩니다.</p>
+    <p>산출물은 정적 자원(<code>build/</code>)으로 빌드되어 <code>/rms-ui</code> 경로에 배포됩니다. 컨테이너 배포는 <code>docker build -t rms-ui .</code>(빌드 후 <code>serve</code>로 8080 서빙)이며, Kubernetes는 <code>infra/helm</code>의 차트와 <code>infra/helm/nginx/nginx.conf</code>로 서빙합니다(XLSmart AWS 배포는 <code>infra/helm/xlsmart/rms-ui-app</code> 차트·buildspec 사용, 빌드 타깃은 <code>xl_prod</code>이고 호스트는 <code>xlsmart.rmsai.one</code>입니다). 환경 설정은 <code>.env.local / .env.kt / .env.obe / .env.ttg / .env.ttg.aws / .env.ttg_staging / .env.demo / .env.eu / .env.alti / .env.xl / .env.xl_prod</code> 등 사이트별 파일로 분리됩니다(<code>.env.ai</code>·<code>.env.minipc</code>는 삭제됨).</p>
   </section>
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>2026-07-24부터 2026-08-07까지 111커밋이 반영되었습니다. 축은 IBC 타깃의 이상 감지(anomalyDetect) 실사용 완성, 개인정보 마스킹·접속 이력 신설, XLSmart 도메인 이전, 정책 화면 리팩터링입니다. 이상 감지는 <code>/api/v1/quick-operation-issues</code> 계열 API를 붙여 이슈 목록·재발 이슈(Top Recurring Issues)·대상 단말 조회·명령 발송/일시정지/중지·내 명령 이력까지 갖췄고, 분석 실행(<code>anomaly-detections/dispatch</code>)과 상태 폴링, <code>?deviceId=</code> 딥링크 진입이 추가되었습니다. 반복 UI는 InfoBox·InfoRow로, STB/App 정책 4개 화면은 5개 공통 섹션 컴포넌트로 분리되었습니다. 개인정보 마스킹은 MaskingContext와 헤더 Profile 스위치로 도입되어 Level3 계정만 전환할 수 있고, Administrator에는 로그인·마스킹 이력을 보는 History 탭이 생겼습니다. 타깃 분기는 <code>useTarget</code> 훅을 걷어내고 <code>utils/env.ts</code>의 <code>isTarget</code> 함수와 TargetGuard로 정리되었으며, XLSmart 운영 빌드 타깃은 <code>rmsai_one</code>에서 <code>xl_prod</code>(<code>xlsmart.rmsai.one</code>)로 이전했습니다. 그 외 컬럼 선택 모달에 순서 변경(SortableModalTable)·기본 컬럼 dim 처리, 디바이스 상세 모달의 연결 확인 시점·차트 툴팁 잘림 수정, 4개 언어(du·en·fr·tr) 로케일 갱신, 챗봇 UI 패키지 0.1.42 → 0.1.58 연속 업데이트, <code>batchReport_old</code>·<code>table_old</code> 등 죽은 코드 제거가 진행되었습니다.</p>
+    <p>2026-08-08부터 2026-09-01까지 263커밋이 반영되었습니다. 축은 XLSmart 상용 대응(운영 빌드 2.3.4), 단말 대표 식별자 체계 정비, 커맨드 권한 코드 통일, 그리고 대규모 죽은 코드 정리입니다. XLSmart 타깃에는 Microsoft 계정 SSO 로그인(<code>/api/v1/auth/sso/exchange</code>)과 웹 터미널이 열렸고, 화면에 Device ID 대신 S/N·MAC을 노출하도록 <code>DEV_MAIN_KEY</code>(KT <code>deviceSiteId</code> · XLSmart <code>serial</code> · 그 외 <code>deviceId</code>)를 도입해 대시보드·VoC·단말 목록·그룹·각종 모달의 컬럼과 검색 옵션을 함께 바꿨습니다. Role 권한에 저장하는 커맨드 코드는 Device List 일괄 명령 기준으로 통일하고 Device 상세 단일 명령은 <code>permCommands</code> 매핑으로 대조하도록 정리했으며, 그 배경을 저장소의 <code>docs/device-command-architecture.md</code>에 남겼습니다. 앱·펌웨어 설치 명령에는 Force/Normal/Optional <code>mode</code> 인자가 추가되었고, Locked Devices에는 잠금 해제(UNLOCK) 명령과 Excel import가, Quick Operation에는 Commands 컬럼과 OBE 전용 <code>inprogress</code> 호출이, IBC 이상 감지에는 집계 초기화(<code>quick-operation-issues/reset</code>)와 자동 복구 카운트가 붙었습니다. IBC는 <code>menuPermissions.excludedMenuCodes</code>로 Workflow 메뉴가 제외되고, 라우트가 없던 죽은 메뉴(VOC_DEVICE_LIST·MASTER_SETTING·PARAMETER_SETTING)가 정리되었습니다. 로그인 화면은 새 디자인으로 교체되었고, XLSmart 대시보드 2depth의 차트 축·툴팁·컬럼 문구가 플립북 기준으로 다듬어졌으며, 지도 타일은 <code>REACT_APP_CARTO_MAP_KEY</code>를 붙인 CARTO 타일로 바뀌고 마커 hover 효과가 추가되었습니다. 정리 작업으로 Mantis 템플릿 잔재(테마 Customization·MegaMenu·third-party ReactTable 등)와 미사용 페이지·훅·리듀서(<code>pages/agents</code>, <code>usePagination</code>, deviceInfo·enrolledDevice 슬라이스, master 파라미터 화면 등)가 대거 제거되어 이번 범위에서 1만 줄 넘게 삭제되었습니다. 챗봇 UI 패키지는 0.1.58에서 0.1.81까지 연속 갱신되었고, 저장소에 Jira 티켓 분석 스킬(<code>.claude/skills/analyze-jira-ticket</code>)과 개발 가이드 <code>CLAUDE.md</code>도 추가되었습니다.</p>
     <ul class="commits">
-      <li><span class="date">2026-08-07</span><span class="msg">컬럼선택 모달에 순서도 정할 수 있게 수정. 단 디폴트는 고정 (5a7e722f)</span></li>
-      <li><span class="date">2026-08-07</span><span class="msg">이상탐지 View Detail 모달 수정 (cc7efb91)</span></li>
-      <li><span class="date">2026-08-07</span><span class="msg">챗봇 UI 패키지 0.1.58 으로 업데이트 (bebd4f35)</span></li>
-      <li><span class="date">2026-08-06</span><span class="msg">이상탐지 리스트에 번호 추가 (b6e29959)</span></li>
-      <li><span class="date">2026-08-06</span><span class="msg">target 분기 정리. (a9c72f05)</span></li>
-      <li><span class="date">2026-08-05</span><span class="msg">컬럼 선택 모달에서 default 인 것들은 dim 처리 (2738b111)</span></li>
-      <li><span class="date">2026-08-04</span><span class="msg">이상탐지 조회 조건 수정 (5191e1b6)</span></li>
-      <li><span class="date">2026-08-04</span><span class="msg">마스킹 수정 (643cecfe)</span></li>
-      <li><span class="date">2026-08-03</span><span class="msg">Access history api 적용 (79e7e013)</span></li>
-      <li><span class="date">2026-08-03</span><span class="msg">Masking api 적용 (21f921a0)</span></li>
-      <li><span class="date">2026-07-31</span><span class="msg">admin 에 access history 추가 (ffe7bd9d)</span></li>
-      <li><span class="date">2026-07-31</span><span class="msg">이상탐지 AI 분석 상태 폴링 구현 (78997fef)</span></li>
-      <li><span class="date">2026-07-31</span><span class="msg">DevicePolicy 4개 파일 공통 UI 섹션 컴포넌트 분리 (54a0e701)</span></li>
-      <li><span class="date">2026-07-30</span><span class="msg">anomalyDetect 인라인 InfoBox·InfoRow 공통 컴포넌트로 분리 (4be46379)</span></li>
-      <li><span class="date">2026-07-29</span><span class="msg">chore(build): [xlsmart-domain-migration] XLSmart prod 빌드 타깃을 xl_prod 로 전환 (9a1d0c5c)</span></li>
-      <li><span class="date">2026-07-28</span><span class="msg">[IBC] group send command전송 추가 (7f036a83)</span></li>
-      <li><span class="date">2026-07-27</span><span class="msg">[IBC] ai quick operation api 연동 추가. (e4614f85)</span></li>
+      <li><span class="date">2026-09-01</span><span class="msg">ai, minipc env 삭제 (57ed0be3)</span></li>
+      <li><span class="date">2026-09-01</span><span class="msg">CARTO 맵 키 적용 (e6742122)</span></li>
+      <li><span class="date">2026-09-01</span><span class="msg">[XLSmart][R2000070-199] 지도 마커 hover 효과 추가 (selected 스타일 제외) (c4985ce7)</span></li>
+      <li><span class="date">2026-08-31</span><span class="msg">챗봇 UI 패키지 0.1.81 으로 업데이트 (cf61881b)</span></li>
+      <li><span class="date">2026-08-31</span><span class="msg">XL 배포(2.3.4) (7db188af)</span></li>
+      <li><span class="date">2026-08-31</span><span class="msg">[XLSmart][R2000070-208] quick operation API 경로 변경 (48703f32)</span></li>
+      <li><span class="date">2026-08-28</span><span class="msg">로그인 화면 반영. (41d61be7)</span></li>
+      <li><span class="date">2026-08-28</span><span class="msg">불필요한 파일들 제거. (a8186c2a)</span></li>
+      <li><span class="date">2026-08-27</span><span class="msg">Locked Devices 에 unlock 기능 추가 (dd974393)</span></li>
+      <li><span class="date">2026-08-26</span><span class="msg">기존 Device ID를 보여주지 않기 위해서 DEV_MAIN_KEY 추가함 (ad1d6dcb)</span></li>
+      <li><span class="date">2026-08-26</span><span class="msg">Jira 티켓 분석 스킬(analyze-jira-ticket) 및 참고 문서 공유. (8eb7688e)</span></li>
+      <li><span class="date">2026-08-25</span><span class="msg">XL에 MS Login 기능 추가 (8aba815b)</span></li>
+      <li><span class="date">2026-08-25</span><span class="msg">[XLSmart] role의 command code를 멀티 디바이스 명령 기준으로 통일 (R2000070-129) (da276423)</span></li>
+      <li><span class="date">2026-08-25</span><span class="msg">Device List 에서 app, fw 업데이트 시에 mode 추가 (b4401dcd)</span></li>
+      <li><span class="date">2026-08-24</span><span class="msg">quick operation 에 commands 컬럼 추가 및 inprogress api 적용 (9fce1de2)</span></li>
+      <li><span class="date">2026-08-20</span><span class="msg">ISO 시각 규약 적용 (fecee1d9)</span></li>
+      <li><span class="date">2026-08-19</span><span class="msg">실제 라우트가 없는데 메뉴에 남아있는 죽은 항목 제거 (d0439f54)</span></li>
     </ul>
   </section>
 
@@ -473,8 +473,8 @@ yarn test                     # react-scripts test (CRA Jest)</code></pre>
 
 <footer>
   <div class="wrap">
-    이 문서는 저장소 소스 코드(브랜치 <code>master</code>, 기준 커밋 <code>82aca440</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
-    생성일 2026-06-05 · 갱신일 2026-08-07 · <a href="../index.html">전체 과제 목록으로</a>
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>, 기준 커밋 <code>57ed0be3</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · 갱신일 2026-09-01 · <a href="../index.html">전체 과제 목록으로</a>
   </div>
 </footer>
 

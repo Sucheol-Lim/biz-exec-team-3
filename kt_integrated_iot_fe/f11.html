@@ -26,8 +26,8 @@
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
-      <div class="item"><div class="k">핵심 함수</div><div class="v"><code>SiteGuard</code> · <code>checkPermission</code> · <code>hasRole</code> · <code>getMenuList</code></div></div>
-      <div class="item"><div class="k">기능 맥락</div><div class="v">USER_ROLES 5단계 · 라우팅 가드 · 메뉴 노출 제한</div></div>
+      <div class="item"><div class="k">핵심 함수</div><div class="v"><code>SiteGuard</code> · <code>checkPermission</code> · <code>hasRole</code> · <code>buildMenuList</code>/<code>getMenuList</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">USER_ROLES 5단계 · 라우팅 가드 · 메뉴 노출 제한 · 검색 결과 접근 판정</div></div>
     </div>
   </div>
 </header>
@@ -54,6 +54,8 @@
     <p>사이트 진입 경로(<code>SITE_LIST[].path</code>)는 운영 반영 과정에서 <code>air</code>→<code>airbiz</code>, <code>dx</code>→<code>factorydx</code>, <code>gwacheon</code>→<code>airmon</code>으로 변경되었습니다. <code>SITE_CODES</code>가 <code>SITE_LIST.find((s) =&gt; s.path === ...)</code>로 사이트 코드를 역참조하는 구조라 경로 상수 변경이 곧 코드 매핑에 직결됩니다. 사이트 코드(<code>001ENV301</code> 등)와 <code>realcode</code>는 그대로이므로 <code>checkPermission</code> 판정 규칙 자체는 변하지 않습니다.</p>
     <p>사이트 전환 메뉴 정의(<code>SITE_MENU</code>)에서 AI산업안전DX는 <code>AIENVDX_SERVICE_TYPE_LIST</code> 기반 5개 서비스 유형(산업대기질·자원순환·산업환경·탄소중립·제조공정)에 더해, 유형 필터를 해제하는 <code>전체</code> 항목(<code>AIDX_ALL_SERVICE_TYPE = 'ALL'</code>)이 앞에 추가되어 6개 하위 메뉴가 되었습니다. 여섯 항목 모두 같은 사이트 코드(<code>001ENV302</code>)를 쓰므로 <code>checkPermission</code>에서는 동일 사이트 이동으로 항상 허용되고, 실제 구분은 각 메뉴의 <code>serviceType</code> 값으로 이뤄집니다. 서비스 유형 단위 접근 제한도 config에 있어, 위젯 설정 화면은 <code>isWidgetSettingServiceType()</code>(현재 제조공정 <code>ENVSMAT30203</code>만 허용) 판정을 따릅니다.</p>
     <p>사이트 전환 이후의 화면 노출은 메뉴 단계에서 한 번 더 권한으로 걸러집니다. <code>getMenuList(siteCode, serviceType)</code>는 AI산업안전DX에서 서비스 고객(<code>!hasRole(1)</code>)일 때 종합 현황·서비스대상 관리·디바이스 관리 메뉴를 만들지 않고, 구역 관리는 제조공정(<code>AIDX_MANUFACTURING_PROC</code>)에서만 예외적으로 노출합니다. 한전 AMI는 KT 요청으로 주석 처리돼 있던 현황(<code>overview</code>)·배전선로 작업현황(<code>amiLineTaskStatus</code>) 메뉴가 다시 노출되도록 복구되었습니다.</p>
+    <p>메뉴 조립 함수는 캐시 유무로 두 갈래가 되었습니다. 실제 조립은 순수 함수 <code>buildMenuList(siteCode, serviceType)</code>가 맡고, <code>getMenuList</code>는 그 결과를 <code>cachedMenuList</code>에 담아 돌려줍니다. 덕분에 현재 화면의 캐시를 건드리지 않고도 임의의 사이트·서비스 유형에 대한 메뉴를 다시 계산할 수 있습니다. 여기에 하위 메뉴 id 집합을 만드는 <code>getAvailableMenuIds(menuList)</code>와 목록에서 경로를 찾는 <code>getMenuPathFromList(menuList, menuId)</code>가 더해져, 권한 판정 결과를 메뉴 id 단위로 재사용합니다.</p>
+    <p>이 구조는 통합 검색(<code>SmartSearch</code>)의 결과 이동 제어에 쓰입니다. 검색 결과를 클릭하면 <code>isSmartSearchResultAvailable</code>(<code>components/search/smartSearchFilter.ts</code>)이 결과 유형별 대상 메뉴 id를 먼저 구합니다. 디바이스는 Air Map이면 <code>stationStatus</code>, 그 외에는 <code>devices</code>, 서비스대상은 <code>serviceTargets</code>, 구역은 <code>zones</code>, 메뉴 결과는 <code>menuType</code>이 대상입니다. 이 id가 현재 권한 메뉴 집합에 없으면 이동 자체를 막습니다. 메뉴 유형이 아닌 결과는 <code>unitServiceCode</code>가 세션 사이트의 <code>realcode</code>와 같을 때만 통과시켜 다른 단위서비스의 데이터로 넘어가지 않게 하고, 지도(<code>map</code>) 결과는 판정 대상에서 제외합니다.</p>
     <p>가드 적용 범위의 예외도 있습니다. SMS 수신동의 페이지(<code>/:site/sms-consent</code>)는 로그인과 무관하게 접근해야 하는 공개 페이지라, <code>SiteGuard</code>·<code>ProtectedRoute</code> 트리 밖의 독립 형제 라우트로 배치되어 전환 판정을 타지 않습니다. 반대로 가드를 통과한 뒤에는 Home·Overview 라우트가 <code>AutoRefreshRoute</code>(scope <code>home</code>/<code>overview</code>)로 한 겹 더 감싸집니다. 이 컴포넌트는 <code>useParams()</code>의 <code>site</code>를 <code>key</code>에 넣어, 사이트가 바뀌면 자동 갱신 바운더리가 통째로 재마운트되고 새 타이머가 현재 시각부터 다시 시작하도록 합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
@@ -75,6 +77,7 @@ sequenceDiagram
     participant SS as sessionStorage
     participant AR as AutoRefreshRoute
     participant Menu as getMenuList
+    participant Search as SmartSearch
 
     U-&gt;&gt;Guard: /:site 경로로 전환 (airbiz / factorydx / airmon / ami ...)
     Guard-&gt;&gt;Guard: ALLOWED_SITE_PATHS.includes(site)?
@@ -94,8 +97,14 @@ sequenceDiagram
         Menu--&gt;&gt;U: 권한별로 걸러진 메뉴 렌더
     end
     Note over U,Guard: 예외 · /:site/sms-consent 공개 라우트는 SiteGuard 트리 밖(가드 미적용)
+    opt 통합 검색 결과 이동
+        Search-&gt;&gt;Menu: buildMenuList(site.code, user.serviceType)
+        Menu--&gt;&gt;Search: 현재 권한 기준 메뉴 목록
+        Search-&gt;&gt;Search: getAvailableMenuIds 와 unitServiceCode 대조
+        Search--&gt;&gt;U: 접근 불가 결과는 이동하지 않음
+    end
       </div>
-      <p class="cap"><strong>흐름.</strong> 전환 시 <code>SiteGuard</code>가 권한을 판정하고, 부적합하면 WebSocket·세션을 정리한 뒤 로그인으로 보냅니다. 통과하면 Home·Overview는 <code>AutoRefreshRoute</code>가 사이트 단위로 재마운트하고, 메뉴는 <code>getMenuList</code>가 권한·서비스 유형으로 한 번 더 걸러 렌더합니다. SMS 수신동의 페이지는 가드 밖 독립 라우트라 이 판정을 거치지 않습니다.</p>
+      <p class="cap"><strong>흐름.</strong> 전환 시 <code>SiteGuard</code>가 권한을 판정하고, 부적합하면 WebSocket·세션을 정리한 뒤 로그인으로 보냅니다. 통과하면 Home·Overview는 <code>AutoRefreshRoute</code>가 사이트 단위로 재마운트하고, 메뉴는 <code>getMenuList</code>가 권한·서비스 유형으로 한 번 더 걸러 렌더합니다. SMS 수신동의 페이지는 가드 밖 독립 라우트라 이 판정을 거치지 않습니다. 통합 검색은 같은 메뉴 조립 결과를 다시 계산해 접근 불가한 결과로의 이동을 막습니다.</p>
     </div>
   </section>
 
@@ -132,8 +141,19 @@ classDiagram
         +key sitePath와 scope 조합
     }
     class getMenuList {
+        +buildMenuList(siteCode, serviceType)
         +getMenuList(siteCode, serviceType)
+        +getAvailableMenuIds(menuList) Set
+        +getMenuPathFromList(menuList, menuId) string
         +isServiceClient 서비스 고객 여부
+    }
+    class SmartSearch {
+        -availableMenuIds
+        +goPage(item)
+    }
+    class smartSearchFilter {
+        +getSmartSearchTargetMenuId(item, isAirMap) string
+        +isSmartSearchResultAvailable(item, context) bool
     }
 
     SiteGuard --&gt; checkPermission : 전환 판정
@@ -144,8 +164,11 @@ classDiagram
     ProtectedRoute --&gt; AutoRefreshRoute : Home·Overview 감싸기
     ProtectedRoute ..&gt; getMenuList : 권한별 메뉴 구성
     getMenuList ..&gt; hasRole : 서비스 고객 판정
+    SmartSearch --&gt; getMenuList : buildMenuList 로 권한 메뉴 재계산
+    SmartSearch ..&gt; smartSearchFilter : 결과 접근 판정
+    smartSearchFilter ..&gt; getMenuList : availableMenuIds 대조
       </div>
-      <p class="cap"><strong>관계.</strong> <code>SiteGuard</code>가 <code>checkPermission</code>·<code>hasRole</code>로 전환을 판정하고, 부적합 시 WebSocket을 끊으며, 적합하면 <code>ProtectedRoute</code> 보호 진입으로 넘깁니다. 그 안에서 Home·Overview는 <code>AutoRefreshRoute</code>가 사이트 단위로 감싸고, 메뉴는 <code>getMenuList</code>가 권한으로 다시 걸러냅니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>SiteGuard</code>가 <code>checkPermission</code>·<code>hasRole</code>로 전환을 판정하고, 부적합 시 WebSocket을 끊으며, 적합하면 <code>ProtectedRoute</code> 보호 진입으로 넘깁니다. 그 안에서 Home·Overview는 <code>AutoRefreshRoute</code>가 사이트 단위로 감싸고, 메뉴는 <code>getMenuList</code>가 권한으로 다시 걸러냅니다. <code>SmartSearch</code>는 순수 조립 함수 <code>buildMenuList</code>로 같은 권한 메뉴를 다시 만들어 검색 결과 이동 가능 여부를 판정합니다.</p>
     </div>
   </section>
 
@@ -214,6 +237,31 @@ case SITE_CODES.AMI:
   break;</code></pre>
     </div>
     <div class="snippet">
+      <div class="sc"><code>src/layout/menu/menuItems.tsx</code> · <code>src/components/search/smartSearchFilter.ts</code> — 권한 메뉴 집합으로 검색 결과 이동 차단</div>
+<pre><code>// 조립(순수)과 캐시 갱신을 분리해, 현재 화면 캐시를 건드리지 않고도 메뉴를 다시 계산한다
+export const buildMenuList = (siteCode, serviceType) =&gt; { /* switch (siteCode) ... */ };
+
+export const getMenuList = (siteCode, serviceType) =&gt; {
+  cachedMenuList = buildMenuList(siteCode, serviceType);
+  return cachedMenuList;
+};
+
+export const getAvailableMenuIds = (menuList) =&gt; {
+  const menuIds = new Set();
+  for (const parent of menuList) for (const child of parent.children ?? []) menuIds.add(child.id);
+  return menuIds;
+};
+
+// 검색 결과가 현재 권한 메뉴에 없거나 다른 단위서비스면 이동시키지 않는다
+export const isSmartSearchResultAvailable = (item, { realcode, isAirMap, availableMenuIds }) =&gt; {
+  if (item.searchType === 'map') return true;
+  const targetMenuId = getSmartSearchTargetMenuId(item, isAirMap);
+  if (!targetMenuId || !availableMenuIds.has(targetMenuId)) return false;
+  if (item.searchType === 'menu') return true;
+  return Boolean(item.unitServiceCode) &amp;&amp; item.unitServiceCode === realcode;
+};</code></pre>
+    </div>
+    <div class="snippet">
       <div class="sc"><code>src/routes/route.tsx</code> · <code>src/modules/autoRefresh/AutoRefreshRoute.tsx</code> — 가드 밖 공개 라우트 + 통과 후 자동 갱신 바운더리</div>
 <pre><code>// SMS 수신 동의 페이지: SiteGuard/ProtectedRoute를 타지 않는 독립 공개 라우트
 {
@@ -245,8 +293,10 @@ const AutoRefreshRoute = ({ scope, children }: AutoRefreshRouteProps) =&gt; {
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">SiteGuard · checkPermission · sms-consent 공개 라우트 · 부적합 시 disconnect/세션 정리</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/util.ts" target="_blank" rel="noopener">src/utils/util.ts</a><span class="src">hasRole(targetLevel) · USER_ROLES 인덱스 비교</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">USER_ROLES 5단계 · SITE_LIST 경로(airbiz/factorydx/airmon) · SITE_CODES · SITE_MENU serviceType · AIDX_ALL_SERVICE_TYPE · isWidgetSettingServiceType</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/menu/menuItems.tsx" target="_blank" rel="noopener">src/layout/menu/menuItems.tsx</a><span class="src">getMenuList — 서비스 고객 권한의 DX 메뉴 노출 제한 · AMI 현황/배전선로 작업현황 재노출</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/menu/menuItems.tsx" target="_blank" rel="noopener">src/layout/menu/menuItems.tsx</a><span class="src">buildMenuList(순수 조립)/getMenuList(캐시) 분리 · getAvailableMenuIds · getMenuPathFromList · 서비스 고객 권한의 DX 메뉴 노출 제한 · AMI 현황/배전선로 작업현황 재노출</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modules/autoRefresh/AutoRefreshRoute.tsx" target="_blank" rel="noopener">src/modules/autoRefresh/AutoRefreshRoute.tsx</a><span class="src">가드 통과 후 Home·Overview를 사이트 단위 key로 감싸는 자동 갱신 바운더리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/search/smartSearchFilter.ts" target="_blank" rel="noopener">src/components/search/smartSearchFilter.ts</a><span class="src">검색 결과 접근 판정 — 유형별 대상 메뉴 id 산출 · availableMenuIds·realcode 대조</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/popup/SmartSearch.tsx" target="_blank" rel="noopener">src/layout/popup/SmartSearch.tsx</a><span class="src">buildMenuList·getAvailableMenuIds로 권한 메뉴 집합을 만들고 접근 불가 결과의 이동을 차단</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/ProtectedRoute.tsx" target="_blank" rel="noopener">src/routes/ProtectedRoute.tsx</a><span class="src">세션 site.code 유무로 보호 화면 진입 판정</span></li>
     </ul>
     <div class="sibling-nav">

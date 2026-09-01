@@ -26,7 +26,7 @@
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
-      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/overview/gwacheon</code> · <code>api/gwacheon.ts</code> · <code>components/widget/gwacheon</code></div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/overview/gwacheon</code> · <code>api/gwacheon.ts</code> · <code>components/widget/gwacheon</code> · <code>markerDialog/gwacheon/SummaryDialogGwacheon</code></div></div>
       <div class="item"><div class="k">기능 맥락</div><div class="v">realcode 001ENV301 공유, 화면만 분리 · 경로 airmon · 홈/현황 자동 갱신</div></div>
     </div>
   </div>
@@ -51,6 +51,7 @@
     <p>과천 관제센터는 <code>config.ts</code>의 <code>SITE_LIST</code>에서 별도 <code>code: 'GWACHEON'</code>으로 정의되지만 <code>realcode</code>는 Air Map과 동일한 <code>001ENV301</code>입니다. 즉 데이터 출처(단위서비스코드)는 Air Map과 같으면서 측정망 운영용 화면만 분리한 진입점입니다. 진입 경로는 운영 반영 과정에서 <code>/gwacheon/...</code>에서 <code>/airmon/...</code>으로 변경되었습니다(Air Map은 <code>/airbiz</code>). <code>SITE_CODES.GWACHEON</code>이 <code>path === 'airmon'</code>으로 사이트를 역참조하므로 로고·배경·브라우저 탭 제목 분기도 모두 이 경로를 기준으로 동작합니다.</p>
     <p>특화 화면은 <code>pages/overview/gwacheon</code> 아래에 모여 있습니다. 통신 상태(<code>CommunicationStatus</code>/<code>CommunicationStatusDetail</code>), 미수신(<code>NoReception</code>/<code>NoReceptionDetail</code>), 센싱 오류(<code>SensingError</code>), 전송 실패(<code>TransmissionFailure</code>)가 라우트로 등록되어 있습니다. 각 화면은 디바이스 유형(실내·실외·청정기·악취/소음 등)·사업 유형(BIZ/CSV) 필터와 지역(시도/군구/동) 검색을 제공하며, 지역 필터는 첫 항목을 자동 선택하지 않고 미선택(전체 조회) 상태로 시작합니다.</p>
     <p>데이터는 <code>gwacheonApi</code>의 측정망 전용 엔드포인트(<code>gwacheon/summary</code>, <code>gwacheon/collection-status</code>, <code>gwacheon/reception-fault</code>, <code>gwacheon/sensing-error</code>, <code>gwacheon/transmission-error</code>)에서 조회합니다. 각 목록은 <code>download</code> 플래그로 같은 경로에 <code>.csv</code>를 붙여 CSV 다운로드를 겸하며, 미수신 화면은 <code>HandlerStatusModal</code>을 통한 조치 처리(<code>gwacheonApi.action</code> → <code>reception-fault/action</code>)를 함께 지원합니다. 조치상태(미조치/조치중/완료)·미조치사유(임시철거/장비이설/출입불가/기타)는 실제 운영 코드값으로 정의되어 있고, 미수신 상세 조회(<code>receptionFaultDetail</code>)는 응답의 <code>lastMeasuredDate</code>를 화면 필드 <code>updateDate</code>로 매핑해 정합성을 맞춥니다.</p>
+    <p>홈 지도의 과천 마커 요약 팝업(<code>SummaryDialogGwacheon</code>)은 전용 단건 조회로 분리되었습니다. 이전에는 미수신 상세(<code>receptionFaultDetail</code>)를 그대로 재사용하면서 현재 상태를 조치 상태(<code>handlerStatus</code>) 값의 유무로 판정해, 실제 통신 상태와 어긋나게 표시되는 문제가 있었습니다. 지금은 <code>gwacheonApi.deviceDetail(serviceTargetId, deviceId)</code>이 <code>GET /bff/monitor/gwacheon/{serviceTargetId}/{deviceId}</code>로 장치 단건을 조회합니다. 요청·응답 규격은 미수신 단건 조회와 같고 <code>statusName</code>(<code>정상</code>/<code>비정상</code>) 필드만 추가되며, <code>lastMeasuredDate</code>→<code>updateDate</code> 매핑도 동일하게 적용합니다. 팝업은 <code>statusName === '정상'</code>일 때만 정상으로 표시하고 그 외 값(<code>null</code> 포함)은 안전하게 비정상으로 처리하며, 구분(사업유형/디바이스유형)·장비ID·CTN·SERIAL·IMEI·USIM·관리부서·주소를 함께 보여줍니다. React Query 키도 <code>gwacheon_reception_fault_detail</code>에서 <code>gwacheon_device_detail</code>로 바뀌어 두 조회의 캐시가 섞이지 않습니다.</p>
     <p>통신 상태 상세(<code>CommunicationStatusDetail</code>)는 목록 행 클릭 시 전달받은 <code>deviceId</code>(경로)·<code>serviceTargetId</code>(state)로 <code>gwacheonApi.collectionStatusDetail</code>을 호출해 제조사·국소명·모델명·운용센터·모국 ID·유지보수 담당 등 실제 장비 정보를 조회합니다(초기의 더미 데이터 표시에서 실 API 연동으로 전환). 담당자 이름·연락처는 <code>maskValue</code>로 마스킹하고, KT 지도(<code>ktGms.Map</code>)는 문자열 위경도를 숫자로 변환해 <code>[경도, 위도]</code> 순서의 center로 표출하며, 줌·최대 줌은 <code>config.ts</code>의 공용 상수 <code>DEFAULT_MAP_CENTER</code>·<code>DEFAULT_MAX_ZOOM_LEVEL</code>을 사용합니다.</p>
     <p>홈 화면의 과천 전용 위젯(<code>components/widget/gwacheon</code>)은 자동 갱신 대상으로 편입되었습니다. 서비스 현황·미수신·전송 오류 표를 그리는 <code>GcTableWidget</code>, 센싱 오류 현황 <code>GcSensorErrorStatus</code>, 실시간 수집률 <code>GcRealTimeDetection</code>이 모두 <code>createAutoRefreshQueryOptions({ scope: 'home', fetcher })</code>로 쿼리를 구성합니다. fetcher는 호출 모드를 인자로 받아 백그라운드 갱신일 때 <code>{ requestMode: 'background', skipError: true, timeout: AUTO_REFRESH_REQUEST_TIMEOUT_MS }</code>를 API 옵션으로 넘겨, 화면 조작 중인 사용자에게 오류 팝업이 뜨지 않게 합니다. 실시간 수집률·센싱 오류 위젯은 서비스 대상이 바뀌어도 캐시가 섞이지 않도록 <code>queryKey</code>에 <code>serviceTargetId</code>를 포함하도록 정리되었습니다(<code>connectionList</code>→<code>realtimeStatus</code>, <code>item_list</code>→<code>sensingFaultStatus</code>).</p>
     <p>위젯 표기·안정성 결함도 함께 정리되었습니다. <code>GcTableWidget</code>은 헤더 문구가 잘못 복사돼 있던 부분을 실제 의미(<code>계</code>·<code>전체단말</code>)로 고치고, 등급 범례가 <code>Minor</code>로 중복되던 두 항목을 <code>Major</code>·<code>Critical</code>로 정정했습니다. 또 응답 도착 전 <code>data</code>가 <code>undefined</code>인 채로 <code>NormalTable</code>에 전달돼 <code>data.length</code> 접근에서 크래시가 나던 문제를 <code>data ?? []</code>로 막았습니다. <code>GcSensorErrorStatus</code>는 응답의 원시 항목 키를 그대로 찍던 것을 공용 <code>getPropertyLabel()</code>(<code>utils/airQualityGrade</code>)로 변환해 미세먼지·초미세먼지·오존 같은 한글 라벨로 표시합니다.</p>
@@ -75,6 +76,7 @@ sequenceDiagram
     participant Detail as CommunicationStatusDetail
     participant OV as OverviewGwacheon
     participant Boundary as AutoRefreshBoundary
+    participant Dlg as SummaryDialogGwacheon
 
     CS-&gt;&gt;RQ: useQuery(필터: 디바이스/사업유형/지역 — 기본 전체)
     RQ-&gt;&gt;API: collectionStatus(params)
@@ -88,6 +90,11 @@ sequenceDiagram
         API--&gt;&gt;DL: AxiosResponse(Blob)
         DL--&gt;&gt;CS: 파일 저장
     end
+    opt 홈 지도 마커 요약 팝업
+        Dlg-&gt;&gt;API: deviceDetail(serviceTargetId, deviceId)
+        API--&gt;&gt;Dlg: 장치 단건 + statusName (정상 · 비정상)
+        Dlg-&gt;&gt;Dlg: statusName 이 정상일 때만 정상 표시
+    end
     opt 종합 현황 자동 갱신 (scope overview)
         OV-&gt;&gt;Boundary: postponeAutoRefresh() — 검색·페이지·행수 조작 시 타이머 연장
         Boundary-&gt;&gt;OV: 유휴 지속 시 background fetch 요청
@@ -95,7 +102,7 @@ sequenceDiagram
         API--&gt;&gt;OV: 갱신된 현황 목록 (오류는 팝업 없이 무시)
     end
       </div>
-      <p class="cap"><strong>흐름.</strong> 측정망 특화 화면이 <code>gwacheonApi</code>로 통신 상태·오류 목록을 조회하고, 상세는 목록 행의 <code>serviceTargetId</code>·<code>deviceId</code>로 <code>collectionStatusDetail</code>을 실 호출합니다. CSV 다운로드·조치 처리도 같은 API 모듈이 담당하며, 종합 현황은 사용자 조작이 없을 때만 백그라운드로 다시 조회합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 측정망 특화 화면이 <code>gwacheonApi</code>로 통신 상태·오류 목록을 조회하고, 상세는 목록 행의 <code>serviceTargetId</code>·<code>deviceId</code>로 <code>collectionStatusDetail</code>을 실 호출합니다. CSV 다운로드·조치 처리도 같은 API 모듈이 담당하며, 종합 현황은 사용자 조작이 없을 때만 백그라운드로 다시 조회합니다. 홈 지도 마커 요약 팝업은 전용 단건 조회 <code>deviceDetail</code>의 <code>statusName</code>으로 현재 상태를 표시합니다.</p>
     </div>
   </section>
 
@@ -118,9 +125,14 @@ classDiagram
         +collectionStatusDetail(serviceTargetId, deviceId)
         +receptionFault(params, download)
         +receptionFaultDetail(serviceTargetId, deviceId)
+        +deviceDetail(serviceTargetId, deviceId)
         +sensingError(params, download)
         +transmissionError(params, download)
         +action(params)
+    }
+    class SummaryDialogGwacheon {
+        -statusType normal·abnormal
+        +handleOpenDetailDialog()
     }
     class GwacheonWidgets {
         +GcTableWidget
@@ -150,8 +162,9 @@ classDiagram
     GwacheonPages ..&gt; autoRefresh : overview scope 갱신 · postpone
     GwacheonWidgets ..&gt; autoRefresh : home scope 갱신 옵션
     GwacheonWidgets ..&gt; airQualityGrade : 측정 항목 한글 라벨
+    SummaryDialogGwacheon ..&gt; gwacheonApi : 장치 단건 조회 statusName
       </div>
-      <p class="cap"><strong>관계.</strong> 과천 특화 화면들이 <code>gwacheonApi</code> 측정망 엔드포인트를 사용하며, 다운로드는 공통 <code>ApiClient</code>를 거칩니다. 홈 위젯과 종합 현황은 <code>autoRefresh</code> 모듈의 쿼리 옵션·활동 훅으로 유휴 자동 갱신에 참여합니다.</p>
+      <p class="cap"><strong>관계.</strong> 과천 특화 화면들이 <code>gwacheonApi</code> 측정망 엔드포인트를 사용하며, 다운로드는 공통 <code>ApiClient</code>를 거칩니다. 홈 위젯과 종합 현황은 <code>autoRefresh</code> 모듈의 쿼리 옵션·활동 훅으로 유휴 자동 갱신에 참여합니다. 지도 마커 요약 팝업은 같은 API 모듈의 장치 단건 조회를 사용합니다.</p>
     </div>
   </section>
 
@@ -192,7 +205,33 @@ export const DEFAULT_MAP_CENTER = { lng: DEFAULT_LONGITUDE, lat: DEFAULT_LATITUD
     }
     return res.data;
   },
+
+  // 과천관제센터 장치 단건 조회 (지도 마커 요약 팝업 전용)
+  // reception-fault 단건 조회와 요청/응답 규격 동일 + statusName(정상/비정상) 추가
+  deviceDetail: async (serviceTargetId, deviceId) =&gt; {
+    const res = await apiClient.get(`/bff/monitor/gwacheon/${serviceTargetId}/${deviceId}`);
+    if (res.data?.result) {
+      const { lastMeasuredDate, ...rest } = res.data.result;
+      res.data.result = { ...rest, updateDate: lastMeasuredDate };
+    }
+    return res.data;
+  },
 };</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/components/markerDialog/gwacheon/SummaryDialogGwacheon.tsx</code> — 마커 팝업 현재상태 오표시 수정</div>
+<pre><code>const { data: result, isLoading: isDetailLoading } = useQuery({
+  queryKey: ['gwacheon_device_detail', serviceTargetId, deviceId],
+  queryFn: async () =&gt; {
+    const res = await gwacheonApi.deviceDetail(serviceTargetId, deviceId);
+    return res?.result ?? null;
+  },
+  enabled: Boolean(serviceTargetId) &amp;&amp; Boolean(deviceId),
+});
+
+// BE 응답 statusName: '정상' | '비정상'. 그 외 값(null 등)은 안전하게 비정상으로 처리.
+// (이전에는 조치 상태 handlerStatus 의 유무로 판정해 실제 통신 상태와 어긋났다)
+const statusType = result?.statusName === '정상' ? 'normal' : 'abnormal';</code></pre>
     </div>
     <div class="snippet">
       <div class="sc"><code>src/pages/overview/gwacheon/CommunicationStatusDetail.tsx</code> — 상세 실 API 연동 + 지도 좌표 변환</div>
@@ -261,7 +300,8 @@ queryFn: markerAutoRefreshOptions.queryFn,
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/widget/gwacheon/SensorErrorStatus.tsx" target="_blank" rel="noopener">src/components/widget/gwacheon/SensorErrorStatus.tsx</a><span class="src">센싱 오류 현황 · getPropertyLabel 한글 라벨 · queryKey에 serviceTargetId 반영</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/widget/gwacheon/RealTimeDetection.tsx" target="_blank" rel="noopener">src/components/widget/gwacheon/RealTimeDetection.tsx</a><span class="src">실시간 수집률 위젯 · GWACHEON일 때만 자동 갱신 meta 부착</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/MarkerSearch.tsx" target="_blank" rel="noopener">src/pages/home/MarkerSearch.tsx</a><span class="src">시/도 미선택(전체) 상태에서도 마커 조회하도록 가드 제거</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/gwacheon.ts" target="_blank" rel="noopener">src/api/gwacheon.ts</a><span class="src">summary(params, download, options)/collection-status/reception-fault/sensing-error/transmission-error · receptionFaultDetail updateDate 매핑</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/markerDialog/gwacheon/SummaryDialogGwacheon.tsx" target="_blank" rel="noopener">src/components/markerDialog/gwacheon/SummaryDialogGwacheon.tsx</a><span class="src">지도 마커 요약 팝업 · gwacheonApi.deviceDetail 전용 단건 조회 · statusName 기준 현재상태 표시</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/gwacheon.ts" target="_blank" rel="noopener">src/api/gwacheon.ts</a><span class="src">summary(params, download, options)/collection-status/reception-fault/sensing-error/transmission-error · receptionFaultDetail·deviceDetail updateDate 매핑</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">GWACHEON 진입점 정의(realcode 001ENV301 공유 · path airmon)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/AuthLayout.tsx" target="_blank" rel="noopener">src/layout/AuthLayout.tsx</a><span class="src">과천 전용 로그인 배경(bg_gwacheon-login.png)·로고 분기</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/Footer.tsx" target="_blank" rel="noopener">src/layout/Footer.tsx</a><span class="src">에어코리아 링크를 에어맵·과천에서만 노출</span></li>

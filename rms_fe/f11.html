@@ -22,12 +22,12 @@
       <span class="badge gray">웹 관리자 콘솔 (React SPA)</span>
     </div>
     <h1>웹 터미널</h1>
-    <p class="one-liner">단말에 원격 셸을 연결하는 두 경로를 제공합니다. <code>pages/terminal</code>은 wetty(<code>REACT_APP_WEB_TERMINAL</code>)를 iframe으로 임베드하고, 디바이스 모달의 <code>terminalModal</code>은 <code>@xterm/xterm</code>으로 명령을 입력받아 <code>specialCommands('TERMINAL_COMMAND')</code>로 전송하고 결과를 SSE로 받습니다. OBE·TTG·IBC 타깃에서만 활성화됩니다.</p>
+    <p class="one-liner">단말에 원격 셸을 연결하는 두 경로를 제공합니다. <code>pages/terminal</code>은 wetty(<code>REACT_APP_WEB_TERMINAL</code>)를 iframe으로 임베드하고, 디바이스 모달의 <code>terminalModal</code>은 <code>@xterm/xterm</code>으로 명령을 입력받아 <code>specialCommands('TERMINAL_COMMAND')</code>로 전송하고 결과를 SSE로 받습니다. OBE·TTG·XLSmart·IBC 타깃에서만 활성화됩니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
       <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/terminal/terminal.tsx</code> · <code>pages/device/modal/terminalModal.tsx</code></div></div>
-      <div class="item"><div class="k">기능 맥락</div><div class="v">원격 셸 (OBE·TTG·IBC 전용)</div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">원격 셸 (OBE·TTG·XLSmart·IBC 전용)</div></div>
     </div>
   </div>
 </header>
@@ -48,8 +48,8 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>웹 터미널은 운영자가 브라우저에서 단말에 원격 셸을 붙이는 기능으로, <code>utils/env.ts</code>의 <code>modulePermissions.terminal</code>이 OBE·TTG·IBC 타깃일 때만 활성화됩니다(IBC는 이상감지 모듈 도입과 함께 추가). 구현은 두 갈래입니다. 첫째, 독립 페이지 <code>pages/terminal/terminal.tsx</code>는 URL 쿼리의 <code>address</code>를 읽어 <code>REACT_APP_WEB_TERMINAL</code>(wetty) 주소를 <code>iframe</code>으로 임베드합니다. 즉 셸 세션 자체는 wetty 서버가 제공하고 RMS UI는 그 화면을 감싸기만 합니다.</p>
-    <p>둘째, 디바이스 상세 모달 안의 <code>terminalModal.tsx</code>는 <code>@xterm/xterm</code> + <code>@xterm/addon-fit</code>으로 터미널 에뮬레이터를 직접 그립니다. 사용자가 한 줄을 입력해 엔터를 치면 <code>sendTerminal()</code>이 <code>DevicesApiManager.specialCommands(..., 'TERMINAL_COMMAND', { terminalCommand })</code>로 명령을 전송하고 <code>transactionId</code>를 받습니다. 명령 실행 결과는 <code>useSSEController</code>가 구독한 <code>/api/v1/notifications/subscribe</code> SSE의 <code>NOTIFICATION</code> 이벤트로 도착해 xterm에 출력됩니다. 응답이 지연되면 로딩 애니메이션을 돌리고, <code>REACT_APP_RMS_SSE_TIMEOUT</code> 초가 지나면 타임아웃 메시지를 표시합니다.</p>
+    <p>웹 터미널은 운영자가 브라우저에서 단말에 원격 셸을 붙이는 기능으로, <code>utils/env.ts</code>의 <code>modulePermissions.terminal</code>이 OBE·TTG·XLSmart·IBC 타깃일 때만 활성화됩니다(IBC는 이상감지 모듈 도입과 함께, XLSmart는 그 뒤에 추가). 같은 값이 <code>commands.tsx</code>의 명령 목록과 역할 권한 화면(<code>CommandPermission.tsx</code>)의 <code>TERMINAL_COMMAND</code> 항목 노출도 함께 결정합니다. 구현은 두 갈래입니다. 첫째, 독립 페이지 <code>pages/terminal/terminal.tsx</code>는 URL 쿼리의 <code>address</code>를 읽어 <code>REACT_APP_WEB_TERMINAL</code>(wetty) 주소를 <code>iframe</code>으로 임베드합니다. 즉 셸 세션 자체는 wetty 서버가 제공하고 RMS UI는 그 화면을 감싸기만 합니다.</p>
+    <p>둘째, 디바이스 상세 모달 안의 <code>terminalModal.tsx</code>는 <code>@xterm/xterm</code> + <code>@xterm/addon-fit</code>으로 터미널 에뮬레이터를 직접 그립니다. 사용자가 한 줄을 입력해 엔터를 치면 <code>sendTerminal()</code>이 <code>DevicesApiManager.specialCommands(..., 'TERMINAL_COMMAND', { terminalCommand })</code>로 명령을 전송하고 <code>transactionId</code>를 받습니다. 명령 실행 결과는 <code>useSSEController</code>가 구독한 <code>/api/v1/notifications/subscribe</code> SSE의 <code>NOTIFICATION</code> 이벤트로 도착해 xterm에 출력됩니다. 응답이 지연되면 로딩 애니메이션을 돌리고, <code>REACT_APP_RMS_SSE_TIMEOUT</code> 초가 지나면 타임아웃 메시지를 표시합니다. 여기에 선택적 <code>issueId</code> prop이 더해져, Quick Operation 이슈에서 열린 터미널이면 명령 전송이 성공한 시점에 <code>DevicesApiManager.inprogressQuickOperation(cb, issueId, connectionId)</code>(<code>POST /api/v1/quick/operation/{id}/inprogress</code>)를 함께 호출해 그 이슈를 진행 중 상태로 올립니다. <code>issueId</code>는 다른 명령 모달과 동일하게 <code>pages/device/commands.tsx</code>가 내려 줍니다.</p>
     <div class="callout">
       <div class="ct">명령 전송과 결과 수신의 분리</div>
       xterm 터미널은 입력을 <code>specialCommands</code>(REST)로 보내고, 출력은 SSE(<code>NOTIFICATION</code>)로 비동기 수신하는 요청/이벤트 분리 구조입니다. 단말이 결과를 올릴 때까지 모달은 SSE 구독을 유지하며(<code>connect(true)</code>), 입력은 로컬 에코로 즉시 화면에 반영합니다.
@@ -76,14 +76,19 @@ sequenceDiagram
     TM-&gt;&gt;DM: specialCommands(id, 'TERMINAL_COMMAND', {terminalCommand})
     DM-&gt;&gt;BE: POST 명령
     BE-&gt;&gt;STB: 셸 명령 실행
-    BE--&gt;&gt;TM: transactionId → startSafeTimer()
+    BE--&gt;&gt;TM: transactionId 회신
+    opt issueId 가 있을 때
+        TM-&gt;&gt;DM: inprogressQuickOperation(issueId, connectionId)
+        DM-&gt;&gt;BE: POST quick/operation/{issueId}/inprogress
+    end
+    TM-&gt;&gt;TM: startSafeTimer()
     STB--&gt;&gt;BE: 실행 결과
     BE--&gt;&gt;SSE: NOTIFICATION (결과)
     SSE--&gt;&gt;TM: message
     TM-&gt;&gt;TM: xterm.write(결과)
     Note over TM: SSE_TIMEOUT 초과 시 타임아웃 표시
       </div>
-      <p class="cap"><strong>흐름(xterm 모달).</strong> 모달이 SSE를 구독한 뒤, 입력한 명령을 <code>specialCommands</code>로 보내고 실행 결과를 <code>NOTIFICATION</code> SSE로 받아 xterm에 출력합니다. 독립 페이지 경로는 wetty iframe 임베드로 별도 처리합니다.</p>
+      <p class="cap"><strong>흐름(xterm 모달).</strong> 모달이 SSE를 구독한 뒤, 입력한 명령을 <code>specialCommands</code>로 보내고 실행 결과를 <code>NOTIFICATION</code> SSE로 받아 xterm에 출력합니다. Quick Operation 이슈에서 열린 경우에는 전송 성공 시 <code>inprogressQuickOperation</code>으로 이슈 상태도 함께 올립니다. 독립 페이지 경로는 wetty iframe 임베드로 별도 처리합니다.</p>
     </div>
   </section>
 
@@ -100,6 +105,7 @@ classDiagram
         -termRef Terminal
         -fitAddonRef FitAddon
         -transactionId
+        -issueId
         +sendTerminal(request)
         +handleInput(data)
         +startSafeTimer()
@@ -111,9 +117,10 @@ classDiagram
     }
     class DevicesApiManager {
         +specialCommands(cb, id, type, params)
+        +inprogressQuickOperation(cb, issueId, connectionId)
     }
     class modulePermissions {
-        +terminal (OBE, TTG, IBC)
+        +terminal (OBE, TTG, XLSmart, IBC)
     }
 
     TerminalModal --&gt; useSSEController : 결과 수신
@@ -135,6 +142,10 @@ import { FitAddon } from '@xterm/addon-fit';
 const sendTerminal = (request: string) =&gt; {
   DevicesApiManager.specialCommands((result, data, code, message) =&gt; {
     if (result &amp;&amp; message === 'OK' &amp;&amp; data?.transactionId) {
+      if (issueId) {
+        // Quick Operation 이슈에서 열린 터미널이면 그 이슈를 진행 중으로 표시
+        DevicesApiManager.inprogressQuickOperation(() =&gt; {}, issueId, connectionId);
+      }
       setTransactionId(data?.transactionId);
       startSafeTimer();   // SSE_TIMEOUT 까지 결과 대기
     }
@@ -154,10 +165,12 @@ const sendTerminal = (request: string) =&gt; {
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/device/modal/terminalModal.tsx" target="_blank" rel="noopener">pages/device/modal/terminalModal.tsx</a><span class="src">xterm 터미널 — 명령 전송(TERMINAL_COMMAND)·SSE 결과 수신·로딩/타임아웃</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/device/modal/terminalModal.tsx" target="_blank" rel="noopener">pages/device/modal/terminalModal.tsx</a><span class="src">xterm 터미널 — 명령 전송(TERMINAL_COMMAND)·SSE 결과 수신·로딩/타임아웃·issueId 진행 중 처리</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/terminal/terminal.tsx" target="_blank" rel="noopener">pages/terminal/terminal.tsx</a><span class="src">독립 터미널 페이지 — wetty(WEB_TERMINAL) iframe 임베드</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/hooks/useSSEController.ts" target="_blank" rel="noopener">hooks/useSSEController.ts</a><span class="src">SSE 컨트롤러 — 터미널 결과(NOTIFICATION) 수신</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/utils/env.ts" target="_blank" rel="noopener">utils/env.ts</a><span class="src">modulePermissions.terminal — OBE/TTG/IBC 타깃 노출 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/utils/env.ts" target="_blank" rel="noopener">utils/env.ts</a><span class="src">modulePermissions.terminal — OBE/TTG/XLSmart/IBC 타깃 노출 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/device/commands.tsx" target="_blank" rel="noopener">pages/device/commands.tsx</a><span class="src">TERMINAL_COMMAND 명령 목록 노출·TerminalModal 렌더 및 issueId 전달</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Devices.tsx" target="_blank" rel="noopener">_api/Devices.tsx</a><span class="src">specialCommands · inprogressQuickOperation(POST /api/v1/quick/operation/{id}/inprogress)</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

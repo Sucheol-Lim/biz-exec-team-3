@@ -26,7 +26,7 @@
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/vams_fe" target="_blank" rel="noopener"><code>vams_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
-      <div class="item"><div class="k">핵심 컴포넌트·화면</div><div class="v"><code>src/features/highlight/</code> — 목록·업로드 + <code>edit/</code> 비디오 에디터</div></div>
+      <div class="item"><div class="k">핵심 컴포넌트·화면</div><div class="v"><code>src/features/highlight/</code> — 목록·업로드 + <code>edit/</code> 비디오 에디터 · 타임라인 인프라는 <code>src/shared/media-edit/</code> 공용(f10과 공유, 필름스트립·클립블록은 이 화면이 정본)</div></div>
       <div class="item"><div class="k">기능 맥락</div><div class="v">LNB 13개 메뉴 중 구현 11개 도메인의 하나 · VAMS-HL-001~004</div></div>
     </div>
   </div>
@@ -48,13 +48,14 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>AI 하이라이트는 원본 영상에서 뽑아낸 짧은 구간(클립)들을 운영자가 검수·편집해 최종 하이라이트 영상을 확정하는 메뉴입니다. 목록(<code>HighlightListPage</code>)·우측 <code>HighlightDetailPanel</code>은 공통 리스트 패턴을 따르고, 다른 메뉴와 달리 <strong>원본 영상 업로드로 작업을 직접 생성</strong>하는 경로(VAMS-HL-003)가 있습니다. 업로드 팝업(<code>HighlightUploadModal</code>)의 상태기계는 <code>empty → uploading → uploaded → creating</code>인데, 확정 계약(02c)이 업로드 엔드포인트 하나만 제공하고 그 응답에 이미 <code>jobId</code>가 포함되므로 파일 선택 시점에 서버가 작업을 커밋합니다. 그래서 [생성] 단계는 추가 API 호출 없이 목록 invalidate와 토스트만 수행하고, [파일 제거]는 서버 취소 엔드포인트가 없어 로컬 draft만 리셋합니다(한계로 기록).</p>
-    <p>편집화면(<code>HighlightEditPage</code>)은 <code>/highlight/:jobId</code> bare 라우트로 열리며, 진입 시퀀스는 <code>useHighlightEditSession</code>이 오케스트레이션합니다. 상세(콘텐츠 정보)와 클립 컬렉션(H2)을 병렬 조회하되 클립 조회의 <strong>404는 에러가 아니라 빈 상태</strong>로 접어 클립이 0개인 세션으로 seed 합니다. 이 컴포저블은 헤더 액션([초기화]/[재생성]/[저장]/[연동])과 이탈 가드도 함께 담당하며, 스토어끼리 서로를 직접 참조하지 않도록 조정자 역할을 맡습니다.</p>
-    <p>상태는 데이터와 뷰로 명확히 갈라져 있습니다. <code>highlightEditStore</code>가 클립 배열·baseline·선택/편집 잠금·체크 선택·dirty·잡 상태를 소유하고, <code>highlightPlaybackStore</code>가 재생 시각(<code>currentSec</code>)·재생 여부·배속·줌·모니터 분할 비율 같은 뷰 상태를 소유합니다. 실행취소 스택은 <strong>데이터 스토어만 감시</strong>하며 재생 스토어는 절대 경유하지 않습니다 — 재생 위치 이동 같은 뷰 조작이 이력에 섞이지 않도록 한 규약(REQ-UNDO-002)입니다. 이력은 메멘토(<code>before</code>/<code>after</code> 클립 스냅샷 + <code>action</code>·<code>batch</code> 메타) 방식이며 50단계를 넘으면 가장 오래된 항목을 버리고 토스트로 알립니다.</p>
-    <p>이중 타임라인(<code>useDualTimeline</code>)은 원본 트랙과 결과 트랙이 <code>playback.currentSec</code>이라는 단일 진리원을 공유하되 좌표계만 다르게 씁니다. 원본 트랙은 시각을 그대로 표시하고, 결과 트랙은 선택 클립의 <code>markIn~markOut</code> 상대 좌표로 매핑합니다. 비디오 엘리먼트와의 동기화는 <code>usePlayerSync</code>를 팩토리로 두 인스턴스(<code>origin</code>·<code>result</code>) 생성해 처리하고, <code>activeSource</code>와 일치하는 인스턴스만 스토어→엘리먼트 시킹을 반영합니다. 결과 플레이어는 <code>markOut</code> 도달을 rAF로 감시해 다음 클립으로 연속 재생합니다. 구간 수정(<code>useClipSegmentDrag</code>)은 드래그 중에는 라이브 프리뷰(재생 스토어)만 갱신하고, <strong>클립 데이터와 undo 이력은 pointerup 1회에서만 커밋</strong>해 중간값이 이력을 오염시키지 않게 합니다. 모니터 영역 높이 리사이즈(<code>useMonitorResize</code>)는 핸들 컴포넌트와 레이아웃이 같은 값을 봐야 해서 모듈 스코프 싱글턴으로 두었습니다(기본 416 / 260~660px, localStorage 영속).</p>
+    <p>AI 하이라이트는 원본 영상에서 뽑아낸 짧은 구간(클립)들을 운영자가 검수·편집해 최종 하이라이트 영상을 확정하는 메뉴입니다. 목록(<code>HighlightListPage</code>)·우측 <code>HighlightDetailPanel</code>은 공통 리스트 패턴을 따르고, 다른 메뉴와 달리 <strong>원본 영상 업로드로 작업을 직접 생성</strong>하는 경로(VAMS-HL-003)가 있습니다. [업로드] 버튼은 GUI 정본 위치인 <strong>페이지 헤더 타이틀 우측</strong>으로 Teleport되어 있고, 업로드 팝업(<code>HighlightUploadModal</code>)의 상태기계는 <code>empty → uploading → uploaded → creating</code>인데, 확정 계약(02c)이 업로드 엔드포인트 하나만 제공하고 그 응답에 이미 <code>jobId</code>가 포함되므로 파일 선택 시점에 서버가 작업을 커밋합니다. 그래서 [생성] 단계는 추가 API 호출 없이 목록 invalidate와 토스트만 수행하고, [파일 제거]는 서버 취소 엔드포인트가 없어 로컬 draft만 리셋합니다(한계로 기록).</p>
+    <p>편집화면(<code>HighlightEditPage</code>)은 <code>/highlight/:jobId</code> bare 라우트로 열리며, 진입 시퀀스는 <code>useHighlightEditSession</code>이 오케스트레이션합니다. 상세와 클립 컬렉션(H2)은 <strong>병렬이 아니라 순차</strong> 조회입니다 — 결과 조회 경로가 <code>/api/highlight-result/content/{contentId}</code>라 <code>contentId</code>를 먼저 알아야 하는데 라우트는 <code>jobId</code>만 갖고 있어, 상세 응답에서 <code>contentId</code>를 얻은 뒤에야 클립을 조회할 수 있습니다(계약 구조상의 순차 의존). 클립 조회의 <strong>404는 에러가 아니라 빈 상태</strong>로 접어 클립이 0개인 세션으로 seed 합니다. 이 컴포저블은 헤더 액션([초기화]/[재생성]/[저장]/[연동])과 이탈 가드도 함께 담당하며, 스토어끼리 서로를 직접 참조하지 않도록 조정자 역할을 맡습니다.</p>
+    <p>상태는 데이터와 뷰로 명확히 갈라져 있습니다. <code>highlightEditStore</code>가 클립 배열·baseline·선택/편집 잠금·체크 선택·dirty·잡 상태를 소유하고, <code>highlightPlaybackStore</code>가 재생 시각(<code>currentMs</code> — 도메인 전역 ms로 통일)·재생 여부·배속·J/L 셔틀 배속·모니터 분할 비율 같은 뷰 상태를 소유합니다. 실행취소 스택은 <strong>데이터 스토어만 감시</strong>하며 재생 스토어는 절대 경유하지 않습니다 — 재생 위치 이동 같은 뷰 조작이 이력에 섞이지 않도록 한 규약(REQ-UNDO-002)입니다. 이력은 메멘토(<code>before</code>/<code>after</code> 클립 스냅샷 + <code>action</code>·<code>batch</code> 메타) 방식이며 50단계를 넘으면 가장 오래된 항목을 버리고 토스트로 알립니다. [저장] 직전에는 정본(<code>3495:42873</code>) 6케이스(역전·0초·최소 5초 미만·최대 200초 초과·원본범위 이탈·겹침)를 <code>validateClips</code>로 검증해 위반이 있으면 첫 건만 토스트로 안내하고 해당 카드를 선택시킨 뒤 저장을 막습니다.</p>
+    <p>저장(<code>saveHighlightClips</code>, <code>POST /api/highlight-result/content/{contentId}</code> 전체 스냅샷)은 응답이 <code>{code, message}</code>뿐이라 신규 클립의 서버 ID를 알 방법이 없어, 저장 성공 후 <strong>재조회 1회</strong>(<code>reconcileAfterSave</code>)로 (1) 임시 ID(<code>tmp-</code> 접두)를 <code>(originStartMs, originEndMs)</code> 매칭으로 서버 ID에 매핑하고 (2) 직전 조회 시점 서버 ID 집합과 대조해 <strong>제외·삭제한 구간이 그대로 남아있는 "조용한 유실"</strong>을 감지해 콘솔에 경고합니다. 저장 실패는 응답 유무·HTTP 상태로 <code>classifySaveError</code>가 network/session/server 3분류로 나눠 각각 토스트·토스트·<strong>화면에 남는 오류 배너</strong>(<code>SaveErrorBanner</code>)로 다르게 안내합니다. [재생성](<code>regenerateHighlight</code>)도 실 BE 엔드포인트로, 거절 응답(<code>JOB_NOT_REREQUESTABLE</code>)이 HTTP 200으로 오므로 <code>res.ok</code>가 아니라 envelope의 <code>code</code>로 성공을 판정합니다. 배경 필름스트립은 BE 전용 엔드포인트를 먼저 시도하고 실패하면(하이라이트·골라보기 둘 다 [추정] 계약이라 미제공일 수 있음) 원본 영상에서 클라이언트가 직접 프레임을 추출하는 이중 경로(<code>extractFilmstrip</code>, 가시 구간 앞 5분부터 우선 채움)로 대체합니다.</p>
+    <p>이중 타임라인(<code>useDualTimeline</code>)은 원본 트랙과 결과 트랙이 <code>playback.currentMs</code>라는 단일 진리원(ms)을 공유하되 좌표계만 다르게 씁니다 — 두 플레이어가 <strong>같은 원본 영상</strong>을 소스로 쓰므로 결과 트랙도 원본 절대좌표이고, 선택 클립의 <code>originStartMs</code>를 뺀 상대 좌표로만 매핑합니다(과거엔 결과 축인 <code>markIn</code>을 빼 좌표가 어긋났던 버그 H-2를 이렇게 해소했습니다). 좌표 변환·뷰포트(줌/팬)는 자체 <code>secToPx</code>/<code>pxToSec</code>를 폐기하고 <strong>골라보기(f10)와 공용인 <code>src/shared/media-edit/</code></strong>(<code>useTimelineViewport</code> + <code>timeline/scale.ts</code>의 <code>msToX</code>/<code>xToMs</code>)로 옮겨 탔습니다 — 다만 배경 필름스트립 타일과 클립 블록(<code>ClipBlock</code>)만은 <strong>하이라이트 GUI가 실측 기준</strong>이라 이 화면 쪽 구현이 공용화의 정본이 되었습니다. 비디오 엘리먼트와의 동기화는 <code>usePlayerSync</code>를 팩토리로 두 인스턴스(<code>origin</code>·<code>result</code>) 생성해 처리하고, <code>activeSource</code>와 일치하는 인스턴스만 스토어→엘리먼트 시킹을 반영합니다. 결과 플레이어는 <code>markOut</code> 도달을 rAF로 감시해 다음 클립으로 연속 재생합니다. 구간 수정(<code>useClipSegmentDrag</code>)은 마크 핸들 드래그(길이 변경)와 블록 본체 드래그(<code>moveClip</code>, 길이 유지 이동)를 함께 처리하며 드래그 중에는 라이브 프리뷰(재생 스토어)만 갱신하고 <strong>클립 데이터와 undo 이력은 pointerup 1회에서만 커밋</strong>합니다. ⚠️ 카드를 손으로 끌어 순서를 바꾸는 <code>reorderClips</code>는 폐기했습니다 — BE 질의 결론(Q-1)이 저장 <code>editList</code>에 <code>orderNo</code>가 없고 서버가 시간순으로 재부여하는 것으로 확정되어, 순서를 바꾸려면 <code>moveClip</code>으로 구간 시간 자체를 옮기는 것만 유효합니다. 모니터 영역 높이 리사이즈는 골라보기·구간마킹과 동일하게 <strong>공용 <code>useSplitResize</code></strong>로 승격되어 하이라이트 쪽엔 Figma 실측 상수(기본 416 / 260~660px)만 남았습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트 — API 경계 격리</div>
-      상세/편집의 서버 접점은 <code>editQueries.ts</code> 한 파일 뒤로 전부 격리되어 있습니다. 조회(H2)만 확정 계약이고 저장(H3 확장)·재생성·다운로드는 아직 가설이라, 계약이 확정되면 이 파일만 고치고 스토어·컴포저블·컴포넌트는 손대지 않는 구조입니다. 다운로드는 공통 <code>httpGetBlob</code>을 쓰며, 이번 갱신에서 <code>Content-Disposition</code>의 RFC 5987 <code>filename*</code>을 우선 해석해 한글 파일명이 깨지지 않도록 공통 인프라가 보강되었습니다.
+      상세/편집의 서버 접점은 <code>editQueries.ts</code> 한 파일 뒤로 전부 격리되어 있습니다. 조회(H2)·저장·재생성은 이제 <strong>실 계약</strong>이고, 다운로드와 필름스트립만 [추정] 계약([추정] 신설, 실 v1.0.2 「하이라이트」 시트에 없음)으로 남아 있습니다. 계약이 확정되면 이 파일만 고치고 스토어·컴포저블·컴포넌트는 손대지 않는 구조입니다. 다운로드는 공통 <code>httpGetBlob</code>을 쓰며, <code>Content-Disposition</code>의 RFC 5987 <code>filename*</code>을 우선 해석해 한글 파일명이 깨지지 않도록 공통 인프라가 보강되었습니다.
     </div>
   </section>
 
@@ -75,18 +76,19 @@ sequenceDiagram
 
     USR-&gt;&gt;PAGE: 목록 [검수] → /highlight/:jobId
     PAGE-&gt;&gt;SESS: init(entryState)
-    SESS-&gt;&gt;EQ: fetchHighlightDetail + fetchHighlightClips (병렬)
+    SESS-&gt;&gt;EQ: fetchHighlightDetail(jobId) — contentId 확보
+    SESS-&gt;&gt;EQ: fetchHighlightClips(contentId) — 순차(contentId 선행 필요)
     Note over SESS,EQ: 클립 조회 404 → null 로 접어 빈 상태 seed
     EQ--&gt;&gt;SESS: contentInfo · HighlightClip 목록
     SESS-&gt;&gt;EST: seed(jobId, contentId, clips)
-    SESS-&gt;&gt;PST: originDurationSec 설정
+    SESS-&gt;&gt;EQ: fetchHighlightFilmstrip(contentId) — 실패 시 원본에서 클라이언트 추출
     PAGE-&gt;&gt;SYNC: 원본·결과 비디오 엘리먼트 바인딩
 
-    USR-&gt;&gt;PAGE: 마크 인/아웃 핸들 드래그
+    USR-&gt;&gt;PAGE: 마크 인/아웃 핸들 드래그 · 블록 본체 드래그(이동)
     PAGE-&gt;&gt;PST: 라이브 프리뷰 seek (드래그 중, 이력 기록 없음)
     USR-&gt;&gt;PAGE: pointerup (드롭)
-    PAGE-&gt;&gt;EST: trimClip(id, markInSec, markOutSec)
-    EST-&gt;&gt;HIST: push(action trim, before/after 스냅샷)
+    PAGE-&gt;&gt;EST: trimClip(id, originStartMs, originEndMs) 또는 moveClip(id, newStartMs)
+    EST-&gt;&gt;HIST: push(action trim/move, before/after 스냅샷)
     Note over HIST: 50단계 초과 시 oldest 제거 + 토스트
 
     USR-&gt;&gt;PAGE: Ctrl+D 구간 추가 / Ctrl+K 분할
@@ -100,11 +102,16 @@ sequenceDiagram
 
     USR-&gt;&gt;PAGE: 헤더 [저장]
     PAGE-&gt;&gt;SESS: save()
-    SESS-&gt;&gt;EQ: saveHighlightClips(jobId, clips) — 세션 전체 스냅샷
+    SESS-&gt;&gt;SESS: validateClips(clips, originDurationMs) — 6케이스, 위반 시 저장 차단
+    SESS-&gt;&gt;EQ: saveHighlightClips(contentId, clips) — 세션 전체 스냅샷 POST
     EQ--&gt;&gt;SESS: 저장 완료
-    SESS-&gt;&gt;EST: markClean() — baseline 승격
+    SESS-&gt;&gt;EST: markClean() — baseline 승격(undo 스택은 유지)
+    SESS-&gt;&gt;EQ: fetchHighlightClips(contentId) — reconcileAfterSave 재조회 1회
+    EQ--&gt;&gt;SESS: 서버 클립
+    SESS-&gt;&gt;SESS: tmp-id→서버ID 매핑 · 조용한 유실(diffSaveContract) 콘솔 경고
+    SESS-&gt;&gt;EST: applyServerIds(mapping)
       </div>
-      <p class="cap"><strong>흐름.</strong> 진입 조회의 404는 빈 상태로 흡수되고, 드래그 중에는 재생 스토어만 움직입니다. 데이터 변경은 <code>applyClipMutation</code> 한 관문을 지나 이력에 기록되며 실행취소는 재생 상태를 건드리지 않습니다.</p>
+      <p class="cap"><strong>흐름.</strong> 진입 조회는 contentId 축 변환 때문에 순차이고, 404는 빈 상태로 흡수됩니다. 드래그 중에는 재생 스토어만 움직이고, 데이터 변경은 <code>applyClipMutation</code> 한 관문을 지나 이력에 기록됩니다. 저장은 검증 → POST → 재조회 1회(ID 확정 + 유실 감지)로 이어집니다.</p>
     </div>
   </section>
 
@@ -127,31 +134,38 @@ classDiagram
     }
     class UseHighlightEditSession {
         &lt;&lt;composable&gt;&gt;
-        +contentInfo · originVideoUrl
-        +loadStatus
+        +contentInfo · originVideoUrl · filmstrip
+        +loadStatus · saveErrorBanner
         +init(entryState)
-        +save() · reset() · regenerate() · link()
+        +save() · resetToBaseline() · regenerate() · requestLink()
         +guardLeave() LeaveChoice
     }
     class HighlightEditStore {
         &lt;&lt;pinia store&gt;&gt;
-        +clips · baseline
+        +jobId · contentId
+        +clips · baseline · editingBaseline
         +selectedClipId · editingClipId
-        +checkedClipIds
+        +checkedClipIds · hasLinkHistory
         +isDirty · canUndo · canRedo
         +seed(payload)
         +applyClipMutation(next, meta)
-        +undo() · redo()
-        +markClean()
+        +undo() · redo() · markClean()
+        +applyServerIds(mapping, serverClips)
     }
     class HighlightPlaybackStore {
         &lt;&lt;pinia store&gt;&gt;
         +activeSource origin 또는 result
-        +currentSec · isPlaying
-        +playbackRate · zoom
-        +monitorSplit
-        +seek(sec, source)
+        +currentMs · isPlaying
+        +playbackRate · shuttleRate
+        +originDurationMs · monitorSplit
+        +seek(ms, source)
         +setActiveSource(s)
+    }
+    class ClipValidation {
+        &lt;&lt;pure module&gt;&gt;
+        +MIN_CLIP_MS 5000 · MAX_CLIP_MS 200000
+        +validateClips(clips, totalDurationMs)
+        6케이스 inverted·zeroLength·tooShort·tooLong·outOfRange·overlap
     }
     class UseHighlightUndoRedo {
         &lt;&lt;composable&gt;&gt;
@@ -162,38 +176,41 @@ classDiagram
     }
     class UseHighlightClips {
         &lt;&lt;composable&gt;&gt;
-        +addClip(atSec, defaultDurationSec)
-        +splitClip(id, atSec)
-        +trimClip(id, markIn, markOut)
-        +excludeClip · restoreClip
-        +excludeChecked · restoreChecked
-        +reorderClips(fromIdx, toIdx)
+        +addClip(atMs) · appendClip()
+        +splitClip(id, atMs) · deleteClip(id)
+        +trimClip(id, originStartMs, originEndMs)
+        +moveClip(id, newStartMs) 길이유지 이동
+        +excludeClip · restoreClip · excludeChecked · restoreChecked
         +saveEditingClip()
     }
     class UseDualTimeline {
         &lt;&lt;composable&gt;&gt;
-        +secToPx(sec, kind, trackWidthPx)
-        +pxToSec(px, kind, trackWidthPx)
+        +originTotalMs · resultTotalMs
         +originPointerRatio · resultPointerRatio
-        +onTimelineClick(sec, kind)
+        +onTimelineClick(ms, kind)
     }
     class UseClipSegmentDrag {
         &lt;&lt;composable&gt;&gt;
         +dragState idle · handle-hover · dragging · done
-        +beginDrag(e, clipId, handle, clientXToSec)
+        +runDrag(onFrame, onCommit) rAF 스로틀
     }
     class UsePlayerSync {
         &lt;&lt;factory composable&gt;&gt;
         +kind origin 또는 result
-        +toElementTime(sec)
-        +fromElementTime(elSec)
+        +toElementSec(ms) · fromElementMs(elSec)
+        원본 절대좌표 통일(H-2)
     }
     class EditQueries {
         &lt;&lt;api boundary&gt;&gt;
-        +fetchHighlightClips(jobId)
-        +saveHighlightClips(jobId, clips)
+        +fetchHighlightClips(contentId)
+        +saveHighlightClips(contentId, clips)
         +regenerateHighlight(jobId)
-        +downloadHighlightResult(jobId)
+        +fetchHighlightFilmstrip(contentId) 추정
+        +downloadHighlightResult(jobId) 추정
+    }
+    class UseTimelineViewport {
+        &lt;&lt;shared media-edit composable&gt;&gt;
+        f10과 공용
     }
 
     HighlightListPage --&gt; HighlightUploadModal
@@ -202,35 +219,39 @@ classDiagram
     UseHighlightEditSession --&gt; HighlightEditStore
     UseHighlightEditSession --&gt; HighlightPlaybackStore
     UseHighlightEditSession --&gt; EditQueries
+    UseHighlightEditSession --&gt; ClipValidation : save() 전 저장 차단 검사
     HighlightEditStore o-- UseHighlightUndoRedo : 이력 위임
     UseHighlightClips --&gt; HighlightEditStore : applyClipMutation
     UseClipSegmentDrag --&gt; HighlightPlaybackStore : 드래그 중 라이브 프리뷰
     UseClipSegmentDrag --&gt; UseHighlightClips : pointerup 커밋
-    UseDualTimeline --&gt; HighlightPlaybackStore : currentSec 공유
+    UseDualTimeline --&gt; HighlightPlaybackStore : currentMs 공유
+    UseDualTimeline --&gt; UseTimelineViewport : 줌/팬 위임
     UsePlayerSync --&gt; HighlightPlaybackStore : 양방향 동기
       </div>
-      <p class="cap"><strong>관계.</strong> 데이터 스토어와 재생 스토어가 분리되어 있고 이력 스택은 데이터 쪽만 봅니다. 서버 접점은 <code>editQueries.ts</code> 하나로 좁혀 계약 변경 파급을 차단합니다.</p>
+      <p class="cap"><strong>관계.</strong> 데이터 스토어와 재생 스토어가 분리되어 있고 이력 스택은 데이터 쪽만 봅니다. 서버 접점은 <code>editQueries.ts</code> 하나로 좁혀 계약 변경 파급을 차단하고, 저장 전 검증은 별도 순수 모듈이 담당합니다. 줌/팬 좌표계는 골라보기(f10)와 공용 계층에 위임합니다.</p>
     </div>
   </section>
 
   <section id="code">
     <h2>핵심 코드</h2>
     <div class="snippet">
-      <div class="sc"><code>src/features/highlight/edit/composables/useDualTimeline.ts</code> — 좌표계가 다른 두 트랙의 단일 SSOT 매핑</div>
-<pre><code>// 두 타임라인은 playback.currentSec 단일 SSOT를 공유하되 좌표계가 다름:
-//  - origin 트랙: currentSec을 원본좌표로 직접 표시
-//  - result 트랙: selectedClip 내 상대좌표(markIn~markOut)로 매핑
-function secToPx(sec: number, kind: TimelineKind, trackWidthPx: number): number {
-  const total = kind === 'origin' ? originTotalSec.value : resultTotalSec.value
-  const rel = kind === 'origin' ? sec : sec - (editStore.selectedClip?.markInSec ?? 0)
-  const ratio = Math.min(1, Math.max(0, rel / total))
-  return ratio * trackWidthPx * playback.zoom
-}
+      <div class="sc"><code>src/features/highlight/edit/composables/useDualTimeline.ts</code> — 원본 절대좌표로 통일한 두 트랙 매핑(H-2)</div>
+<pre><code>// 두 타임라인은 playback.currentMs 단일 SSOT(ms)를 공유하되 좌표계가 다름:
+//  - origin 트랙: currentMs를 원본좌표로 직접 표시
+//  - result 트랙: selectedClip 내 상대좌표(originStart~originEnd)로 매핑.
+//    ⚠ 두 플레이어가 같은 원본 영상을 쓰므로 currentMs 도 원본 절대 좌표다 — 클립 시작을
+//    빼서 상대화한다. 예전엔 result 축(markIn)을 뺐는데, 축이 달라 위치가 어긋났다(H-2).
+// M3: 배율 zoom 기반 msToPx/pxToMs 는 공용 뷰포트(shared/media-edit)로 대체돼 제거했다.
+const resultPointerRatio = computed(() => {
+  const clip = editStore.selectedClip
+  if (!clip) return 0
+  return Math.min(1, Math.max(0, (playback.currentMs - clip.originStartMs) / resultTotalMs.value))
+})
 
 /** 타임라인 클릭 — 뷰 액션(이력 X). 해당 source로 seek + activeSource 전환 */
-function onTimelineClick(sec: number, kind: TimelineKind): void {
+function onTimelineClick(ms: number, kind: TimelineKind): void {
   playback.setActiveSource(kind)
-  playback.seek(sec, 'timeline')
+  playback.seek(ms, 'timeline')
 }</code></pre>
     </div>
     <div class="snippet">
@@ -258,63 +279,120 @@ function push(
 }</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>src/features/highlight/edit/composables/useHighlightClips.ts</code> — 구간수정은 드롭 시 1회만 커밋</div>
-<pre><code>/**
- * 구간수정(마크 인/아웃) 커밋 — drop(pointerup) 시 1회만 호출(중간값 미기록).
- * markInSec &lt; markOutSec 불변식. originStartSec/originEndSec은 마크IO와 별개로 유지.
- */
-function trimClip(id: string, markInSec: number, markOutSec: number): void {
-  if (markOutSec &lt;= markInSec) return
+      <div class="sc"><code>src/features/highlight/edit/composables/useHighlightClips.ts</code> — 구간수정(trim)과 블록이동(move)의 역할 분리</div>
+<pre><code>/** 구간수정(마크 인/아웃) — drop(pointerup) 시 1회만 커밋(중간값 미기록, REQ-UNDO-003). */
+function trimClip(id: string, originStartMs: number, originEndMs: number): void {
+  if (originEndMs &lt;= originStartMs) return
+  store.setEditing(id) // 구간을 조정한 순간부터 '편집 중' — [클립 저장] 시 AI→EDITED 배지 전이 조건
   const before = cloneClips(store.clips)
   const idx = before.findIndex((c) =&gt; c.id === id)
   if (idx === -1) return
-  const next = before.map((c) =&gt;
-    c.id === id ? { ...c, markInSec, markOutSec, durationSec: markOutSec - markInSec } : c,
+  // 시작 시간이 바뀌면 카드 순서도 바뀐다(orderNo 는 시간 순서의 표현) → renumber 경유
+  const next = renumber(
+    before.map((c) =&gt;
+      c.id === id
+        ? { ...c, originStartMs, originEndMs, durationMs: originEndMs - originStartMs }
+        : c,
+    ),
   )
   store.applyClipMutation(next, { action: 'trim', batch: false, before, after: next })
 }
 
-/** 다른 카드 편집 중 잠금 가드 — true면 액션 차단(토스트 발화) */
-function guardEditingLock(targetId?: string): boolean {
-  if (store.editingClipId !== null &amp;&amp; store.editingClipId !== targetId) {
-    toast.warning({ messageKey: 'highlight.edit.toast.editingLocked' })
-    return true
-  }
-  return false
+/**
+ * 블록 이동(타임라인 DND) — 길이를 유지한 채 시작/종료를 함께 옮긴다(trim 과 달리 durationMs 불변).
+ * ⚠️ 겹침을 드래그 중에는 허용한다 — 헤더 [저장] 시 clipValidation 이 걸러낸다.
+ * ⛔ reorderClips(카드 드래그로 순서만 바꾸기)는 폐기했다 — BE 확정(Q-1): 저장 editList 에
+ *    orderNo 가 없고 서버가 시간순으로 재부여한다. 순서를 바꾸려면 구간 시간을 옮기는 것뿐이다.
+ */
+function moveClip(id: string, newStartMs: number): void {
+  if (guardEditingLock(id)) return
+  const before = cloneClips(store.clips)
+  const target = before.find((c) =&gt; c.id === id)
+  if (!target) return
+  const durationMs = target.originEndMs - target.originStartMs
+  if (durationMs &lt;= 0) return
+  const totalMs = playback.originDurationMs
+  const maxStartMs = totalMs &gt; 0 ? Math.max(0, totalMs - durationMs) : Number.POSITIVE_INFINITY
+  const originStartMs = Math.max(0, Math.min(newStartMs, maxStartMs))
+  if (originStartMs === target.originStartMs) return // 제자리면 이력 오염 방지
+  store.setEditing(id)
+  const next = renumber(
+    before.map((c) =&gt;
+      c.id === id ? { ...c, originStartMs, originEndMs: originStartMs + durationMs } : c,
+    ),
+  )
+  store.applyClipMutation(next, { action: 'move', batch: false, before, after: next })
 }</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>src/features/highlight/edit/composables/useHighlightEditSession.ts</code> — 404를 빈 상태로 접는 진입 시퀀스</div>
-<pre><code>/** 진입 시퀀스 — H2 조회(+상세 콘텐츠정보) → seed. 404(VAMS-HLT-002)는 empty로 처리 */
-async function init(entryState?: JobState): Promise&lt;void&gt; {
-  loadStatus.value = 'loading'
+      <div class="sc"><code>src/features/highlight/edit/clipValidation.ts</code> — 저장 차단 6케이스(정본 3495:42873)</div>
+<pre><code>export const MIN_CLIP_MS = 5_000   // 최소 길이(5초)
+export const MAX_CLIP_MS = 200_000 // 최대 길이(200초)
+
+/** 저장 전 전량 검증 — 위반을 전부 돌려주고, 무엇을 보여줄지는 호출측이 정한다(현재는 첫 건만 토스트). */
+export function validateClips(clips: HighlightClip[], totalDurationMs: number): ClipViolation[] {
+  const targets = clips.filter((c) =&gt; !c.excluded) // 제외된 클립은 최종 결과에 안 들어가 검증 제외
+  const out: ClipViolation[] = []
+  for (const c of targets) {
+    const lengthMs = c.originEndMs - c.originStartMs
+    if (lengthMs &lt; 0) out.push({ code: 'inverted', clipId: c.id, orderNo: c.orderNo })
+    else if (lengthMs === 0) out.push({ code: 'zeroLength', clipId: c.id, orderNo: c.orderNo })
+    else if (lengthMs &lt; MIN_CLIP_MS) out.push({ code: 'tooShort', clipId: c.id, orderNo: c.orderNo })
+    else if (lengthMs &gt; MAX_CLIP_MS) out.push({ code: 'tooLong', clipId: c.id, orderNo: c.orderNo })
+    if (totalDurationMs &gt; 0 &amp;&amp; (c.originStartMs &lt; 0 || c.originEndMs &gt; totalDurationMs)) {
+      out.push({ code: 'outOfRange', clipId: c.id, orderNo: c.orderNo })
+    }
+  }
+  // 겹침은 전 쌍을 본다(클립 수가 수십 단위라 비용 문제없음) — 생략(전체 로직은 소스 참조)
+  return out
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/features/highlight/edit/composables/useHighlightEditSession.ts</code> — 저장 → 재조회 1회로 ID 확정 + 유실 감지</div>
+<pre><code>/**
+ * 저장 직후 재조회 1회로 두 가지를 한다: ① 신규 클립의 임시 id(tmp-)를 서버 sectionId로 확정
+ * (매칭 키는 저장 요청에 실어 보낸 originStartMs/originEndMs) ② 계약 가정 검증 — 제외/삭제한
+ * 구간이 서버 결과에 그대로 남아있는 "조용한 유실"을 콘솔 경고로 잡는다.
+ * ⚠️ clips 를 서버 응답으로 덮어쓰지 않는다 — workBadge 는 로컬 마킹이라 덮으면 배지가 사라진다.
+ */
+async function reconcileAfterSave(contentId: string, sentClips: HighlightClip[]): Promise&lt;void&gt; {
   try {
-    const [detail, clipCollection] = await Promise.all([
-      fetchHighlightDetail(jobId.value),
-      fetchHighlightClips(jobId.value).catch((err: unknown) =&gt; {
-        const status = (err as { status?: number })?.status
-        if (status === 404) return null
-        throw err
-      }),
-    ])
-    contentInfo.value = detail.contentInfo
-    originVideoUrl.value = detail.contentInfo.originUrlPath
-    // clipCollection 이 null 이면 클립 0개로 seed → 빈 상태 화면
-  } catch (e) {
-    loadStatus.value = 'error'
+    const after = await fetchHighlightClips(contentId)
+    const mapping = mapTempIdsToServer(sentClips, after.clips)
+    store.applyServerIds(mapping, after.clips)
+    const violations = diffSaveContract(sentClips, lastKnownServerIds.value, after.clips)
+    lastKnownServerIds.value = after.clips.map((c) =&gt; c.id)
+    for (const v of violations) {
+      console.warn('[highlight] 저장 계약 위배 의심 — 제외/삭제한 구간이 서버 결과에 남아있다.', v)
+    }
+  } catch {
+    // 검증용 조회 실패는 저장 결과에 영향을 주지 않는다
   }
+}
+
+/** 응답 유무·HTTP 상태로 네트워크/세션/서버 저장실패를 가른다 — 각각 다른 UI 액션(정본 _07 §3) */
+export function classifySaveError(err: unknown): SaveFailureKind {
+  const status = (err as { status?: number } | null)?.status
+  if (typeof status !== 'number') return 'network'   // fetch 자체 실패(오프라인/DNS/CORS)
+  if (status === 401) return 'session'
+  return 'server'                                      // → saveErrorBanner(화면에 남는 배너)
 }</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>src/features/highlight/edit/composables/useMonitorResize.ts</code> — 핸들과 레이아웃이 공유하는 싱글턴 높이</div>
-<pre><code>// ⚠ 싱글턴(모듈 스코프 상태): 핸들(PlaybackToolbar)과 레이아웃(HighlightEditPage)이 각각
-// useMonitorResize()를 호출해도 **같은 heightPx**를 공유해야 드래그가 레이아웃에 반영된다.
-// (이전: 호출마다 독립 ref → 핸들은 인스턴스 A, 레이아웃은 B를 읽어 드래그 무반응 버그.)
-const STORAGE_KEY = 'vams.highlight.edit.monitorHeight'
-const DEFAULT_PX = 416 // Figma 기본 진입
-const MIN_PX = 260
-const MAX_PX = 660
-const KEY_STEP = 20</code></pre>
+      <div class="sc"><code>src/features/highlight/edit/composables/useMonitorResize.ts</code> — 리사이즈 로직은 공용 useSplitResize, 실측 상수만 로컬</div>
+<pre><code>// 드래그/키보드/영속 로직은 공용 useSplitResize 로 승격됐다(4벌 중복 해소,
+// media-edit-common/01-promotion-design.md §2). 여기 남은 것은 하이라이트 고유 실측 상수뿐.
+// 공용 구현이 storageKey 별 싱글턴이라, 예전에 자체 모듈 싱글턴으로 풀던 "핸들과 레이아웃이 서로
+// 다른 ref 를 읽어 드래그가 먹지 않던 버그"도 그대로 방지된다.
+import type { SplitResizeOptions } from '@/shared/media-edit/useSplitResize'
+
+export const HIGHLIGHT_MONITOR_RESIZE: SplitResizeOptions = {
+  storageKey: 'vams.highlight.edit.monitorHeight',
+  defaultPx: 416, // Figma 기본 진입
+  minPx: 260,
+  maxPx: 660,
+  keyStepPx: 20,
+}</code></pre>
     </div>
   </section>
 
@@ -324,14 +402,20 @@ const KEY_STEP = 20</code></pre>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/pages/HighlightEditPage.vue" target="_blank" rel="noopener">features/highlight/edit/pages/HighlightEditPage.vue</a><span class="src">bare 풀스크린 비디오 에디터 — 헤더·툴바·듀얼 플레이어·이중 타임라인·클립 그리드</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/composables/useHighlightEditSession.ts" target="_blank" rel="noopener">features/highlight/edit/composables/useHighlightEditSession.ts</a><span class="src">세션 오케스트레이터 — 진입 시퀀스(404 빈 상태)·헤더 액션·이탈 가드</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/stores/highlightEditStore.ts" target="_blank" rel="noopener">features/highlight/edit/stores/highlightEditStore.ts</a><span class="src">데이터 스토어 — 클립·baseline·선택/편집 잠금·dirty, 이력 위임</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/stores/highlightPlaybackStore.ts" target="_blank" rel="noopener">features/highlight/edit/stores/highlightPlaybackStore.ts</a><span class="src">재생(뷰) 스토어 — activeSource·currentSec SSOT·배속·줌·모니터 분할</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/stores/highlightPlaybackStore.ts" target="_blank" rel="noopener">features/highlight/edit/stores/highlightPlaybackStore.ts</a><span class="src">재생(뷰) 스토어 — activeSource·currentMs SSOT(ms 통일)·배속·J/L 셔틀·모니터 분할</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/composables/useHighlightUndoRedo.ts" target="_blank" rel="noopener">features/highlight/edit/composables/useHighlightUndoRedo.ts</a><span class="src">메멘토 undo/redo — 50단계 상한·batch 메타·초과 토스트</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/composables/useHighlightClips.ts" target="_blank" rel="noopener">features/highlight/edit/composables/useHighlightClips.ts</a><span class="src">클립 액션 — 추가/분할/구간수정/제외·복원/일괄/순서변경·편집 잠금 가드</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/composables/useDualTimeline.ts" target="_blank" rel="noopener">features/highlight/edit/composables/useDualTimeline.ts</a><span class="src">이중 타임라인 좌표 매핑 — 원본 절대좌표 · 결과 클립 상대좌표</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/composables/useClipSegmentDrag.ts" target="_blank" rel="noopener">features/highlight/edit/composables/useClipSegmentDrag.ts</a><span class="src">마크 인/아웃 드래그 — 드래그 중 프리뷰만, 드롭 시 1회 커밋</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/composables/usePlayerSync.ts" target="_blank" rel="noopener">features/highlight/edit/composables/usePlayerSync.ts</a><span class="src">video ↔ 스토어 양방향 동기 팩토리 — 결과 플레이어 markOut rAF 연속재생</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/composables/useHighlightShortcuts.ts" target="_blank" rel="noopener">features/highlight/edit/composables/useHighlightShortcuts.ts</a><span class="src">단축키 — Ctrl+Z/D/K/S · Space · J/L · I/O · Home/End · Delete · F1</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/editQueries.ts" target="_blank" rel="noopener">features/highlight/edit/editQueries.ts</a><span class="src">API 경계 — 클립 조회(H2)·저장(H3 가설)·재생성·Blob 다운로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/composables/useHighlightClips.ts" target="_blank" rel="noopener">features/highlight/edit/composables/useHighlightClips.ts</a><span class="src">클립 액션 — 추가/분할/삭제/구간수정/블록이동(moveClip)/제외·복원/일괄·편집 잠금 가드(reorderClips는 BE 제약으로 폐기)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/clipValidation.ts" target="_blank" rel="noopener">features/highlight/edit/clipValidation.ts</a><span class="src">저장 전 구간 검증 — 6케이스(역전·0초·최소/최대 길이·범위이탈·겹침), 하이라이트 로컬(공용 미승격)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/composables/useDualTimeline.ts" target="_blank" rel="noopener">features/highlight/edit/composables/useDualTimeline.ts</a><span class="src">이중 타임라인 좌표 매핑(ms) — 원본 절대좌표 · 결과 클립 상대좌표(H-2), 줌/팬은 공용 뷰포트 위임</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/composables/useClipSegmentDrag.ts" target="_blank" rel="noopener">features/highlight/edit/composables/useClipSegmentDrag.ts</a><span class="src">마크 인/아웃 핸들 + 블록 본체 드래그 — 드래그 중 프리뷰만, 드롭 시 1회 커밋</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/composables/usePlayerSync.ts" target="_blank" rel="noopener">features/highlight/edit/composables/usePlayerSync.ts</a><span class="src">video ↔ 스토어 양방향 동기 팩토리 — 원본 절대좌표 통일(H-2) · 결과 플레이어 markOut rAF 연속재생</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/timecodeInput.ts" target="_blank" rel="noopener">features/highlight/edit/timecodeInput.ts</a><span class="src">타임코드 직접 입력 파서(hh:mm:ss/mm:ss/ss → ms) — 하이라이트 전용, formatTimecode의 역함수</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/composables/useHighlightShortcuts.ts" target="_blank" rel="noopener">features/highlight/edit/composables/useHighlightShortcuts.ts</a><span class="src">단축키 — Ctrl+Z/D/K/S · Ctrl+Shift+X(마킹 초기화) · Space · J/L · I/O · E · ±(줌) · Home/End · Delete · F1 · Esc</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/components/SaveErrorBanner.vue" target="_blank" rel="noopener">features/highlight/edit/components/SaveErrorBanner.vue</a><span class="src">서버 저장 실패 배너 — 토스트와 달리 사용자가 인지할 때까지 화면에 남는다(정본 _07 §3)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/edit/editQueries.ts" target="_blank" rel="noopener">features/highlight/edit/editQueries.ts</a><span class="src">API 경계 — 클립 조회·저장(실 계약, contentId 축)·재생성(실 계약)·필름스트립/Blob 다운로드([추정])</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/media-edit/useTimelineViewport.ts" target="_blank" rel="noopener">shared/media-edit/useTimelineViewport.ts</a><span class="src">순수 ms 뷰포트 — 줌/팬/플레이헤드 추종. 골라보기(f10) 기준으로 공용 계층 승격, 하이라이트도 채택(M3)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/media-edit/components/ClipBlock.vue" target="_blank" rel="noopener">shared/media-edit/components/ClipBlock.vue</a><span class="src">타임라인 클립 블록 — 하이라이트 GUI 실측이 공용화 기준(정본)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/media-edit/extractFilmstrip.ts" target="_blank" rel="noopener">shared/media-edit/extractFilmstrip.ts</a><span class="src">필름스트립 BE 미제공 시 클라이언트 프레임 추출 폴백 — 가시 구간(앞 5분) 우선 채움</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/composables/useHighlightUpload.ts" target="_blank" rel="noopener">features/highlight/composables/useHighlightUpload.ts</a><span class="src">업로드 상태기계 — 단일 호출 계약(업로드=작업 생성) 반영</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/highlight/routes.ts" target="_blank" rel="noopener">features/highlight/routes.ts</a><span class="src">라우트 — 목록(AppShell children) · 편집(top-level bare)</span></li>
     </ul>

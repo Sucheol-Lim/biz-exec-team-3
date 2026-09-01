@@ -26,8 +26,8 @@
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
-      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/notice · resource · contactUs</code></div></div>
-      <div class="item"><div class="k">기능 맥락</div><div class="v">boardApi · CustomFile 확장자 검증</div></div>
+      <div class="item"><div class="k">핵심 컴포넌트</div><div class="v"><code>pages/notice · resource · contactUs</code> · <code>modal/notice/NoticePopup</code> · <code>pages/boardNavigation.ts</code></div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">boardApi · queryKeys 캐시 스코프 · CustomFile 확장자 검증</div></div>
     </div>
   </div>
 </header>
@@ -49,10 +49,14 @@
   <section id="desc">
     <h2>기능 개요</h2>
     <p>세 게시판 도메인은 동일한 목록/상세/편집 패턴으로 구성됩니다. 공지(<code>/notice</code> → <code>NoticeList/Detail/Edit</code>), 자료실(<code>/resource</code> → <code>ResourceList/Detail/Edit</code>), 문의(<code>/contact-us</code> → <code>ContactUsList/Detail/Edit</code> + <code>Reply</code>)입니다. 데이터는 <code>boardApi</code>의 공통 게시판 엔드포인트(<code>/bff/monitor/boards/*</code>)와 도메인별 엔드포인트(<code>boards/notice</code>, <code>boards/resources</code>)를 사용합니다.</p>
+    <p><code>boardApi</code>의 함수 시그니처는 <code>(params, unitServiceCode?, config?: AxiosRequestConfig)</code> 형태로 통일되었습니다. 인터셉터가 헤더를 주입하더라도 사이트 전환 직후처럼 세션이 아직 갱신되지 않은 시점을 대비해 호출부가 <code>unitServiceCode</code>를 직접 실어 보낼 수 있고, <code>config</code>로 React Query의 <code>signal</code>과 <code>skipError</code>를 함께 넘겨 화면 이탈 시 요청을 취소하고 삭제된 글 조회 같은 실패에 오류 팝업을 띄우지 않습니다. 목록·공지 목록의 <code>startDate</code>/<code>endDate</code>는 선택 파라미터로 바뀌어, 조회기간을 비우면 전체 기간을 조회합니다. 공지사항 목록·문의 목록의 기본 조회기간도 최근 1주가 아니라 빈 값(<code>[null, null]</code>)이며, 두 값이 모두 있을 때만 날짜 파라미터를 만들어 보냅니다.</p>
+    <p>캐시 키는 도메인별 <code>queryKeys</code> 모듈(<code>noticeKeys</code>·<code>resourceKeys</code>·<code>contactUsKeys</code>)로 모았습니다. 모든 키가 <code>['boards', 도메인, unitServiceCode, ...]</code>로 시작해 사이트가 다르면 캐시가 절대 섞이지 않고, <code>list</code>·<code>detail</code>·<code>edit</code>·<code>navigation</code>·<code>popup</code>을 계층으로 나눠 CRUD 직후 무엇을 비울지 정확히 지정할 수 있습니다. 등록·수정·삭제 성공 시 목록·이전/다음 탐색 캐시는 <code>removeQueries</code>로 아예 제거하고(<code>invalidateQueries</code>는 오래됨 표시만 하고 데이터를 남겨 수정 폼이 저장 전 값으로 초기화되는 문제가 있었습니다), 상세·편집 캐시는 <code>refetchType: 'none'</code>으로 무효화만 해 방금 지운 글을 곧바로 다시 조회하지 않습니다. 삭제는 요청 전에 <code>cancelQueries</code>로 진행 중인 상세 조회를 먼저 끊습니다. 수정 폼은 <code>isDetailFetching</code>이 끝난 응답으로만 초기화해, 캐시에 남아 있던 값으로 먼저 채워진 뒤 최신 응답이 무시되는 일을 막습니다.</p>
+    <p>상세·편집에서 목록으로 돌아가는 경로는 <code>pages/boardNavigation.ts</code>가 담당합니다. 목록에서 상세로 들어갈 때 <code>withBoardListHistory(searchParams)</code>로 라우트 state에 히스토리 깊이를 심고, 상세에서 편집으로 한 단계 더 들어가면 <code>advanceBoardListHistory(state)</code>가 깊이를 늘립니다. 복귀 시 <code>returnToBoardList()</code>가 그 깊이만큼 <code>navigate(-depth)</code>로 되돌아가 브라우저 뒤로가기 이력이 어긋나지 않게 하고, 깊이 정보가 없으면 목록 경로로 <code>replace</code> 이동합니다. 목록 화면은 노출 개수·정렬을 바꾸면 <code>page</code>를 1로 되돌리고, 마지막 행을 지워 복원된 페이지가 전체 페이지 수를 넘으면 마지막 유효 페이지로 자동 이동합니다.</p>
     <p>첨부 파일은 <code>boardApi.uploadFile()</code>/<code>fileList()</code>/<code>downloadFile()</code>/<code>deleteFile()</code>로 관리합니다. 업로드 UI는 공통 컴포넌트 <code>CustomFile</code>이 담당하는데, <code>accept</code>에 지정된 확장자 목록과 실제 파일 확장자를 대조해 허용되지 않으면 입력을 비우고 선택을 취소합니다. 용량은 <code>limitSize</code>를 초과하면 경고 모달(<code>Alarm</code>)을 띄웁니다.</p>
     <p>자료실 편집(<code>ResourceEdit</code>)은 SMART GREEN 병해충 도감 성격의 확장 필드(영문명·기주식물·증상·병해충 발생 현황·방제 방법 등)를 다루며, 저장은 <code>smartGreenApi.postResource()</code>/<code>putResource()</code>(<code>/bff/monitor/boards/resources</code>)로 처리합니다. 대표 사진은 base64 인라인 전송이 아니라 파일 업로드로 먼저 파일 ID를 받은 뒤 <code>thumbnailImage</code>로 전달하는 방식이며, 수정 진입 시 확장 필드는 상세 응답의 <code>extendData</code>(snake_case 컬럼 <code>english_name</code>·<code>host_plant</code> 등)와 매칭해 채웁니다. 서버 응답 필드명이 <code>extendedData</code>가 아니라 <code>extendData</code>인 것이 확인되어 상세·편집 양쪽 참조가 정정되었습니다.</p>
     <p>편집 화면은 기존 첨부를 보존하도록 보완되었습니다. 수정 진입 시 상세 응답의 <code>fileId</code>와 <code>extendData.thumbnail_image</code>를 <code>existingFileId</code>/<code>existingThumbnailId</code>로 잡아 두고, 새로 업로드하지 않으면 저장 payload에 그 값을 그대로 실어 보냅니다. 파일명은 <code>boardApi.fileList(fileId)</code>로 <code>originalName</code>을 조회해 <code>CustomFile</code>의 <code>displayName</code>으로 표시하고, 사용자가 첨부를 제거하면 기존 ID·파일명도 함께 해제합니다. 상세 화면(<code>ResourceDetail</code>)의 대표 사진도 URL 필드(<code>logoImageUrl</code>) 대신 <code>extendData.thumbnail_image</code> 파일 ID를 기준으로 <code>fileList</code> → <code>downloadFile</code>로 blob을 받아 <code>URL.createObjectURL</code>로 표시하며, 값이 바뀌거나 언마운트될 때 이전 object URL을 <code>revokeObjectURL</code>로 회수합니다. 목록(<code>ResourceList</code>)은 정렬·행 수 변경 시 이전 검색 상태가 잔류하지 않도록 <code>page</code>·<code>rowCount</code>·<code>order</code>·<code>filter</code>·<code>keyword</code>를 담은 새 객체로 검색 파라미터를 통째 교체합니다.</p>
-    <p>최근 KT 보안성 검증 반영으로 자료실에서 허용하지 않는 확장자 업로드 시 노출되던 alert 문구가 제거되는 등 첨부 처리 정책이 강화되었습니다. 문의(Q&amp;A)는 운영자가 답변(<code>Reply</code>)을 등록하는 흐름을 포함하며, 문의 목록의 등록 버튼은 <code>hasRole()</code> 권한 판정으로 고객(서비스 고객) 계정에서만 노출되고 관제요원 이상 관리자 계정에서는 숨겨집니다. 문의 목록의 조회 버튼은 선택한 필터·정렬·조회기간을 초기화하지 않고 그대로 조회하도록 개선되었고, 기본 조회기간(최근 1주)도 모듈 로드 시점이 아닌 호출 시점 기준으로 계산(<code>getDefaultDateRange()</code>)하도록 수정되었습니다.</p>
+    <p>최근 KT 보안성 검증 반영으로 자료실에서 허용하지 않는 확장자 업로드 시 노출되던 alert 문구가 제거되는 등 첨부 처리 정책이 강화되었습니다. 문의(Q&amp;A)는 운영자가 답변(<code>Reply</code>)을 등록하는 흐름을 포함하며, 문의 목록의 등록 버튼은 <code>hasRole()</code> 권한 판정으로 고객(서비스 고객) 계정에서만 노출되고 관제요원 이상 관리자 계정에서는 숨겨집니다. 문의 목록의 조회 버튼은 선택한 필터·정렬·조회기간을 초기화하지 않고 그대로 조회합니다.</p>
+    <p>공지사항에는 팝업 노출 기능이 추가되었습니다. 등록·수정 화면에 "팝업으로 표시" 체크박스가 생겨 <code>popupYn</code>을 <code>registNotice</code>/<code>editNotice</code> payload에 함께 보내며, 동시에 노출할 수 있는 개수는 <code>MAX_POPUP_NOTICE_COUNT</code>(3개)로 제한합니다. 편집 화면은 <code>boardApi.noticePopupList()</code>로 현재 팝업 대상 목록을 받아 수정 중인 글 자신을 제외하고 세어(<code>otherPopupCount</code>) 한도에 다다르면 체크박스를 막고 안내 문구를 띄웁니다. Home 진입 시에는 <code>modal/notice/NoticePopup</code>이 <code>/bff/monitor/boards/notice/popup</code> 목록을 등록 시간 최신순으로 정렬해 최대 3개까지 계단식(<code>STACK_OFFSET</code> 40px)으로 겹쳐 보여줍니다. 최신 공지가 화면 정중앙의 기준 카드가 되고 오래된 공지일수록 좌상단으로 밀려나며, 카드를 닫아도 언마운트하지 않고 <code>visibility</code>만 감춰 남은 카드가 재배치되지 않습니다. "오늘하루 보지 않기"는 게시글 단위 쿠키(<code>noticePopupHide_&lt;boardSequence&gt;</code>)를 그날 23:59:59 만료로 심어 처리하고, 첨부는 공통 <code>DownloadButton</code>으로 노출합니다. 이 버튼은 <code>unitServiceCode</code>를 <code>fileList</code>·<code>downloadFile</code> 헤더에 명시 전달하고 캐시 키도 <code>['files', unitServiceCode, fileId]</code>로 사이트별로 분리하도록 정비되었으며, 아이콘 + 밑줄 텍스트로 그리는 <code>variant="link"</code> 표시 형태가 함께 추가되었습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       확장자 검증을 업로드 공통 컴포넌트(<code>CustomFile</code>)에 두어 자료실·문의·기타 첨부가 동일한 보안 정책을 공유합니다. 검증 실패 시 입력 <code>value</code>를 비워 잘못된 파일이 폼에 남지 않게 합니다.
@@ -69,13 +73,17 @@ sequenceDiagram
     participant Detail as ResourceDetail
     participant Edit as ResourceEdit
     participant CF as CustomFile
+    participant Popup as NoticePopup (Home)
     participant API as boardApi / smartGreenApi
     participant BFF as BFF /bff/monitor/boards
 
-    List-&gt;&gt;API: list(params) — page/rowCount/order/filter/keyword 통째 교체
+    Popup-&gt;&gt;API: noticePopupList(unitServiceCode)
+    API--&gt;&gt;Popup: popupYn=Y 공지 목록
+    Popup-&gt;&gt;Popup: 최신순 정렬 후 최대 3개 계단식 노출 (숨김 쿠키 제외)
+    List-&gt;&gt;API: list(params, unitServiceCode, signal) — page/rowCount/order/filter/keyword 통째 교체
     API-&gt;&gt;BFF: GET boards / boards/resources
     BFF--&gt;&gt;List: 게시글 목록
-    List-&gt;&gt;Detail: 상세 진입
+    List-&gt;&gt;Detail: 상세 진입 (withBoardListHistory 로 복귀 깊이 기록)
     Detail-&gt;&gt;API: fileList(extendData.thumbnail_image)
     API--&gt;&gt;Detail: fileItemSequence
     Detail-&gt;&gt;API: downloadFile(fileItemSequence)
@@ -93,9 +101,11 @@ sequenceDiagram
         Edit-&gt;&gt;API: postResource / putResource (thumbnailImage·fileId 포함)
         API-&gt;&gt;BFF: POST/PUT boards/resources
         BFF--&gt;&gt;Edit: 저장 결과
+        Edit-&gt;&gt;Edit: lists 캐시 removeQueries + detail·edit 는 refetchType none 무효화
+        Edit-&gt;&gt;List: returnToBoardList — 기록된 깊이만큼 navigate(-depth)
     end
       </div>
-      <p class="cap"><strong>흐름.</strong> 목록·상세·편집 화면이 게시판 API로 글을 관리하고, 첨부는 <code>CustomFile</code>이 확장자·용량을 먼저 검증합니다. 대표 사진은 URL이 아니라 파일 ID이므로 상세·편집 모두 <code>fileList</code>로 실제 파일 항목을 찾아 표시하며, 저장 시에는 새로 올린 파일만 업로드하고 미변경 항목은 기존 ID를 그대로 전달합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 목록·상세·편집 화면이 게시판 API로 글을 관리하고, 첨부는 <code>CustomFile</code>이 확장자·용량을 먼저 검증합니다. 대표 사진은 URL이 아니라 파일 ID이므로 상세·편집 모두 <code>fileList</code>로 실제 파일 항목을 찾아 표시하며, 저장 시에는 새로 올린 파일만 업로드하고 미변경 항목은 기존 ID를 그대로 전달합니다. 저장·삭제 후에는 목록 캐시만 제거하고 상세·편집 캐시는 재요청 없이 무효화한 뒤, 기록해 둔 히스토리 깊이만큼 되돌아갑니다. Home 진입 시에는 팝업 노출 공지가 최대 3개까지 계단식으로 표시됩니다.</p>
     </div>
   </section>
 
@@ -110,14 +120,40 @@ classDiagram
         +Edit
     }
     class boardApi {
-        +list(params)
-        +detail(seq)
-        +noticeDetail(seq)
+        +list(params, unitServiceCode, config)
+        +detail(seq, unitServiceCode, config)
+        +noticeList(params, unitServiceCode, config)
+        +noticeDetail(seq, unitServiceCode, config)
+        +noticePopupList(unitServiceCode, config)
+        +registNotice(params, unitServiceCode, config)
+        +editNotice(seq, params, unitServiceCode, config)
         +resourceDetail(seq)
-        +delete(seq)
-        +uploadFile(params)
-        +downloadFile(seq)
+        +delete(seq, unitServiceCode, config)
+        +uploadFile(params, unitServiceCode, config)
+        +downloadFile(seq, config)
         +deleteFile(fileId)
+    }
+    class boardQueryKeys {
+        +noticeKeys
+        +resourceKeys
+        +contactUsKeys
+        +list(unitServiceCode, params)
+        +detail(unitServiceCode, id)
+        +edit(unitServiceCode, id)
+        +popups(unitServiceCode)
+    }
+    class boardNavigation {
+        +withBoardListHistory(state, depth)
+        +advanceBoardListHistory(state)
+        +returnToBoardList(options)
+        +getBoardListHistoryDepth(state)
+    }
+    class NoticePopup {
+        -dismissed
+        -hideTodayMap
+        +STACK_OFFSET
+        +MAX_POPUP_NOTICE_COUNT
+        +handleClose(notice)
     }
     class smartGreenApi {
         +getResourceDetail(seq)
@@ -153,8 +189,12 @@ classDiagram
     ResourceEdit ..&gt; boardApi : fileList → originalName (displayName)
     ResourceEdit --&gt; CustomFile : displayName 전달
     CustomFile ..&gt; Alarm : 용량 초과 시
+    BoardPage ..&gt; boardQueryKeys : unitServiceCode 스코프 캐시 키
+    BoardPage ..&gt; boardNavigation : 목록 복귀 깊이 기록·복원
+    NoticePopup ..&gt; boardApi : noticePopupList 조회
+    NoticePopup ..&gt; boardQueryKeys : noticeKeys.popups
       </div>
-      <p class="cap"><strong>관계.</strong> 게시판 화면이 <code>boardApi</code>로 글·첨부를 관리하고, 자료실 등록·수정은 <code>smartGreenApi</code>(postResource/putResource)를 사용합니다. 첨부 입력은 <code>CustomFile</code>이 확장자/용량을 검증하며, 상세·편집 화면은 기존 첨부의 실제 파일 항목과 원본 파일명을 <code>boardApi.fileList</code>로 되찾아 표시합니다.</p>
+      <p class="cap"><strong>관계.</strong> 게시판 화면이 <code>boardApi</code>로 글·첨부를 관리하고, 자료실 등록·수정은 <code>smartGreenApi</code>(postResource/putResource)를 사용합니다. 첨부 입력은 <code>CustomFile</code>이 확장자/용량을 검증하며, 상세·편집 화면은 기존 첨부의 실제 파일 항목과 원본 파일명을 <code>boardApi.fileList</code>로 되찾아 표시합니다. 캐시 키는 도메인별 <code>queryKeys</code>가, 목록 복귀 이력은 <code>boardNavigation</code>이 담당하며, Home의 <code>NoticePopup</code>은 팝업 노출 공지 목록을 같은 키 체계로 조회합니다.</p>
     </div>
   </section>
 
@@ -241,6 +281,121 @@ useEffect(() =&gt; {
 &lt;Box component="img" src={thumbnailUrl || defalutImage} alt="image" /&gt;</code></pre>
     </div>
     <div class="snippet">
+      <div class="sc"><code>src/pages/notice/queryKeys.ts</code> — unitServiceCode 스코프 캐시 키</div>
+<pre><code>export const noticeKeys = {
+  all: (unitServiceCode: string) =&gt; ['boards', 'notice', unitServiceCode] as const,
+  lists: (unitServiceCode: string) =&gt; [...noticeKeys.all(unitServiceCode), 'list'] as const,
+  list: (unitServiceCode: string, params: readonly unknown[]) =&gt;
+    [...noticeKeys.lists(unitServiceCode), ...params] as const,
+  details: (unitServiceCode: string) =&gt; [...noticeKeys.all(unitServiceCode), 'detail'] as const,
+  detail: (unitServiceCode: string, id: string) =&gt;
+    [...noticeKeys.details(unitServiceCode), id] as const,
+  edit: (unitServiceCode: string, id: string) =&gt;
+    [...noticeKeys.all(unitServiceCode), 'edit', id] as const,
+  navigations: (unitServiceCode: string) =&gt;
+    [...noticeKeys.all(unitServiceCode), 'navigation'] as const,
+  popups: (unitServiceCode: string) =&gt; [...noticeKeys.all(unitServiceCode), 'popup'] as const,
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/notice/NoticeDetail.tsx</code> — 삭제 직후 상세 재요청 방지</div>
+<pre><code>const deleteMutation = useMutation({
+  mutationFn: async () =&gt; {
+    // 진행 중인 상세 조회를 먼저 끊는다
+    await queryClient.cancelQueries({
+      queryKey: noticeKeys.detail(unitServiceCode, detailId),
+      exact: true,
+    });
+    return boardApi.delete(boardSequence, unitServiceCode);
+  },
+  onSuccess: () =&gt; {
+    // 목록·탐색 캐시는 제거, 상세·편집 캐시는 재요청 없이 무효화만 한다
+    queryClient.removeQueries({ queryKey: noticeKeys.navigations(unitServiceCode) });
+    queryClient.removeQueries({ queryKey: noticeKeys.lists(unitServiceCode) });
+    queryClient.invalidateQueries({
+      queryKey: noticeKeys.detail(unitServiceCode, detailId),
+      exact: true,
+      refetchType: 'none',
+    });
+    returnToBoardList({ navigate, routeState: state, listPath: `/${site.path}/notice`, listState });
+  },
+});</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/boardNavigation.ts</code> — 목록 복귀 히스토리 깊이</div>
+<pre><code>export const withBoardListHistory = (state: RouteState | undefined, depth = 1): RouteState =&gt; ({
+  ...(state ?? {}),
+  [LIST_HISTORY_DEPTH_KEY]: depth,
+});
+
+export const advanceBoardListHistory = (state: unknown): unknown =&gt; {
+  const depth = getBoardListHistoryDepth(state);
+  if (!depth) return state;
+  return withBoardListHistory(asRouteState(state), depth + 1);
+};
+
+export const returnToBoardList = ({ navigate, routeState, listPath, listState }) =&gt; {
+  const depth = getBoardListHistoryDepth(routeState);
+  if (depth) {
+    navigate(-depth);   // 뒤로가기 이력을 어긋나지 않게 되감는다
+    return;
+  }
+  navigate(listPath, { replace: true, state: listState });
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/modal/notice/NoticePopup.tsx</code> — 팝업 공지 최대 3개 계단식 노출</div>
+<pre><code>const STACK_OFFSET = 40; // px, 카드 간 계단식 겹침 간격
+
+// 닫은 카드는 여기서 제외하지 않는다. 슬롯(위치)을 고정해 남은 카드의 재배치를 막기 위함이다.
+const stack = useMemo(() =&gt; {
+  const visible = (data ?? []).filter((notice) =&gt; {
+    const boardSequence = notice.boardSequence ?? notice.board_seq;
+    if (boardSequence == null) return true;
+    return !getCookie(hideCookieName(boardSequence));
+  });
+  const sorted = [...visible].sort((a, b) =&gt;
+    (b.createdDate ? dayjs(b.createdDate).valueOf() : 0) -
+    (a.createdDate ? dayjs(a.createdDate).valueOf() : 0));
+  return sorted.slice(0, MAX_POPUP_NOTICE_COUNT);
+}, [data]);
+
+const handleClose = (notice: PopupNotice) =&gt; {
+  const key = getKey(notice);
+  const boardSequence = notice.boardSequence ?? notice.board_seq;
+  if (hideTodayMap[key] &amp;&amp; boardSequence != null) {
+    // 오늘 하루 보지 않기 — 당일 23:59:59 만료 쿠키
+    setCookie(hideCookieName(boardSequence), 'true', getEndOfToday());
+  }
+  setDismissed((prev) =&gt; new Set(prev).add(key));
+};
+
+// 닫힌 카드는 언마운트하지 않고 자리만 남겨 기준 카드(i=0)의 높이와 좌표를 고정한다
+visibility: closed ? 'hidden' : 'visible',</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/notice/NoticeEdit.tsx</code> — 팝업 노출 개수 제한(자기 자신 제외)</div>
+<pre><code>const { data: popupNoticeList } = useQuery({
+  queryKey: noticeKeys.popups(unitServiceCode),
+  enabled: !!unitServiceCode,
+  queryFn: async () =&gt; (await boardApi.noticePopupList(unitServiceCode)).result?.rows ?? [],
+});
+
+const otherPopupCount = (popupNoticeList ?? []).filter(
+  (notice) =&gt; String(notice.boardSequence ?? notice.board_seq) !== editId,
+).length;
+const isPopupLimitReached = otherPopupCount &gt;= MAX_POPUP_NOTICE_COUNT;
+
+const payload = {
+  divisionCode: 'NOTICE',
+  title: values.title,
+  content: values.content,
+  importantYn: values.important ? 'Y' : 'N',
+  popupYn: values.isPopup ? 'Y' : 'N',
+  ...(effectiveFileId ? { fileId: effectiveFileId } : {}),
+};</code></pre>
+    </div>
+    <div class="snippet">
       <div class="sc"><code>src/pages/contactUs/ContactUsList.tsx</code> — 등록 버튼 권한 제어</div>
 <pre><code>button={
   // 고객(serviceClient) 레벨에서만 등록 버튼 노출
@@ -259,7 +414,16 @@ useEffect(() =&gt; {
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/board.ts" target="_blank" rel="noopener">src/api/board.ts</a><span class="src">공지/자료실/문의 게시판 · 첨부 업로드·다운로드 API</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/board.ts" target="_blank" rel="noopener">src/api/board.ts</a><span class="src">공지/자료실/문의 게시판 · 첨부 업로드·다운로드 API · unitServiceCode/AxiosRequestConfig 인자 · noticePopupList</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/boardNavigation.ts" target="_blank" rel="noopener">src/pages/boardNavigation.ts</a><span class="src">목록 복귀 히스토리 깊이 기록·복원 (withBoardListHistory·returnToBoardList)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/notice/queryKeys.ts" target="_blank" rel="noopener">src/pages/notice/queryKeys.ts</a><span class="src">공지 캐시 키 (list·detail·edit·navigation·popup)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/queryKeys.ts" target="_blank" rel="noopener">src/pages/resource/queryKeys.ts</a><span class="src">자료실 캐시 키</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/contactUs/queryKeys.ts" target="_blank" rel="noopener">src/pages/contactUs/queryKeys.ts</a><span class="src">문의 캐시 키</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modal/notice/NoticePopup.tsx" target="_blank" rel="noopener">src/modal/notice/NoticePopup.tsx</a><span class="src">Home 진입 시 팝업 공지 최대 3개 계단식 노출 · 오늘 하루 보지 않기 쿠키</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/notice/NoticeEdit.tsx" target="_blank" rel="noopener">src/pages/notice/NoticeEdit.tsx</a><span class="src">공지 등록·수정 · popupYn 체크박스 · 팝업 노출 개수 제한</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/notice/NoticeDetail.tsx" target="_blank" rel="noopener">src/pages/notice/NoticeDetail.tsx</a><span class="src">공지 상세 · 삭제 시 캐시 정리와 목록 복귀</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/notice/constants.ts" target="_blank" rel="noopener">src/pages/notice/constants.ts</a><span class="src">MAX_POPUP_NOTICE_COUNT (동시 노출 최대 3개)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/DownloadButton.tsx" target="_blank" rel="noopener">src/components/DownloadButton.tsx</a><span class="src">첨부 다운로드 공통 버튼 · variant button/link</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/search/CustomFile.tsx" target="_blank" rel="noopener">src/components/search/CustomFile.tsx</a><span class="src">첨부 확장자·용량 검증 공통 컴포넌트</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/ResourceEdit.tsx" target="_blank" rel="noopener">src/pages/resource/ResourceEdit.tsx</a><span class="src">자료실 편집 · extendData 매칭 · 기존 첨부 유지 · displayName 표시</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/ResourceDetail.tsx" target="_blank" rel="noopener">src/pages/resource/ResourceDetail.tsx</a><span class="src">자료실 상세 · 대표사진 blob 로드와 object URL 회수</span></li>
