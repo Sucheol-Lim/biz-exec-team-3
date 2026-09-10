@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- tim-workspace · 설정 · 사용자 환경 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>설정 · 사용자 환경 — tim-workspace 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TIM User App Workspace</a><span class="sep">›</span>
+      <span class="here">설정 · 사용자 환경</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TIM (Telecom Italia)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV · Kotlin</span>
+    </div>
+    <h1>설정 · 사용자 환경</h1>
+    <p class="one-liner">CAS 정보(<code>CasInfoView</code>), 시청등급 제어(<code>ParentalControlView</code>), 녹화/예약 내역(<code>MyRecordsView</code>/<code>MyRemindersView</code>), 대여·구매 이력(<code>RentalPurchaseHistoryView</code>) 등 30개 이상의 설정 View/ViewModel이 공통 베이스(<code>SettingBaseView</code>/<code>SettingBaseViewModel</code>) 위에서 동작합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tim-app-tv-android" target="_blank" rel="noopener"><code>tim-app-tv-android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ui/setting/base/SettingBaseViewModel.kt</code></div></div>
+      <div class="item"><div class="k">View/ViewModel 규모</div><div class="v">setting 패키지 합계 약 1,158줄 (대표 5개 파일 기준)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>ui/setting</code>은 메뉴 목록(<code>SettingScreen</code>/<code>SettingViewModel</code>, <code>adapter/SettingMenuAdapter</code>)에서 각 항목으로 진입하는 개별 View/ViewModel 쌍을 다수 보유합니다 — CAS 정보(<code>CasInfoView</code>/<code>CasInfoModel</code>), 시청등급(<code>ParentalControlView</code>/<code>ParentalControlViewModel</code>), 즐겨찾기·잠금 채널(<code>FavoriteLockChannelView</code>), 녹화/예약(<code>MyRecordsView</code>/<code>MyRemindersView</code>), 대여·구매 이력(<code>RentalPurchaseHistoryView</code>), Wifi 신호(<code>WifiPowerLevelView</code>), 공장 초기화(<code>FactoryResetView</code>) 등입니다. 각 ViewModel은 <code>SettingBaseViewModel</code>을 상속해 공통 로딩·에러 처리를 물려받습니다.</p>
+    <p>예를 들어 <code>ParentalControlViewModel</code>은 <code>ModifyProfileUseCase</code>로 프로필의 <code>limitLevel</code>(시청등급 제한)을 변경하고, 성공 시 4개 등급 목록(<code>Rating</code>)에서 선택된 항목만 <code>isSelected</code>를 갱신해 <code>LiveData</code>로 다시 내보냅니다. 데이터는 안드로이드 <code>LiveData</code>(설정 도메인)와 RxJava3(재생·라이브 도메인)가 화면 성격에 따라 혼용됩니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트 — 목록 갱신은 불변 리스트 재구성</div>
+      <code>ParentalControlViewModel.setRatingData()</code>는 기존 리스트를 직접 변경하지 않고, 선택 여부만 다시 계산한 새 <code>ArrayList</code>를 만들어 <code>postValue</code>합니다. <code>LiveData</code> 관찰자가 참조 동일성으로 변경을 놓치는 문제를 피하기 위한 흔한 패턴입니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as ParentalControlView
+    participant VM as ParentalControlViewModel
+    participant UC as ModifyProfileUseCase
+    participant SRV as 백엔드 (SI/impl-*)
+
+    UI->>VM: setRatingData(rating, profile)
+    VM->>VM: loading.postValue(true)
+    VM->>UC: invoke(profileCode, photo, nickName, limitLevel, funcSwitch)
+    UC->>SRV: 프로필 갱신 요청
+    SRV-->>UC: 성공/실패
+    alt 성공
+        UC-->>VM: onSuccess
+        VM->>VM: 등급 목록 재구성(isSelected 갱신)
+        VM->>VM: _ratingData.postValue(newList)
+        VM->>VM: loading.postValue(false)
+    else 실패
+        UC-->>VM: onError
+        VM->>VM: loading.postValue(false) + 에러 처리
+    end
+    VM-->>UI: LiveData 관찰 → 목록/로딩 UI 갱신
+      </div>
+      <p class="cap"><strong>흐름.</strong> 설정 변경은 UseCase를 거쳐 백엔드에 반영되고, 성공 시 화면이 보여줄 목록 전체를 새로 구성해 <code>LiveData</code>로 통보합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class SettingBaseViewModel {
+        &lt;&lt;abstract&gt;&gt;
+    }
+    class SettingBaseView {
+        &lt;&lt;abstract&gt;&gt;
+    }
+    class ParentalControlViewModel {
+        -ModifyProfileUseCase modifyProfileUseCase
+        -MutableLiveData~List~ ratingData
+        -MutableLiveData~Boolean~ isLoading
+        +setRatingData(rating, profile)
+    }
+    class CasInfoView
+    class MyRecordsView
+    class MyRemindersView
+    class RentalPurchaseHistoryView
+    class WifiPowerLevelView
+    class FactoryResetView
+    class SettingScreen {
+        +viewModel SettingViewModel
+    }
+    class SettingMenuAdapter
+
+    SettingBaseViewModel &lt;|-- ParentalControlViewModel
+    SettingBaseView &lt;|-- CasInfoView
+    SettingBaseView &lt;|-- MyRecordsView
+    SettingBaseView &lt;|-- MyRemindersView
+    SettingBaseView &lt;|-- RentalPurchaseHistoryView
+    SettingBaseView &lt;|-- WifiPowerLevelView
+    SettingBaseView &lt;|-- FactoryResetView
+    SettingScreen --> SettingMenuAdapter : 메뉴 목록
+    SettingMenuAdapter ..> SettingBaseView : 항목 선택 시 진입
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>SettingScreen</code>의 메뉴 어댑터에서 30여 개 개별 설정 화면으로 진입하며, 각 화면은 <code>SettingBaseView</code>/<code>SettingBaseViewModel</code> 공통 베이스를 상속합니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/setting/view/ParentalControlViewModel.kt</code> — 불변 리스트 재구성으로 선택 갱신</div>
+<pre><code>fun setRatingData(rating: Rating, profile: UserProfile) {
+    loading.postValue(true)
+    modifyProfileUseCase(
+        profileCode = profile.profileCode, photo = profile.photo, nickName = profile.nickName,
+        limitLevel = rating.limitLevel, funcSwitch = profile.funcSwitch,
+    ).subscribe(
+        {
+            val list = ArrayList&lt;Rating&gt;(4)
+            _ratingData.value?.map {
+                list.add(Rating(it.id, it.title, it.limitLevel, it.id == rating.id))
+            }
+            _ratingData.postValue(list)
+            loading.postValue(false)
+        },
+        { /* onError - 로딩 해제 + 에러 처리 */ },
+    )
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/setting/view/ParentalControlViewModel.kt" target="_blank" rel="noopener">ui/setting/view/ParentalControlViewModel.kt</a><span class="src">시청등급 변경</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/setting/base/SettingBaseViewModel.kt" target="_blank" rel="noopener">ui/setting/base/SettingBaseViewModel.kt</a><span class="src">설정 화면 공통 베이스</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/setting/view/CasInfoView.kt" target="_blank" rel="noopener">ui/setting/view/CasInfoView.kt</a><span class="src">CAS 정보 화면</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/setting/view/RentalPurchaseHistoryViewModel.kt" target="_blank" rel="noopener">ui/setting/view/RentalPurchaseHistoryViewModel.kt</a><span class="src">대여·구매 이력</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/setting/adapter/SettingMenuAdapter.kt" target="_blank" rel="noopener">ui/setting/adapter/SettingMenuAdapter.kt</a><span class="src">설정 메뉴 목록 어댑터</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f06.html">← 부팅 · 페일세이프 복구</a>
+      <a href="f08.html">팝업 · 오버레이 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(branch <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tim-workspace 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

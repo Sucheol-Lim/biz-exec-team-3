@@ -141,9 +141,9 @@ nav.filter .wrap.statusrow{border-top:1px solid var(--border)}
     <h1>workspace_biz_3rd 과제 목록</h1>
     <p>Altimedia — OTT · Smart TV · 차량 인포테인먼트 · IoT 클라이언트 프로젝트</p>
     <div class="stats">
-      <div class="stat"><strong>21</strong>과제</div>
-      <div class="stat status-stat"><strong>🟢 4 · 🟡 6 · ⚪ 9</strong>활성 · 펜딩 · 완료</div>
-      <div class="stat"><strong>8</strong>클라이언트</div>
+      <div class="stat"><strong>22</strong>과제</div>
+      <div class="stat status-stat"><strong>🟢 4 · 🟡 7 · ⚪ 9</strong>활성 · 펜딩 · 완료</div>
+      <div class="stat"><strong>9</strong>클라이언트</div>
       <div class="stat"><strong>Android · Web · OCAP</strong>플랫폼</div>
       <div class="stat"><strong>2026-06-08</strong>생성</div>
     </div>
@@ -152,7 +152,7 @@ nav.filter .wrap.statusrow{border-top:1px solid var(--border)}
 
 <nav class="filter">
   <div class="wrap">
-    <button class="chip active" data-filter="all">전체 (21)</button>
+    <button class="chip active" data-filter="all">전체 (22)</button>
     <button class="chip" data-filter="kt">KT (8)</button>
     <button class="chip" data-filter="skb">SKB · TBroad (4)</button>
     <button class="chip" data-filter="turk">Türk Telekom (2)</button>
@@ -161,7 +161,9 @@ nav.filter .wrap.statusrow{border-top:1px solid var(--border)}
     <button class="chip" data-filter="hcn">HCN (1)</button>
     <button class="chip" data-filter="kctv">KCTV 제주 (1)</button>
     <button class="chip" data-filter="skylife">KT SkyLife (1)</button>
+    <button class="chip" data-filter="tim">TIM (Telecom Italia) (1)</button>
   </div>
+
 
 
 
@@ -177,7 +179,7 @@ nav.filter .wrap.statusrow{border-top:1px solid var(--border)}
     <span class="frow-label">상태</span>
     <button class="chip schip active" data-status-filter="all">전체</button>
     <button class="chip schip" data-status-filter="active">🟢 활성 (4)</button>
-    <button class="chip schip" data-status-filter="pending">🟡 펜딩 (6)</button>
+    <button class="chip schip" data-status-filter="pending">🟡 펜딩 (7)</button>
     <button class="chip schip" data-status-filter="completed">⚪ 완료 (9)</button>
   </div>
 </nav>
@@ -469,7 +471,7 @@ nav.filter .wrap.statusrow{border-top:1px solid var(--border)}
     </div>
     <div class="grid">
 
-      <a class="pcard" href="ott-tvapp/index.html" style="--c:#00897b" data-status="active">
+      <a class="pcard" href="ott-tvapp/index.html" style="--c:#00897b" data-status="pending">
         <div class="ptitle">KCTV 제주 OTT Android TV 앱</div>
         <div class="badges">
           <span class="badge bc">KCTV 제주</span>
@@ -477,7 +479,7 @@ nav.filter .wrap.statusrow{border-top:1px solid var(--border)}
         </div>
         <div class="desc">Android 14 STB 탑재 KCTV 제주 OTT·라이브 클라이언트. WebView UI + 네이티브 재생 하이브리드.</div>
         <div class="dir">ott-tvapp</div>
-        <div class="statusline"><span class="st-pill st-active">활성</span><span class="st-date">2026-08-03</span></div>
+        <div class="statusline"><span class="st-pill st-pending">펜딩</span><span class="st-date">2026-08-03</span></div>
       </a>
 
     </div>
@@ -501,6 +503,26 @@ nav.filter .wrap.statusrow{border-top:1px solid var(--border)}
         <div class="desc">스카이라이프 Android TV STB EPG 겸 홈 런처. LW Voice 모바일-STB 페어링 음성 어시스턴트 포함.</div>
         <div class="dir">skylife-ux3.0</div>
         <div class="statusline"><span class="st-pill st-pending">펜딩</span><span class="st-date">2026-05-20</span></div>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- TIM (Telecom Italia) ─────────────────────────── -->
+  <div class="group" data-group="tim">
+    <div class="group-hd">
+      <div class="dot" style="background:#008c45"></div>
+      <h2>TIM (Telecom Italia)</h2>
+      <span class="cnt" style="background:color-mix(in srgb,#008c45 11%,transparent);color:#008c45;border:1px solid color-mix(in srgb,#008c45 28%,transparent)">1</span>
+    </div>
+    <div class="grid">
+
+      <a class="pcard" href="tim-workspace/index.html" style="--c:#008c45" data-status="active">
+        <div class="ptitle">TIM User App Workspace</div>
+        <div class="badges"><span class="badge bc">TIM (Telecom Italia)</span><span class="badge bg">멀티플랫폼 OTT 워크스페이스 · 현재 Android TV 구현</span></div>
+        <div class="desc">TIM(Telecom Italia)의 오퍼레이터 기반 라이브 OTT 서비스 "TIMVISION"용 클라이언트 앱들을 담는 통합 워크스페이스로, Android STB/TV·모바일·Apple tvOS·Web 4개 플랫폼 레인을 submodule로 관리하며, 현재는 1차 레인인 Android TV(app-tv-android + player-kt + core-kt)만 실제 소스가 있습니다.</div>
+        <div class="dir">tim-workspace</div>
+        <div class="statusline"><span class="st-pill st-active">활성</span><span class="st-date">2026-09-10</span></div>
       </a>
 
     </div>

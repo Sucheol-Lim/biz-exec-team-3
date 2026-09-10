@@ -1,0 +1,206 @@
+<!doctype html>
+<!-- tim-workspace · Player 코어(Common Player Contract) 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Player 코어 (Common Player Contract) — tim-workspace 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TIM User App Workspace</a><span class="sep">›</span>
+      <span class="here">Player 코어 (Common Player Contract)</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TIM (Telecom Italia)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Kotlin · Media3/ExoPlayer</span>
+    </div>
+    <h1>Player 코어 (Common Player Contract)</h1>
+    <p class="one-liner"><code>51.player-kt</code>가 Media3/ExoPlayer(<code>ExoPlayerAdapter</code>, 1,664줄)를 <code>PlayerAdapter</code> 계약 뒤로 감춰, 상위 앱이 재생 엔진 구현을 몰라도 재생을 제어할 수 있게 합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tim-player-kt" target="_blank" rel="noopener"><code>tim-player-kt</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 인터페이스</div><div class="v"><code>base/adapter/PlayerAdapter.kt</code></div></div>
+      <div class="item"><div class="k">구현체</div><div class="v"><code>exoplayer/ExoPlayerAdapter.kt</code> (1,664줄)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>PlayerAdapter</code> 인터페이스는 <code>play</code>/<code>stop</code>/<code>pause</code>/<code>resume</code>/<code>seek</code>/<code>setSpeed</code> 같은 제어 함수와, <code>state</code>·<code>position</code>·<code>duration</code>·<code>videoTracks</code>/<code>audioTracks</code>/<code>subtitleTracks</code>를 전부 RxJava3 <code>Observable</code>로 노출하는 상태 스트림으로 구성됩니다. 재생 상태는 <code>PlayerState</code> 열거형(<code>ON_READY</code>·<code>BUFFERING</code>·<code>PLAYING</code>·<code>PAUSED</code>·<code>STOPPED</code>·<code>FINISHED</code>·<code>RELEASED</code>·<code>ON_ERROR</code>)으로 정규화되어, 상위 핸들러(f03)는 ExoPlayer 고유 상태 코드를 몰라도 <code>PlayerState.isNotPlaying()</code> 같은 헬퍼로 판단할 수 있습니다.</p>
+    <p>실제 구현체 <code>ExoPlayerAdapter</code>는 <code>PlayerViewLifecycleObserver</code>·<code>PlayerOwnerLifecycleObserver</code>·<code>PlayerViewLayoutChangeObserver</code> 세 옵저버 인터페이스도 함께 구현해, 화면/생명주기/레이아웃 변경에 반응합니다. <code>exoplayer/ads</code> 패키지의 <code>ImaAdSupport</code>/<code>ImaAdSupportImpl</code>이 Google IMA SDK 기반 광고 삽입을 별도 관심사로 분리해 붙습니다.</p>
+    <div class="callout">
+      <div class="ct">앱 쪽 어댑터는 또 한 겹 감싼다</div>
+      앱(<code>app-tv-android</code>)은 <code>player-kt</code>의 <code>PlayerAdapter</code>를 직접 쓰지 않고, <code>:player:core</code>(<code>VodPlayerView</code>)·<code>:player:impl-mock</code>(<code>MockVodPlayerAdapter</code>)·<code>:player:impl-tt4k</code>(<code>TTExoPlayerAdapter</code>)로 한 번 더 감쌉니다. TIM 백엔드가 준비되지 않은 구간은 mock 구현으로, 기존 Türk Telekom 연동이 남은 구간은 tt4k 구현으로 전환할 수 있게 하기 위해서입니다(→ f05 서비스 인터페이스 추상화 참고).
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant H as PlayHandler (f03)
+    participant TT as TTExoPlayerAdapter (impl-tt4k)
+    participant EA as ExoPlayerAdapter (player-kt)
+    participant EX as ExoPlayer (Media3)
+    participant IMA as ImaAdSupportImpl
+
+    H->>TT: play(uri, playPosition, params, callback)
+    TT->>EA: play(uri, playPosition, params, callback)
+    EA->>EX: setMediaItem(MediaItem) + prepare()
+    opt 광고 포함 스트림
+        EA->>IMA: attachAdsLoader / requestAds
+        IMA-->>EX: Ad break 삽입
+    end
+    EX-->>EA: onPlaybackStateChanged
+    EA->>EA: state.onNext(PlayerState.BUFFERING → PLAYING)
+    EA-->>TT: state Observable emit
+    TT-->>H: state Observable emit (그대로 전달)
+    H->>H: PlayerState.isNotPlaying() 등으로 UI 갱신 판단
+      </div>
+      <p class="cap"><strong>흐름.</strong> 재생 요청은 앱 어댑터(<code>impl-tt4k</code>/<code>impl-mock</code>)를 거쳐 <code>player-kt</code>의 <code>ExoPlayerAdapter</code>에 도달하고, 실제 ExoPlayer 콜백은 <code>PlayerState</code> Observable로 정규화되어 역방향으로 전파됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class PlayerAdapter {
+        &lt;&lt;interface&gt;&gt;
+        state Observable~PlayerState~
+        currentState PlayerState
+        position Observable~Long~
+        videoTracks Observable~List~
+        +play(uri, playPosition, params, callback)
+        +stop(params, callback)
+        +pause(params, callback)
+        +resume(params, callback)
+        +seek(playPosition)
+        +setSpeed(playSpeed)
+        +release()
+    }
+    class PlayerState {
+        &lt;&lt;enumeration&gt;&gt;
+        ON_READY
+        BUFFERING
+        PLAYING
+        PAUSED
+        STOPPED
+        FINISHED
+        RELEASED
+        ON_ERROR
+    }
+    class ExoPlayerAdapter {
+        -ExoPlayer exoPlayer
+        -ExoPlayerHooks exoPlayerHooks
+        -BehaviorSubject~Boolean~ isCurrentMediaItemLive
+        +play(uri, playPosition, params, callback)
+        +pause(params, callback)
+        +resume(params, callback)
+    }
+    class ImaAdSupport {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class ImaAdSupportImpl
+    class TTExoPlayerAdapter
+    class MockVodPlayerAdapter
+
+    PlayerAdapter &lt;|.. ExoPlayerAdapter
+    ExoPlayerAdapter ..> PlayerState
+    ImaAdSupport &lt;|.. ImaAdSupportImpl
+    ExoPlayerAdapter --> ImaAdSupport : 광고 삽입 위임
+    TTExoPlayerAdapter --> PlayerAdapter : 위임(composite build)
+    MockVodPlayerAdapter --> PlayerAdapter : 대체 구현(다른 백엔드)
+    note for TTExoPlayerAdapter "앱 쪽 :player:impl-tt4k — VodPlayerAdapter 계약 구현"
+    note for MockVodPlayerAdapter "앱 쪽 :player:impl-mock — TIM 백엔드 부재 구간용"
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>ExoPlayerAdapter</code>가 <code>PlayerAdapter</code> 계약의 유일한 실제 구현이며, 앱 쪽 <code>impl-tt4k</code>/<code>impl-mock</code>은 같은 계약을 다른 백엔드 조합으로 감싸는 대체 가능한 앱 어댑터입니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>base/adapter/PlayerAdapter.kt</code> — 계약: 상태는 전부 Observable</div>
+<pre><code>interface PlayerAdapter :
+    PlayerViewLifecycleObserver, PlayerOwnerLifecycleObserver, PlayerViewLayoutChangeObserver
+{
+    val state: Observable&lt;PlayerState&gt;
+    val currentState: PlayerState
+    val position: Observable&lt;Long&gt;
+    val videoTracks: Observable&lt;List&lt;TrackInfo&gt;&gt;
+
+    fun play(uri: Uri, playPosition: Long = 0L, params: PlayParams? = null,
+             callback: PlayResultCallback&lt;PlayResultData&gt;? = null)
+    fun pause(params: PlayParams? = null, callback: PlayResultCallback&lt;PlayResultData&gt;? = null)
+    fun setSpeed(playSpeed: Float)
+    fun seek(playPosition: Long)
+    fun release()
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>base/adapter/PlayerState.kt</code> — 재생 중 여부를 계약 레벨에서 판정</div>
+<pre><code>enum class PlayerState {
+    ON_READY, BUFFERING, PLAYING, PAUSED, STOPPED, FINISHED, RELEASED, ON_ERROR,
+}
+
+fun PlayerState.isNotPlaying(): Boolean =
+    this == PlayerState.ON_READY || this == PlayerState.STOPPED ||
+        this == PlayerState.FINISHED || this == PlayerState.RELEASED || this == PlayerState.ON_ERROR</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tim-player-kt/src/main/src/main/java/com/tim/player/base/adapter/PlayerAdapter.kt" target="_blank" rel="noopener">base/adapter/PlayerAdapter.kt</a><span class="src">Common Player Contract — 제어 함수 + Observable 상태 계약</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-player-kt/src/main/src/main/java/com/tim/player/base/adapter/PlayerState.kt" target="_blank" rel="noopener">base/adapter/PlayerState.kt</a><span class="src">정규화된 재생 상태 열거형</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-player-kt/src/main/src/main/java/com/tim/player/exoplayer/ExoPlayerAdapter.kt" target="_blank" rel="noopener">exoplayer/ExoPlayerAdapter.kt</a><span class="src">Media3/ExoPlayer 구현체 (1,664줄)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-player-kt/src/main/src/main/java/com/tim/player/exoplayer/ads/ImaAdSupportImpl.kt" target="_blank" rel="noopener">exoplayer/ads/ImaAdSupportImpl.kt</a><span class="src">Google IMA 광고 삽입</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/player/impl-tt4k/src/main/java/com/altimedia/player/impl_tt4k/adapter/TTExoPlayerAdapter.kt" target="_blank" rel="noopener">player/impl-tt4k/adapter/TTExoPlayerAdapter.kt</a><span class="src">앱 쪽 어댑터 — 기존 TT4K 백엔드 연동</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f03.html">← 재생 오케스트레이션</a>
+      <a href="f05.html">서비스 인터페이스(SI) 추상화 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(branch <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tim-workspace 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

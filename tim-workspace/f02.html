@@ -1,0 +1,213 @@
+<!doctype html>
+<!-- tim-workspace · 라이브 TV 시청 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>라이브 TV 시청 — tim-workspace 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TIM User App Workspace</a><span class="sep">›</span>
+      <span class="here">라이브 TV 시청</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TIM (Telecom Italia)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV · Kotlin</span>
+    </div>
+    <h1>라이브 TV 시청</h1>
+    <p class="one-liner"><code>LiveTvScreen</code>·<code>LiveTvViewModel</code>(각 1,300~1,400줄)이 채널 튜닝, 미니가이드, PIP, 모자이크 채널, 채널 OSD·핑거프린트 워터마크를 하나의 시청 화면으로 통합합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tim-app-tv-android" target="_blank" rel="noopener"><code>tim-app-tv-android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ui/livetv/LiveTvViewModel.kt</code></div></div>
+      <div class="item"><div class="k">규모</div><div class="v">LiveTvViewModel 1,427줄 · LiveTvScreen 1,383줄</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>LiveTvViewModel</code>은 <code>ChannelRepository</code>/<code>ProgramRepository</code>(SI 계층)와 <code>ChannelAdapter</code>/<code>ChannelPlayerAdapter</code>(player 계층)를 함께 주입받아, 채널 목록·현재 프로그램·재생 상태(<code>PlayerState</code>)를 하나의 화면 상태로 합성합니다. 미니가이드(<code>MiniGuideView</code>)는 채널 링(ring) 탐색과 <code>tuneMiniGuideChannel()</code>/<code>tunePreviousChannel()</code>로 실제 튜닝을 트리거하고, 이미 같은 채널을 보고 있으면 재튜닝 없이 OSD만 다시 띄웁니다.</p>
+    <p>모자이크 채널(<code>MosaicUseCase</code>)은 여러 채널의 현재 프로그램을 RxJava3 <code>Observable</code>로 동시에 구독하되, <code>distinctUntilChanged</code>로 PPV·차단·스킵·구독 상태가 실제로 바뀔 때만 갱신합니다. 채널 OSD(<code>ChannelOsdView</code>)와 핑거프린트 워터마크(<code>FingerPrintView</code>·<code>FingerPrintRepository</code>)는 콘텐츠 보호·시청 경험을 위한 오버레이로 함께 그려지고, GPT 광고(<code>GPTAdsController</code>)도 이 화면 레벨에서 함께 제어됩니다.</p>
+    <div class="callout">
+      <div class="ct">설계 포인트 — 중복 튜닝 방지</div>
+      미니가이드/이전채널 이동 모두 <code>channelAdapter.getCurrentTuningChannelId()</code>로 이미 그 채널을 재생 중인지 먼저 확인합니다. 같으면 <code>channelAdapter.tune()</code>을 호출하지 않고 OSD 표시(<code>setOsdShowEvent</code>)와 UI 상태 전환(<code>LiveTvUiState.MiniGuide</code>)만 수행해, 불필요한 재튜닝으로 인한 화면 끊김을 피합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant UI as LiveTvScreen
+    participant VM as LiveTvViewModel
+    participant CA as ChannelAdapter
+    participant CR as ChannelRepository
+    participant PA as ChannelPlayerAdapter
+
+    UI->>VM: 미니가이드에서 채널 선택
+    VM->>CR: getChannelList()
+    CR-->>VM: channelList
+    VM->>CA: getCurrentTuningChannelId()
+    CA-->>VM: currentTuningChannelId
+    alt 선택 채널 == 현재 튜닝 채널
+        VM->>VM: setOsdShowEvent(true)
+        VM->>VM: setUiState(MiniGuide)
+    else 다른 채널
+        VM->>CA: tune(channelId) { result -> ... }
+        CA->>PA: 실제 튜닝·재생 전환
+        PA-->>CA: PlayerState 갱신
+        CA-->>VM: tune 콜백(result)
+    end
+    VM-->>UI: 상태 갱신 → OSD/미니가이드 다시 렌더
+      </div>
+      <p class="cap"><strong>흐름.</strong> 채널 선택 시 재튜닝이 필요한지 먼저 판정하고, 필요한 경우에만 <code>ChannelAdapter.tune()</code>을 거쳐 <code>ChannelPlayerAdapter</code>가 실제 재생을 전환합니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class LiveTvViewModel {
+        -ChannelRepository channelRepository
+        -ProgramRepository programRepository
+        -ChannelAdapter channelAdapter
+        -ChannelPlayerAdapter channelPlayerAdapter
+        -FingerPrintRepository fingerPrintRepository
+        -GPTAdsController gptAdsController
+        +tuneMiniGuideChannel()
+        +tunePreviousChannel()
+        +setOsdShowEvent(show)
+        +setUiState(state)
+    }
+    class MosaicUseCase {
+        -ChannelRepository channelRepository
+        -ProgramRepository programRepository
+        -ProfileRepository profileRepository
+        +getChannel(id) Channel
+        +observeCurrentProgram(channelId) Observable
+        +getCurrentProfile() Profile
+    }
+    class ChannelAdapter {
+        &lt;&lt;interface&gt;&gt;
+        +tune(channelId, callback)
+        +getCurrentTuningChannelId() ChannelId
+        +getPreviousChannel() Channel
+    }
+    class ChannelRepository {
+        &lt;&lt;interface&gt;&gt;
+        +getChannelList() List~Channel~
+        +getChannel(id) Channel
+        +getChannelObservable(id) Observable
+    }
+    class LiveTvUiState {
+        &lt;&lt;enumeration&gt;&gt;
+        Normal
+        MiniGuide
+        Mosaic
+    }
+
+    LiveTvViewModel --> ChannelAdapter : 튜닝 위임
+    LiveTvViewModel --> ChannelRepository : 채널 조회
+    LiveTvViewModel ..> LiveTvUiState
+    MosaicUseCase --> ChannelRepository
+    MosaicUseCase --> ProgramRepository
+      </div>
+      <p class="cap"><strong>관계.</strong> <code>LiveTvViewModel</code>이 화면 전체 상태를 소유하고, 모자이크 채널 전용 로직은 <code>MosaicUseCase</code>로 분리되어 있습니다. 실제 튜닝은 <code>ChannelAdapter</code>(SI/player 경계) 뒤로 위임됩니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/livetv/LiveTvViewModel.kt</code> — 중복 튜닝 방지 분기</div>
+<pre><code>fun tuneMiniGuideChannel() {
+    val channelList = channelRepository.getChannelList()
+    val currentMiniGuideChannel = channelList.firstOrNull { it.id == _miniGuideCurrentChannelId.value?.value }
+    if (currentMiniGuideChannel != null) {
+        val currentTuningChannelId = channelAdapter.getCurrentTuningChannelId()
+        if (currentMiniGuideChannel.id == currentTuningChannelId) {
+            setOsdShowEvent(true)
+            setUiState(LiveTvUiState.MiniGuide)
+        } else {
+            channelAdapter.tune(channelId = currentMiniGuideChannel.id) {
+                Timber.d("tuneMiniGuideChannel() tune result: $it")
+            }
+        }
+    }
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>ui/livetv/mosaic/MosaicUseCase.kt</code> — 모자이크 채널의 현재 프로그램 관찰</div>
+<pre><code>fun observeCurrentProgram(channelId: ChannelId): Observable&lt;Pair&lt;Channel?, Program?&gt;&gt; {
+    return channelRepository.getChannelObservable(id = channelId)
+        .distinctUntilChanged { prv, cur ->
+            prv.value?.id == cur.value?.id &amp;&amp;
+                prv.value?.isPPV == cur.value?.isPPV &amp;&amp;
+                prv.value?.isBlocked == cur.value?.isBlocked &amp;&amp;
+                prv.value?.isSkipped == cur.value?.isSkipped &amp;&amp;
+                prv.value?.isSubscribed == cur.value?.isSubscribed
+        }
+        .flatMap { channelNullable -&gt;
+            programRepository.getCurrentProgramObservable(channelId)
+                // 빈 프로그램이면 채널 prevue로 폴백— 생략
+                .map { channelNullable.value to it.value }
+        }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/livetv/LiveTvViewModel.kt" target="_blank" rel="noopener">ui/livetv/LiveTvViewModel.kt</a><span class="src">채널·재생·OSD·광고 상태를 통합하는 화면 뷰모델 (1,427줄)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/livetv/mosaic/MosaicUseCase.kt" target="_blank" rel="noopener">ui/livetv/mosaic/MosaicUseCase.kt</a><span class="src">모자이크 채널 현재 프로그램 Rx 구독</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/livetv/miniguide/MiniGuideView.kt" target="_blank" rel="noopener">ui/livetv/miniguide/MiniGuideView.kt</a><span class="src">미니가이드 채널 링 UI</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/livetv/pip/PipView.kt" target="_blank" rel="noopener">ui/livetv/pip/PipView.kt</a><span class="src">PIP 뷰 (459줄)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/livetv/osd/ChannelOsdView.kt" target="_blank" rel="noopener">ui/livetv/osd/ChannelOsdView.kt</a><span class="src">채널 OSD 오버레이</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f01.html">← 홈 · 내비게이션 엔진</a>
+      <a href="f03.html">재생 오케스트레이션 →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(branch <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tim-workspace 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

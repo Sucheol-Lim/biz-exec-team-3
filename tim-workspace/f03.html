@@ -1,0 +1,200 @@
+<!doctype html>
+<!-- tim-workspace · 재생 오케스트레이션 기능 상세 — 시퀀스/클래스 다이어그램 + 코드 스니펫 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>재생 오케스트레이션 — tim-workspace 기능 상세</title>
+<link rel="stylesheet" href="../assets/detail.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="crumb">
+      <a href="../index.html">과제 목록</a><span class="sep">›</span>
+      <a href="index.html">TIM User App Workspace</a><span class="sep">›</span>
+      <span class="here">재생 오케스트레이션</span>
+    </nav>
+    <div class="client-line">
+      <span class="badge">TIM (Telecom Italia)</span>
+      <span class="badge gray">기능 상세</span>
+      <span class="badge gray">Android TV · Kotlin</span>
+    </div>
+    <h1>재생 오케스트레이션</h1>
+    <p class="one-liner"><code>PlayOrchestrator</code>(1,082줄)가 콘텐츠 성격에 따라 7종 <code>PlayHandler</code>와 14개 <code>UseCase</code>로 재생 요청을 분기하고, <code>ChannelPlayBar</code>/<code>VodPlayBar</code>/<code>StartOverPlayBar</code>로 재생 컨트롤 UI를 구성합니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tim-app-tv-android" target="_blank" rel="noopener"><code>tim-app-tv-android</code></a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ui/play/PlayOrchestrator.kt</code></div></div>
+      <div class="item"><div class="k">Handler 종류</div><div class="v">TsTv · PlTv · NPVR · SingleVod · SeriesVod · Trailer · Preview</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a class="up" href="index.html">↑ 상위 과제</a>
+    <a href="#desc">기능 개요</a>
+    <a href="#seq">시퀀스 다이어그램</a>
+    <a href="#class">클래스 다이어그램</a>
+    <a href="#code">핵심 코드</a>
+    <a href="#sources">관련 소스</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="desc">
+    <h2>기능 개요</h2>
+    <p><code>PlayOrchestrator</code>는 <code>TsTvPlayHandler</code>(과거 프로그램/타임시프트), <code>PlTvPlayHandler</code>(플레이리스트 TV), <code>NPVRPlayHandler</code>(네트워크 PVR), <code>SingleVodPlayHandler</code>/<code>SeriesVodPlayHandler</code>(단편/시리즈 VOD), <code>TrailerPlayHandler</code>, <code>PreviewPlayHandler</code> 7종의 <code>BasePlayHandler</code> 구현체를 보유하고, 각 핸들러는 <code>PlayFiveChannelUseCase</code>·<code>PlayNPVRUseCase</code>·<code>PlayPPVUseCase</code> 등 14개 <code>UseCase</code>로 실제 재생 URL·권한 조회를 위임합니다.</p>
+    <p>모든 핸들러는 공통으로 <code>@VodAdapter</code>(<code>PlayerAdapter</code>, VOD 재생용)와 <code>@ChannelAdapter</code>(<code>ChannelPlayerAdapter</code>, 채널 튜닝용) 두 재생 어댑터를 주입받고, <code>ChannelRepository</code>·<code>ProgramRepository</code>·<code>VodRepository</code>·<code>DataRepository</code>(SI 계층)로 콘텐츠 메타데이터를 조회합니다. 핸들러 자신은 재생 엔진을 직접 다루지 않고, <code>requestPlay(playInfo, logParam, stopCurrent, onError, onResult)</code> 콜백을 통해 상위(오케스트레이터)로 재생 요청을 전달하는 구조입니다.</p>
+    <div class="callout">
+      <div class="ct">공통 UseCase 계층 — Five Channel / MyTv / PPV</div>
+      개별 콘텐츠 재생 외에도 <code>PlayFiveChannelUseCase</code>(모자이크 5채널 동시 재생)·<code>PlayMyTvUseCase</code>·<code>PlayPPVUseCase</code>(유료 시청)처럼 여러 핸들러가 공유하는 횡단 UseCase가 별도로 분리되어 있어, 특정 재생 시나리오(구매·모자이크)가 핸들러 경계를 넘나들 때도 중복 구현을 피합니다.
+    </div>
+  </section>
+
+  <section id="seq">
+    <h2>시퀀스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant BAR as ChannelPlayBar
+    participant ORC as PlayOrchestrator
+    participant H as TsTvPlayHandler
+    participant UC as PlayTsTvUseCase
+    participant CR as ChannelRepository
+    participant VA as VodAdapter (PlayerAdapter)
+
+    BAR->>ORC: 과거 프로그램 재생 요청(PlayInfo.Channel)
+    ORC->>H: startPlay(playInfo, stopCurrent, onSuccessPlay)
+    H->>CR: getChannel(TTChannelId)
+    CR-->>H: Channel
+    H->>UC: 재생 URL/권한 조회
+    UC-->>H: PlayResult
+    H->>H: requestPlay(playInfo, VodLogParam, ...)
+    H->>VA: 재생 지시
+    VA-->>H: PlayResult&lt;PlayResultData&gt;
+    Note over H: PlayerState.FINISHED 시 addBookmarkUseCase → showNextPopup → tuneLive/nextPlay
+    H-->>ORC: onSuccessPlay()
+    ORC-->>BAR: PlayEvent.OpenPlayBar
+      </div>
+      <p class="cap"><strong>흐름.</strong> 오케스트레이터는 콘텐츠 타입으로 적절한 핸들러를 골라 <code>startPlay</code>를 호출하고, 핸들러는 SI 계층 조회 후 <code>requestPlay</code> 콜백으로 상위에 재생을 요청합니다. 재생 종료(<code>FINISHED</code>) 시 북마크 저장과 다음 콘텐츠 안내가 핸들러 안에서 처리됩니다.</p>
+    </div>
+  </section>
+
+  <section id="class">
+    <h2>클래스 다이어그램</h2>
+    <div class="diagram">
+      <div class="mermaid">
+classDiagram
+    class BasePlayHandler {
+        &lt;&lt;interface&gt;&gt;
+        +startPlay(playInfo, stopCurrent, onSuccessPlay)
+        +clear()
+    }
+    class TsTvPlayHandler {
+        -PlayerAdapter vodAdapter
+        -ChannelPlayerAdapter channelAdapter
+        -ChannelRepository channelRepository
+        -VodRepository vodRepository
+        -AddBookmarkUseCase addBookmarkUseCase
+        +startPlay(playInfo, stopCurrent, onSuccessPlay)
+        +clear()
+    }
+    class PlTvPlayHandler
+    class NPVRPlayHandler
+    class SingleVodPlayHandler
+    class SeriesVodPlayHandler
+    class TrailerPlayHandler
+    class PreviewPlayHandler
+    class PlayOrchestrator {
+        -Map~ContentType,BasePlayHandler~ handlers
+        +play(playInfo)
+        +stop()
+    }
+    class PlayInfo {
+        &lt;&lt;interface&gt;&gt;
+    }
+    class PlayerAdapter {
+        &lt;&lt;interface&gt;&gt;
+    }
+
+    BasePlayHandler &lt;|.. TsTvPlayHandler
+    BasePlayHandler &lt;|.. PlTvPlayHandler
+    BasePlayHandler &lt;|.. NPVRPlayHandler
+    BasePlayHandler &lt;|.. SingleVodPlayHandler
+    BasePlayHandler &lt;|.. SeriesVodPlayHandler
+    BasePlayHandler &lt;|.. TrailerPlayHandler
+    BasePlayHandler &lt;|.. PreviewPlayHandler
+    PlayOrchestrator o-- BasePlayHandler : 콘텐츠 타입별 보유
+    PlayOrchestrator ..> PlayInfo
+    TsTvPlayHandler --> PlayerAdapter : vodAdapter
+      </div>
+      <p class="cap"><strong>관계.</strong> 7종 핸들러가 모두 <code>BasePlayHandler</code>를 구현하며, <code>PlayOrchestrator</code>가 콘텐츠 타입에 맞는 핸들러를 선택해 <code>startPlay</code>를 호출하는 전략 패턴 구조입니다.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>핵심 코드</h2>
+    <div class="snippet">
+      <div class="sc"><code>ui/play/handler/TsTvPlayHandler.kt</code> — 핸들러 시그니처와 상태 전이 주석</div>
+<pre><code>/**
+ * 채널 과거 프로그램 재생
+ * state :
+ *   [PlayerState.FINISHED]
+ *     - addComplete &amp; saveBookmark()
+ *     - showNextPopup()
+ *     - tuneLive() / nextPlay()
+ */
+class TsTvPlayHandler(
+    private val requestPlay: (PlayInfo, VodLogParam, Boolean,
+        (ErrorCodeDescription) -&gt; Unit, (PlayResult&lt;PlayResultData&gt;) -&gt; Unit) -&gt; Unit,
+    @VodAdapter private val vodAdapter: PlayerAdapter,
+    @ChannelAdapter private val channelAdapter: ChannelPlayerAdapter,
+    private val channelRepository: ChannelRepository,
+    private val addBookmarkUseCase: AddBookmarkUseCase,
+    // ... channelBillReportRepository, programRepository, dataRepository, vodRepository 등
+) : BasePlayHandler {
+
+    override fun startPlay(playInfo: PlayInfo, stopCurrent: Boolean, onSuccessPlay: () -&gt; Unit) {
+        if (playInfo !is PlayInfo.Channel) return
+        val channel = channelRepository.getChannel(id = TTChannelId(channelCode = playInfo.channelCode))
+        requestPlay(playInfo, VodLogParam(contentCode = playInfo.program.prevueCode, /* ... */), /* ... */)
+    }
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>관련 소스</h2>
+    <ul class="refs">
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/play/PlayOrchestrator.kt" target="_blank" rel="noopener">ui/play/PlayOrchestrator.kt</a><span class="src">재생 요청 오케스트레이션 (1,082줄)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/play/handler/TsTvPlayHandler.kt" target="_blank" rel="noopener">ui/play/handler/TsTvPlayHandler.kt</a><span class="src">과거 프로그램(타임시프트) 재생 핸들러</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/play/usecase/PlayTsTvUseCase.kt" target="_blank" rel="noopener">ui/play/usecase/PlayTsTvUseCase.kt</a><span class="src">TsTv 재생 URL·권한 조회 UseCase</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/play/Event.kt" target="_blank" rel="noopener">ui/play/Event.kt</a><span class="src">PlayEvent sealed interface — OpenPlayBar/ClosePlayBar/Jump/Rewind/FastForward/ChangeSpeed</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/play/playbar/ChannelPlayBar.kt" target="_blank" rel="noopener">ui/play/playbar/ChannelPlayBar.kt</a><span class="src">채널 재생 컨트롤 바</span></li>
+    </ul>
+    <div class="sibling-nav">
+      <a href="index.html#features">← 주요 기능 목록</a>
+      <a href="f02.html">← 라이브 TV 시청</a>
+      <a href="f04.html">Player 코어 (Common Player Contract) →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(branch <code>main</code>)를 근거로 작성되었습니다.
+    · <a href="index.html">tim-workspace 과제로 돌아가기</a> · <a href="../index.html">전체 과제 목록</a>
+  </div>
+</footer>
+
+<script src="../assets/mermaid.min.js"></script>
+<script src="../assets/detail.js"></script>
+</body>
+</html>

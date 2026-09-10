@@ -1,0 +1,421 @@
+<!doctype html>
+<!-- 프로젝트 기능 설명 페이지 — TIM User App Workspace 과제 문서 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TIM User App Workspace — 과제 설명</title>
+<style>
+:root{
+  --accent:#008c45;
+  --bg:#f6f8fa; --card:#ffffff; --text:#1f2328; --muted:#59636e;
+  --border:#d1d9e0; --code-bg:#f0f2f5; --shadow:0 1px 3px rgba(27,31,36,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#9198a1;
+    --border:#30363d; --code-bg:#1c2230; --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard Variable",Pretendard,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  line-height:1.65; font-size:16px;
+  -webkit-text-size-adjust:100%;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+/* ── 헤더 / 히어로 ───────────────────────────── */
+header.hero{
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%);
+  border-bottom:1px solid var(--border);
+  padding:40px 0 28px;
+}
+.hero .client-line{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.hero h1{margin:0 0 8px; font-size:1.9rem; line-height:1.3; letter-spacing:-.01em}
+.hero p.one-liner{margin:0 0 18px; font-size:1.05rem; color:var(--muted); max-width:780px}
+.badge{
+  display:inline-block; padding:2px 10px; border-radius:999px; font-size:.78rem; font-weight:600;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent);
+  border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.badge.gray{background:color-mix(in srgb,var(--muted) 12%,transparent); color:var(--muted); border-color:color-mix(in srgb,var(--muted) 30%,transparent)}
+.meta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px; margin-top:6px;
+}
+.meta-grid .item{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; box-shadow:var(--shadow);
+}
+.meta-grid .item .k{font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.meta-grid .item .v{font-size:.92rem; font-weight:600; word-break:break-all}
+.meta-grid .item .v code{font-size:.85rem}
+
+/* ── 섹션 내비게이션(칩) ─────────────────────── */
+nav.toc{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+nav.toc .wrap{display:flex; gap:8px; overflow-x:auto; padding-top:10px; padding-bottom:10px; scrollbar-width:none}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{
+  flex:0 0 auto; padding:5px 14px; border-radius:999px; font-size:.85rem; font-weight:500;
+  color:var(--text); background:var(--card); border:1px solid var(--border); white-space:nowrap;
+}
+nav.toc a:hover{border-color:var(--accent); color:var(--accent); text-decoration:none}
+
+/* ── 본문 공통 ──────────────────────────────── */
+main{padding:8px 0 48px}
+section{margin-top:40px; scroll-margin-top:64px}
+section h2{
+  font-size:1.35rem; margin:0 0 16px; padding-left:12px;
+  border-left:4px solid var(--accent); letter-spacing:-.01em;
+}
+section h3{font-size:1.05rem; margin:26px 0 10px}
+p{margin:.5em 0 1em}
+ul,ol{padding-left:1.4em}
+li{margin:.3em 0}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em; background:var(--code-bg); border-radius:5px; padding:.12em .38em;
+}
+pre{
+  background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; overflow-x:auto; line-height:1.5; font-size:.85rem;
+}
+pre code{background:none; padding:0}
+pre.tree{font-size:.82rem}
+
+/* ── 카드 그리드 (주요 기능) ─────────────────── */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .t{font-weight:700; margin-bottom:6px; font-size:.98rem}
+.card .d{font-size:.88rem; color:var(--muted)}
+
+/* ── 표 ─────────────────────────────────────── */
+.table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:540px}
+th,td{padding:9px 14px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb, var(--accent) 6%, var(--card)); font-size:.8rem; letter-spacing:.03em; white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+/* ── 동작 흐름 스텝 ─────────────────────────── */
+ol.steps{list-style:none; padding:0; margin:0; counter-reset:step}
+ol.steps>li{
+  counter-increment:step; position:relative; padding:0 0 18px 46px;
+}
+ol.steps>li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%;
+  background:var(--accent); color:#fff; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+}
+ol.steps>li::after{
+  content:""; position:absolute; left:14px; top:34px; bottom:2px; width:2px;
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+}
+ol.steps>li:last-child::after{display:none}
+ol.steps .st{font-weight:700; display:block; margin-bottom:2px}
+ol.steps .sd{font-size:.9rem; color:var(--muted)}
+
+/* ── 콜아웃 ─────────────────────────────────── */
+.callout{
+  border:1px solid var(--border); border-left:4px solid var(--accent);
+  background:var(--card); border-radius:10px; padding:12px 16px; margin:14px 0; font-size:.92rem;
+}
+.callout.warn{border-left-color:#d4a72c}
+.callout .ct{font-weight:700; margin-bottom:4px}
+
+/* ── 커밋 이력 ──────────────────────────────── */
+ul.commits{list-style:none; padding:0; margin:0}
+ul.commits li{
+  display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--border);
+  font-size:.86rem; align-items:baseline;
+}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .date{flex:0 0 86px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; font-size:.78rem}
+ul.commits .msg{word-break:break-all}
+
+/* ── 참고 자료 ──────────────────────────────── */
+ul.refs{list-style:none; padding:0}
+ul.refs li{
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin:8px 0; box-shadow:var(--shadow); font-size:.9rem;
+}
+ul.refs .src{font-size:.76rem; color:var(--muted); display:block}
+
+footer{
+  border-top:1px solid var(--border); padding:20px 0 40px; margin-top:48px;
+  color:var(--muted); font-size:.82rem;
+}
+
+/* ── 모바일 ─────────────────────────────────── */
+@media (max-width:720px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  header.hero{padding:26px 0 20px}
+  .hero h1{font-size:1.45rem}
+  .hero p.one-liner{font-size:.95rem}
+  .meta-grid{grid-template-columns:1fr 1fr; gap:8px}
+  section{margin-top:30px}
+  section h2{font-size:1.18rem}
+  .cards{grid-template-columns:1fr}
+  ol.steps>li{padding-left:40px}
+  ul.commits .date{flex-basis:74px}
+}
+@media (max-width:420px){
+  .meta-grid{grid-template-columns:1fr}
+}
+
+/* 카드 클릭 → 기능 상세 페이지 이동 (자동 추가) */
+a.card{color:inherit; text-decoration:none; cursor:pointer; display:flex; flex-direction:column; transition:box-shadow .14s,border-color .14s,transform .14s}
+a.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.13); border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+a.card:hover .t{color:var(--accent)}
+a.card .t::after{content:" ›"; color:var(--accent); opacity:0; transition:opacity .14s}
+a.card:hover .t::after{opacity:.6}
+
+/* 상위 이동 내비게이션 (자동 추가) */
+nav.toc a.up{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent); text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="client-line">
+      <span class="badge">TIM (Telecom Italia)</span>
+      <span class="badge gray">멀티플랫폼 OTT 워크스페이스 · 현재 Android TV 구현</span>
+      <span class="badge gray">Kotlin</span>
+    </div>
+    <h1>TIM User App Workspace</h1>
+    <p class="one-liner">TIM(Telecom Italia)의 오퍼레이터 기반 라이브 OTT 서비스 "TIMVISION"용 클라이언트 앱들을 담는 통합 워크스페이스로, Android STB/TV·모바일·Apple tvOS·Web 4개 플랫폼 레인을 submodule로 관리하며, 현재는 1차 레인인 Android TV(app-tv-android + player-kt + core-kt)만 실제 소스가 있습니다.</p>
+    <div class="meta-grid">
+      <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tim-workspace" target="_blank" rel="noopener"><code>tim-workspace</code></a></div></div>
+      <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/4328816688/EMEA_TIM" target="_blank" rel="noopener">EMEA_TIM (pageId 4328816688)</a></div></div>
+      <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code> (workspace) / <code>main</code> (app-tv-android submodule)</div></div>
+      <div class="item"><div class="k">최근 커밋 (app-tv-android)</div><div class="v">2026-08-31 · ab2e65b [player] remove player-kt module and add submodule</div></div>
+      <div class="item"><div class="k">애플리케이션 ID</div><div class="v"><code>tivibu.android.stb</code> (마이그레이션 전 — 기존 Tivibu 식별자 유지)</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a class="up" href="../index.html">⌂ 전체 목록</a>
+    <a href="#overview">개요</a>
+    <a href="#features">주요 기능</a>
+    <a href="#architecture">아키텍처</a>
+    <a href="#stack">기술 스택</a>
+    <a href="#flows">핵심 동작 흐름</a>
+    <a href="#build">빌드·실행</a>
+    <a href="#history">최근 개발 이력</a>
+    <a href="#references">참고 자료</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p><code>tim-workspace</code>는 TIM(Telecom Italia)의 라이브 OTT 서비스 "TIMVISION" 클라이언트 앱 개발을 위한 문서 + submodule 포인터 통합 저장소입니다. 저장소 자체는 빌드 대상이 아니며, <code>00.overview</code>(제품 정의)부터 <code>90.release</code>(릴리즈)까지 십의 자리 라이프사이클 순서로 번호가 매겨진 폴더 아래에 회의록·요구사항·설계 산출물과 실제 개발 라이브러리(<code>50.dev-library</code>)·클라이언트 앱(<code>60.dev-app</code>) submodule을 담습니다. <strong>backend는 이 프로젝트 범위 밖(ZTE 소관)</strong>입니다.</p>
+    <p>플랫폼은 일의 자리 번호로 매겨진 4개 레인으로 나뉩니다 — 1(Android): <code>51.player-kt</code>+<code>56.core-kt</code>+<code>61.app-tv-android</code>, 2(Apple): <code>52.player-swift</code>+<code>57.core-swift</code>+<code>62.app-tv-tvos</code>, 3(Flutter): <code>53.player-flutter</code>+<code>58.core-dart</code>+<code>63.app-mobile-flutter</code>, 4(Web): <code>54.player-js</code>+<code>59.core-js</code>+<code>64.app-web</code>. 착수 순서는 1차 Android → 2차 Mobile(Android 백엔드 우선) → 3·4차 Web → 5차 tvOS이며, <strong>현재 원격 repo가 등록된 것은 1차 레인(Android) 3개 submodule뿐</strong>입니다(<code>51.player-kt</code>·<code>56.core-kt</code>·<code>61.app-tv-android</code>). 나머지 레인은 원격 repo 생성 대기 상태입니다.</p>
+    <p>1차 레인의 실체는 <strong>기존 Türk Telekom Tivibu Android 4K STB 코드베이스의 포크</strong>입니다. <code>app-tv-android</code>의 <code>README.md</code> 제목이 여전히 "Tivibu Android 4K"이고 <code>applicationId</code>도 <code>tivibu.android.stb</code>이며, <code>app/src</code>에는 <code>stvOtt</code>·<code>tivibuEv</code>·<code>zteAosp</code> 3개 플레이버가, <code>dependency/platform</code>에는 <code>tt4k</code>·<code>smarttv</code> 모듈이 그대로 남아 있습니다. 백엔드 연동 레이어(<code>core-kt/si</code>)도 기존 TT4K 구현(<code>impl-tt4k</code>)을 재사용 기반으로 두고, TIM 전용 백엔드가 아직 없는 구간은 목업 구현(<code>impl-mock</code>)으로 우회해 개발이 진행되고 있습니다.</p>
+    <div class="callout">
+      <div class="ct">아직 RFP가 불확실한 초기 단계</div>
+      <p style="margin:0">사내 Confluence(ORGAPPDEV, "99.01. TIM Live OTT 클라이언트·Player 기술 검토", 2026-08-30)에 따르면 현재 설계 장표는 <strong>불명확한 RFP를 구조화한 가설 기반 아키텍처 초안</strong>이며, 지원 단말 범위·DTT 수신제한(CAS) 유무·Web 단일 코드베이스 가능 여부·SDUI 적용 수준 등 다수 항목이 고객·벤더 협의(2026년 9월 현지 협의 예정) 전까지 미확정입니다. 아키텍처 원칙은 "하나의 Player 엔진을 모든 플랫폼에 이식하지 않고, Common Player Contract(Command·State·Event·Error·Capability)를 여러 플랫폼별 Adapter가 준수"하는 방식이며, 플랫폼별 지원 범위는 Standard / Legacy·Conditional / Unsupported / Out-of-Scope 4단계 Support Tier로 판정합니다.</p>
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <a class="card" href="f01.html"><div class="t">홈 · 내비게이션 엔진</div><div class="d"><code>nav/engine</code>의 <code>Destination</code>·<code>DestinationStacks</code>·<code>KeyRouter</code>가 화면 스택과 리모컨 키 입력을 관리하고, <code>screenlayer</code> 모듈과 <code>ui/home</code>(<code>HomeScreen</code>, <code>MenuView</code>) 위에서 홈 화면을 구성합니다.</div></a>
+      <a class="card" href="f02.html"><div class="t">라이브 TV 시청</div><div class="d"><code>LiveTvScreen</code>·<code>LiveTvViewModel</code>이 미니가이드(<code>MiniGuideView</code>), PIP(<code>PipView</code>), 모자이크 채널(<code>MosaicView</code>/<code>MosaicUseCase</code>), 채널 OSD·핑거프린트 워터마크(<code>FingerPrintView</code>)를 통합합니다.</div></a>
+      <a class="card" href="f03.html"><div class="t">재생 오케스트레이션</div><div class="d"><code>PlayOrchestrator</code>가 TsTv·PlTv·NPVR·단편/시리즈 VOD·트레일러·프리뷰 등 7종 <code>PlayHandler</code>와 14개 <code>UseCase</code>로 재생 요청을 분기하고, <code>ChannelPlayBar</code>/<code>VodPlayBar</code>/<code>StartOverPlayBar</code>로 컨트롤 UI를 구성합니다.</div></a>
+      <a class="card" href="f04.html"><div class="t">Player 코어 (Common Player Contract)</div><div class="d"><code>51.player-kt</code>가 Media3/ExoPlayer 기반 재생 엔진을 <code>PlayerAdapter</code> 계약 뒤로 감추고 IMA 광고(<code>ImaAdSupport</code>)를 지원합니다. 앱 쪽 <code>:player</code> 모듈은 <code>core</code>/<code>impl-mock</code>/<code>impl-tt4k</code>로 백엔드를 교체합니다.</div></a>
+      <a class="card" href="f05.html"><div class="t">서비스 인터페이스(SI) 추상화</div><div class="d"><code>core-kt/si</code>가 채널·EPG·예약 백엔드 접근을 인터페이스로 추상화합니다. TIM 전용 백엔드가 없어 <code>impl-mock</code>(<code>MockChannelRepository</code>)으로 목업 우선 개발하고, <code>impl-tt4k</code>는 기존 Türk Telekom TT4K 연동을 재사용 기반으로 붙여둔 상태입니다.</div></a>
+      <a class="card" href="f06.html"><div class="t">부팅 · 페일세이프 복구</div><div class="d"><code>BootScreen</code>·<code>BootViewModel</code>이 단말 소프트웨어 손상 시 페일세이프 에러 코드·재시도 카운트를 보여주거나(<code>CountOn</code>), 복구 이미지 다운로드 진행률을 표시합니다(<code>Message</code>).</div></a>
+      <a class="card" href="f07.html"><div class="t">설정 · 사용자 환경</div><div class="d">CAS 정보(<code>CasInfoView</code>), 시청등급 제어(<code>ParentalControlView</code>), 녹화/예약 내역(<code>MyRecordsView</code>/<code>MyRemindersView</code>), 대여·구매 이력(<code>RentalPurchaseHistoryView</code>) 등 30개 이상의 설정 화면·뷰모델로 구성됩니다.</div></a>
+      <a class="card" href="f08.html"><div class="t">팝업 · 오버레이</div><div class="d">OTT 로그인/가입/QR결제(<code>ott/OttLoginPopup</code> 등), 번들·쿠폰 프로모션, 페일세이프 복구(<code>FailSafeRecoveryPopup</code>), 전역 에러(<code>GlobalErrorPopup</code>), OTA 업데이트(<code>OtaUpdatePopup</code>) 등 40여 개 팝업을 <code>core/BaseAnimationPopup</code> 위에서 구성합니다.</div></a>
+      <a class="card" href="f09.html"><div class="t">빌드 플레이버 · 기존 자산 재사용</div><div class="d"><code>stvOtt</code>·<code>tivibuEv</code>·<code>zteAosp</code> 3개 플레이버와 <code>dependency/platform</code>의 <code>tt4k</code>·<code>smarttv</code> 모듈은 기존 Türk Telekom Tivibu Android 4K/ZTE AOSP 코드베이스에서 유래합니다.</div></a>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>아키텍처 · 모듈 구조</h2>
+    <p>워크스페이스 최상위는 라이프사이클 순서(십의 자리)로 번호가 매겨져 있고, 실제 개발 산출물은 <code>50.dev-library</code>(개발 라이브러리)와 <code>60.dev-app</code>(클라이언트 앱) 두 그룹에 있습니다. 이 둘의 2-depth 번호(일의 자리)는 플랫폼 레인을 뜻하며, 레인 하나가 앱·player·core 세 repo를 관통합니다.</p>
+    <pre class="tree">tim-workspace/
+├── 00.overview/          # 제품 정의·개요·비전 — 진입점
+├── 10.meetings/          # 회의록 원본
+├── 20.reference/         # 외부 조사·참고 지식 (비구속)
+├── 30.requirements/      # 요구사항·범위 결정 (구속) — device 매트릭스, 차수 계획(rollout-phases)
+├── 40.design/            # UX·GUI 설계 산출물 (Figma 온톨로지 포함)
+├── 50.dev-library/       # 개발 라이브러리 — player·core (submodule)
+│   ├── 51.player-kt/     # ★등록 — Kotlin, Media3/ExoPlayer + MediaCas + mABR + DTT 튜닝
+│   ├── 52.player-swift/  # 원격 repo 생성 대기 (2차)
+│   ├── 53.player-flutter/# 원격 repo 생성 대기 — 로직 없는 파사드(PlatformView+MethodChannel)
+│   ├── 54.player-js/     # 원격 repo 생성 대기 (3·4차)
+│   ├── 56.core-kt/       # ★등록 — Kotlin, BFF 클라이언트·SDUI 해석·인증·분석
+│   ├── 57.core-swift/    # 원격 repo 생성 대기 (5차)
+│   ├── 58.core-dart/     # 원격 repo 생성 대기 (2차)
+│   └── 59.core-js/       # 원격 repo 생성 대기 (3·4차) — 렌더러 프레임워크 비의존
+├── 60.dev-app/           # 클라이언트 앱 (submodule)
+│   ├── 61.app-tv-android/# ★등록 — Android TV/STB 앱 (Tivibu 4K 포크, 1차)
+│   ├── 62.app-tv-tvos/   # 원격 repo 생성 대기 (5차, player-swift 재사용)
+│   ├── 63.app-mobile-flutter/ # 원격 repo 생성 대기 (2차, Android/iOS 공용)
+│   └── 64.app-web/       # 원격 repo 생성 대기 (3·4차, Windows/SmartTV/콘솔 공용)
+├── 70.mock-server/       # 클라이언트 개발용 BFF/SDUI mock
+├── 80.qa/                # 통합·E2E·QA·디바이스 호환성
+├── 90.release/           # 릴리즈 노트·체크리스트
+└── harness/              # 팀 공통 AI 개발 워크플로우 — 번호 체계 밖, 제품 산출물 아님</pre>
+
+    <h3>61.app-tv-android — Gradle 모듈 구성</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>모듈</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td><code>:app</code></td><td>애플리케이션 진입점. <code>com.altimedia.ui.*</code>(home/livetv/play/boot/setting/popup) + <code>com.tim.play</code>(<code>TivibuApplication</code>) + <code>com.altimedia.nav.*</code></td></tr>
+          <tr><td><code>:core-kt</code>, <code>:core-kt:{buildconfig,coodinator,navigation,data,domain,resource}</code></td><td>공통 데이터·도메인·내비게이션·코디네이터 레이어(<code>com.tim.core.*</code>)</td></tr>
+          <tr><td><code>:core-kt:si:{core,impl-mock,impl-tt4k}</code></td><td>서비스 인터페이스 추상화 — 채널/프로그램/예약 백엔드 접근을 목업·TT4K 구현으로 교체</td></tr>
+          <tr><td><code>:player:{core,impl-mock,impl-tt4k}</code></td><td>앱 쪽 재생 어댑터 계층 — <code>VodPlayerView</code>·<code>MockVodPlayerAdapter</code>·<code>TTExoPlayerAdapter</code></td></tr>
+          <tr><td><code>player-kt</code> (composite build, <code>includeBuild</code>)</td><td>재생 엔진 코어. 별도 git 저장소(<code>tim-player-kt</code>)를 submodule + composite build로 소비 — <code>include(":player-kt")</code>가 아니라 <code>includeBuild("player-kt")</code></td></tr>
+          <tr><td><code>:screenlayer</code></td><td>레이어 기반 화면 합성 (2026-08-28 <code>screenlayer-rebuild</code> 브랜치 병합)</td></tr>
+          <tr><td><code>:dependency:feature</code>, <code>:dependency:platform:{tt4k,smarttv}</code></td><td>기존 Türk Telekom TT4K/SmartTV 플랫폼 의존성 묶음 — 재사용 자산</td></tr>
+          <tr><td><code>:test:api-test</code></td><td>API 테스트</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <div class="ct">player-kt는 두 곳에 존재한다</div>
+      <p style="margin:0"><code>tim-player-kt</code> repo는 <code>50.dev-library/51.player-kt</code>(워크스페이스 공용)와 <code>60.dev-app/61.app-tv-android/player-kt</code>(앱이 composite build로 직접 소비) 두 경로에 동시에 submodule로 걸려 있습니다. <code>--recursive</code> clone 시 같은 소스가 두 곳에 놓입니다.</p>
+    </div>
+  </section>
+
+  <section id="stack">
+    <h2>기술 스택</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>기술</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>언어</td><td>Kotlin</td><td><code>app-tv-android</code>·<code>player-kt</code>·<code>core-kt</code> 전부 Kotlin. 문서 워크스페이스는 Markdown</td></tr>
+          <tr><td>플랫폼</td><td>Android TV (Leanback 계열, Tivibu 4K STB 포크)</td><td><code>applicationId=tivibu.android.stb</code></td></tr>
+          <tr><td>빌드</td><td>Gradle + Kotlin DSL, 멀티 모듈 + Composite Build</td><td><code>build-logic/convention</code> 컨벤션 플러그인, <code>player-kt</code>는 <code>includeBuild</code></td></tr>
+          <tr><td>재생</td><td>Media3/ExoPlayer, IMA 광고</td><td><code>player-kt</code> — <code>ImaAdSupport</code>·<code>ImaAdSupportImpl</code></td></tr>
+          <tr><td>백엔드 연동</td><td>기존 TT4K(Türk Telekom) 연동 재사용 + 목업</td><td><code>si/impl-tt4k</code>(재사용) / <code>si/impl-mock</code>(TIM 전용 백엔드 부재 구간)</td></tr>
+          <tr><td>빌드 플레이버</td><td><code>tivibuEv</code>(기본, <code>tivibu.android.stb</code>) / <code>stvOtt</code>(<code>com.ttnet.tivibutv</code>) / <code>zteAosp</code>(<code>com.zte.aosp</code>)</td><td>3개 모두 applicationId가 TT·ZTE 브랜드 그대로 — TIM 전용 전환 전 상태. 화면 라벨만 <code>app_name_tim_stb</code>/<code>app_name_tim_ott</code>로 일부 변경됨</td></tr>
+          <tr><td>의존성 저장소</td><td>google, mavenCentral, jitpack, Huawei mirror, 로컬 maven(<code>libs/local-maven</code>)</td><td><code>settings.gradle.kts</code> 기준</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout warn">
+      <div class="ct">목표 스택과 현재 소스의 차이</div>
+      <p style="margin:0"><code>60.dev-app/CLAUDE.md</code>는 <code>61.app-tv-android</code>의 스택을 "Kotlin · Compose for TV · Media3"로 명시하지만, 실제 소스(<code>app/</code>, <code>core-kt/</code>, <code>screenlayer/</code>)에는 <code>@Composable</code> 사용이나 <code>androidx.compose</code> 의존성이 전혀 없습니다 — 현재는 Fragment/View 기반이며 Compose for TV는 아직 <strong>목표(가정)</strong>이지 현재 구현 상태(확정)가 아닙니다. Confluence 문서(01. Multi-Platform Player Feasibility &amp; Delivery Baseline)에 따르면 최종 지원 플랫폼·DRM·코덱·화질도 아직 Standard/Legacy Support Tier 판정 전이며, 위 스택은 <strong>1차 Android 레인의 현재 소스 기준</strong>입니다. Apple(AVPlayer/FairPlay)·Web(JS Player+EME) 레인은 아직 코드가 없습니다.</p>
+    </div>
+  </section>
+
+  <section id="flows">
+    <h2>핵심 동작 흐름</h2>
+
+    <h3>앱 기동 → 홈 진입 (정상 경로)</h3>
+    <ol class="steps">
+      <li><span class="st">앱 기동</span><span class="sd"><code>com.tim.play.TivibuApplication</code>이 <code>AppLifecycleCallback</code>·<code>LifecycleObserveApplication</code>으로 앱 생명주기를 관찰하며 초기화를 시작합니다.</span></li>
+      <li><span class="st">홈 진입</span><span class="sd"><code>nav/engine</code>의 <code>Navigator</code>·<code>KeyRouter</code>가 <code>Destination</code> 스택을 홈으로 전이시켜 <code>HomeScreen</code>·<code>MenuView</code>를 표시합니다.</span></li>
+    </ol>
+
+    <h3>페일세이프 복구 경로 (비정상 부팅)</h3>
+    <ol class="steps">
+      <li><span class="st">복구 모드 진입</span><span class="sd">단말 소프트웨어 손상 등으로 <code>BootScreen</code>이 <code>CountOn</code>/<code>Message</code> 번들을 들고 기동됩니다.</span></li>
+      <li><span class="st">상태 표시</span><span class="sd"><code>BootViewModel</code>이 <code>StorageRepository</code>의 에러코드·재시도 카운트 또는 다운로드 진행률 스트림을 구독해 화면을 실시간 갱신합니다(f06 참고).</span></li>
+    </ol>
+
+    <h3>채널 시청 · 재생 요청 분기</h3>
+    <ol class="steps">
+      <li><span class="st">채널 선택</span><span class="sd"><code>LiveTvScreen</code>에서 채널을 선택하면 <code>ChannelPlayBarViewModel</code>이 재생을 요청합니다.</span></li>
+      <li><span class="st">핸들러 분기</span><span class="sd"><code>PlayOrchestrator</code>가 콘텐츠 성격(TsTv/PlTv/NPVR/단편·시리즈 VOD/트레일러/프리뷰)에 따라 7종 <code>PlayHandler</code> 중 하나와 대응 <code>UseCase</code>(예: <code>PlayTsTvUseCase</code>)를 선택합니다.</span></li>
+      <li><span class="st">SI → Player 위임</span><span class="sd"><code>core-kt/si</code>(<code>impl-mock</code> 또는 <code>impl-tt4k</code>)로 재생 URL·권한 정보를 조회한 뒤, <code>player-kt</code>의 <code>PlayerAdapter</code> 계약을 통해 실제 재생 엔진(ExoPlayer)에 전달합니다.</span></li>
+      <li><span class="st">컨트롤 UI 표시</span><span class="sd"><code>ChannelPlayBar</code>/<code>VodPlayBar</code>/<code>StartOverPlayBar</code>가 재생 상태(<code>PlayerState</code>)를 구독해 컨트롤 UI를 갱신합니다.</span></li>
+    </ol>
+
+    <h3>플레이버별 분기 (기존 자산 재사용)</h3>
+    <ol class="steps">
+      <li><span class="st">플레이버 선택</span><span class="sd">Gradle 빌드 시 <code>stvOtt</code>·<code>tivibuEv</code>·<code>zteAosp</code> 중 하나를 선택해 <code>AndroidManifest.xml</code>과 <code>dependency/platform/{tt4k,smarttv}</code> 조합이 정해집니다.</span></li>
+      <li><span class="st">백엔드 재사용 vs 목업</span><span class="sd">TT4K 연동이 살아있는 경로는 <code>si/impl-tt4k</code>·<code>player/impl-tt4k</code>가, TIM 전용 백엔드가 아직 없는 경로는 <code>si/impl-mock</code>·<code>player/impl-mock</code>이 담당합니다.</span></li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>빌드 · 실행</h2>
+    <p>전체를 받으려면 submodule을 <strong>recursive</strong>로 함께 받아야 합니다(<code>player-kt</code>가 <code>app-tv-android</code> 안에도 중첩 submodule로 들어있기 때문). 선행 조건은 Bitbucket SSH 키 등록(<code>ssh -T git@bitbucket.org</code>)입니다.</p>
+    <pre><code># 전체 clone (문서 + 1차 레인 submodule 전부)
+git clone --recurse-submodules git@bitbucket.org:altimedia/tim-workspace.git
+
+# 이미 clone했다면
+git submodule update --init --recursive
+
+# tv-android 파트만 필요하면 (문서만 볼 게 아니라면)
+git submodule update --init --recursive \
+  50.dev-library/51.player-kt \
+  50.dev-library/56.core-kt \
+  60.dev-app/61.app-tv-android</code></pre>
+    <p><code>app-tv-android</code> 자체 빌드는 Gradle Wrapper를 사용하며, <code>player-kt</code>는 <code>include</code>가 아니라 <code>includeBuild</code>(Composite Build)로 소비되므로 일반 clone만으로는 소스가 딸려오지 않습니다 — 위 recursive 절차가 반드시 필요합니다.</p>
+    <ul>
+      <li><code>player-kt</code> 안에서 만든 커밋은 <code>tim-player-kt</code> repo에 별도로 push해야 하며, 루트(<code>tim-app-tv-android</code>)는 그 커밋의 SHA를 gitlink로만 기록합니다. <strong>push 순서가 중요</strong>합니다 — <code>player-kt</code>를 먼저 push한 뒤 루트를 push해야 다른 사람의 <code>git submodule update</code>가 실패하지 않습니다.</li>
+      <li>워크스페이스 자체의 AI 개발 워크플로우는 <code>harness/</code>가 Claude Code plugin(<code>tim-harness</code>)으로 제공하며, 번호 체계 밖의 개발 도구입니다.</li>
+    </ul>
+  </section>
+
+  <section id="history">
+    <h2>최근 개발 이력</h2>
+    <p>2026-08-25 이후 <code>app-tv-android</code>에서 네비게이터/도메인 리팩터링과 <code>screenlayer-rebuild</code> 병합이 이어졌고, 2026-08-27에 <code>core-kt</code>가 워크스페이스에 통합됐습니다. 2026-08-31에 <code>player-kt</code>가 인라인 모듈에서 독립 git submodule(<code>tim-player-kt</code>)로 분리되며 1차 레인의 현재 구조가 확정됐습니다. <code>core-kt</code>(<code>tim-core-kt</code>)도 같은 날 별도 repo로 분리됐습니다.</p>
+    <ul class="commits">
+      <li><span class="date">2026-08-31</span><span class="msg">[player] remove player-kt module and add submodule</span></li>
+      <li><span class="date">2026-08-31</span><span class="msg">[player] extract player-kt as separate git submodule</span></li>
+      <li><span class="date">2026-08-31</span><span class="msg">[app] remove: TivibuGo and update: app name</span></li>
+      <li><span class="date">2026-08-31</span><span class="msg">[player] refactor player module</span></li>
+      <li><span class="date">2026-08-28</span><span class="msg">[player] refactor ExoPlayerAdapter</span></li>
+      <li><span class="date">2026-08-28</span><span class="msg">[app] add new recyclerview(rvx)</span></li>
+      <li><span class="date">2026-08-28</span><span class="msg">[app] add common focusable widgets's package under com.altimedia.ui.utils</span></li>
+      <li><span class="date">2026-08-28</span><span class="msg">[player] refactor player module</span></li>
+      <li><span class="date">2026-08-28</span><span class="msg">[app] move :navigator into com.altimedia.nav and drop the module</span></li>
+      <li><span class="date">2026-08-28</span><span class="msg">Merge branch 'screenlayer-rebuild' into main</span></li>
+      <li><span class="date">2026-08-27</span><span class="msg">[project] intergrate :core-kt module for workspace</span></li>
+      <li><span class="date">2026-08-27</span><span class="msg">[domain] refactor - profile(2)</span></li>
+      <li><span class="date">2026-08-27</span><span class="msg">[navigator] drop merge-verification tests for the reverted :screenlayer merge</span></li>
+    </ul>
+  </section>
+
+  <section id="references">
+    <h2>참고 자료</h2>
+    <ul class="refs">
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/4328816688/EMEA_TIM">EMEA_TIM (pageId 4328816688)</a><span class="src">Confluence (ORGAPPDEV) — 프로젝트 허브 페이지</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/4333305858/01.+Multi-Platform+Player+Feasibility+Delivery+Baseline">01. Multi-Platform Player Feasibility &amp; Delivery Baseline (pageId 4333305858)</a><span class="src">Confluence (ORGAPPDEV) — Support Tier 판정 기준, Common Player Contract 아키텍처 원칙</span></li>
+      <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/4334879180/99.01.+TIM+Live+OTT+Player">99.01. TIM Live OTT 클라이언트·Player 기술 검토 (pageId 4334879180)</a><span class="src">Confluence (ORGAPPDEV) — 회의 대조·RFP 불확실성·잠정 클라이언트 구조표</span></li>
+      <li><code>tim-workspace/README.md</code> · <code>CLAUDE.md</code> · <code>50.dev-library/CLAUDE.md</code><span class="src">저장소 문서 — 번호 체계·레인 정의·submodule 등록 현황</span></li>
+      <li><code>60.dev-app/61.app-tv-android/settings.gradle.kts</code> · <code>app/build.gradle.kts</code> · <code>README.md</code><span class="src">소스 검증 — Gradle 모듈 목록·applicationId·composite build</span></li>
+      <li>Repository: <code>git@bitbucket.org:altimedia/tim-workspace.git</code> (branch main, submodule: tim-player-kt · tim-core-kt · tim-app-tv-android · tim-harness)<span class="src">형상 정보</span></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    이 문서는 저장소 소스 코드(branch <code>main</code>, submodule 포함)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-09-10 · <a href="../index.html">전체 과제 목록으로</a>
+  </div>
+</footer>
+
+</body>
+</html>
