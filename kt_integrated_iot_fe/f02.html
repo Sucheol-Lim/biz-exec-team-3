@@ -55,6 +55,8 @@
     <p>지도 위에는 <code>MapControllers</code>(줌 슬라이더·그리기 컨트롤 — GPS 현재 위치 버튼은 임시 미노출), <code>MapToolbar</code>(지도/도면 전환, 커버리지·플래그 토글)가 오버레이됩니다. 줌 슬라이더는 핸들 조작 시 좌측에 현재 줌 레벨을 툴팁으로 노출하고(<code>valueLabelDisplay="auto"</code>), 플래그 토글 목록(<code>isSpread</code>)은 이제 전 사이트에서 기본 펼침으로 시작하며, 커버리지 버튼에는 "커버리지" 툴팁이 붙습니다. 마커 타입 on/off는 더 이상 레이어 <code>visibility</code>로 처리하지 않습니다 — 클러스터 개수와 동종/이종 판별이 소스 레벨에서 계산되므로 레이어만 숨기면 꺼진 종류가 카운트에 남기 때문에, 표시 대상만 모아 <code>updateMarkerSourceData()</code>로 소스 데이터를 다시 넣습니다. Air Map 플래그 종류는 실외 측정소·악취 측정소·국가 측정망 3종만 노출하며, 등급 범례 색상은 <code>airQuality</code>의 <code>GRADE_CONFIG</code> 공용 상수로 통일했습니다. 그리기 기능은 전역 <code>DrawControlContext</code>가 <code>ktGms.control.DrawControl</code> 인스턴스를 보관해 폴리곤·라인 그리기 모드를 제어하고, 도면 모드에서는 <code>DrawingViewer</code>가 시설 도면 위에 마커를 표시합니다.</p>
     <p>마커 검색(<code>MarkerSearch</code>)의 조회 함수는 자동 갱신용 <code>createAutoRefreshQueryOptions</code> 팩토리로 재작성되어, 화면 조회(foreground)와 1분 주기 배경 갱신(background)이 같은 <code>fetchMarkerList</code>를 공유합니다(<code>AUTO_REFRESH_INTERVAL_MS</code>가 5분에서 1분으로 단축되었습니다). background에서는 <code>requestMode: 'background'</code>·<code>skipError</code>·타임아웃을 붙이고, Air Map 등급 병합(<code>postDeviceLatestData</code>)이 실패하면 등급 없는 마커로 기존 캐시를 덮어쓰지 않도록 그대로 reject합니다. 지역·구역 셀렉트 변경 시에는 <code>postponeAutoRefresh()</code>로 진행 중인 유휴 타이머를 미룹니다. 과천 관제센터는 시/도 미선택(전체) 상태에서도 <code>areaId</code>를 생략해 전체 마커를 조회하도록 가드를 걷어냈습니다.</p>
     <p>지도 위 위젯 On/Off 버튼도 <code>MarkerSearch</code>가 갖고 있는데, 이 값이 사이트 단위로 영속화되었습니다. <code>HeaderProvider</code>는 사용자 지역 관리 패널이 열려 있는 동안의 임시 강제 숨김(<code>setHideWidgets</code> → <code>forceHideWidgets</code>)과 사용자가 저장한 On/Off 선호값(<code>setUserHideWidgets</code> → <code>userHideWidgets</code>)을 별도 상태로 두고 <code>hideWidgets</code>를 둘의 OR로 계산하므로, 패널을 닫아도 사용자 선호값이 그대로 남습니다. 토글 시에는 <code>ConfigContext.onChangeHideWidgets(siteCode, next)</code>가 <code>hiddenWidgetSites</code>에 기록하고, <code>Home</code>은 마운트 시 <code>hiddenWidgetSites[site.code]</code>를 한 번 읽어 복원합니다. 사이트 전환은 <code>AutoRefreshRoute</code>의 key 변경으로 <code>Home</code>을 재마운트시키므로 mount 1회 로드로 충분합니다. 이와 함께 <code>Home</code>은 홈 진입 시 팝업 노출 대상 공지를 띄우는 <code>NoticePopup</code>을 함께 렌더링합니다.</p>
+    <p>Air Map 마커 유형에 <strong>소음 측정기</strong>가 새로 분리되었습니다. BFF 응답의 <code>deviceTypeName</code>·<code>AIRMAP_DEV_TYPE</code>은 소음 측정기도 실외(<code>실외</code>/<code>OUTDOOR</code>)로 내려주기 때문에, 실제 장치 유형은 <code>extendedData.DEV_DIV_CD</code>(<code>0002</code> 실외 / <code>0004</code> 악취 / <code>0006</code> 소음)로 한 번 더 보정해야 합니다. 이 보정을 <code>getAirmapDeviceKind(deviceTypeName, extendedData)</code> 한 곳으로 모아, 지도 마커 분류(<code>getMarkerFlagType</code>)·마커 상세 팝업(<code>DetailDialogAirmap</code>)·검색 결과 등급 계산(<code>MarkerSearch</code>)이 항상 같은 기준으로 소음 측정기를 가려냅니다. 신설된 <code>flagNoise</code> 플래그(전용 아이콘 <code>flag-airmap-noise.svg</code>)가 지도 위에 별도 마커로 표시되고, 소음 값은 PM10 대신 <code>db</code> 프로퍼티로 <code>getNoiseGrade</code>(0~35.9 좋음 / 36.0~50.9 보통 / 51.0~60.9 나쁨 / 61.0~ 매우나쁨 — 소수점 한 자리까지 흡수하도록 경계값을 정수 미만 비교로 정정)를 거쳐 등급이 매겨집니다.</p>
+    <p>마커 상세 팝업(<code>DetailDialogAirmap</code>)의 측정항목 탭 선택 상태는 예전엔 <code>deviceId</code>와 무관한 단일 <code>selectedMeasurement</code> state였습니다. 팝업이 열린 채로 다른 마커를 클릭하면 컴포넌트가 재사용되어 이전 장치에서 고른 탭이 새 장치에도 남는 결함이 있었는데, 지금은 <code>{ deviceId, key }</code> 쌍으로 선택을 들고 있다가 <code>deviceId</code>가 바뀌면 유형별 기본 탭(<code>DEFAULT_MEASUREMENT_BY_TYPE</code> — 소음은 <code>noise</code>)으로 되돌립니다. '상세 더보기'로 측정소 상세(<code>pages/station/airmapAir/DetailAirQuality</code>) 화면으로 이동할 때도 보정된 <code>deviceTypeName</code>을 <code>navigate</code> state로 함께 넘겨, 상세 화면이 유형별 기본 측정항목(소음은 <code>noise</code>/조회 프로퍼티 <code>db</code>)으로 자동 조회되도록 다리를 놓습니다. 사용자가 상세 화면에서 직접 다른 기준으로 재조회하면 조회 항목은 다시 전체로 돌아갑니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       한전 AMI(<code>SITE_CODES.AMI</code>)는 지도 표출 대상이 아니어서 지도 DOM과 마커 검색을 렌더링하지 않고 카드형 화면으로만 동작합니다. 한편 등급 심각도 인덱스는 <code>getSiteFlagLevel()</code> 배열 순서를 그대로 쓰므로, 클러스터 대표 등급을 <code>max</code>로 뽑으려면 배열이 반드시 심각도 오름차순이어야 합니다.
@@ -134,6 +136,7 @@ classDiagram
         +getLevelIndex(levelId, site)
         +getFlagIndex(flagId, flagData)
         +getTooltipIcon(flagId, levelId)
+        +getAirmapDeviceKind(deviceTypeName, extendedData)
     }
     class MarkerSource {
         +cluster
@@ -320,6 +323,38 @@ useEffect(() =&gt; {
 });</code></pre>
     </div>
     <div class="snippet">
+      <div class="sc"><code>src/utils/MapUtils.ts</code> — 소음 측정기 유형 보정(DEV_DIV_CD)과 지도·팝업 공용 판별 함수</div>
+<pre><code>// deviceTypeName/AIRMAP_DEV_TYPE 원본은 소음 측정기도 '실외'/OUTDOOR로 내려온다.
+// DEV_DIV_CD(장치 구분 코드)로 보정한 유형명이 있으면 그것을 쓴다.
+const AIRMAP_DEV_DIV_CD_NAME_MAP: Record&lt;string, string&gt; = {
+  '0002': '실외', '0004': '악취', '0006': '소음',
+};
+
+export const getAirmapDeviceKind = (deviceTypeName?: string, extendedData?: any): string =&gt; {
+  const devDivCd = extendedData?.DEV_DIV_CD;
+  if (devDivCd &amp;&amp; AIRMAP_DEV_DIV_CD_NAME_MAP[String(devDivCd)]) {
+    return AIRMAP_DEV_DIV_CD_NAME_MAP[String(devDivCd)];
+  }
+  return deviceTypeName ?? '';
+};
+
+// 지도 마커 분류: 1차로 보정된 유형(kind)을 먼저 시도하고, 실패하면 기존 AIRMAP_DEV_TYPE 매핑으로 폴백
+const kind = getAirmapDeviceKind(item.deviceTypeName, item.extendedData);
+if (kind &amp;&amp; AIRMAP_NAME_MAP[kind]) return AIRMAP_NAME_MAP[kind];</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/home/MarkerSearch.tsx</code> — 소음 측정기는 dB 값으로, 그 외는 PM10으로 등급 계산</div>
+<pre><code>// 소음 측정기는 PM10을 보내지 않아 PM10 기준으로는 등급이 안 잡힌다.
+// 별도 환경기준(0~35.9/36.0~50.9/51.0~60.9/61.0~)이 있으므로 dB 값으로 등급을 매긴다
+if (getAirmapDeviceKind(marker.deviceTypeName, marker.extendedData) === '소음') {
+  const noiseValue = readNoiseValue(props);   // props.db ?? props.noise
+  return noiseValue != null ? { ...marker, grade: getNoiseGrade(noiseValue) } : marker;
+}
+if (props?.pm10 != null) {
+  return { ...marker, grade: getPm10Grade(props.pm10) };
+}</code></pre>
+    </div>
+    <div class="snippet">
       <div class="sc"><code>src/utils/MapUtils.ts</code> — Air Map 등급 범례 색상을 공용 GRADE_CONFIG로 통일</div>
 <pre><code>import { GRADE_CONFIG } from '@/utils/airQuality';
 
@@ -344,8 +379,10 @@ const AirmapFlagLevel: FlagDataLevel[] = [
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/map/controller/MapControllers.tsx" target="_blank" rel="noopener">src/components/map/controller/MapControllers.tsx</a><span class="src">줌 슬라이더 · 조작 시 현재 줌 레벨 툴팁(valueLabelDisplay)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/contexts/MapControlContext.tsx" target="_blank" rel="noopener">src/contexts/MapControlContext.tsx</a><span class="src">소스/이미지/레이어 적재 순서 제어 · 클러스터 클릭 시 통합 sourceId 사용</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/markerDialog/MarkerDialogList.tsx" target="_blank" rel="noopener">src/components/markerDialog/MarkerDialogList.tsx</a><span class="src">마커 요약/상세 다이얼로그 렌더</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/markerDialog/airmap/DetailDialogAirmap.tsx" target="_blank" rel="noopener">src/components/markerDialog/airmap/DetailDialogAirmap.tsx</a><span class="src">Air Map 마커 상세 차트 · makeGradeBarColor 로 막대 값별 등급색 · lineColors 지정</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/MapUtils.ts" target="_blank" rel="noopener">src/utils/MapUtils.ts</a><span class="src">통합 마커 소스·레이어 3종·클러스터 집계(min/maxFlag·min/maxLevel) · 이종 클러스터 이미지/툴팁 아이콘 · 플래그 정의 · GRADE_CONFIG 등급 색상 · addTintLayer / filterPoiLayers</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/markerDialog/airmap/DetailDialogAirmap.tsx" target="_blank" rel="noopener">src/components/markerDialog/airmap/DetailDialogAirmap.tsx</a><span class="src">Air Map 마커 상세 차트 · makeGradeBarColor 로 막대 값별 등급색 · lineColors 지정 · deviceId 단위 탭 선택 상태 · getAirmapDeviceKind 로 소음 유형 보정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/station/airmapAir/DetailAirQuality.tsx" target="_blank" rel="noopener">src/pages/station/airmapAir/DetailAirQuality.tsx</a><span class="src">마커 '상세 더보기' 진입 시 전달받은 deviceTypeName 으로 기본 측정항목·조회 프로퍼티(소음은 noise/db) 자동 선택</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/airQuality.ts" target="_blank" rel="noopener">src/utils/airQuality.ts</a><span class="src">getNoiseGrade — 소음 등급 경계값을 정수 미만 비교로 정정(소수점 한 자리 흡수)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/MapUtils.ts" target="_blank" rel="noopener">src/utils/MapUtils.ts</a><span class="src">통합 마커 소스·레이어 3종·클러스터 집계(min/maxFlag·min/maxLevel) · 이종 클러스터 이미지/툴팁 아이콘 · 플래그 정의(flagNoise 포함) · getAirmapDeviceKind(DEV_DIV_CD 보정) · GRADE_CONFIG 등급 색상 · addTintLayer / filterPoiLayers</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

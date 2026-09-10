@@ -57,6 +57,7 @@
     <p>메뉴 조립 함수는 캐시 유무로 두 갈래가 되었습니다. 실제 조립은 순수 함수 <code>buildMenuList(siteCode, serviceType)</code>가 맡고, <code>getMenuList</code>는 그 결과를 <code>cachedMenuList</code>에 담아 돌려줍니다. 덕분에 현재 화면의 캐시를 건드리지 않고도 임의의 사이트·서비스 유형에 대한 메뉴를 다시 계산할 수 있습니다. 여기에 하위 메뉴 id 집합을 만드는 <code>getAvailableMenuIds(menuList)</code>와 목록에서 경로를 찾는 <code>getMenuPathFromList(menuList, menuId)</code>가 더해져, 권한 판정 결과를 메뉴 id 단위로 재사용합니다.</p>
     <p>이 구조는 통합 검색(<code>SmartSearch</code>)의 결과 이동 제어에 쓰입니다. 검색 결과를 클릭하면 <code>isSmartSearchResultAvailable</code>(<code>components/search/smartSearchFilter.ts</code>)이 결과 유형별 대상 메뉴 id를 먼저 구합니다. 디바이스는 Air Map이면 <code>stationStatus</code>, 그 외에는 <code>devices</code>, 서비스대상은 <code>serviceTargets</code>, 구역은 <code>zones</code>, 메뉴 결과는 <code>menuType</code>이 대상입니다. 이 id가 현재 권한 메뉴 집합에 없으면 이동 자체를 막습니다. 메뉴 유형이 아닌 결과는 <code>unitServiceCode</code>가 세션 사이트의 <code>realcode</code>와 같을 때만 통과시켜 다른 단위서비스의 데이터로 넘어가지 않게 하고, 지도(<code>map</code>) 결과는 판정 대상에서 제외합니다.</p>
     <p>가드 적용 범위의 예외도 있습니다. SMS 수신동의 페이지(<code>/:site/sms-consent</code>)는 로그인과 무관하게 접근해야 하는 공개 페이지라, <code>SiteGuard</code>·<code>ProtectedRoute</code> 트리 밖의 독립 형제 라우트로 배치되어 전환 판정을 타지 않습니다. 반대로 가드를 통과한 뒤에는 Home·Overview 라우트가 <code>AutoRefreshRoute</code>(scope <code>home</code>/<code>overview</code>)로 한 겹 더 감싸집니다. 이 컴포넌트는 <code>useParams()</code>의 <code>site</code>를 <code>key</code>에 넣어, 사이트가 바뀌면 자동 갱신 바운더리가 통째로 재마운트되고 새 타이머가 현재 시각부터 다시 시작하도록 합니다.</p>
+    <p><code>SiteGuard</code>의 훅 호출 순서 결함도 함께 정리되었습니다. 이전에는 <code>site</code>가 <code>ALLOWED_SITE_PATHS</code>에 없으면 <code>useLocation</code>·이후 로직에 도달하기 전에 <code>return &lt;Error /&gt;</code>로 먼저 빠졌는데, 렌더마다 이 분기 결과가 뒤집힐 수 있어 호출되는 훅의 개수가 렌더 간에 달라지는 React 규칙 위반이었습니다. 지금은 <code>useLocation</code>을 조기 반환보다 앞으로 올리고, 판정 로직은 <code>isKnownSite</code>(경로 유효성)와 <code>isValidAccess</code>(<code>target</code>이 있을 때만 <code>checkPermission</code> 호출)로 나눠 <code>target</code>이 없는 상태에서 <code>checkPermission</code>이 <code>prevSite.code</code> 접근으로 크래시하지 않게 가드합니다. 세션 정리 <code>useEffect</code>도 "허용된 site 경로일 때만" 정리하도록 <code>isKnownSite</code> 조건을 추가해, <code>Error</code> 화면으로 빠지는 경로에서는 기존처럼 세션을 건드리지 않습니다. <code>ProtectedRoute</code> 역시 세션 <code>site</code>가 없을 때 <code>site?.path</code>를 그대로 문자열에 넣어 <code>/undefined/login</code>으로 이동시키던 결함을 고쳐, 세션이 없으면 URL 첫 세그먼트를 대신 씁니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       세션 정리와 WebSocket 해제를 부적합 접근 시 즉시 수행해, 권한 없는 다른 사이트의 실시간 채널·토큰이 남지 않도록 합니다. 보호 진입 자체는 별도로 <code>ProtectedRoute</code>가 세션 <code>site.code</code> 유무로 한 번 더 가립니다.
@@ -199,6 +200,44 @@ useEffect(() =&gt; {
 if (!isValidAccess) return &lt;Navigate to={`/${urlSite}/login`} replace /&gt;;</code></pre>
     </div>
     <div class="snippet">
+      <div class="sc"><code>src/routes/route.tsx</code> · <code>src/routes/ProtectedRoute.tsx</code> — 훅 호출 순서 고정 · undefined 경로 방지</div>
+<pre><code>const SiteGuard = ({ children }: { children: React.ReactNode }) =&gt; {
+  const { site } = useParams();
+  const { disconnect } = useWebSocket();
+  // 조기 return 보다 항상 먼저 호출되도록 위치를 고정한다 (렌더 간 훅 개수 불일치 방지)
+  const location = useLocation();
+
+  const isKnownSite = Boolean(site &amp;&amp; ALLOWED_SITE_PATHS.includes(site));
+  const target = SITE_LIST.find((obj) =&gt; obj.path === location.pathname.split('/')[1]);
+  // target 이 없는 상태로 checkPermission 을 부르면 prevSite.code 접근에서 크래시하므로
+  // 실제 크래시 조건(target 존재 여부)을 직접 가드한다
+  const isValidAccess = Boolean(target) &amp;&amp; checkPermission(target, currentSite);
+
+  useEffect(() =&gt; {
+    // 허용된 site 경로일 때만 정리한다 — Error 로 빠지는 경로는 세션을 건드리지 않는다
+    if (isKnownSite &amp;&amp; !isValidAccess) {
+      disconnect();
+      sessionStorage.clear();
+    }
+  }, [disconnect, isKnownSite, isValidAccess]);
+
+  if (!isKnownSite) return &lt;Error /&gt;;
+  if (!isValidAccess) return &lt;Navigate to={`/${urlSite}/login`} replace /&gt;;
+  return children;
+};
+
+// ProtectedRoute: site 가 없을 때 site?.path 를 그대로 쓰면 '/undefined/login' 이 된다
+export default function ProtectedRoute() {
+  const site = getSessionStorage('site');
+  const location = useLocation();
+  if (!site?.code) {
+    const firstSegment = location.pathname.split('/')[1];
+    return &lt;Navigate to={`/${site?.path ?? firstSegment}/login`} replace /&gt;;
+  }
+  return &lt;Outlet /&gt;;
+}</code></pre>
+    </div>
+    <div class="snippet">
       <div class="sc"><code>src/config.ts</code> — 사이트 진입 경로 변경(코드·realcode는 유지)</div>
 <pre><code>export const SITE_LIST = [
   { code: '001ENV301', realcode: '001ENV301', title: 'Air Map', path: 'airbiz' },        // 구 air
@@ -290,14 +329,14 @@ const AutoRefreshRoute = ({ scope, children }: AutoRefreshRouteProps) =&gt; {
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">SiteGuard · checkPermission · sms-consent 공개 라우트 · 부적합 시 disconnect/세션 정리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">SiteGuard · checkPermission · sms-consent 공개 라우트 · 부적합 시 disconnect/세션 정리 · 훅 호출 순서를 조기 return 앞으로 고정 · isKnownSite/isValidAccess 분리</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/util.ts" target="_blank" rel="noopener">src/utils/util.ts</a><span class="src">hasRole(targetLevel) · USER_ROLES 인덱스 비교</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">USER_ROLES 5단계 · SITE_LIST 경로(airbiz/factorydx/airmon) · SITE_CODES · SITE_MENU serviceType · AIDX_ALL_SERVICE_TYPE · isWidgetSettingServiceType</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/menu/menuItems.tsx" target="_blank" rel="noopener">src/layout/menu/menuItems.tsx</a><span class="src">buildMenuList(순수 조립)/getMenuList(캐시) 분리 · getAvailableMenuIds · getMenuPathFromList · 서비스 고객 권한의 DX 메뉴 노출 제한 · AMI 현황/배전선로 작업현황 재노출</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modules/autoRefresh/AutoRefreshRoute.tsx" target="_blank" rel="noopener">src/modules/autoRefresh/AutoRefreshRoute.tsx</a><span class="src">가드 통과 후 Home·Overview를 사이트 단위 key로 감싸는 자동 갱신 바운더리</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/search/smartSearchFilter.ts" target="_blank" rel="noopener">src/components/search/smartSearchFilter.ts</a><span class="src">검색 결과 접근 판정 — 유형별 대상 메뉴 id 산출 · availableMenuIds·realcode 대조</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/popup/SmartSearch.tsx" target="_blank" rel="noopener">src/layout/popup/SmartSearch.tsx</a><span class="src">buildMenuList·getAvailableMenuIds로 권한 메뉴 집합을 만들고 접근 불가 결과의 이동을 차단</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/ProtectedRoute.tsx" target="_blank" rel="noopener">src/routes/ProtectedRoute.tsx</a><span class="src">세션 site.code 유무로 보호 화면 진입 판정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/ProtectedRoute.tsx" target="_blank" rel="noopener">src/routes/ProtectedRoute.tsx</a><span class="src">세션 site.code 유무로 보호 화면 진입 판정 · site 없을 때 URL 첫 세그먼트로 로그인 경로 보정(undefined 방지)</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

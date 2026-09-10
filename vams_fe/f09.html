@@ -49,7 +49,7 @@
   <section id="desc">
     <h2>기능 개요</h2>
     <p>얼굴인식은 콘텐츠 영상에서 검출된 인물 얼굴을 배역(인물)별로 정리하고, AI가 잘못 묶은 얼굴을 운영자가 바로잡는 메뉴입니다. 목록(<code>FaceRecognitionListPage</code>)은 2026-08-28 실 BE 경로로 이관되어 <strong>공통#1</strong>(<code>GET /api/content-info/list?serviceType=CI</code>)을 직접 쓰고, 완결여부 3택1 필터를 feature-local ref로 유지해 공용 <code>listQuery</code> 스토어를 침범하지 않습니다(<code>completedYn</code>은 페이지에서 머지). 정렬은 상태칩이 <code>all</code>이 아닐 때 <code>PRIORITY</code>를 <code>LATEST</code>로 강등하는 공통 가드를 그대로 씁니다. 우측 <code>FaceRecognitionDetailPanel</code>이 행 요약을 보여주고(작업이력=공통#3 + 콘텐츠정보=공통#2 순차 조인, 후자가 실패해도 패널 상단은 살립니다), [검수] CTA가 AppShell 밖 <strong>bare 풀스크린 라우트</strong> <code>/face-recognition/:jobId</code>로 진입시킵니다. 목록 상단에서는 콘텐츠를 횡단하는 전역 배역 조회 모달(<code>FaceRoleListModal</code>, FC-003)을 열 수 있으며, 실계약(얼굴인식#1 <code>/api/person-meta</code>)은 검색어가 없으면 건수 제한 없이 전량(실측 421건)을 주므로 "최근 등록 배역" 3건은 클라이언트에서 <code>RECENT_ROLE_LIMIT</code>로 잘라 보여줍니다.</p>
-    <p>상세 화면(<code>FaceRecognitionDetailPage</code>)의 본문 3개 섹션(배역 칩 행 · 검출 썸네일 그리드 · 대표 이미지 아코디언)은 2026-08-27 실계약 정합으로 <strong>두 API 조인</strong>이 되었습니다 — 라우트가 가진 건 <code>jobId</code>뿐이라 먼저 <code>resolveFaceContentId</code>(공통#3)로 <code>contentId</code>를 얻은 뒤, 얼굴인식#3(<code>/api/face-result/contents/{contentId}</code>, 검출 그리드)과 얼굴인식#4(<code>/api/content-person-mapp/content/{contentId}</code>, 칩·대표이미지쌍)를 병렬로 불러 조인합니다. 한쪽이 실패해도 화면 전체를 죽이지 않고 그 섹션만 비웁니다. 이 조인 결과는 <strong>최초 fetch 로더 전용</strong>으로만 쓰입니다 — <code>staleTime: Infinity</code> + <code>refetchOnMount/WindowFocus: false</code>로 두고, 성공하면 <code>store.hydrate()</code>가 결과를 Pinia 스토어로 1회 이관합니다. 이후 렌더 소스는 오직 <code>store.result</code>이며, 대표/후보 토글·인물 재지정·대표 영역 지정은 전부 <strong>로컬 스테이징(네트워크 0)</strong>으로 처리하고 BE 쓰기는 헤더 [저장] 한 경로로 모읍니다. 썸네일 제어(<code>FaceSizeControl</code>)로 검출 얼굴 크기를 조절하거나 "결과만 보기"를 토글할 수 있습니다. 헤더의 [재생성](공통#8 단건)·[연동](공통#6, jobId 하나로 일괄 API를 호출) 버튼도 2026-08-28에 실제로 배선되었습니다 — 그 전까지는 눌러도 아무 반응이 없는 버튼이었습니다. [이전]으로 나갈 때 dirty 상태면 [취소]/[저장 후 종료]/[저장하지 않고 종료] 3버튼 확인 팝업이 뜨는 것도 2026-08-31에 배선되었습니다(저장 실패 시에는 이탈하지 않습니다) — 포스터·썸네일·구간마킹·하이라이트·개인화 포스터 5개 메뉴가 이미 쓰던 공용 <code>ConfirmDialog</code> 패턴에 얼굴인식만 배선이 빠져 있던 것입니다.</p>
+    <p>상세 화면(<code>FaceRecognitionDetailPage</code>)의 본문 3개 섹션(배역 칩 행 · 검출 썸네일 그리드 · 대표 이미지 아코디언)은 2026-08-27 실계약 정합으로 <strong>두 API 조인</strong>이 되었습니다 — 라우트가 가진 건 <code>jobId</code>뿐이라 먼저 <code>resolveFaceContentId</code>(공통#3)로 <code>contentId</code>를 얻은 뒤, 얼굴인식#3(<code>/api/face-result/contents/{contentId}</code>, 검출 그리드)과 얼굴인식#4(<code>/api/content-person-mapp/content/{contentId}</code>, 칩·대표이미지쌍)를 병렬로 불러 조인합니다. 한쪽이 실패해도 화면 전체를 죽이지 않고 그 섹션만 비웁니다. 이 조인 결과는 <strong>최초 fetch 로더 전용</strong>으로만 쓰입니다 — <code>staleTime: Infinity</code> + <code>refetchOnMount/WindowFocus: false</code>로 두고, 성공하면 <code>store.hydrate()</code>가 결과를 Pinia 스토어로 1회 이관합니다. 이후 렌더 소스는 오직 <code>store.result</code>이며, 대표/후보 토글·인물 재지정·대표 영역 지정은 전부 <strong>로컬 스테이징(네트워크 0)</strong>으로 처리하고 BE 쓰기는 헤더 [저장] 한 경로로 모읍니다. 썸네일 제어(<code>FaceSizeControl</code>)로 검출 얼굴 크기를 조절하거나 "결과만 보기"를 토글할 수 있습니다. 헤더의 [재생성](공통#8 단건)·[연동](공통#6, jobId 하나로 일괄 API를 호출) 버튼도 2026-08-28에 실제로 배선되었습니다. 카드 상태(<code>cardState</code>)는 <strong>normal/representative/unrecognized 3종뿐입니다</strong> — Flipbook v0.9.00(2026-06-11) 「후보 상태 제외 / 수정됨 상태 삭제 / 대표 이미지 1개 정책」을 2026-09-09 REST 실측으로 재확인해 candidate(후보)·edited(수정됨) 상태를 도메인·어댑터·카드 컴포넌트에서 모두 걷어냈습니다. 대표 지정은 <strong>인물당 1개 배타</strong>입니다 — hover [대표로 지정]을 누르면 <code>setRepresentativeLocal</code>이 같은 인물의 종전 대표를 자동으로 normal로 강등시키고, hover 버튼 자체가 얼굴인식#6(<code>POST /api/generate-profile/{faceResultId}</code>) 자동 크롭을 호출한 뒤 얼굴인식#7을 1초 간격·30초 상한으로 폴링해(완료 시 <code>S</code> 상태의 <code>imagePath</code>) 로컬 대표로 반영합니다 — 크롭이 끝나기 전 카드는 "생성 중…" pending 표시와 함께 저장 버튼을 잠급니다. — 그 전까지는 눌러도 아무 반응이 없는 버튼이었습니다. [이전]으로 나갈 때 dirty 상태면 [취소]/[저장 후 종료]/[저장하지 않고 종료] 3버튼 확인 팝업이 뜨는 것도 2026-08-31에 배선되었습니다(저장 실패 시에는 이탈하지 않습니다) — 포스터·썸네일·구간마킹·하이라이트·개인화 포스터 5개 메뉴가 이미 쓰던 공용 <code>ConfirmDialog</code> 패턴에 얼굴인식만 배선이 빠져 있던 것입니다.</p>
     <p>편집 상태는 <code>faceRecognitionEdit</code> 스토어가 <code>shallowRef</code>로 소유합니다. 결과 그래프가 불변(immutable)이라 deep reactivity가 필요 없고, 루트 참조만 갈아끼우면 파생 computed가 전부 갱신되기 때문입니다. 그래서 <code>isDirty</code>는 <code>result !== baselineResult</code> 참조 비교 O(1)로 판정되고, 이 판정이 성립하려면 <code>faceResultMutations.ts</code>의 모든 transform이 불변이면서 no-op일 때 인자를 <strong>그대로</strong> 반환해야 합니다(위반 시 헛 dirty). 실행취소·재실행은 이 불변성 덕에 루트 참조 스냅샷 스택으로 충분해 클론 없이 O(1) push/pop이며, 상한은 50단계(<code>FACE_HISTORY_LIMIT</code>)로 초과분은 가장 오래된 이력부터 버립니다. 모든 편집은 <code>commit()</code> 단일 관문을 지나므로 필터칩·스크롤·모달 열기 같은 보기 상태는 구조적으로 이력에 기록되지 않습니다. <code>FaceBox</code>는 실계약 확인 후 축이 둘로 나뉘었습니다 — 검출 박스(<code>faceBox</code>·<code>otherFaces</code>)는 실계약 그대로 <strong>절대 px</strong>인 반면 대표 영역 드래그(<code>repRegion</code>)는 여전히 <strong>정규화 0~1</strong>이라, <code>FaceAnalysisModal</code>이 <code>&lt;img&gt;</code>의 <code>naturalWidth</code>/<code>naturalHeight</code>로 나눠 px를 비율로 환산하는 지점(<code>toRatioBox</code>)을 화면 쪽에 하나 두어 렌더·라벨 배치가 여전히 비율 축으로만 동작하게 합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트 — 저장 후 캐시 승격</div>
@@ -58,6 +58,10 @@
     <div class="callout">
       <div class="ct">참고 — 계약 상태(2026-08-27/28 실계약 정합 완료)</div>
       종전 <code>FACE_API</code>의 경로는 전부 [추정]이었고 저장은 Mock 로컬 반영 수준이었으나, 목록(공통#1)·상세 패널(공통#2+#3)·본문 결과(얼굴인식#3+#4 조인)·저장(얼굴인식#10 인물 재지정 PUT + 얼굴인식#8 대표이미지 POST, 순차 호출)·연동(공통#6)·재생성(공통#8)까지 전부 실 BE 경로로 전환되었습니다. 대표 <strong>영역</strong> 지정(얼굴인식#9 <code>POST /api/image-crop</code>, 절대 px)만 되읽는 응답 경로가 없어(FC-C10) 이번 전환 범위 밖으로 남아 있습니다. 저장 응답은 HTTP 200이면서 <code>{code:'JOB_NOT_REREQUESTABLE'}</code>류로 거절될 수 있어, <code>assertSaved</code>가 엔벨로프 <code>code</code>를 직접 확인합니다(HTTP 상태만 보면 거절이 성공 토스트로 보입니다).
+    </div>
+    <div class="callout warn">
+      <div class="ct">주의 — 대표이미지 저장 손실 방어(2026-09-09 머지 전 리뷰 BLOCKER)</div>
+      hover [대표로 지정]은 크롭을 거치지 않아 <code>profileImagePath</code>가 아직 없을 수 있는데, 얼굴인식#8은 <code>editList</code> <strong>전체 스냅샷</strong>이라 그 상태로 저장하면 "경로 없는 대표"가 배열에서 통째로 빠져 <strong>BE에 이미 저장돼 있던 그 인물의 대표이미지가 삭제</strong>됩니다(성공 토스트까지 뜨는데도). <code>toFaceRepImageSave(result, baseline)</code>가 현재 대표에 경로가 없으면 <code>baseline</code>의 같은 인물 대표(경로 있음)로 대신 실어 손실을 0으로 막고, 대체된 항목은 <code>skipped</code>로 보고해 페이지가 경고 토스트를 띄웁니다. 재지정으로 인물을 떠난 얼굴은 이 대체 대상이 아닙니다(그 인물 대표를 유지해 줄 근거가 없음).
     </div>
   </section>
 
@@ -152,10 +156,9 @@ classDiagram
     }
     class FaceResultMutations {
         &lt;&lt;pure module&gt;&gt;
-        +setRepresentative(result, id)
-        +setCandidate(result, id)
+        +setRepresentative(result, id) 인물당 1개 배타(자동 강등)
         +reassignDetection(result, id, personId)
-        +setRepRegion(result, id, box)
+        +setRepRegion(result, id, box) 승격도 배타
     }
     class FaceAnalysisModal {
         +detection FaceDetection
@@ -198,7 +201,8 @@ classDiagram
     class FaceDetection {
         +detectionId
         +personId · reassignedPersonId
-        +cardState
+        +cardState normal|representative|unrecognized(3종, candidate·edited 폐기)
+        +profileImagePath 자동크롭(#6/#7) 결과
         +faceBox 절대 px(실계약)
         +repRegion FaceBox 정규화 0~1
     }
@@ -405,8 +409,8 @@ export function resolveFaceLabelPlacement(input: FaceLabelPlacementInput): FaceL
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/components/FaceDetectionGrid.vue" target="_blank" rel="noopener">features/face-recognition/components/FaceDetectionGrid.vue</a><span class="src">검출 썸네일 그리드 — 헤더(제목+개수)·카드 목록, 필터링은 페이지 책임</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/components/FaceSizeControl.vue" target="_blank" rel="noopener">features/face-recognition/components/FaceSizeControl.vue</a><span class="src">썸네일 제어 — 검출 얼굴 크기 조절 · 결과만 보기 토글</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/components/FaceRoleListModal.vue" target="_blank" rel="noopener">features/face-recognition/components/FaceRoleListModal.vue</a><span class="src">배역 인식 목록 모달(FC-003) — 콘텐츠 횡단 전역 인물 조회(keyword 단일 축)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/queries.ts" target="_blank" rel="noopener">features/face-recognition/queries.ts</a><span class="src">queryKey 전략 · resolveFaceContentId(jobId→contentId 축전환) · fetchFaceRecognitionResult(#3+#4 조인) · saveFaceRecognitionResult(#10+#8 순차) · assertSaved · postRegenerate/postLink</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/adapters/faceRecognition.ts" target="_blank" rel="noopener">api/adapters/faceRecognition.ts</a><span class="src">toFaceAssignSave(result, baseline) — 변경분만 추출(재지정 해제는 baseline 비교로만 판별) · toFaceRepImageSave</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/queries.ts" target="_blank" rel="noopener">features/face-recognition/queries.ts</a><span class="src">queryKey 전략 · resolveFaceContentId(jobId→contentId 축전환) · fetchFaceRecognitionResult(#3+#4 조인) · saveFaceRecognitionResult(#10+#8 순차) · postGenerateProfile(#6)+pollProfileResult(#7) 자동크롭 · assertSaved · postRegenerate/postLink</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/adapters/faceRecognition.ts" target="_blank" rel="noopener">api/adapters/faceRecognition.ts</a><span class="src">toFaceAssignSave(result, baseline) — 변경분만 추출(재지정 해제는 baseline 비교로만 판별) · toFaceRepImageSave(result, baseline)→{dto,skipped}(2026-09-09 저장 손실 방어) · 인물당 대표 1개 콘텐츠 전체 배타 파생</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/face-recognition/routes.ts" target="_blank" rel="noopener">features/face-recognition/routes.ts</a><span class="src">라우트 — 목록(AppShell children) · 상세(top-level bare, props true)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/api/endpoints.ts" target="_blank" rel="noopener">api/endpoints.ts</a><span class="src"><code>FACE_API</code> — 실계약(얼굴인식#1/2/3/4/8/9/10) + 목록/상세/연동/재처리는 공통 계열(공통#1/2/3/6/7/8)로 이관, 자체 list/detail/link/reprocess 상수는 제거(2026-08-28)</span></li>
     </ul>

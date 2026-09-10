@@ -22,12 +22,12 @@
       <span class="badge gray">관리자 웹앱 (Vue 3 SPA)</span>
     </div>
     <h1>AI 골라보기 (Watch Pick)</h1>
-    <p class="one-liner">장면·인물·비식별 그룹 축으로 묶인 클립을 타임라인에서 편집하는 bare 풀스크린 에디터입니다. 구간 타임라인과 시퀀스 타임라인 2개의 독립 뷰포트, BE 프레임 기반 필름스트립, 클립 추가·제외·분할과 50단계 undo/redo를 갖추며 모든 편집은 로컬 스테이징 후 [저장] 1회로만 서버에 반영됩니다.</p>
+    <p class="one-liner">장면·인물·비식별 그룹 축으로 묶인 클립을 타임라인에서 편집하는 bare 풀스크린 에디터입니다. 구간 타임라인과 시퀀스 타임라인 2개의 독립 뷰포트, 클라이언트에서 직접 뽑는 필름스트립(WebCodecs+Range · IndexedDB 누적 캐시), 클립 추가·제외·분할과 50단계 undo/redo를 갖추며 모든 편집은 로컬 스테이징 후 [저장] 1회로만 서버에 반영됩니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/vams_fe" target="_blank" rel="noopener"><code>vams_fe</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
-      <div class="item"><div class="k">핵심 컴포넌트·화면</div><div class="v"><code>src/features/watch-pick/</code> — 목록·상세패널 + <code>edit/</code> 타임라인 에디터 · 타임라인 인프라는 <code>src/shared/media-edit/</code> 공용(f11과 공유)</div></div>
-      <div class="item"><div class="k">기능 맥락</div><div class="v">LNB 13개 메뉴 중 구현 11개 도메인의 하나 · 실 BE 계약 v1.0.4 반영</div></div>
+      <div class="item"><div class="k">핵심 컴포넌트·화면</div><div class="v"><code>src/features/watch-pick/</code> — 목록·상세패널 + <code>edit/</code> 타임라인 에디터 · 타임라인·필름스트립 인프라는 <code>src/shared/media-edit/</code> 공용(f11과 진입 흐름까지 공유, 2026-09-10 <code>useSessionFilmstrip</code> 승격)</div></div>
+      <div class="item"><div class="k">기능 맥락</div><div class="v">LNB 13개 메뉴 중 구현 13개 도메인의 하나 · 실 BE 계약 v1.0.4+ 반영, [연동]/[재생성] 성공 시 목록 복귀(2026-09-10)</div></div>
     </div>
   </div>
 </header>
@@ -51,8 +51,10 @@
     <p>AI 골라보기는 시청자가 특정 인물·장면만 골라 볼 수 있도록 AI가 뽑아낸 클립 구간을 운영자가 검수·편집하는 메뉴입니다. 목록(<code>WatchPickListPage</code>)과 우측 <code>WatchPickDetailPanel</code>은 다른 메뉴와 동일한 공통 리스트 패턴을 따르고, [검수]로 AppShell 밖 <strong>bare 풀스크린 편집화면</strong> <code>WatchPickEditPage</code>에 진입합니다. 편집화면은 상단 정보바(<code>ClipInfoBar</code>)와 툴바, 가운데 플레이어(<code>WatchPickEditPlayer</code>)·재생 박스, 하단 <strong>구간 타임라인</strong>(<code>WatchPickRangeTimeline</code>)과 <strong>시퀀스 타임라인</strong>(<code>WatchPickSequenceTimeline</code>), 그리고 클립 카드 그리드(<code>ClipCardGrid</code>)로 구성됩니다.</p>
     <p>편집 데이터는 2단계 조회로 조립됩니다. 먼저 목록과 같은 <code>fetchWatchPickDetail</code>로 콘텐츠 정보를 얻고, 편집 결과는 <code>fetchWatchPickResult</code>가 실 계약 4종(C1 flat 행 · C3 행동코드 · C4 인물 · C5 비식별 그룹)을 병렬 호출해 어댑터에서 조인합니다. 이 중 <strong>필수는 C1뿐</strong>입니다 — 나머지 셋은 표시명 조인 소스라 <code>Promise.allSettled</code>로 개별 실패를 빈 배열로 degrade 해 코드·ID 폴백으로 화면을 띄웁니다. 여기에 <strong>셰이프 드리프트 방어</strong>가 있습니다. API 스펙 v1.0.4에서 C4 응답이 <code>data[]</code>에서 <code>data.personList[]</code>로 한 겹 깊어졌는데, 셰이프가 어긋나면 거부가 아니라 <code>undefined</code>로 이행하고 <code>allSettled</code>는 그것을 성공으로 보기 때문에 degrade가 걸리지 않고 어댑터의 <code>persons.map</code>에서 터져 편집 화면 전체가 뜨지 않았습니다. 지금은 fetch 지점과 <code>settled()</code> 두 곳에서 배열 여부를 확인해 degrade 경로로 되돌립니다. 이 조회에 앞서 <strong>키 축 변환</strong>이 한 단계 더 있습니다 — 라우트 파라미터는 <code>jobId</code>지만 C1~C5 편집 API는 전부 <code>contentId</code> 축입니다(실측: jobId 6290 ↔ contentId 4138, 서로 다른 값). <code>resolveWatchPickContentId</code>가 공통#3(<code>GET /api/job/{jobId}</code>)으로 정본 <code>contentId</code>를 먼저 얻은 뒤에야 C1~C5·저장(C2)을 부릅니다 — jobId를 그대로 실으면 200으로 "클립 없음"이거나 다른 콘텐츠에 저장되는 조용한 오염이 발생하기 때문입니다.</p>
     <p>상태 소유권은 vue-query가 아니라 Pinia <code>watchPickEdit</code> 스토어에 있습니다. result 쿼리는 <code>staleTime: Infinity</code> 로더 전용이고 성공 시 <code>hydrate()</code>가 1회 이관하며, 이후 렌더 소스는 <code>store.result</code>뿐입니다. 클립 저장·추가·제외·분할은 전부 <code>resultMutations.ts</code>의 순수 불변 transform을 스토어 액션으로 감싼 로컬 커밋(네트워크 0)이고, BE 쓰기는 <code>saveWatchPickResult</code>(C2 PATCH, <code>editList</code> 전체 스냅샷) 하나뿐입니다. dirty는 3종으로 분리해 <code>isClipDirty</code>(선택 클립 draft 3필드)·<code>isJobDirty</code>(<code>result !== baselineResult</code> 참조 비교)·<code>isAnyDirty</code>로 나누며, 실행취소는 커서 + 스냅샷 배열 방식으로 50단계(<code>MAX_HISTORY_STEPS</code>)까지 보관합니다. 신규 클립은 임시 ID로 발급하고 저장 응답의 <code>idMap</code>(응답에 확정 매핑이 없어 위치 기반 <code>buildIdMapFallback</code>으로 복원)으로 재매핑합니다. 재생 자체는 스토어가 아니라 페이지 스코프 컴포저블 <code>useWatchPickPlayer</code>가 소유합니다 — 단일 <code>&lt;video&gt;</code>의 재생상태 단일 소유자로, 재생 중엔 rAF 루프로 <code>currentMs</code>를 매 프레임 갱신하고(타임코드 표시용 <code>timeupdate</code>만으로는 포인터가 끊깁니다), <code>seekMs</code>·<code>stepFrame</code>·<code>setPlaybackRate</code>를 제공합니다.</p>
-    <p>타임라인은 DOM에 의존하지 않는 순수 ms 뷰포트(<code>useTimelineViewport</code>)로 구현했습니다. 자막 편집기의 WaveSurfer 위임 로직(<code>setViewWindow</code>·<code>zoomCenter</code>·휠 팬·플레이헤드 추종·조작 후 <code>FOLLOW_RESUME_MS</code> 유예)을 DOM 없이 재구현한 것으로, <code>viewStartMs</code>/<code>viewEndMs</code> 두 ref가 진리원이고 나머지는 전부 파생입니다. 구간·시퀀스 타임라인은 이 뷰포트를 <strong>각자 1개씩</strong> 갖습니다(공유 금지). 좌표 변환은 <code>timeline/scale.ts</code>의 순수 함수(<code>msToX</code>·<code>xToMs</code>·<code>getMsAtClientX</code>·<code>snapToFrame</code>)가 담당합니다. 배경 필름스트립은 <strong>화면 고정 72×48 그리드</strong>입니다 — 타일 위치는 줌·팬에 불변이고 각 타일의 프레임 이미지 내용만 뷰 창에 따라 바뀌며, 임의 시각의 최근접 프레임은 이진탐색(<code>frameUrlAt</code>, O(log n))으로 찾습니다. <strong>이 타임라인 인프라(뷰포트·좌표 유틸·필름스트립·눈금·스크롤바)는 골라보기 전용에서 AI 하이라이트 편집(f11)과의 공용 계층 <code>src/shared/media-edit/</code>로 승격됐습니다</strong> — 두 화면이 같은 Figma 컴포넌트 트리(Video Task Panel/Timeline Structure)를 쓰던 약 1,500줄 중복을 해소한 것으로, 골라보기 로컬 <code>edit/timeline/</code>·<code>useTimelineViewport.ts</code>·<code>useFilmstrip.ts</code>는 폐기되고 두 화면 모두 공용 모듈을 import합니다(Card List·TransportBar 등 나머지 컴포넌트는 도메인별 기능 차이가 커 각 feature에 유지). 프리뷰 높이는 드래그 리사이즈(기본 248 / 최소 92 / 최대 492px)로 조절되며 <code>localStorage</code>에 영속됩니다.</p>
+    <p>타임라인은 DOM에 의존하지 않는 순수 ms 뷰포트(<code>useTimelineViewport</code>)로 구현했습니다. 자막 편집기의 WaveSurfer 위임 로직(<code>setViewWindow</code>·<code>zoomCenter</code>·휠 팬·플레이헤드 추종·조작 후 <code>FOLLOW_RESUME_MS</code> 유예)을 DOM 없이 재구현한 것으로, <code>viewStartMs</code>/<code>viewEndMs</code> 두 ref가 진리원이고 나머지는 전부 파생입니다. 구간·시퀀스 타임라인은 이 뷰포트를 <strong>각자 1개씩</strong> 갖습니다(공유 금지). 좌표 변환은 <code>timeline/scale.ts</code>의 순수 함수(<code>msToX</code>·<code>xToMs</code>·<code>getMsAtClientX</code>·<code>snapToFrame</code>)가 담당합니다. <strong>이 타임라인 인프라(뷰포트·좌표 유틸·필름스트립·눈금·스크롤바)는 골라보기 전용에서 AI 하이라이트 편집(f11)과의 공용 계층 <code>src/shared/media-edit/</code>로 승격됐습니다</strong> — 두 화면이 같은 Figma 컴포넌트 트리(Video Task Panel/Timeline Structure)를 쓰던 약 1,500줄 중복을 해소한 것으로, 골라보기 로컬 <code>edit/timeline/</code>·<code>useTimelineViewport.ts</code>·<code>useFilmstrip.ts</code>는 폐기되고 두 화면 모두 공용 모듈을 import합니다(Card List·TransportBar 등 나머지 컴포넌트는 도메인별 기능 차이가 커 각 feature에 유지). 프리뷰 높이는 드래그 리사이즈(기본 248 / 최소 92 / 최대 492px)로 조절되며 <code>localStorage</code>에 영속됩니다.</p>
+    <p><strong>배경 필름스트립은 더 이상 BE가 주지 않습니다</strong> — 2026-09 초 재설계로 BE <code>…/filmstrip</code> 경로를 전량 삭제하고, <strong>브라우저에서 직접 프레임을 추출</strong>하는 공용 파이프라인(<code>src/shared/media-edit/</code>)으로 완전히 대체했습니다. HLS(fMP4) 세그먼트를 자체 파서(<code>mp4/boxes.ts</code>·<code>hls/playlist.ts</code>)로 읽어 WebCodecs로 디코드하는 고속 경로(<code>extractFilmstripWebCodecs.ts</code> → <code>fastExtractCore.ts</code>, 지원 브라우저 한정)를 우선 쓰고, 미지원이면 <code>&lt;video&gt;</code> seek + <code>canvas.drawImage</code> 폴백으로 내려갑니다. 추출은 Web Worker(<code>filmstripExtract.worker.ts</code>)로도 오프로드할 수 있고, 결과는 <strong>IndexedDB 누적 캐시</strong>(<code>filmstripCache.ts</code> — 키는 영상 src 하나, 레벨(간격) 무관 프레임 풀에 병합·upsert)에 쌓여 재진입 시 이미 뽑은 구간은 다시 추출하지 않습니다. 추출 순서는 화면이 <strong>지금 보는 구간을 먼저</strong> 받도록 우선순위 큐(<code>filmstripPriority.ts</code>)가 매 슬롯마다 재계산하고, 플레이어가 버퍼링 중이면 배경 추출이 새 요청을 내지 않고 양보(hold)해 재생·seek을 방해하지 않습니다. 줄인 간격(줌인)·넓힌 간격(줌아웃)은 <code>useFilmstripRefine</code>이 coarse→fine 사다리로 필요한 만큼만 채우고, 상세 패널을 열 때 <code>prefetchFilmstrip</code>이 저밀도 전체 + 앞부분 촘촘 2단으로 미리 IndexedDB를 데워 둡니다. 이 진입 흐름 전체(캐시 조회 → absorb → 계획 → 창 한정 추출 → 병합 → refine)는 <strong><code>useSessionFilmstrip</code></strong>(2026-09-10 승격) 하나로 묶여 골라보기·하이라이트 두 화면이 정책값(시작 지연·초기 우선 구간·로그 태그)만 다르게 주입해 공유합니다. 소비 측 <code>useFilmstrip</code>은 이 출처 변화를 몰라도 되도록 타일을 여전히 <strong>72×48 격자</strong>로 노출하지만, 타일 앵커는 화면 고정이 아니라 <strong>시간 슬롯</strong>입니다(2026-09-04 변경) — 슬롯이 타임라인과 함께 px 단위로 흐르고, 임의 시각의 최근접 프레임은 이진탐색(<code>frameUrlAt</code>)으로 찾는 것은 이전과 같습니다.</p>
     <p>[저장] 직전에는 <strong>C7 구간 썸네일 추출</strong>(<code>ensureClipThumbnails</code>)이 한 번 돕니다. 클립을 추가·분할하거나 시작 시각을 바꾸면 그 클립은 자기 썸네일(<code>thumbPath</code>)이 없는데, 종전에는 이웃 클립의 값을 그대로 써서 <strong>남의 썸네일을 자기 것으로 저장</strong>했습니다. 지금은 <code>needsThumbnailExtraction</code>으로 대상을 골라 클립의 시작 시각 프레임을 C7(<code>POST /api/thumbnail</code>)로 순차 추출합니다. C7은 BE가 NAS에 파일을 쓰는 <strong>쓰기</strong>라서 편집 조작마다 부르지 않고 [저장] 직전 한 번만 부릅니다 — 이 화면엔 undo/redo가 있어 그때마다 불렀다면 되돌려진 편집 몫의 고아 파일이 쌓이기 때문입니다. 실패하면 빈 <code>thumbPath</code>가 저장되지 않도록 저장 자체를 중단합니다.</p>
+    <p>목록에서 [검수]로 진입할 때는 <code>WatchPickListPage</code>가 이미 알고 있는 <code>contentId</code>를 route query 힌트로 함께 넘겨(2026-09-04) <code>resolveWatchPickContentId</code>의 공통#3 왕복을 기다리지 않고 그 축으로 먼저 조회를 시작합니다 — 단 <strong>확정은 항상 공통#3</strong>이고 힌트와 다르면 그 결과를 버리고 재조회합니다(딥링크 직접 진입은 종전과 동일). [저장]은 <code>editList</code> 전체 스냅샷이라 "빠진 행 = 삭제"로 서버가 해석한다는 것이 2026-09-01 개발서버 왕복으로 확정됐는데, 그 결과 <strong>죽은 resultId(실행취소로 되살린 옛 id)를 그대로 실으면 저장 전체가 422로 거절</strong>됩니다 — <code>stripStaleResultIds</code>가 저장 직전 "서버가 아직 모르는" resultId를 지워 신규 삽입으로 접게 해 이를 막고, 저장 후 <code>reconcileSaveContract</code>가 재조회해 그 확정 id를 <code>rehydrateClipIds</code>로 채택합니다. 또한 2026-09-10에 [연동]·[재생성] 성공 시 <strong>목록으로 복귀</strong>하도록 고쳤습니다 — 13개 메뉴 전수 조사 결과 골라보기만 성공 토스트만 띄우고 화면에 머물러 있었습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트 — 인물 재지정은 전량 로컬</div>
       비식별 그룹을 실제 인물로 지정하는 C6(PUT)은 <code>personId</code>를 body·path·query 중 어디로 넘기는지 BE 미확답(WP-C2)이라 배선하지 않았습니다. 인물 재지정 모달(<code>WatchPickPersonAssignModal</code>)은 <code>assignUnknownLocal</code>/<code>excludeUnknownLocal</code>로 전량 로컬 스테이징하고, 결과는 [저장]의 <code>editList</code> 전체 스냅샷에 실려 나갑니다. 엔드포인트는 주석 seam으로만 남겨 두었습니다.
@@ -85,7 +87,7 @@ sequenceDiagram
     Q-&gt;&gt;AD: toWatchPickResult(rows, actions, persons, groups)
     AD--&gt;&gt;HOOK: WatchPickResult (scenes · persons · unknowns)
     HOOK-&gt;&gt;ST: hydrate(jobId, result) — 히스토리 초기 스냅샷 1개
-    HOOK-&gt;&gt;Q: fetchWatchPickFilmstrip(jobId) — 실패해도 진입 허용
+    Note over HOOK: useSessionFilmstrip(src) — IndexedDB 캐시 absorb → 창 한정 클라이언트 추출 → 병합(BE 무관)
 
     USR-&gt;&gt;PAGE: 타임라인 휠·드래그 (줌/팬)
     PAGE-&gt;&gt;VP: zoomCenter / panByMs / suspendFollow
@@ -167,9 +169,24 @@ classDiagram
     }
     class UseFilmstrip {
         &lt;&lt;shared media-edit composable&gt;&gt;
-        +tiles FilmstripTile
+        +tiles FilmstripTile 시간앵커
         +frameUrlAt(ms) 이진탐색
         +hasFrames
+    }
+    class UseSessionFilmstrip {
+        &lt;&lt;shared media-edit composable, f11과 공유&gt;&gt;
+        캐시absorb → 창한정추출 → 병합 → refine
+        +attachVideo(el) · reportViewport(vs, ve)
+        +dispose()
+    }
+    class FilmstripCache {
+        &lt;&lt;shared IndexedDB&gt;&gt;
+        키=src · 프레임풀(level별) · completeLevels
+    }
+    class FilmstripPriority {
+        &lt;&lt;shared pure+state&gt;&gt;
+        +pickNextSegment(pending, range)
+        +hold(token) · release(token) 재생양보
     }
     class TimelineScale {
         &lt;&lt;shared pure module&gt;&gt;
@@ -210,6 +227,10 @@ classDiagram
     WatchPickRangeTimeline --&gt; UseTimelineViewport : 전용 인스턴스(f11과 모듈 공유)
     WatchPickSequenceTimeline --&gt; UseTimelineViewport : 전용 인스턴스(f11과 모듈 공유)
     WatchPickSequenceTimeline --&gt; UseFilmstrip
+    UseWatchPickEdit --&gt; UseSessionFilmstrip : 진입 흐름 위임(f11과 공유)
+    UseSessionFilmstrip --&gt; FilmstripCache : 조회·병합
+    UseSessionFilmstrip --&gt; FilmstripPriority : 뷰포트 우선순위·재생양보
+    UseSessionFilmstrip --&gt; UseFilmstrip : Filmstrip ref 공급
     UseFilmstrip ..&gt; TimelineScale
     WatchPickEditStore ..&gt; WatchPickResult
       </div>
@@ -329,6 +350,37 @@ export function getMsAtClientX(
 }</code></pre>
     </div>
     <div class="snippet">
+      <div class="sc"><code>src/shared/media-edit/filmstripPriority.ts</code> — 뷰포트 우선 추출 순수 판정(f11과 공용, 2026-09-04/09)</div>
+<pre><code>/**
+ * 우선순위: ① range 와 겹치는 세그먼트 중 startMs 오름차순 첫 번째
+ *           ② 겹치는 것이 없으면 range 경계와 가장 가까운 것
+ *           ③ range 가 null 이면 전부 startMs 오름차순(= 종전 순차 동작과 동치)
+ * 이미 진행 중인 fetch 는 취소하지 않는다 — 다음에 빌 슬롯에만 반영된다.
+ */
+export function pickNextSegment(
+  pending: readonly FilmstripPriorityRange[],
+  range: FilmstripPriorityRange | null,
+): number {
+  if (pending.length === 0) return -1
+  if (!range) {
+    let best = 0
+    for (let i = 1; i &lt; pending.length; i++) {
+      if (pending[i]!.startMs &lt; pending[best]!.startMs) best = i
+    }
+    return best
+  }
+  // ① 겹치는 세그먼트 중 startMs 오름차순 첫 번째 — 없으면 경계와 가장 가까운 것(생략, 소스 참조)
+  let overlapBest = -1
+  for (let i = 0; i &lt; pending.length; i++) {
+    const s = pending[i]!
+    if (s.endMs &gt;= range.startMs &amp;&amp; s.startMs &lt;= range.endMs) {
+      if (overlapBest === -1 || s.startMs &lt; pending[overlapBest]!.startMs) overlapBest = i
+    }
+  }
+  return overlapBest !== -1 ? overlapBest : 0
+}</code></pre>
+    </div>
+    <div class="snippet">
       <div class="sc"><code>src/features/watch-pick/edit/stores/watchPickEdit.ts</code> — 로컬 스테이징 진입점과 dirty 3종</div>
 <pre><code>/** 실행취소/재실행 최대 단계 — 초과 시 oldest 스냅샷 드롭. */
 const MAX_HISTORY_STEPS = 50
@@ -371,13 +423,19 @@ export const WATCH_PICK_PREVIEW_RESIZE: SplitResizeOptions = {
     <h2>관련 소스</h2>
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/watch-pick/edit/pages/WatchPickEditPage.vue" target="_blank" rel="noopener">features/watch-pick/edit/pages/WatchPickEditPage.vue</a><span class="src">bare 풀스크린 편집화면 — 헤더·정보바·툴바·플레이어·2 타임라인·클립 그리드 조립</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/watch-pick/edit/composables/useWatchPickEdit.ts" target="_blank" rel="noopener">features/watch-pick/edit/composables/useWatchPickEdit.ts</a><span class="src">2단계 조회 + 스토어 오케스트레이션 · 저장/초기화/undo 진입점</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/watch-pick/edit/composables/useWatchPickEdit.ts" target="_blank" rel="noopener">features/watch-pick/edit/composables/useWatchPickEdit.ts</a><span class="src">2단계 조회(contentId 힌트 선행) + 스토어 오케스트레이션 · 저장/초기화/undo 진입점 · stripStaleResultIds·reconcileSaveContract(422 방어)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/watch-pick/edit/stores/watchPickEdit.ts" target="_blank" rel="noopener">features/watch-pick/edit/stores/watchPickEdit.ts</a><span class="src">편집 스토어 — 로컬 스테이징 · dirty 3종 · 50단계 히스토리 · 인물 배정 로컬 반영</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/watch-pick/edit/resultMutations.ts" target="_blank" rel="noopener">features/watch-pick/edit/resultMutations.ts</a><span class="src">순수 불변 transform — 클립 편집/추가/제외/분할 · 임시 ID 발급 · idMap 재매핑</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/watch-pick/edit/queries.ts" target="_blank" rel="noopener">features/watch-pick/edit/queries.ts</a><span class="src">jobId→contentId 축 변환(공통#3) · C1~C5 병렬 조회·degrade·셰이프 방어 · C2 PATCH 저장 · C7 썸네일 추출 · 필름스트립 조회</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/watch-pick/edit/composables/useWatchPickPlayer.ts" target="_blank" rel="noopener">features/watch-pick/edit/composables/useWatchPickPlayer.ts</a><span class="src">재생 컨트롤러 — 단일 &lt;video&gt; 재생상태 단일 소유, rAF 프레임 갱신 · seekMs/stepFrame/setPlaybackRate</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/media-edit/useTimelineViewport.ts" target="_blank" rel="noopener">shared/media-edit/useTimelineViewport.ts</a><span class="src">순수 ms 뷰포트 — 줌/팬/플레이헤드 추종. 골라보기 전용에서 AI 하이라이트 편집(f11)과 공용 계층으로 승격</span></li>
-      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/media-edit/useFilmstrip.ts" target="_blank" rel="noopener">shared/media-edit/useFilmstrip.ts</a><span class="src">스크린 고정 72px 타일 그리드 + 최근접 프레임 이진탐색(f11과 공용)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/media-edit/useFilmstrip.ts" target="_blank" rel="noopener">shared/media-edit/useFilmstrip.ts</a><span class="src">시간 앵커 72px 타일 그리드 + 최근접 프레임 이진탐색(f11과 공용, 2026-09-04 스크린고정→시간앵커 재설계)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/media-edit/useSessionFilmstrip.ts" target="_blank" rel="noopener">shared/media-edit/useSessionFilmstrip.ts</a><span class="src">필름스트립 진입 흐름 공용 승격(2026-09-10, f11과 공유) — 캐시 absorb·창 한정 추출·refine 컨트롤러 오케스트레이션</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/media-edit/extractFilmstrip.ts" target="_blank" rel="noopener">shared/media-edit/extractFilmstrip.ts</a><span class="src">클라이언트 필름스트립 추출 — BE 경로 전량 삭제, WebCodecs+HLS 고속경로/캔버스 폴백 분기</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/media-edit/filmstripCache.ts" target="_blank" rel="noopener">shared/media-edit/filmstripCache.ts</a><span class="src">IndexedDB 누적 캐시(v2) — 키=src, 레벨별 프레임 풀 병합·completeLevels 단락 판정</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/media-edit/filmstripPriority.ts" target="_blank" rel="noopener">shared/media-edit/filmstripPriority.ts</a><span class="src">뷰포트 우선 동적 큐 + 재생 양보(hold/release) — pickNextSegment 순수 판정(f11과 공용)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/media-edit/useFilmstripRefine.ts" target="_blank" rel="noopener">shared/media-edit/useFilmstripRefine.ts</a><span class="src">줌 적응 coarse/fine 사다리 컨트롤러 — 뷰포트 보고 재평가, 빈 구간만 추가 추출</span></li>
+      <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/media-edit/prefetchFilmstrip.ts" target="_blank" rel="noopener">shared/media-edit/prefetchFilmstrip.ts</a><span class="src">상세 패널 진입 시 선행 추출 — 저밀도 전체 + 앞부분 촘촘 2단, 캐시 히트 skip</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/media-edit/timeline/scale.ts" target="_blank" rel="noopener">shared/media-edit/timeline/scale.ts</a><span class="src">좌표 변환 순수 유틸 — msToX / xToMs / getMsAtClientX / snapToFrame(f11과 공용)</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/shared/media-edit/useSplitResize.ts" target="_blank" rel="noopener">shared/media-edit/useSplitResize.ts</a><span class="src">상/하 분할 리사이즈 공용 로직(드래그·키보드·영속) — 골라보기·하이라이트·구간마킹 3벌 중복 해소</span></li>
       <li><a href="https://bitbucket.org/altimedia/vams_fe/src/develop/src/features/watch-pick/edit/components/WatchPickPersonAssignModal.vue" target="_blank" rel="noopener">features/watch-pick/edit/components/WatchPickPersonAssignModal.vue</a><span class="src">비식별 그룹 → 인물 배정 모달 (전량 로컬 스테이징, C6 미배선)</span></li>

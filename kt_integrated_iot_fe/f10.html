@@ -56,7 +56,7 @@
     <p>자료실 편집(<code>ResourceEdit</code>)은 SMART GREEN 병해충 도감 성격의 확장 필드(영문명·기주식물·증상·병해충 발생 현황·방제 방법 등)를 다루며, 저장은 <code>smartGreenApi.postResource()</code>/<code>putResource()</code>(<code>/bff/monitor/boards/resources</code>)로 처리합니다. 대표 사진은 base64 인라인 전송이 아니라 파일 업로드로 먼저 파일 ID를 받은 뒤 <code>thumbnailImage</code>로 전달하는 방식이며, 수정 진입 시 확장 필드는 상세 응답의 <code>extendData</code>(snake_case 컬럼 <code>english_name</code>·<code>host_plant</code> 등)와 매칭해 채웁니다. 서버 응답 필드명이 <code>extendedData</code>가 아니라 <code>extendData</code>인 것이 확인되어 상세·편집 양쪽 참조가 정정되었습니다.</p>
     <p>편집 화면은 기존 첨부를 보존하도록 보완되었습니다. 수정 진입 시 상세 응답의 <code>fileId</code>와 <code>extendData.thumbnail_image</code>를 <code>existingFileId</code>/<code>existingThumbnailId</code>로 잡아 두고, 새로 업로드하지 않으면 저장 payload에 그 값을 그대로 실어 보냅니다. 파일명은 <code>boardApi.fileList(fileId)</code>로 <code>originalName</code>을 조회해 <code>CustomFile</code>의 <code>displayName</code>으로 표시하고, 사용자가 첨부를 제거하면 기존 ID·파일명도 함께 해제합니다. 상세 화면(<code>ResourceDetail</code>)의 대표 사진도 URL 필드(<code>logoImageUrl</code>) 대신 <code>extendData.thumbnail_image</code> 파일 ID를 기준으로 <code>fileList</code> → <code>downloadFile</code>로 blob을 받아 <code>URL.createObjectURL</code>로 표시하며, 값이 바뀌거나 언마운트될 때 이전 object URL을 <code>revokeObjectURL</code>로 회수합니다. 목록(<code>ResourceList</code>)은 정렬·행 수 변경 시 이전 검색 상태가 잔류하지 않도록 <code>page</code>·<code>rowCount</code>·<code>order</code>·<code>filter</code>·<code>keyword</code>를 담은 새 객체로 검색 파라미터를 통째 교체합니다.</p>
     <p>최근 KT 보안성 검증 반영으로 자료실에서 허용하지 않는 확장자 업로드 시 노출되던 alert 문구가 제거되는 등 첨부 처리 정책이 강화되었습니다. 문의(Q&amp;A)는 운영자가 답변(<code>Reply</code>)을 등록하는 흐름을 포함하며, 문의 목록의 등록 버튼은 <code>hasRole()</code> 권한 판정으로 고객(서비스 고객) 계정에서만 노출되고 관제요원 이상 관리자 계정에서는 숨겨집니다. 문의 목록의 조회 버튼은 선택한 필터·정렬·조회기간을 초기화하지 않고 그대로 조회합니다.</p>
-    <p>공지사항에는 팝업 노출 기능이 추가되었습니다. 등록·수정 화면에 "팝업으로 표시" 체크박스가 생겨 <code>popupYn</code>을 <code>registNotice</code>/<code>editNotice</code> payload에 함께 보내며, 동시에 노출할 수 있는 개수는 <code>MAX_POPUP_NOTICE_COUNT</code>(3개)로 제한합니다. 편집 화면은 <code>boardApi.noticePopupList()</code>로 현재 팝업 대상 목록을 받아 수정 중인 글 자신을 제외하고 세어(<code>otherPopupCount</code>) 한도에 다다르면 체크박스를 막고 안내 문구를 띄웁니다. Home 진입 시에는 <code>modal/notice/NoticePopup</code>이 <code>/bff/monitor/boards/notice/popup</code> 목록을 등록 시간 최신순으로 정렬해 최대 3개까지 계단식(<code>STACK_OFFSET</code> 40px)으로 겹쳐 보여줍니다. 최신 공지가 화면 정중앙의 기준 카드가 되고 오래된 공지일수록 좌상단으로 밀려나며, 카드를 닫아도 언마운트하지 않고 <code>visibility</code>만 감춰 남은 카드가 재배치되지 않습니다. "오늘하루 보지 않기"는 게시글 단위 쿠키(<code>noticePopupHide_&lt;boardSequence&gt;</code>)를 그날 23:59:59 만료로 심어 처리하고, 첨부는 공통 <code>DownloadButton</code>으로 노출합니다. 이 버튼은 <code>unitServiceCode</code>를 <code>fileList</code>·<code>downloadFile</code> 헤더에 명시 전달하고 캐시 키도 <code>['files', unitServiceCode, fileId]</code>로 사이트별로 분리하도록 정비되었으며, 아이콘 + 밑줄 텍스트로 그리는 <code>variant="link"</code> 표시 형태가 함께 추가되었습니다.</p>
+    <p>공지사항에는 팝업 노출 기능이 추가되었습니다. 등록·수정 화면에 "팝업으로 표시" 체크박스가 생겨 <code>popupYn</code>을 <code>registNotice</code>/<code>editNotice</code> payload에 함께 보내며, 동시에 노출할 수 있는 개수는 <code>MAX_POPUP_NOTICE_COUNT</code>(3개)로 제한합니다. 편집 화면은 <code>boardApi.noticePopupList()</code>로 현재 팝업 대상 목록을 받아 수정 중인 글 자신을 제외하고 세어(<code>otherPopupCount</code>) 한도에 다다르면 체크박스를 막고 안내 문구를 띄웁니다. Home 진입 시에는 <code>modal/notice/NoticePopup</code>이 <code>/bff/monitor/boards/notice/popup</code> 목록을 등록 시간 최신순으로 정렬해 최대 3개까지 계단식(<code>STACK_OFFSET</code> 40px)으로 겹쳐 보여줍니다. 최신 공지가 화면 정중앙의 기준 카드가 되고 오래된 공지일수록 좌상단으로 밀려나며, 카드를 닫아도 언마운트하지 않고 <code>visibility</code>만 감춰 남은 카드가 재배치되지 않습니다. "오늘하루 보지 않기"는 게시글 단위 쿠키(<code>noticePopupHide_&lt;boardSequence&gt;</code>)를 그날 23:59:59 만료로 심어 처리하고, 첨부는 공통 <code>DownloadButton</code>으로 노출합니다. 이 쿠키명은 <code>userScopedCookieName('noticePopupHide')</code>가 세션 사용자 id를 접미로 붙여 로그인 사용자 단위로 스코프됩니다 — 이전에는 게시글 번호만으로 키를 만들어, 같은 브라우저를 공유하는 다른 사용자에게 "오늘 하루 보지 않기" 상태가 그대로 전파되는 문제가 있었습니다. 함께 손본 <code>utils/util.ts</code>의 <code>getCookie</code>는 쿠키명을 정규식에 그대로 끼워 넣던 방식이라, 사용자 스코프 쿠키명에 <code>encodeURIComponent</code>가 남기는 <code>. ! * ' ( )</code> 같은 메타문자가 들어오면 <code>RegExp</code> 문법 오류나 다른 쿠키와의 오탐 매칭이 날 수 있었습니다. 지금은 쿠키명의 정규식 메타문자를 이스케이프한 뒤 리터럴로만 매칭합니다. 이 버튼은 <code>unitServiceCode</code>를 <code>fileList</code>·<code>downloadFile</code> 헤더에 명시 전달하고 캐시 키도 <code>['files', unitServiceCode, fileId]</code>로 사이트별로 분리하도록 정비되었으며, 아이콘 + 밑줄 텍스트로 그리는 <code>variant="link"</code> 표시 형태가 함께 추가되었습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       확장자 검증을 업로드 공통 컴포넌트(<code>CustomFile</code>)에 두어 자료실·문의·기타 첨부가 동일한 보안 정책을 공유합니다. 검증 실패 시 입력 <code>value</code>를 비워 잘못된 파일이 폼에 남지 않게 합니다.
@@ -374,6 +374,27 @@ const handleClose = (notice: PopupNotice) =&gt; {
 visibility: closed ? 'hidden' : 'visible',</code></pre>
     </div>
     <div class="snippet">
+      <div class="sc"><code>src/utils/util.ts</code> — 로그인 사용자 단위 쿠키 스코프 · 메타문자 이스케이프</div>
+<pre><code>// '오늘 그만보기'류 쿠키는 로그인 사용자 단위로 저장한다. 세션 user.id를 쿠키명에 포함해
+// 같은 브라우저의 다른 사용자에게 숨김 상태가 전파되지 않게 한다.
+export const userScopedCookieName = (prefix: string): string =&gt; {
+  const user = getSessionStorage('user');
+  return `${prefix}_${encodeURIComponent(user?.id ?? 'anonymous')}`;
+};
+
+export const getCookie = (name: string): string | null =&gt; {
+  // 사용자 스코프 쿠키명에는 encodeURIComponent가 남겨두는 . ! * ' ( ) 가 들어올 수 있어,
+  // 이스케이프 없이는 RegExp SyntaxError(괄호)나 타 사용자 쿠키 오탐(./*)이 가능하다.
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&amp;');
+  const match = document.cookie.match(new RegExp('(^| )' + escaped + '=([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : null;
+};
+
+// src/modal/notice/NoticePopup.tsx
+const hideCookieName = (boardSequence: string | number) =&gt;
+  `${userScopedCookieName('noticePopupHide')}_${boardSequence}`;</code></pre>
+    </div>
+    <div class="snippet">
       <div class="sc"><code>src/pages/notice/NoticeEdit.tsx</code> — 팝업 노출 개수 제한(자기 자신 제외)</div>
 <pre><code>const { data: popupNoticeList } = useQuery({
   queryKey: noticeKeys.popups(unitServiceCode),
@@ -419,7 +440,8 @@ const payload = {
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/notice/queryKeys.ts" target="_blank" rel="noopener">src/pages/notice/queryKeys.ts</a><span class="src">공지 캐시 키 (list·detail·edit·navigation·popup)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/queryKeys.ts" target="_blank" rel="noopener">src/pages/resource/queryKeys.ts</a><span class="src">자료실 캐시 키</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/contactUs/queryKeys.ts" target="_blank" rel="noopener">src/pages/contactUs/queryKeys.ts</a><span class="src">문의 캐시 키</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modal/notice/NoticePopup.tsx" target="_blank" rel="noopener">src/modal/notice/NoticePopup.tsx</a><span class="src">Home 진입 시 팝업 공지 최대 3개 계단식 노출 · 오늘 하루 보지 않기 쿠키</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modal/notice/NoticePopup.tsx" target="_blank" rel="noopener">src/modal/notice/NoticePopup.tsx</a><span class="src">Home 진입 시 팝업 공지 최대 3개 계단식 노출 · 오늘 하루 보지 않기 쿠키(userScopedCookieName 로 사용자 단위 스코프)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/util.ts" target="_blank" rel="noopener">src/utils/util.ts</a><span class="src">userScopedCookieName(로그인 사용자 단위 쿠키명) · getCookie(메타문자 이스케이프로 안전화)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/notice/NoticeEdit.tsx" target="_blank" rel="noopener">src/pages/notice/NoticeEdit.tsx</a><span class="src">공지 등록·수정 · popupYn 체크박스 · 팝업 노출 개수 제한</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/notice/NoticeDetail.tsx" target="_blank" rel="noopener">src/pages/notice/NoticeDetail.tsx</a><span class="src">공지 상세 · 삭제 시 캐시 정리와 목록 복귀</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/notice/constants.ts" target="_blank" rel="noopener">src/pages/notice/constants.ts</a><span class="src">MAX_POPUP_NOTICE_COUNT (동시 노출 최대 3개)</span></li>

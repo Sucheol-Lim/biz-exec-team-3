@@ -56,6 +56,8 @@
     <p>대시보드 위젯은 사용자가 새로고침하지 않아도 최신 값을 유지해야 하므로, <code>modules/autoRefresh</code> 모듈이 신설되어 주기적 배경 갱신을 담당합니다. 각 위젯은 <code>createAutoRefreshQueryOptions({ scope, fetcher })</code>로 React Query 옵션을 만들고, 이 팩토리가 <code>queryFn</code>(화면 조회)과 <code>meta.autoRefresh.backgroundFetch</code>(배경 갱신)를 <strong>같은 <code>fetcher</code></strong>로 묶습니다. 덕분에 두 경로가 같은 API·같은 변환을 공유하고, 배경 경로만 <code>requestMode: 'background'</code>·<code>skipError: true</code>·30초 타임아웃(<code>AUTO_REFRESH_REQUEST_TIMEOUT_MS</code>)을 덧붙여 실패해도 오류 팝업을 띄우지 않습니다. <code>meta</code>는 해당 사이트가 자동 갱신 대상일 때만 붙이므로(<code>isAirMapAutoRefreshTarget</code> 등), 대상이 아닌 사이트에서는 위젯이 종전대로 동작합니다.</p>
     <p>실제 스케줄러는 <code>AutoRefreshBoundary</code>입니다. 마운트 시 <code>AUTO_REFRESH_INTERVAL_MS</code> 타이머를 걸고(<code>policy.ts</code>에서 5분으로 시작했다가 1분으로 단축), 발화하면 <code>QueryCache</code>에서 <code>meta.autoRefresh.scope</code>가 자신의 스코프와 같은 <em>활성</em> Query만 모아 배경 갱신 배치를 돌립니다. 배치 직전에 <code>commonApi.refreshToken</code>으로 세션 토큰을 먼저 회전시키며, 응답의 access token JWT에서 뽑은 <code>id</code>(<code>getTokenPayloadId</code>)가 요청 당시 사용자와 다르면 커밋하지 않습니다. 갱신 결과를 캐시에 반영하기 전에는 <code>canCommitBackgroundResult()</code>가 dispose·pause 세대·사이트 일치·Query 인스턴스 동일성·활성 여부·foreground 진행 여부·<code>dataUpdateCount</code>/<code>errorUpdateCount</code> 불변을 모두 확인해, 늦게 도착한 응답이 최신 화면 데이터를 덮어쓰지 못하게 막습니다. 탭이 숨겨지거나 오프라인이면 타이머를 걷고 재예약하지 않습니다. 전체 기능은 <code>VITE_AUTO_REFRESH_ENABLED</code> 플래그로 켜고 끕니다.</p>
     <p>위젯 편집 중에 화면이 갱신되면 편집 상태가 흔들리므로, <code>DashboardMap</code>·<code>DashboardCard</code>는 <code>isEditMode</code>가 켜지는 동안 <code>pauseAutoRefresh()</code>를 호출하고 편집이 끝나는 시점(effect cleanup)에 <code>resumeAutoRefresh()</code>로 새 주기를 시작합니다. 위젯 내부의 필터 변경처럼 사용자가 방금 조작한 직후에는 <code>postponeAutoRefresh()</code>로 유휴 타이머만 뒤로 미룹니다. <code>useAutoRefreshActivity()</code>는 바운더리 밖이나 플래그 OFF 상태에서도 항상 안전한 no-op 기본값을 돌려주므로 호출부에 분기가 필요 없습니다.</p>
+    <p>Air Map에 소음 전용 위젯 <strong>'소음 전체 Worst 5'</strong>(<code>noise_worst5</code> → <code>NoiseWorst5</code>)가 신설되었습니다. 기존 전체 Worst 5(<code>Worst5</code>)와 같은 <code>deviceApi.propertyList</code> 엔드포인트를 쓰되 <code>properties</code>를 <code>'db'</code> 하나로 좁혀 조회하며, react-query 캐시가 <code>queryKey</code>만으로 식별되는 탓에 두 위젯이 같은 키로 서로의 응답을 재사용하지 않도록 <code>properties</code>를 <code>queryKey</code>에도 함께 넣습니다. 값은 소수점 한 자리(<code>toFixed(1)</code>)로 고정 표기하고 <code>renderGradedValueByProperty</code>로 소음 범례 등급 색을 입힙니다. 지도형·카드형 기본·추가 배치 모두에 등록되어, 지도형은 전체 Worst 5 바로 아래 같은 컬럼에, 카드형은 넷째 칼럼에 배치됩니다.</p>
+    <p>위젯 배치 데이터를 다루는 <code>types/widget.ts</code>에서 결함 두 가지가 함께 정리되었습니다. 첫째, <code>getSavedWidgets</code>·<code>getAvailableWidgets</code>가 반환하던 사이트별 기본 배치·추가 목록은 <strong>모듈 상수 배열 자체</strong>였는데, <code>WidgetAdd.addWidget</code>이 그 원소(<code>x</code>/<code>y</code>/<code>w</code>/<code>h</code>)를 직접 대입해 변형하는 구조라 DX·SafeMate·AMI·과천처럼 추가 목록과 기본 배치가 같은 배열을 참조하는 사이트에서는 위젯을 한 번 추가하는 순간 상수 자체가 오염되어 '초기화'를 눌러도 원래 배치로 돌아가지 못했습니다. 지금은 <code>WidgetAdd.addWidget</code>이 <code>{ ...widget }</code> 복사본에만 좌표를 대입하고, <code>getSavedWidgets</code>/<code>getAvailableWidgets</code>도 반환 직전 <code>cloneWidgets()</code>로 얕은 복사본을 만들어 상수와 호출부를 격리합니다. 둘째, 카드형 그리드(<code>cols=60</code> 고정)에 지도형 치수(<code>cols</code>가 컨테이너 폭 기준으로 더 넓음) 목록을 그대로 재사용하던 문제를 걷어냈습니다. <code>availableAirmapWidgetsCard</code>는 지도형 목록 대신 카드 기본 배치(<code>defaultAirmapAirCard</code>)에서 치수를 파생하고, <code>availableSmartGreenWidgetsCard</code>도 카드 기본 배치 기준으로 다시 만들어 위젯이 그리드 폭의 77%를 차지하거나 <code>minW</code>가 과대해 줄일 수 없던 문제를 없앴습니다(스마트그린은 카드 기본 배치에 없는 '골프장 생육 현황'만 지도형 치수를 유지). 셋째, AI산업안전DX의 헤더 메뉴 '전체'(<code>serviceType=AIDX_ALL_SERVICE_TYPE</code>)로 들어간 카드형 화면은 서비스유형별 5종 분기 어디에도 걸리지 않아 지도형 배치(<code>defaultAiDxMap</code>)가 그대로 반환되었고, 카드 그리드에서 좌표가 클램프되며 위젯 3개가 겹쳐 렌더되는 결함이 있었습니다. 카드 전용 배치 <code>defaultAiDxCardAll</code>이 신설되어 이 문제를 해소합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       비편집 상태에서는 빈 격자 영역의 클릭이 아래 지도로 전달되도록 부모 <code>Stack</code>의 <code>pointerEvents</code>를 <code>none</code>으로 두고, 각 카드 <code>Box</code>만 <code>auto</code>로 두어 지도와 위젯이 한 화면에 공존합니다. 자동 갱신 쪽에서는 <code>pausedRef</code>·<code>hiddenRef</code> 같은 상태를 모두 <code>ref</code>로 관리해, pause/resume이 일어날 때마다 바운더리가 재렌더되어 하위 위젯 트리 전체가 다시 그려지는 일을 피합니다.
@@ -162,6 +164,7 @@ classDiagram
     class widgetTypes {
         +getSavedWidgets(code, type, data)
         +getAvailableWidgets(code, type)
+        -cloneWidgets(widgets) 반환 직전 얕은 복사
     }
     class WidgetControl {
         +saveLayout()
@@ -426,6 +429,34 @@ const handleRequestClose = (targetWidget: Widget) =&gt; {
 )}</code></pre>
     </div>
     <div class="snippet">
+      <div class="sc"><code>src/pages/home/WidgetAdd.tsx</code> · <code>src/types/widget.ts</code> — 기본 배치 상수 변형 오염 차단(복사본 반환)</div>
+<pre><code>// WidgetAdd: 인자로 받은 widget은 getAvailableWidgets가 돌려준 목록의 원소(=모듈 상수)다.
+// 좌표 대입 전에 복사본을 만들어 목록·기본값을 변형하지 않는다.
+const addWidget = (widget: Widget) =&gt; {
+  const newWidget: Widget = { ...widget };
+  if (widgets.length === 0) {
+    newWidget.x = 0; newWidget.y = 0;
+  } else {
+    // ... 오른쪽/다음 줄 배치 계산은 newWidget 에만 적용
+  }
+  setWidgets([...widgets, newWidget]);
+};
+
+// types/widget.ts: 기본 배치·추가 목록 반환 직전 항상 얕은 복사본을 만들어 상수와 호출부를 격리
+const cloneWidgets = (widgets: Widget[] | null | undefined) =&gt;
+  widgets ? widgets.map((widget) =&gt; ({ ...widget })) : widgets;
+
+export const getAvailableWidgets = (code: string, type: string): Widget[] =&gt; {
+  const isCard = type.startsWith('card');
+  switch (code) {
+    case SITE_CODES.AIRMAP:
+      // 카드형(cols=60 고정)에는 지도형 목록이 아니라 카드 기본 배치에서 파생한 목록을 준다
+      return cloneWidgets(isCard ? availableAirmapWidgetsCard : availableAirmapWidgets) ?? [];
+    // ...
+  }
+};</code></pre>
+    </div>
+    <div class="snippet">
       <div class="sc"><code>src/components/widget/index.tsx</code> · <code>src/types/widget.ts</code> — 상태별 색상 범례 위젯 등록</div>
 <pre><code>case 'status_color_legend':
   return {
@@ -458,7 +489,9 @@ const LEGEND_GRADES = [1, 2, 3, 4] as const;   // 좋음 / 보통 / 나쁨 / 매
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/DashboardCard.tsx" target="_blank" rel="noopener">src/pages/home/DashboardCard.tsx</a><span class="src">카드형 격자 · 편집모드 pause / 종료 시 resume · 마지막 위젯 닫기 확인 팝업 · 위젯 0개 빈 상태 안내</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/WidgetControl.tsx" target="_blank" rel="noopener">src/pages/home/WidgetControl.tsx</a><span class="src">편집 모드 토글 · 배치 저장 컨트롤</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/common.ts" target="_blank" rel="noopener">src/api/common.ts</a><span class="src">widgetList / registWidget / editWidget / deleteWidget</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/types/widget.ts" target="_blank" rel="noopener">src/types/widget.ts</a><span class="src">getSavedWidgets(hasOwnProperty 기준 · 빈 배열은 위젯 0개) / getAvailableWidgets(카드형·지도형 분기) · 사이트별 기본 배치(default*, failure_status 제거) · normalizeWidgets 보정 · WidgetProps.onRequestClose</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/types/widget.ts" target="_blank" rel="noopener">src/types/widget.ts</a><span class="src">getSavedWidgets(hasOwnProperty 기준 · 빈 배열은 위젯 0개) / getAvailableWidgets(카드형·지도형 분기) · 사이트별 기본 배치(default*, failure_status 제거) · normalizeWidgets 보정 · WidgetProps.onRequestClose · cloneWidgets 로 상수 변형 오염 차단 · noise_worst5 배치 · defaultAiDxCardAll · availableAirmapWidgetsCard/availableSmartGreenWidgetsCard 치수 분리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/widget/airmap/NoiseWorst5.tsx" target="_blank" rel="noopener">src/components/widget/airmap/NoiseWorst5.tsx</a><span class="src">소음 전체 Worst 5 위젯 — properties='db' 전용 조회 · toFixed(1) 고정 표기 · renderGradedValueByProperty 등급색</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/widget/airmap/Worst5.tsx" target="_blank" rel="noopener">src/components/widget/airmap/Worst5.tsx</a><span class="src">전체 Worst 5 — properties 를 queryKey 에 포함해 NoiseWorst5 와 캐시 분리</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/widgetLayoutConfig.ts" target="_blank" rel="noopener">src/utils/widgetLayoutConfig.ts</a><span class="src">migrateWidgetLayoutConfig — v2 스키마 변환 · 구버전 빈 배열 정리 · failure_status 제거</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/contexts/ConfigContext.tsx" target="_blank" rel="noopener">src/contexts/ConfigContext.tsx</a><span class="src">onChangeSavedWidgets(immutable 갱신) · onChangeHideWidgets(hiddenWidgetSites) · 로드 시 migrate 주입</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/hooks/useLocalStorage.ts" target="_blank" rel="noopener">src/hooks/useLocalStorage.ts</a><span class="src">migrate 인자 지원 · 첫 렌더 전 변환 후 재기록 · SetStateAction 타입 정리</span></li>

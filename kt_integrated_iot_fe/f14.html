@@ -56,6 +56,8 @@
     <p>사용자별 외형·배치 설정은 <code>ConfigProvider</code>가 <code>useLocalStorage</code>로 브라우저 로컬 스토리지 한 키(<code>zpdlxl-dkdldhxl-zjafig</code>)에 통째로 보관합니다. 보관 항목은 <code>mode</code>·<code>miniDrawer</code>에 더해 사이트별 위젯 배치(<code>savedWidgets</code>), 사이트별 위젯 On/Off 상태(<code>hiddenWidgetSites</code>), 저장 포맷 버전(<code>widgetLayoutVersion</code>)까지 확장되었습니다. 위젯 On/Off는 예전엔 화면 상태로만 남아 새로고침하면 초기화됐지만, <code>onChangeHideWidgets(code, hide)</code>로 배치와 같은 사이트 단위 영구 설정이 되었습니다. 갱신 함수(<code>onChangeSavedWidgets</code>·<code>onChangeHideWidgets</code>)는 이전 상태를 직접 고쳐 같은 참조를 돌려주던 방식에서, 새 객체를 반환하는 immutable 갱신으로 바뀌었습니다. 같은 참조를 돌려주면 <code>useLocalStorage</code>의 <code>setState</code>가 <code>Object.is</code>로 변경 없음이라 판단해 재렌더를 건너뛸 수 있기 때문입니다.</p>
     <p>저장 포맷이 바뀔 때를 대비해 마이그레이션 훅도 들어갔습니다. <code>useLocalStorage(key, defaultValue, migrate)</code>는 세 번째 인자로 변환 콜백을 받아 첫 렌더 전에 저장값을 변환하고, 결과가 달라졌으면 그 자리에서 다시 기록해 구버전 값이 화면에 잠깐이라도 노출되지 않게 합니다. 다른 탭에서 온 <code>storage</code> 이벤트 값도 같은 변환을 거칩니다. 실제 변환기 <code>migrateWidgetLayoutConfig</code>는 저장된 <code>widgetLayoutVersion</code>이 <code>WIDGET_LAYOUT_VERSION</code>(현재 <code>2</code>)과 다를 때만 동작해, Air Map에서 제거된 장애(미수신) 현황 위젯(<code>type === 'failure_status'</code>)을 걸러내고 빈 배열로 남은 배치 항목은 아예 제거합니다. 구버전 로직에서 빈 배열은 기본 위젯으로 해석됐기 때문에 그대로 두면 기존 사용자 화면이 바뀌기 때문이며, 마이그레이션 이후 저장된 빈 배열만 위젯 0개로 인정합니다.</p>
     <p>사이트별 외형 분기도 몇 가지 정리되었습니다. 푸터의 ‘에어코리아’ 외부 링크는 성격에 맞게 Air Map과 과천 관제센터에서만 노출하도록 조건이 붙었고, 과천은 Air Map과 같은 경로 그룹이지만 <code>SITE_CODES.GWACHEON</code>으로 먼저 분기해 전용 로그인 배경(<code>bg_gwacheon-login.png</code>)과 전용 로고(<code>loginGwacheon.svg</code>)를 사용합니다. 로그인 화면 하단 문의처는 <code>LOGIN_CONTACT_INFO</code> 맵에 등록된 사이트에만 렌더링됩니다. 전역 스타일(<code>index.css</code>)에는 지도 이종 클러스터 툴팁용 클래스(<code>.cluster-marker-row</code>·<code>.cluster-marker-icon</code>·<code>.cluster-marker-name</code>)가 추가되어, 다크 모드에서 라벨 색을 별도로 덮어씁니다.</p>
+    <p>레이아웃 셸(<code>MainLayout</code>·<code>main.tsx</code>)에는 렌더 크래시에 대한 최후 방어선으로 <code>ErrorBoundary</code>(<code>components/ErrorBoundary.tsx</code>)가 2단으로 신설되었습니다. <code>variant="content"</code>는 <code>MainLayout</code>의 <code>Outlet</code>만 감싸 페이지 렌더가 예외를 던져도 사이드바·헤더·푸터 셸은 그대로 유지한 채 "다시 시도" 버튼으로 콘텐츠 영역만 복구하고, <code>resetKey</code>로 받은 <code>location.pathname</code>이 바뀌면 오류 상태가 자동으로 리셋됩니다(같은 라우트 안에서 파라미터만 바뀌는 <code>detail/:id</code> 같은 경로가 전체 리마운트되지 않도록 <code>key</code> 재마운트 방식 대신 state 비교 방식을 씁니다). <code>variant="global"</code>은 <code>main.tsx</code>에서 <code>Routes</code> 전체(셸·로그인 화면 포함)를 감싸는 최후 경계로, "새로고침" 버튼이 <code>window.location.reload()</code>를 호출합니다. React가 스스로 복구하는 오류(콘솔의 <code>#520</code>류)는 이 경계에 도달하지 않고 기존처럼 콘솔에만 남습니다.</p>
+    <p>로그아웃 경로의 크래시·정리 누락도 함께 정리되었습니다. <code>Header</code>의 로그아웃 처리는 순서를 세션 정리 → WebSocket 해제로 뒤집고 <code>disconnect()</code>를 <code>try/catch</code>로 감싸, 소켓 해제가 실패해도 <code>sessionStorage.clear()</code>에 도달하지 못해 인증 정보가 남는 일이 없게 했습니다. <code>Sidebar</code>는 로그아웃 직후 세션이 비워진 채로 다시 렌더될 수 있다는 전제로 <code>isCurrSite</code>의 <code>site.code</code> 접근과 DX 서브타이틀 갱신 <code>useEffect</code>의 <code>site.code</code> 비교를 모두 옵셔널 체이닝으로 바꿨습니다(가드가 없으면 <code>TypeError</code>가 나고 React가 전체 루트를 동기 렌더로 복구하는 콘솔 오류 <code>#520</code>이 남았습니다). 즐겨찾기 토글 아이콘을 다루는 <code>PageLayout</code>은 메뉴 캐시가 아직 채워지지 않은 콜드 로드 첫 렌더에서 <code>menu?.id + ''</code> 같은 문자열 결합으로 <code>'undefined'</code>를 그대로 즐겨찾기 payload에 저장하던 경로를 막아, 클릭 시점에 메뉴를 다시 조회해 유효한 값일 때만 전송합니다. <code>useFavorite</code> 훅에도 같은 방어가 한 번 더 들어가, 다른 호출 경로가 생겨도 오염이 재발하지 않습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       palette·typography·components를 파일로 분리하고 <code>mode</code>를 인자로 받는 팩토리 형태로 둬서, 라이트/다크 두 모드를 같은 테마 구성으로 일관되게 생성합니다. 사이트·권한에 따른 차이는 테마가 아니라 <code>config</code> 상수와 <code>getMenuList</code> 조립 단계에 모아, 테마 생성 로직이 사이트별 분기로 오염되지 않게 했습니다.
@@ -152,6 +154,13 @@ classDiagram
     class Sidebar {
         +getLogo(type, mode)
         +setSiteSubName(label)
+        -isCurrSite(site 옵셔널 체이닝)
+    }
+    class ErrorBoundary {
+        +variant content·global
+        +resetKey
+        +componentDidCatch(error, info)
+        +render() Element
     }
 
     ThemeCustomization ..&gt; ConfigContext : mode 구독
@@ -165,6 +174,7 @@ classDiagram
     ConfigContext --&gt; useLocalStorage : 설정 영속화
     useLocalStorage ..&gt; widgetLayoutConfig : 첫 렌더 전 버전 마이그레이션
     widgetLayoutConfig ..&gt; config : WIDGET_LAYOUT_VERSION 비교
+    ErrorBoundary ..&gt; config : HEADER_HEIGHT·FOOTER_HEIGHT 로 안내 위치 보정
       </div>
       <p class="cap"><strong>관계.</strong> <code>ThemeCustomization</code>이 <code>ConfigContext</code>의 <code>mode</code>를 구독해 palette·typography·components로 테마를 조립하고, 레이아웃·메뉴는 <code>config</code> 상수와 <code>getMenuList</code>가 결정합니다. 사용자 설정 값 자체는 <code>useLocalStorage</code>가 보관하고, 저장 포맷 변경은 <code>migrateWidgetLayoutConfig</code>가 흡수합니다.</p>
     </div>
@@ -255,6 +265,61 @@ case SITE_CODES.AMI:
 )}</code></pre>
     </div>
     <div class="snippet">
+      <div class="sc"><code>src/components/ErrorBoundary.tsx</code> · <code>src/layout/MainLayout.tsx</code> · <code>src/main.tsx</code> — 2단 렌더 크래시 경계</div>
+<pre><code>class ErrorBoundary extends React.Component&lt;ErrorBoundaryProps, ErrorBoundaryState&gt; {
+  state = { hasError: false, resetKey: this.props.resetKey };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  // resetKey(예: location.pathname)가 바뀌면 리마운트 없이 오류 상태만 되돌린다
+  static getDerivedStateFromProps(props, state) {
+    if (props.resetKey !== state.resetKey) return { hasError: false, resetKey: props.resetKey };
+    return null;
+  }
+  componentDidCatch(error, info) { log.error(`[ErrorBoundary:${this.props.variant}]`, error, info.componentStack); }
+  render() {
+    if (!this.state.hasError) return this.props.children;
+    const isGlobal = this.props.variant === 'global';
+    return (
+      &lt;Stack sx={{ padding: isGlobal ? 0 : `${HEADER_HEIGHT}px 0 ${FOOTER_HEIGHT}px 0` }}&gt;
+        &lt;Text&gt;화면을 표시하는 중 문제가 발생했습니다&lt;/Text&gt;
+        &lt;Button onClick={() =&gt; isGlobal ? window.location.reload() : this.setState({ hasError: false })}&gt;
+          {isGlobal ? '새로고침' : '다시 시도'}
+        &lt;/Button&gt;
+      &lt;/Stack&gt;
+    );
+  }
+}
+
+// MainLayout.tsx — 콘텐츠 영역만 감싸 셸(Sidebar/Header/Footer)은 유지
+&lt;ErrorBoundary variant="content" resetKey={location.pathname}&gt;
+  &lt;Outlet /&gt;
+&lt;/ErrorBoundary&gt;
+
+// main.tsx — 셸·로그인 화면까지 포함한 최후 경계
+&lt;ErrorBoundary variant="global"&gt;
+  &lt;Routes /&gt;
+&lt;/ErrorBoundary&gt;</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/layout/Header.tsx</code> · <code>src/layout/Sidebar.tsx</code> — 로그아웃 크래시·세션 정리 누락 방지</div>
+<pre><code>// Header.tsx — 세션 정리를 먼저 하고, 소켓 해제 실패는 로그만 남긴다
+if (logoutResult?.message === 'OK') {
+  navigate(`/${site.path}/login`);
+  sessionStorage.clear();
+  try {
+    disconnect();
+  } catch (e) {
+    log.error(e);
+  }
+}
+
+// Sidebar.tsx — 로그아웃 직후 세션이 비워진 리렌더에서 site 가 null일 수 있다
+const isCurrSite = (site, code, childServiceType, userServiceType) =&gt; {
+  if (site?.code !== code) return false;
+  if (childServiceType) return childServiceType === userServiceType;
+  return true;
+};</code></pre>
+    </div>
+    <div class="snippet">
       <div class="sc"><code>src/contexts/ConfigContext.tsx</code> · <code>src/utils/widgetLayoutConfig.ts</code> — 설정 영속화와 저장 포맷 마이그레이션</div>
 <pre><code>// 설정은 로컬 스토리지 한 키에 보관하고, 세 번째 인자로 마이그레이션 콜백을 받는다
 const [config, setConfig] = useLocalStorage(
@@ -292,8 +357,13 @@ export const migrateWidgetLayoutConfig = (storedConfig: CustomizationProps) =&gt
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/themes/typography.ts" target="_blank" rel="noopener">src/themes/typography.ts</a><span class="src">타이포그래피(Pretendard 등)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">SITE_MENU(airbiz/factorydx/airmon · 전체 항목) · getDxServiceTypeLabel · LOGIN_CONTACT_INFO · 레이아웃/그리드 치수 상수 · WIDGET_LAYOUT_VERSION 및 기본 config(hiddenWidgetSites)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/menu/menuItems.tsx" target="_blank" rel="noopener">src/layout/menu/menuItems.tsx</a><span class="src">buildMenuList(순수 조립)/getMenuList(캐시) — 사이트/서비스 유형/권한별 메뉴 조립</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/Sidebar.tsx" target="_blank" rel="noopener">src/layout/Sidebar.tsx</a><span class="src">사이트 전환·서브타이틀(getDxServiceTypeLabel) · 경로별 로고 · headerServiceTargets 서비스대상 조회</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/Header.tsx" target="_blank" rel="noopener">src/layout/Header.tsx</a><span class="src">서비스대상 드롭다운 유형 필터(getDisplayOptions) · 전체 옵션 처리 · headerServiceTargets 이름순 조회</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/Sidebar.tsx" target="_blank" rel="noopener">src/layout/Sidebar.tsx</a><span class="src">사이트 전환·서브타이틀(getDxServiceTypeLabel) · 경로별 로고 · headerServiceTargets 서비스대상 조회 · 로그아웃 직후 세션 null 가드(isCurrSite·서브타이틀 effect)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/Header.tsx" target="_blank" rel="noopener">src/layout/Header.tsx</a><span class="src">서비스대상 드롭다운 유형 필터(getDisplayOptions) · 전체 옵션 처리 · headerServiceTargets 이름순 조회 · 로그아웃 처리 순서 정정(세션 정리 우선 · disconnect try/catch)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/MainLayout.tsx" target="_blank" rel="noopener">src/layout/MainLayout.tsx</a><span class="src">ErrorBoundary(variant=content) 로 Outlet 감싸기 · location.pathname 을 resetKey 로 전달</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/PageLayout.tsx" target="_blank" rel="noopener">src/layout/PageLayout.tsx</a><span class="src">즐겨찾기 아이콘 클릭 시 최신 메뉴를 다시 조회해 유효한 값일 때만 payload 전송(undefined 오염 방지)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/ErrorBoundary.tsx" target="_blank" rel="noopener">src/components/ErrorBoundary.tsx</a><span class="src">렌더 크래시 방어 경계 — variant content(콘텐츠 영역)/global(전체 라우트) · resetKey 로 리마운트 없이 상태만 리셋</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/main.tsx" target="_blank" rel="noopener">src/main.tsx</a><span class="src">ErrorBoundary(variant=global) 로 Routes 전체를 감싸는 최후 경계</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/hooks/useFavorite.ts" target="_blank" rel="noopener">src/hooks/useFavorite.ts</a><span class="src">즐겨찾기 payload 의 undefined 문자열 저장 차단(값 없으면 요청 자체를 보내지 않음)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/Footer.tsx" target="_blank" rel="noopener">src/layout/Footer.tsx</a><span class="src">에어코리아 링크를 에어맵·과천에서만 노출</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/AuthLayout.tsx" target="_blank" rel="noopener">src/layout/AuthLayout.tsx</a><span class="src">사이트별 로그인 배경·로고 — 과천 전용 분기</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/contexts/ConfigContext.tsx" target="_blank" rel="noopener">src/contexts/ConfigContext.tsx</a><span class="src">mode·miniDrawer·savedWidgets·hiddenWidgetSites 설정 Provider · immutable 갱신 · onChangeHideWidgets</span></li>
