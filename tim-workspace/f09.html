@@ -22,12 +22,12 @@
       <span class="badge gray">Gradle Kotlin DSL</span>
     </div>
     <h1>빌드 플레이버 · 기존 자산 재사용</h1>
-    <p class="one-liner"><code>PlatformFlavor</code> 3종(<code>tivibuEv</code>·<code>stvOtt</code>·<code>zteAosp</code>) 모두 applicationId가 여전히 Türk Telekom/ZTE 브랜드를 쓰고 있어, 이 앱이 <strong>기존 TT 코드베이스를 포크해 TIM용으로 개조하는 중</strong>임을 빌드 설정 자체가 보여줍니다.</p>
+    <p class="one-liner"><code>tivibuEv</code> 플레이버는 <code>jade</code>로 개명됐지만 <code>applicationId</code>는 여전히 <code>tivibu.android.stb</code>이고, <code>zteAosp</code>는 2026-08-31부로 enum에서 주석 처리돼 비활성 상태이며, <code>:dependency:platform:tt4k</code> 모듈은 <code>:dependency:platform:jade</code>로 이름이 바뀌었습니다 — 코드 자체가 "기존 TT 코드베이스를 TIM용으로 개조하는 중"임을 계속 보여줍니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tim-app-tv-android" target="_blank" rel="noopener"><code>tim-app-tv-android</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
       <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>build-logic/.../Flavor.kt</code></div></div>
-      <div class="item"><div class="k">플레이버 차원</div><div class="v"><code>flavorDimensions = ["platform"]</code></div></div>
+      <div class="item"><div class="k">활성 플레이버</div><div class="v"><code>jade</code>(기본) · <code>stvOtt</code> — <code>zteAosp</code>는 비활성</div></div>
     </div>
   </div>
 </header>
@@ -48,16 +48,11 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p><code>PlatformFlavor</code> enum(<code>build-logic/convention</code>)이 <code>platform</code> 단일 차원(dimension)에 세 플레이버를 등록합니다.</p>
-    <ul>
-      <li><code>tivibuEv</code> — 기본(<code>isDefault=true</code>) 플레이버. <code>applicationId = "tivibu.android.stb"</code>, <code>minSdk 26</code>/<code>targetSdk 36</code>.</li>
-      <li><code>stvOtt</code> — Smart TV OTT용. <code>applicationId = "com.ttnet.tivibutv"</code>(Türk Telekom Tivibu TV 그대로), <code>minSdk 26</code>/<code>targetSdk 36</code>. Staging 빌드타입은 이 플레이버에서만 활성화됩니다(<code>androidComponents.beforeVariants</code>).</li>
-      <li><code>zteAosp</code> — ZTE AOSP 단말용. <code>applicationId = "com.zte.aosp"</code>, minSdk/targetSdk는 override 없이 프로젝트 기본값을 그대로 씁니다.</li>
-    </ul>
-    <p>세 플레이버의 리소스 라벨은 <code>app_name_tim_stb</code>(tivibuEv·zteAosp) / <code>app_name_tim_ott</code>(stvOtt)로 이미 TIM 브랜드로 바뀌어 있지만, <strong>applicationId는 그대로</strong>입니다. 코드 주석에는 "Google Play 정책(2026-11-01 시한) 대응으로 tivibuEv/stvOtt는 targetSdk 36/minSdk 26으로 상향하고, zteAosp는 기존 값을 유지한다"는 날짜가 명시된 근거가 남아 있어, 플레이버별 SDK 정책이 서로 다른 일정으로 관리되고 있음을 알 수 있습니다.</p>
+    <p><code>PlatformFlavor</code> enum(<code>build-logic/convention</code>)이 <code>platform</code> 단일 차원(dimension)에 플레이버를 등록합니다. "rename-tim-jade" PR을 거치며 <code>tivibuEv</code> 식별자가 <code>jade</code>로 바뀌었지만 <code>applicationId = "tivibu.android.stb"</code>·<code>minSdk 26</code>/<code>targetSdk 36</code>은 그대로입니다. <code>stvOtt</code>(<code>com.ttnet.tivibutv</code>)는 "tt4k 하드웨어가 없는 플랫폼"이라는 주석과 함께 <code>dependency:platform:smarttv</code>를 검증하기 위해 유지되고 있고, <code>zteAosp</code>(<code>com.zte.aosp</code>)는 "AOSP STB 대응이 확정되면 되살린다"는 주석을 남긴 채 enum 등록 자체가 주석 처리되어 비활성 상태입니다(소스 디렉터리 <code>app/src/zteAosp</code>는 그대로 남아 있습니다).</p>
+    <p>같은 파일에는 <strong>실험했다가 되돌린 흔적</strong>도 남아 있습니다 — <code>server</code> flavor dimension(<code>ServerFlavor.staging</code>/<code>product</code>)을 추가했다가 "복원이 필요하면 '[gradle] remove server flavor dimension' 커밋을 확인하라"는 주석과 함께 전체를 주석 처리로 되돌렸습니다. 서버 환경 전환은 대신 <code>DomainConfig::serverType</code>과 <code>persist.sys.altimedia.build.type</code> 시스템 프로퍼티로 처리합니다. <code>:dependency:platform:tt4k</code> 모듈도 <code>:dependency:platform:jade</code>로 개명되어(<code>namespace = "com.altimedia.dependency.platform.jade"</code>) 이름 정리가 모듈 레벨까지 내려갔습니다.</p>
     <div class="callout">
-      <div class="ct">설계 포인트 — LauncherDataProvider authority도 플레이버별</div>
-      <code>tivibuEv</code> 플레이버는 <code>manifestPlaceholders["launcherDataProviderAuthority"] = "tivibu.android.stb.data.provider"</code>를 별도로 오버라이드합니다. 런처 데이터 제공자 authority까지 플레이버마다 다르게 고정해야 할 만큼, 기존 TT 자산과의 결합이 깊다는 뜻입니다.
+      <div class="ct">레거시 연동은 걷어내는 방향 — AIDL·mzcast·런처 authority</div>
+      "레거시 mzcast/TIM-OTA/런처 AIDL 연동 삭제" 커밋으로 <code>app/build.gradle.kts</code>의 <code>androidComponents.beforeVariants</code> staging 스위치와, <code>tivibuEv</code>(현 <code>jade</code>) 플레이버가 갖고 있던 <code>manifestPlaceholders["launcherDataProviderAuthority"]</code> 오버라이드가 함께 사라졌습니다. 기존 TT 런처와의 결합을 끊어내는 방향으로 정리가 진행 중임을 보여줍니다.
     </div>
   </section>
 
@@ -71,23 +66,15 @@ sequenceDiagram
     participant GR as Gradle (AGP)
     participant FL as PlatformFlavor
     participant EXT as configureFlavors()
-    participant VAR as androidComponents.beforeVariants
 
-    DEV->>GR: ./gradlew assembleTivibuEvDebug (예)
+    DEV->>GR: ./gradlew assembleJadeDebug (예)
     GR->>EXT: productFlavors 블록 평가
-    EXT->>FL: PlatformFlavor.values() 순회
-    FL-->>EXT: tivibuEv(applicationId, minSdk, targetSdk, ...)
+    EXT->>FL: PlatformFlavor.values() 순회 — jade, stvOtt (zteAosp는 주석 처리돼 제외)
+    FL-->>EXT: jade(applicationId=tivibu.android.stb, minSdk=26, targetSdk=36)
     EXT->>GR: applicationId/minSdk/targetSdk/versionName 적용
-    GR->>VAR: beforeVariants(variantBuilder)
-    VAR->>VAR: buildType이 staging? flavor가 stvOtt인가?
-    alt staging + stvOtt 아님
-        VAR->>GR: variantBuilder.enable = false (변형 제외)
-    else 그 외
-        VAR->>GR: 정상 진행
-    end
-    GR-->>DEV: 선택된 플레이버·빌드타입 조합만 빌드
+    GR-->>DEV: 선택된 플레이버 조합만 빌드
       </div>
-      <p class="cap"><strong>흐름.</strong> <code>PlatformFlavor</code> enum 값이 그대로 Gradle <code>productFlavors</code>로 등록되고, staging 빌드타입은 <code>beforeVariants</code> 훅으로 <code>stvOtt</code> 플레이버에서만 살아남습니다.</p>
+      <p class="cap"><strong>흐름.</strong> <code>PlatformFlavor</code> enum 값이 그대로 Gradle <code>productFlavors</code>로 등록되며, <code>zteAosp</code>는 enum 자체가 주석 처리돼 있어 이 순회에 참여하지 않습니다. 과거 있던 <code>stvOtt</code> 전용 staging 변형 스위치(<code>beforeVariants</code>)는 레거시 연동 정리 과정에서 제거됐습니다.</p>
     </div>
   </section>
 
@@ -102,9 +89,9 @@ classDiagram
     }
     class PlatformFlavor {
         &lt;&lt;enumeration&gt;&gt;
-        tivibuEv
+        jade
         stvOtt
-        zteAosp
+        zteAosp (비활성, 주석 처리)
         +dimension FlavorDimension
         +isDefault Boolean
         +key String
@@ -113,57 +100,67 @@ classDiagram
         +targetSdk Int
         +getFlavor(fullName) PlatformFlavor$
     }
+    class ServerFlavor {
+        &lt;&lt;enumeration, 전체 주석 처리&gt;&gt;
+        staging
+        product
+    }
     class ConfigureFlavorsExt {
         &lt;&lt;extension function&gt;&gt;
         +configureFlavors(isApplication, saveConfig, readVersion)
     }
-    class DependencyPlatformTt4k["dependency/platform/tt4k"]
+    class DependencyPlatformJade["dependency/platform/jade"]
     class DependencyPlatformSmarttv["dependency/platform/smarttv"]
 
-    PlatformFlavor --> FlavorDimension
-    ConfigureFlavorsExt --> PlatformFlavor : values() 순회해 productFlavors 등록
-    PlatformFlavor ..> DependencyPlatformTt4k : tivibuEv/zteAosp 계열이 참조
-    note for DependencyPlatformTt4k "LauncherDataProvider authority manifest"
+    PlatformFlavor --&gt; FlavorDimension
+    ConfigureFlavorsExt --&gt; PlatformFlavor : values() 순회해 productFlavors 등록
+    PlatformFlavor ..&gt; DependencyPlatformJade : jade 계열이 참조 (구 tt4k)
+    PlatformFlavor ..&gt; DependencyPlatformSmarttv : stvOtt 계열이 참조
+    note for ServerFlavor "실험 후 되돌림 — DomainConfig.serverType으로 대체"
       </div>
-      <p class="cap"><strong>관계.</strong> <code>PlatformFlavor</code> enum 하나가 Gradle 플레이버 등록의 유일한 원천(source of truth)이며, <code>configureFlavors()</code> 확장 함수가 모든 모듈(app/library)에서 동일하게 재사용됩니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>PlatformFlavor</code> enum 하나가 Gradle 플레이버 등록의 유일한 원천이며, <code>ServerFlavor</code>라는 두 번째 차원을 시도했다가 되돌린 주석이 같은 파일에 나란히 남아 있습니다. <code>tt4k</code> 모듈은 <code>jade</code>로 개명됐습니다.</p>
     </div>
   </section>
 
   <section id="code">
     <h2>핵심 코드</h2>
     <div class="snippet">
-      <div class="sc"><code>build-logic/convention/.../Flavor.kt</code> — 플레이버별 applicationId·SDK 하한</div>
-<pre><code>// base on STB model name (as much as possible)
+      <div class="sc"><code>build-logic/convention/.../Flavor.kt</code> — jade 개명, zteAosp 비활성, ServerFlavor 실험 후 되돌림</div>
+<pre><code>@Suppress("EnumEntryName")
+enum class FlavorDimension {
+//    server,
+    platform,
+    ;
+}
+
+/**
+ * system value 이용 (DomainConfig::serverType, "persist.sys.altimedia.build.type" 참고)
+ * 복원이 필요한 경우 "[gradle] remove server flavor dimension" 커밋 확인
+ */
+//enum class ServerFlavor(val dimension: FlavorDimension, val isDefault: Boolean = false) {
+//    staging(FlavorDimension.server),
+//    product(FlavorDimension.server, true),
+//    ;
+//}
+
 enum class PlatformFlavor(
     val dimension: FlavorDimension,
     val isDefault: Boolean = false,
     val key: String,
     val applicationId: String? = null,
-    // Google Play 정책(2026.11.1 시한) 대응: tivibuEv/stvOtt flavor에 대해 targetSdk 36 / minSdk 26 로 상향.
-    // 나머지 flavor(zteAosp) 는 기존 minSdk/targetSdk 값을 유지한다.
+    // Google Play 정책(2026.11.1 시한) 대응: jade flavor에 targetSdk 36 / minSdk 26 상향.
+    // zteAosp 는 기존 값을 유지한다.
     val minSdk: Int? = null,
     val targetSdk: Int? = null,
 ) {
-    tivibuEv(FlavorDimension.platform, true, key = "PLATFORM_TIVIBU_EV",
+    jade(FlavorDimension.platform, true, key = "PLATFORM_JADE",
         applicationId = "tivibu.android.stb", minSdk = 26, targetSdk = 36),
+    // tt4k 하드웨어가 없는 플랫폼이라 dependency:platform:smarttv 를 물린다.
     stvOtt(FlavorDimension.platform, key = "PLATFORM_STV_OTT",
         applicationId = "com.ttnet.tivibutv", minSdk = 26, targetSdk = 36),
-    zteAosp(FlavorDimension.platform, key = "PLATFORM_ZTE_AOSP",
-        applicationId = "com.zte.aosp"),
+    // zteAosp 비활성화 (2026-08-31). AOSP STB 대응이 확정되면 이 줄들을 되살린다.
+//    zteAosp(FlavorDimension.platform, key = "PLATFORM_ZTE_AOSP", applicationId = "com.zte.aosp"),
     ;
-}</code></pre>
-    </div>
-    <div class="snippet">
-      <div class="sc"><code>app/build.gradle.kts</code> — stvOtt 전용 staging 변형만 활성화</div>
-<pre><code>androidComponents {
-    beforeVariants { variantBuilder -&gt;
-        val flavorName = variantBuilder.productFlavors.firstOrNull()?.second
-        val buildTypeName = variantBuilder.buildType
-        if (buildTypeName?.contains("staging") == true) {
-            val enableStaging = flavorName == PlatformFlavor.stvOtt.name
-            variantBuilder.enable = enableStaging
-        }
-    }
 }</code></pre>
     </div>
   </section>
@@ -171,10 +168,10 @@ enum class PlatformFlavor(
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/build-logic/convention/src/main/java/com/altimedia/buildlogic/Flavor.kt" target="_blank" rel="noopener">build-logic/convention/.../Flavor.kt</a><span class="src">PlatformFlavor 정의 — applicationId/minSdk/targetSdk 원천</span></li>
-      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/build.gradle.kts" target="_blank" rel="noopener">app/build.gradle.kts</a><span class="src">productFlavors 블록, stvOtt 전용 staging 변형</span></li>
-      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/tivibuEv/AndroidManifest.xml" target="_blank" rel="noopener">app/src/tivibuEv/AndroidManifest.xml</a><span class="src">launcherDataProviderAuthority manifest placeholder</span></li>
-      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/dependency/platform/tt4k/build.gradle.kts" target="_blank" rel="noopener">dependency/platform/tt4k/build.gradle.kts</a><span class="src">기존 TT4K 플랫폼 의존성 묶음</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/build-logic/convention/src/main/java/com/altimedia/buildlogic/Flavor.kt" target="_blank" rel="noopener">build-logic/convention/.../Flavor.kt</a><span class="src">PlatformFlavor 정의 — jade 개명, zteAosp/ServerFlavor 주석 처리 이력 포함</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/settings.gradle.kts" target="_blank" rel="noopener">settings.gradle.kts</a><span class="src"><code>:dependency:platform:jade</code>(구 tt4k)·<code>:dependency:platform:smarttv</code> 모듈 등록</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/dependency/platform/jade/build.gradle.kts" target="_blank" rel="noopener">dependency/platform/jade/build.gradle.kts</a><span class="src">구 tt4k 플랫폼 의존성 묶음 — 네임스페이스까지 jade로 개명</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/jade/AndroidManifest.xml" target="_blank" rel="noopener">app/src/jade/AndroidManifest.xml</a><span class="src">구 tivibuEv 소스셋 — launcherDataProviderAuthority 오버라이드는 레거시 정리로 삭제됨</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

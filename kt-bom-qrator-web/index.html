@@ -205,7 +205,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web" target="_blank" rel="noopener"><code>kt-bom-qrator-web</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3500277774" target="_blank" rel="noopener">KT_BOM_UNBOUND (허브 페이지)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-01-23 · e17d06c (KTBOM-282) remove impl by link_type=3</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-09-18 · 831c452 (tools) WEB 릴리즈 도구를 이 저장소에 독립으로 세움</div></div>
       <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>dvb.appId:4e30.3009</code> / widget v2.6.4 (package.json 1.0.0)</div></div>
     </div>
   </div>
@@ -262,21 +262,23 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
     <h2>아키텍처 · 모듈 구조</h2>
     <p>저장소는 빌드 도구(Gulp) 영역과 실제 앱 소스(<code>public/src/</code>) 영역으로 나뉩니다. 앱은 모듈 번들러 없이 ES5 바닐라 JavaScript로 작성되며, <code>index.html</code>이 모든 스크립트의 로드 순서를 정의하고 즉시실행함수(IIFE)와 전역 <code>window</code> 객체로 컴포넌트를 노출하는 클래식 스크립트 방식입니다.</p>
     <pre class="tree">kt-bom-qrator-web/
-├─ gulpfile.js              # 빌드/패키징/FTP 배포 파이프라인 정의(메인 진입)
-├─ package.json             # 의존성 및 npm 스크립트(tt: mocha 테스트)
-├─ .env.example             # FTP/로컬경로/릴리스 메타 환경변수 템플릿
-├─ README / README_CLAUDE.md# 빌드·릴리스 가이드, 과제 개요
+├─ gulpfile.js              # 빌드/패키징/git 태그 파이프라인 정의(메인 진입, FTP 코드는 2026-09-18 제거)
+├─ package.json             # 의존성 및 npm 스크립트(tt/test:int: mocha 테스트, mockbom: 로컬 mock 서버)
+├─ .env.example             # 로컬경로/릴리스 메타 환경변수 템플릿(FTP_* 는 2026-09-18 삭제)
+├─ README / CLAUDE.md       # 빌드·릴리스 가이드, 규칙+지도
+├─ docs/                    # 현행 문서(development/release-web/known-issues 등)·analysis·archive·diagrams
 ├─ config/                  # 프로파일별 서버 엔드포인트(빌드 시 주입)
 │  ├─ config-live.json      #  L: 운영 (serverTo "L")
 │  ├─ config-bmt.json       #  S: BMT (serverTo "S")
-│  └─ config-develop.json   #  D: 개발 (serverTo "D")
-├─ tools/                   # 배포 보조 스크립트(deploy-dist.bat/.ps1)
+│  ├─ config-develop.json   #  D: 개발 (serverTo "D")
+│  └─ config-mock.json      #  M: 로컬 mock 서버(localhost:9000), dist:mock 전용
+├─ tools/                   # deploy-dist/deploy-unbound(ADB 설치), release/(release.py 릴리즈 자동화), devtest/logcheck.py
 └─ public/
    ├─ src/                  # 실제 앱 소스(빌드 입력)
    │  ├─ config.xml         # W3C Widget 매니페스트(id 4e30.3009, 1920x1080, v2.6.4)
    │  ├─ index.html         # 앱 엔트리. 방송 object + 스크립트 로드 순서 정의
    │  ├─ common/js/
-   │  │  ├─ core/           # build-env / bootstrap-env / bootstrap-sim
+   │  │  ├─ core/           # build-env / bootstrap-env
    │  │  ├─ boot/           # app-manifest, loader, bootstrap(서브앱 동적 로딩)
    │  │  ├─ lib/            # jQuery, Backbone, Underscore, CryptoJS, keyEvent
    │  │  ├─ core-constants.js  # AID/APP_TYPE/SUB_APP_NAME/link_type 등 전역 상수
@@ -295,8 +297,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
    │     ├─ cmpChannelTrigger/  # CMP(캠페인) 채널 트리거
    │     ├─ CuetoneADTrigger/   # 큐톤 광고 연동 트리거
    │     └─ shoppingKey/        # 쇼핑키(결제 모듈 연동)
-   ├─ docs/                 # PlantUML 흐름도(트리거/BOM App 실행/배경이미지 등)
-   └─ test/                 # Mocha 테스트 및 서버 응답 샘플(.http)</pre>
+   └─ test/                 # integration/(헤드리스 특성화, puppeteer) · server/(BOM mock + fixtures) · sim/ · platform/(PC 랩, --sim 전용)</pre>
 
     <h3>주요 모듈 · 컴포넌트</h3>
     <div class="table-wrap">
@@ -379,61 +380,64 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
     <p>빌드는 <code>gulpfile.js</code>에 등록된 task 이름을 기준으로 합니다. 산출물은 단말 위젯 패키지 <code>.wgt</code>(zip) 형태이며, 빌드 타임에 <code>public/dist/common/js/core/build-env.js</code>로 런타임 환경값(serverTo, endpoints, versions, generatedAt)이 주입됩니다.</p>
 
     <h3>1. 설치 · 환경 설정</h3>
-    <pre><code>npm i
-cp .env.example .env   # FTP/로컬경로/릴리스 메타 입력 (.env는 커밋 제외)</code></pre>
-    <p><code>.env</code> 주요 항목은 <code>FTP_HOST/USER/PASS/REMOTE_PATH</code>(기본 원격 경로 <code>/home/01_kt-web-bomunbound/</code>), <code>RELEASE_PATH/WORKING_PATH</code>, <code>RELEASE_VER/RELEASE_BRK_VER/RELEASE_TEST_TO</code>입니다. 프로파일 엔드포인트는 <code>config/config-live.json</code>·<code>config-bmt.json</code>·<code>config-develop.json</code> 3개가 필요하며 키는 <code>e7works, sharp_ui, live_agent, cache, image, tvpay_module</code>입니다.</p>
+    <pre><code>npm i   # prepare 스크립트가 core.hooksPath 를 .githooks 로 맞춰 pre-push 훅을 건다
+cp .env.example .env   # 로컬경로/릴리스 메타 입력 (.env는 커밋 제외)</code></pre>
+    <p><code>.env</code> 주요 항목은 <code>RELEASE_PATH</code>(로컬 산출물 루트, 필수)·<code>WORKING_PATH</code>(미사용), <code>RELEASE_VER/RELEASE_BRK_VER/RELEASE_TEST_TO</code>입니다. FTP 관련 키(<code>FTP_HOST/USER/PASS/REMOTE_PATH</code>)는 2026-09-18에 삭제되었습니다. 프로파일 엔드포인트는 <code>config/config-live.json</code>·<code>config-bmt.json</code>·<code>config-develop.json</code> 3개(정식)와 로컬 mock용 <code>config-mock.json</code> 1개가 있으며 키는 <code>e7works, sharp_ui, live_agent, cache, image, tvpay_module</code>입니다.</p>
 
     <h3>2. 프로파일별 dist 빌드</h3>
     <pre><code>gulp dist:live      # L (운영)
 gulp dist:bmt       # S (BMT)
-gulp dist:develop   # D (개발)</code></pre>
-    <p><code>distPipeline</code>은 <code>setTarget → cleanFiles → uglifyJs → copyCommonFiles → copyResFiles → createBuildEnv → verifyDistBuildEnv</code> 순으로 동작합니다.</p>
+gulp dist:develop   # D (개발)
+gulp dist:mock      # M (localhost:9000 로컬 mock 서버, npm run mockbom 과 함께)
+gulp dist:live --sim   # 어떤 dist/package 에도 --sim 을 붙이면 PC 랩(시뮬레이터·OIPF 스텁) 포함</code></pre>
+    <p><code>distPipeline</code>은 <code>setTarget → cleanFiles → uglifyJs → copyCommonFiles → copyResFiles → injectSim → createBuildEnv → verifyDistBuildEnv</code> 순으로 동작합니다. <code>injectSim</code>은 <code>--sim</code>이 없으면 아무 것도 하지 않습니다.</p>
 
     <h3>3. 패키징 (.wgt 생성, 업로드 없음)</h3>
     <pre><code>gulp package:live
 gulp package:bmt
 gulp package:develop</code></pre>
-    <p><code>packagePipeline</code>은 dist 빌드 후 <code>makeReleaseRule → createWgt → recordArtifact</code>로 <code>.wgt</code>를 만들고 아티팩트를 기록합니다.</p>
+    <p><code>packagePipeline</code>은 dist 빌드 후 <code>makeReleaseRule → createWgt → recordArtifact</code>로 <code>.wgt</code>를 만들고 아티팩트를 기록합니다. mock 프로파일은 package 대상이 아닙니다.</p>
 
-    <h3>4. 릴리스 (패키지 + FTP 업로드)</h3>
-    <pre><code>gulp release:live | release:bmt | release:develop   # 개별 업로드
-gulp release:all                                    # L/S/D 일괄 빌드 후 한 번에 업로드
-gulp release:all --ver 3.9.01 --brkV 3.9.02 --date 20250905 --testTo K2  # CLI 인자가 .env보다 우선</code></pre>
-    <p><code>release:all</code>은 <code>resetArtifacts → package:live → package:bmt → package:develop → deployAll</code> 순으로 3개 <code>.wgt</code>를 모아 일괄 업로드합니다. 산출물 파일명 패턴은 <code>KT-BRK-QRATOR-WEB-V&lt;버전&gt;_&lt;YYYYMMDD&gt;_&lt;testTo&gt;_&lt;serverTo&gt;.wgt</code>, FTP 경로는 <code>&lt;FTP_REMOTE_PATH&gt;/&lt;YYYYMMDD&gt;_V&lt;버전&gt;/</code>입니다.</p>
+    <h3>4. 상용 태그 (패키지 + git 태그, 업로드 없음)</h3>
+    <pre><code>gulp tag:live --ver 3.6.12 --date 20260911 --testTo K0   # package:live 뒤 git 태그 V&lt;ver&gt;_&lt;날짜&gt; 생성·push
+SKIP_GIT=1 gulp tag:live   # 태그 생성만 생략</code></pre>
+    <p><code>tag:live</code>는 <code>package:live</code>에 <code>gitTagRelease</code>를 이어 붙인 것으로, <code>serverTo</code>가 L일 때만 태그를 만듭니다. 2026-09-18에 FTP 업로드 코드(<code>gulp-ftp</code>·<code>deployFtp</code>·<code>deployAll</code>·<code>release:*</code>)가 전량 삭제되어, 지금은 이 태그 단계가 정식 릴리즈의 마지막 자동화 단계입니다. 만들어진 <code>.wgt</code>를 저장소 밖으로 전달하는 것은 릴리즈 문서 첨부로 사람이 수행합니다(형상 공통 규약은 <code>tools/release/release-spec.toml</code>, WEB 전용 자동화는 <code>tools/release/release.py</code>).</p>
 
     <h3>5. 로컬 미리보기 · 테스트</h3>
-    <pre><code>gulp server     # browser-sync로 public/dist 서빙 (먼저 gulp dist:* 필요)
-npm run tt      # mocha (public/test/**, timeout 30s)</code></pre>
+    <pre><code>gulp server         # browser-sync로 public/dist 서빙 (먼저 gulp dist:* 필요)
+npm run mockbom     # 로컬 BOM mock 서버(localhost:9000, public/test/server/bom.mockServer.js)
+npm run tt          # mocha 전체: 헤드리스 특성화 + mock 서버 + peer 더블 (timeout 60s)
+npm run test:int    # 헤드리스 특성화만(public/test/integration/, puppeteer)</code></pre>
     <div class="callout warn">
-      <div class="ct">README와 task 이름 차이</div>
-      기존 <code>README</code>의 <code>gulp default</code>·<code>gulp package_live</code>·<code>gulp release_all</code> 표기는 현재 <code>gulpfile.js</code>의 실제 task 이름(<code>dist:*</code>, <code>package:*</code>, <code>release:*</code>)과 다릅니다. 실행 시에는 위 colon(<code>:</code>) 표기를 사용해야 합니다. 또한 <code>package.json</code>의 기본 <code>test</code> 스크립트는 미설정(exit 1) 상태이며 실제 테스트는 <code>tt</code>로 실행합니다.
+      <div class="ct">FTP 제거 (2026-09-18)</div>
+      FTP 서버가 폐지되어 <code>gulp-ftp</code>·<code>deployFtp</code>·<code>deployAll</code>·<code>release:*</code> task와 <code>.env</code>의 <code>FTP_*</code> 키를 전량 제거했습니다. 죽어 있던 <code>RELEASES.md</code> 자동 생성 함수(<code>appendReleaseLog</code>·<code>updateReleaseNotes</code>)와 <code>createWgtUnderWorking</code>도 함께 정리했습니다. <code>package.json</code>의 기본 <code>test</code> 스크립트는 여전히 미설정(exit 1) 상태이며, 실제 테스트는 <code>tt</code>/<code>test:int</code>로 실행합니다. <code>.githooks/pre-push</code>가 push 전 <code>test:int</code>를 자동 실행합니다(우회는 <code>--no-verify</code>).
     </div>
   </section>
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>최근 작업은 트리거 처리 안정화에 집중되어 있습니다. KTBOM-291을 중심으로 CMP 채널 트리거의 실행 흐름과 키 처리(VK_ESCAPE/VK_F11)·알림 타입·상태 정리(clear state)를 재구현했고, KTBOM-282로 <code>link_type=3</code>(deprecated unicast) 구현을 제거했습니다. 그 사이 C2001767 계열 이슈로 BOM 서버 오류·타임아웃 시 서비스 에러 팝업 노출 정책과 로딩바 종료, 트리거 이미지 로드 실패 처리 등을 다듬었습니다.</p>
+    <p>2026-09-11~18 사이 저장소 정리·릴리즈 자동화·테스트 인프라 구축이 집중적으로 이뤄졌습니다. FTP 서버 폐지에 맞춰 <code>gulp-ftp</code>/<code>deployFtp</code>/<code>deployAll</code>/<code>release:*</code>를 전량 삭제하고 상용 태그만 남기는 <code>gulp tag:live</code>를 새로 두었으며, <code>tools/release/release.py</code>(plan→build→verify→doc→comment→record)로 릴리즈 검증·문서화를 자동화했습니다. <code>public/test/</code> 아래 헤드리스 특성화 테스트(<code>brk.handleLinkType</code>·<code>postMessageUtil</code>)와 BOM 서버 mock(fixture 기반, <code>dist:mock</code> 프로파일), PC 랩(시뮬레이터+OIPF 스텁, <code>--sim</code> 전용)을 도입했고 <code>.githooks/pre-push</code>로 통합 테스트를 push 게이트로 걸었습니다. 문서는 <code>public/docs</code>를 <code>docs/diagrams</code>로 흡수해 한곳(<code>docs/</code>)으로 모았습니다. 코드 변경으로는 <code>postMessageUtil</code>의 <code>findApplications</code> 결과가 빈 배열일 때 크래시 대신 false를 반환하도록 방어 코드를 추가했습니다(실기 확인 전). 이전 분기(2025-11~2026-01)는 KTBOM-291 중심의 CMP 채널 트리거 실행 흐름·키 처리(VK_ESCAPE/VK_F11) 재구현과 KTBOM-282의 <code>link_type=3</code>(deprecated unicast) 제거였습니다.</p>
     <ul class="commits">
+      <li><span class="date">2026-09-18</span><span class="msg">(tools) WEB 릴리즈 도구를 이 저장소에 독립으로 세움 — 규약은 공통 사본 + 해시 대조</span></li>
+      <li><span class="date">2026-09-18</span><span class="msg">(docs) 릴리즈 절차: 밖으로 나가는 것은 담당자 동의 뒤에 나간다는 원칙과 위젯 포함 릴리즈 명시</span></li>
+      <li><span class="date">2026-09-18</span><span class="msg">(test) PC 랩 도입 — 셋톱·실서버·상대 앱 없이 흐름을 밀 수 있게</span></li>
+      <li><span class="date">2026-09-18</span><span class="msg">(build) 시뮬레이터를 public/test/sim 으로 분리하고 --sim 일 때만 빌드에 넣는다</span></li>
+      <li><span class="date">2026-09-18</span><span class="msg">(test) BOM 서버 mock 도입: fixture 기반 응답·시나리오 선택, 자체 테스트 8건, dist:mock 프로파일</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">(tools) devtest/logcheck.py 동일 사본 도입, release-process 공통 사본 동기화</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">(docs) release-process 공통 사본 동기화: 0단계 선분석·분류</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">(docs) RELEASES.md 인계 대장 추적 시작(V3.6.11 정식 기준선), release-web 버전 원천</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">(docs) release.py WEB 연결 반영: release-web 검증·자동화, development 파이프라인, known-issues</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">(docs) 사본 체크아웃의 분석 문서 4건 이관</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">(fix) postMessageUtil: findApplications 가 빈 배열일 때 crash 대신 false 반환 (실기 확인 전)</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">(test) 헤드리스 특성화 테스트 2건(brk.handleLinkType·postMessageUtil)과 OIPF 하네스, test:int·pre-push 훅 도입</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">(build) FTP 잔재 제거: gulp-ftp·deployFtp·deployAll·release:* 삭제, tag:live 추가</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">(docs) 문서를 docs/ 한곳으로: public/docs → diagrams, analysis·archive 이름 규칙 통일</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">(chore) package-lock.json 추적 해제(.gitignore 와 일치)</span></li>
+      <li><span class="date">2026-09-11</span><span class="msg">(docs) CLAUDE.md 를 규칙+지도로 재작성, docs/ 를 현행·analysis·archive 로 재편, FTP 없는 빌드·설치 안내</span></li>
       <li><span class="date">2026-01-23</span><span class="msg">(KTBOM-282) remove impl by link_type=3</span></li>
       <li><span class="date">2026-01-13</span><span class="msg">do not process RESTART only if Bom App is running with BOM_APP_INFO settings</span></li>
-      <li><span class="date">2026-01-13</span><span class="msg">add log</span></li>
-      <li><span class="date">2026-01-12</span><span class="msg">add logging comment</span></li>
       <li><span class="date">2026-01-12</span><span class="msg">(KTBOM-291) change the processing flow when Bom App is executed through a cmp channel trigger</span></li>
-      <li><span class="date">2026-01-08</span><span class="msg">(KTBOM-291) remove dead code, no call showFake in cmp channel trigger</span></li>
-      <li><span class="date">2026-01-08</span><span class="msg">(KTBOM-291) if run BomApp, change to clear state in the cmp channel trigger</span></li>
-      <li><span class="date">2026-01-08</span><span class="msg">(KTBOM-291) modify alert type in the cmp channel trigger</span></li>
-      <li><span class="date">2026-01-08</span><span class="msg">change to increase readability</span></li>
-      <li><span class="date">2026-01-08</span><span class="msg">simple replace</span></li>
       <li><span class="date">2026-01-05</span><span class="msg">(KTBOM-291) change VK_ESCAPE/VK_F11 in cmp channel trigger</span></li>
-      <li><span class="date">2025-12-29</span><span class="msg">(C2001767-7) service error in bom server request error</span></li>
-      <li><span class="date">2025-12-29</span><span class="msg">(KTBOM-291) replace impl. CMP ch trigger</span></li>
-      <li><span class="date">2025-12-15</span><span class="msg">add comment</span></li>
-      <li><span class="date">2025-12-15</span><span class="msg">(C2001767-11) remove show service error popup when it occurs timeout or api_error</span></li>
-      <li><span class="date">2025-12-11</span><span class="msg">remove invalid link type</span></li>
-      <li><span class="date">2025-12-11</span><span class="msg">(C2001767-8) close loading bar when received obs_startAndroidNativeApp/obs_broadcastIntent</span></li>
-      <li><span class="date">2025-12-11</span><span class="msg">(C2001767-7) trigger end if trigger image load error occurs</span></li>
-      <li><span class="date">2025-12-09</span><span class="msg">add comment</span></li>
-      <li><span class="date">2025-11-27</span><span class="msg">(KTBOM-288) When a qrt_updateStore message is delivered, the brk module handles it</span></li>
     </ul>
   </section>
 
@@ -444,7 +448,8 @@ npm run tt      # mocha (public/test/**, timeout 30s)</code></pre>
       <li><code>README</code><span class="src">저장소 / 빌드·릴리스 가이드(한국어)</span></li>
       <li><code>public/src/config.xml</code>, <code>public/src/index.html</code><span class="src">저장소 / 위젯 매니페스트·엔트리포인트</span></li>
       <li><code>public/src/common/js/core-constants.js</code><span class="src">저장소 / AID·APP_TYPE·SUB_APP_NAME·link_type 전역 상수</span></li>
-      <li><code>public/docs/*.puml</code><span class="src">저장소 / PlantUML 트리거·실행 흐름 다이어그램</span></li>
+      <li><code>docs/diagrams/*.puml</code><span class="src">저장소 / PlantUML 트리거·실행 흐름 다이어그램 (2026-09-17 public/docs에서 이관)</span></li>
+      <li><code>docs/development.md</code>, <code>docs/release-web.md</code><span class="src">저장소 / 빌드 파이프라인·릴리스 절차(WEB 형상)</span></li>
       <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3500277774">KT_BOM_UNBOUND (허브 페이지)</a><span class="src">Confluence ORGAPPDEV · 3500277774</span></li>
       <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3500277899">[참고] BOM 언바운드 소스 구조 개요</a><span class="src">Confluence ORGAPPDEV · 3500277899</span></li>
       <li><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3671819016">[참고] BOM 언바운드 모듈/연동 맵</a><span class="src">Confluence ORGAPPDEV · 3671819016</span></li>
@@ -456,8 +461,8 @@ npm run tt      # mocha (public/test/**, timeout 30s)</code></pre>
 
 <footer>
   <div class="wrap">
-    이 문서는 저장소 소스 코드(브랜치 <code>master</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
-    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>, 분석 기준 커밋 <code>831c452</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-09-20 · <a href="../index.html">전체 과제 목록으로</a>
   </div>
 </footer>
 

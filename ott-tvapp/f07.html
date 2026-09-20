@@ -51,6 +51,7 @@
     <p>SI(Service Information)는 OOB(Out-Of-Band)와 Inband 두 경로로 들어옵니다. <code>OOBService</code>는 매니페스트에 등록된 <code>Service</code>로, <code>runService()</code>에서 별도 스레드를 띄워 사내 <code>OobServiceInfo</code> SDK를 초기화합니다. 이때 라이브/개발 서버 구분(<code>BuildConfig.LIVE_SVR</code>)과 TS 머지 여부(<code>OOB.IS_MERGE_TS</code>)에 따라 SI1/AEIT01~4/SI2/SI3/DST용 <code>MulticastOOBTunnel</code> 배열(PID·멀티캐스트 IP·포트·타입)을 구성해 등록합니다.</p>
     <p>OOB 서비스가 기동되면(<code>onOobServiceStarted</code>) <code>ChannelManager</code>에 채널 목록 갱신 리스너를 붙여 채널 맵 변경을 받아옵니다. EIT/ETT 개수 등은 <code>getEitCnt()</code>·<code>getEttCnt()</code>로 조회됩니다.</p>
     <p><code>Inband</code>는 인밴드 데이터를 다룹니다. <code>init()</code>이 <code>ScheduledExecutorService</code>로 일정 시간 뒤 <code>readToFile()</code>을 실행해 부팅 이미지(<code>boot_normal.jpg</code>/<code>boot_hotel.jpg</code>), iframe, 라디오 곡 정보(<code>loadAudioInfo</code>) 등을 받아 단말 로컬 파일로 저장·플랫폼에 적용합니다. 호텔 모드 여부에 따라 부팅 이미지를 분기합니다.</p>
+    <p>기존 <code>getIframe(String name)</code>은 <code>init()</code>에서 이미 저장해 둔 정적 <code>context</code> 필드를 사용해 저장된 부팅 iframe 캡처(<code>BOOT_IFRAME</code>) 비트맵을 읽어옵니다. 최근에는 <code>getIframe(Context con, String name)</code> 오버로드가 추가되어, <code>PlaybackActivity</code>의 <code>init()</code> 호출 흐름과 무관하게 다른 컴포넌트(예: 부팅 네트워크 대기 팝업)가 자신의 <code>Context</code>를 넘겨 <code>context</code> 필드를 갱신하면서 동일 캡처 이미지를 즉시 조회할 수 있게 되었습니다.</p>
   </section>
 
   <section id="seq">
@@ -65,6 +66,7 @@ sequenceDiagram
     participant TUN as MulticastOOBTunnel
     participant CM as ChannelManager
     participant IB as ctrl/Inband
+    participant NWP as comp/NetworkWaitingPopup
 
     ACT-&gt;&gt;OOB: runService(playbackActivity)
     OOB-&gt;&gt;OSI: initListener(OobServiceStartedListener)
@@ -75,8 +77,11 @@ sequenceDiagram
     CM--&gt;&gt;OOB: onChannelListUpdated() (채널 맵 갱신)
     ACT-&gt;&gt;IB: Inband.init(handler, context)
     IB-&gt;&gt;IB: schedule readToFile() (부팅이미지/iframe/곡정보)
+    Note over IB: 이후 다른 컴포넌트도 getIframe(Context, String)으로 조회 가능
+    NWP-&gt;&gt;IB: getIframe(context, BOOT_IFRAME)
+    IB--&gt;&gt;NWP: Bitmap (부팅 iframe 캡처)
       </div>
-      <p class="cap"><strong>흐름.</strong> <code>OOBService</code>가 멀티캐스트 터널을 구성·기동해 채널 SI를 받고, <code>Inband</code>가 지연 스케줄로 인밴드 리소스를 읽어 단말에 반영합니다.</p>
+      <p class="cap"><strong>흐름.</strong> <code>OOBService</code>가 멀티캐스트 터널을 구성·기동해 채널 SI를 받고, <code>Inband</code>가 지연 스케줄로 인밴드 리소스를 읽어 단말에 반영합니다. 저장된 부팅 iframe 캡처는 <code>getIframe(Context, String)</code> 오버로드로 다른 컴포넌트(예: 네트워크 대기 팝업)에서도 조회할 수 있습니다.</p>
     </div>
   </section>
 
@@ -111,10 +116,15 @@ classDiagram
         +loadPlatform()
         +loadAudioInfo(String id)
         +readToFile(boolean)
+        +getIframe(String name) Bitmap
+        +getIframe(Context con, String name) Bitmap
     }
     class OobServiceStartedListener {
         &lt;&lt;interface&gt;&gt;
         +onOobServiceStarted()
+    }
+    class NetworkWaitingPopup {
+        +show()
     }
 
     OOBService --|&gt; Service
@@ -122,8 +132,9 @@ classDiagram
     OOBService o-- MulticastOOBTunnel : tunnels
     OOBService ..&gt; OobServiceStartedListener
     Inband ..&gt; Inband : ScheduledExecutorService
+    NetworkWaitingPopup ..&gt; Inband : getIframe(context, BOOT_IFRAME) 호출
       </div>
-      <p class="cap"><strong>관계.</strong> <code>OOBService</code>가 <code>OobServiceInfo</code> SDK에 <code>MulticastOOBTunnel</code> 배열을 등록해 OOB SI를 받고, <code>Inband</code>는 스케줄러로 인밴드 리소스를 처리합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>OOBService</code>가 <code>OobServiceInfo</code> SDK에 <code>MulticastOOBTunnel</code> 배열을 등록해 OOB SI를 받고, <code>Inband</code>는 스케줄러로 인밴드 리소스를 처리합니다. <code>getIframe(Context, String)</code> 오버로드 추가로 <code>NetworkWaitingPopup</code> 같은 외부 컴포넌트도 캡처된 부팅 iframe을 조회할 수 있습니다.</p>
     </div>
   </section>
 
@@ -157,13 +168,21 @@ OobServiceInfo.getInstance().init("");</code></pre>
     }, 20, TimeUnit.SECONDS);
 }</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>ctrl/Inband.java</code> — Context를 직접 받는 getIframe 오버로드 (신규)</div>
+<pre><code>public static Bitmap getIframe(Context con, String name) {
+    context = con;              // 정적 context 필드를 호출측 Context로 갱신
+    return getIframe(name);     // 기존 정적 캐시 조회 로직 재사용
+}</code></pre>
+    </div>
   </section>
 
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/OOBService.java" target="_blank" rel="noopener">ott/OOBService.java</a><span class="src">멀티캐스트 OOB SI 수신 서비스 · MulticastOOBTunnel 구성</span></li>
-      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/Inband.java" target="_blank" rel="noopener">ctrl/Inband.java</a><span class="src">인밴드 데이터 처리 · 부팅 이미지/iframe/곡 정보</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/Inband.java" target="_blank" rel="noopener">ctrl/Inband.java</a><span class="src">인밴드 데이터 처리 · 부팅 이미지/iframe/곡 정보 · getIframe(Context, String) 오버로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/comp/NetworkWaitingPopup.java" target="_blank" rel="noopener">comp/NetworkWaitingPopup.java</a><span class="src">getIframe(Context, BOOT_IFRAME) 호출부 · 부팅 iframe 캡처를 팝업 배경으로 표시</span></li>
       <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/OOB.java" target="_blank" rel="noopener">ctrl/OOB.java</a><span class="src">OOB 상수/머지 TS 설정(IS_MERGE_TS) · OOB 보조 로직</span></li>
       <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/AndroidManifest.xml" target="_blank" rel="noopener">app/src/main/AndroidManifest.xml</a><span class="src">OOBService Service 등록</span></li>
     </ul>

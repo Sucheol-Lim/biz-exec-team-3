@@ -205,7 +205,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/vams_fe" target="_blank" rel="noopener"><code>vams_fe</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/4212162576" target="_blank" rel="noopener">KT_VAMS 프로젝트 요약 (4212162576)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>develop</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-09-10 · ef8bd9cd origin/develop 병합 (직전 작업 5d6fd555 총건수 미제공 시 목록 다음페이지 잠김 수정)</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-09-18 · fbec2f67 [Fix] 리뷰 반영 — 원본경로 단정이 실패할 수 있게 픽스처 교정(MAJOR) + 주석 근거 정정</div></div>
       <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>vams-fe</code> / 0.0.0 (private, 개발 중)</div></div>
     </div>
   </div>
@@ -235,9 +235,10 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="ct">사업 맥락 (Confluence 근거)</div>
       발주는 KT — 콘텐츠(VOD) AI 운영 도메인이며 알티미디어가 수행(자막 엔진 등 일부 어뮤즈랩 협업)합니다. 상위 시스템 C-Cube가 콘텐츠 입수·로그인/권한 연계·최종 연동의 중심이고, VAMS는 그 사이의 운영 콘솔입니다. 마일스톤은 6월(포스터 엔진 배포·자막 프로토타입·썸네일 C-Cube 연동)과 10월(자막 상용 모델·10초 썸네일 통합)로 나뉩니다. Confluence 요약(2026-06-01 스냅샷)에는 11개 메뉴로 기재되어 있으나, 이후 Figma Flipbook v0.7에서 'AI 개인화'가 개인화 포스터·개인화 하이라이트로 2분할되고 얼굴인식이 분리되어 현재 소스(<code>app/stores/menu.ts</code>)의 LNB는 13개 메뉴입니다(소스 우선). Figma 자산의 권위 순서도 이 시기에 확정되어, UI 요소 정본은 Flipbook·아이콘 정본은 컴포넌트 라이브러리로 이원화되었습니다.
     </div>
-    <p>사용자 권한은 일반운영자/중간관리자/시스템관리자 3계층(<code>useCan</code> 컴포저블로 판정)이며, 상태칩 7종(전체/대기/검수필요/실패/검수중/검수완료/연동완료 — <code>domain/statusChip.ts</code> 공통 소스로 통합)과 조회기간 최대 60일 등 공통 정책이 전 메뉴에 적용됩니다. <strong>LNB 13개 메뉴는 2026-08-13 개인화 하이라이트 구현으로 13/13 화면 구현이 완료</strong>되었고, 모니터링도 5개 탭(현황 대시보드·솔루션별 작업 현황·솔루션별 연동 현황·GPU 사용 현황·로그 히스토리)이 모두 화면으로 채워져 플레이스홀더가 사라졌습니다.</p>
+    <p>사용자 권한은 일반운영자/중간관리자/시스템관리자 3계층(<code>useCan</code> 컴포저블로 판정)이며, 조회기간 최대 60일 등 공통 정책이 전 메뉴에 적용됩니다. 필터·요청에 쓰는 상태칩(조회축)은 여전히 7종(전체/대기/검수필요/실패/검수중/검수완료/연동완료 — <code>domain/statusChip.ts</code> 공통 소스)이지만, 2026-09-18에 <strong>표시축이 분리</strong>되어 목록 셀·상세 배지는 내부 10상태를 축약 없이 그대로 보여줍니다(<code>BadgeState</code>·<code>toBadgeState()</code>, REQ-STATUS-005). 같은 날 <strong>사용자 권한 배선</strong>이 완료되어 로그인 응답의 <code>roleCode</code>가 처음으로 <code>authStore</code>에 결선되고, role 기반 라우트/LNB 가드와 <code>/403</code>이 신설됐습니다(그 전까지 <code>useCan</code>은 존재했지만 실제 role을 받지 못해 판정 대상이 없었습니다). <strong>LNB 13개 메뉴는 2026-08-13 개인화 하이라이트 구현으로 13/13 화면 구현이 완료</strong>되었고, 모니터링도 5개 탭(현황 대시보드·솔루션별 작업 현황·솔루션별 연동 현황·GPU 사용 현황·로그 히스토리)이 모두 화면으로 채워져 플레이스홀더가 사라졌습니다.</p>
     <p>2026-08-26 BE 연동 서버가 열리면서 과제 단계가 <strong>화면 구현에서 실 BE 정합으로 이동</strong>했고, 이번 범위(9/1~9/10)에서 그 전환이 크게 진척됐습니다. 여전히 BE가 엔드포인트를 점진 개방하는 중이라 <strong>엔드포인트 단위 live/mock 라우팅</strong>(<code>src/api/liveEndpoints.ts</code> + <code>VITE_LIVE_APIS</code>)을 전환기 구조로 두고 있지만, AI 썸네일·AI 자막·설정·얼굴인식·개인화 하이라이트에 이어 <strong>골라보기·하이라이트·개인화 포스터·구간마킹도 사실상 전량 live</strong>로 넘어갔고, 리스트는 13개 메뉴가 공유하는 공통#1(<code>/api/content-info/list</code>) 하나로 수렴했습니다. 유일하게 <strong>AI Pick만 이 이관에서 누락</strong>돼 있었다는 것이 9/9에 드러났는데, 코드는 규격 실경로로 옮겼지만 BE가 아직 그 경로를 구현하지 않아(404) 화면은 계속 mock으로 응답합니다.</p>
     <p>이번 범위의 또 다른 축은 <strong>배경 필름스트립의 완전한 클라이언트 이전</strong>입니다. 골라보기·하이라이트 타임라인이 쓰던 BE <code>…/filmstrip</code> 경로가 전량 삭제되고, 그 자리를 WebCodecs+HLS(fMP4) 고속 디코드·Web Worker 오프로드·IndexedDB 누적 캐시·뷰포트 우선 큐 + 재생 양보·줌 적응 coarse/fine 사다리를 갖춘 <code>src/shared/media-edit/</code> 파이프라인이 대신합니다. 두 화면에 같은 코드를 두 번 배선하던 진입 흐름은 9/10에 <code>useSessionFilmstrip</code> 하나로 승격됐습니다. 그 밖에 AI 포스터에 인페인팅(브러시 제거) 배선이 추가됐고, 얼굴인식은 후보(candidate)·수정됨(edited) 카드 상태를 폐기해 대표 지정을 인물당 1개 배타로 단순화하면서 자동 크롭(#6/#7) 배선과 저장 손실 방어가 뒤따랐습니다. 공통 인프라 쪽에서는 총건수 미제공 시 페이지네이션이 잠기던 결함(<code>hasMore</code> 분리)과 셀 텍스트 톤(<code>ColumnDef.tone</code>) 체계가 13개 메뉴 공통으로 자리잡았습니다.</p>
+    <p>후속 범위(9/11~9/18, 212커밋·532파일)는 <strong>정본 재대조로 드러난 누락 결함의 일괄 정리</strong>로 압축됩니다. figma behavior 추출기가 설명 행 한 갈래(<code>discription</code> 형제 <code>lv*</code>)를 통째로 버리고 있던 것이 확인되어(13개 메뉴·77행·285문장 유실) 재추출한 결과, AI 포스터 [연동] 잠금 누락·구간마킹/홈의 같은 행 재클릭 닫기 누락·개인화 빅배너 연동제외 초기화 규칙 같은 항목이 함께 드러나 정정되었습니다. 상태 표시 축도 뒤집혀 목록·상세 배지가 조회축 7칩이 아니라 <strong>내부 10상태를 그대로</strong> 보여주고, 코드표 밖 상태는 <code>'P'</code> 폴백 대신 <code>null</code>(셀 '-')로 표시됩니다. <strong>사용자 권한 배선</strong>이 처음으로 완료되어 role 기반 라우트/LNB 가드가 생겼고, 자막은 저장(E6+검수자 마킹)과 연동(공통#6 send-result)이 분리되면서 진입 시 alfaeditor 작업 등록을 FE가 직접 하도록 바뀌었습니다. 구간마킹은 카드 [저장](draft 확정)과 헤더 [저장](유일한 PUT)이 한 층으로 잘못 구현돼 있던 것을 정본대로 분리했고, 얼굴인식은 대표 이미지 복원 축을 저장이 실제로 갱신하는 필드(<code>cropImageList</code>)로 옮겼습니다. 필름스트립은 HLS 외에 <strong>progressive mp4</strong>도 섞여 온다는 것이 실측으로 확인되어 moov 키프레임 인덱스 기반 고속 경로가 추가되어 첫 타일 표시가 11초에서 2.5초로 줄었고, 하이라이트는 "다른 플레이어가 대신 재생되는" 제보를 계기로 재생 주체 단일화·플레이어별 독립 재생헤드로 상태 결합을 재정합했습니다.</p>
   </section>
 
   <section id="features">
@@ -445,25 +446,28 @@ npm run spec:api      # BE API 규격서(xlsx) → 구조화 JSON/MD 추출</cod
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>이번 범위(9/1~9/10, 189커밋·413파일)는 8/7~9/1 국면(LNB 13/13 화면 구현 완성 → 실 BE 정합 전환 착수)의 후속으로, <strong>실 BE 정합의 완주</strong>와 <strong>필름스트립의 완전한 클라이언트 이전</strong> 두 축으로 압축됩니다. 골라보기·하이라이트·설정·개인화 포스터·구간마킹이 차례로 사실상 전량 live로 넘어가 남은 것은 AI Pick(BE 미구현으로 코드만 이관·mock 응답 유지)과 일부 [추정] 계약(하이라이트 다운로드 등)뿐이며, 그 과정에서 검수 점유 수명주기(10초 만료 확인, keep-alive는 아직 보류)·구간마킹#5 <code>jobId</code> 뒤늦은 구현 확인·API 인용키 재번호(장르 마스터 공통#12→#13) 같은 "규격과 구현의 시차" 사례가 여러 번 반복돼 문서화됐습니다.</p>
-    <p>필름스트립은 이전까지의 BE 프레임 기반 설계를 9/4부터 <strong>전량 클라이언트 추출</strong>로 뒤집었습니다 — HLS(fMP4) 세그먼트를 자체 파서(<code>mp4/boxes.ts</code>·<code>hls/playlist.ts</code>)로 읽어 WebCodecs로 디코드하는 고속 경로(미지원 시 canvas 폴백), Web Worker 오프로드, IndexedDB 누적 캐시(키=src, 레벨별 프레임 풀), 뷰포트 우선 큐 + 재생 양보(hold), 줌 적응 coarse/fine 사다리를 한 주 반 만에 쌓아 올렸고, 9/10에는 골라보기·하이라이트 두 화면에 두 번 배선하던 진입 흐름을 <code>useSessionFilmstrip</code> 하나로 승격했습니다. BE <code>…/filmstrip</code> 경로는 이 과정에서 전량 삭제됐습니다.</p>
-    <p>나머지 굵직한 갈래로는, 자막 API 전량 live 전환과 함께 "VTT는 인라인 서식을 못 싣는다"던 이전 판단이 오판이었음을 확인해 b/i/u·취소선·색·글꼴을 큐 태그로 되살렸고, 얼굴인식은 후보(candidate)·수정됨(edited) 카드 상태를 폐기(Flipbook v0.9.00 재확인)하며 대표 지정을 인물당 1개 배타로 단순화하고 자동 크롭(#6/#7) 배선 + 저장 손실 방어(BLOCKER 리뷰)를 마쳤습니다. AI 포스터에는 브러시 마스크를 BE 좌표 포맷(마름모 점 배열)으로 변환하는 인페인팅이 새로 배선됐습니다. 공통 인프라 축에서는 총건수 미제공 시 페이지네이션이 잠기던 결함을 <code>hasMore</code>로 분리하고, 셀 텍스트 톤(<code>ColumnDef.tone</code> 7조합) 체계를 도입했습니다. 시연처 축에서는 mock 없이 로그인만 하는 <code>betest</code> 빌드 모드와 데모 코멘트 답글 스레드가 추가됐고, dev·preview·시연처 3곳의 BE 프록시 keep-alive에 이어 사설 IP(http) 환경의 secure-context 폴백(<code>crypto.randomUUID</code>/clipboard)도 보강됐습니다.</p>
+    <p>이번 범위(9/11~9/18, 212커밋·532파일)는 9/1~9/10 국면(실 BE 정합 완주 + 필름스트립 클라이언트 이전)의 후속으로, <strong>정본 재대조가 드러낸 누락 결함의 일괄 정리</strong>와 <strong>진입점 회귀 검증</strong> 두 축으로 압축됩니다. figma behavior 추출기가 기획서 행 구조 두 갈래(<code>discription</code> 안 / 그 형제 <code>txt</code> 직계) 중 하나를 통째로 버리고 있던 결함이 발견되어 13개 메뉴·77행·285문장을 재추출했고, 그 재대조로 AI 포스터 [연동] 잠금 누락·같은 행 재클릭 닫기 누락(홈·구간마킹) 같은 "기획서엔 있었는데 구현이 못 봤다" 사례가 다수 확정됐습니다. 상태 표시 축도 조회축 7칩에서 <strong>내부 10상태 원본 표시</strong>로 뒤집혔고(<code>toBadgeState</code>, REQ-STATUS-005), 코드표 밖 상태의 <code>'P'</code> 폴백은 <code>null</code>(셀 '-')로 바뀌었습니다.</p>
+    <p><strong>사용자 권한 배선</strong>이 이번 범위에서 처음 완료되었습니다 — 로그인 응답(공통#14)의 <code>roleCode</code>가 <code>authStore</code>에 결선되고, 경로 첫 세그먼트로 소속 메뉴를 판정하는 role 기반 라우트 가드와 <code>/403</code>이 신설되어 <code>meta.layout:'bare'</code> 상세·편집 화면이 URL로 가드를 우회하던 구멍을 막았습니다. 저장·연동 계층도 자막(저장=E6+검수자마킹 / 연동=공통#6 분리, 진입 시 alfaeditor 작업 등록 FE 직접 수행)과 구간마킹(카드 [저장]=draft 확정 / 헤더 [저장]=유일한 PUT, 종전엔 한 층으로 잘못 구현돼 정본이 활성이라 못박은 헤더 저장이 켜질 틈이 없었음)에서 정본과 다시 대조되어 재정합됐습니다. 얼굴인식은 대표 이미지 복원 축을 BE가 실제로 갱신하지 않는 <code>#3 mainImageYn</code>에서 저장이 실제로 반영되는 <code>#4 cropImageList</code> 키로 옮겨 "저장 후 재진입하면 대표가 풀리는" 결함을 없앴습니다.</p>
+    <p>필름스트립은 실 BE가 HLS 외에 <strong>progressive mp4</strong>도 콘텐츠별로 섞어 준다는 것이 실측으로 확인되어, moov 키프레임 인덱스 + Range 병렬 + 파이프라인 디코드를 쓰는 별도 고속 경로가 추가되어 첫 타일 표시가 11초에서 2.5초로 줄었습니다. 골라보기에는 단축키 22종·시퀀스 타임라인 편집·예외 케이스 3종이 새로 배선됐고, 하이라이트는 "다른 플레이어가 대신 재생된다"는 제보를 계기로 재생 주체 단일화·플레이어별 독립 재생헤드로 상태 결합을 재정합했습니다. 공통 인프라 축에서는 페이지네이션이 1페이지뿐이면 영역 자체를 숨기고, 선택 행 보더가 행 하나의 outline으로 통일됐습니다.</p>
     <ul class="commits">
-      <li><span class="date">2026-09-10</span><span class="msg">[Fix] 총건수 미제공 시 목록이 그 페이지에 갇히던 것 — 판정 단일화 + hasMore 분리</span></li>
-      <li><span class="date">2026-09-10</span><span class="msg">[Fix] 골라보기 편집 [연동]·[재생성] 성공 시 목록 복귀 — 종전엔 토스트만 뜨고 화면에 머물렀다</span></li>
-      <li><span class="date">2026-09-10</span><span class="msg">[Refactor] 필름스트립 세션 진입 흐름 공용 승격 — useSessionFilmstrip (골라보기·하이라이트 중복 제거)</span></li>
-      <li><span class="date">2026-09-09</span><span class="msg">[Fix] AI Pick 목록·업로드를 규격 실경로로 이관 — BE 미구현 확인 포함</span></li>
-      <li><span class="date">2026-09-09</span><span class="msg">[Fix] 얼굴인식 [대표로 지정] #6/#7 자동 크롭 배선 + #8 저장 손실 방어 — 머지 전 리뷰 BLOCKER</span></li>
-      <li><span class="date">2026-09-09</span><span class="msg">[Fix] 얼굴인식 후보(candidate)·수정됨(edited) 상태 폐기 — hover [대표로 지정] 배선 + 인물당 대표 1개</span></li>
-      <li><span class="date">2026-09-09</span><span class="msg">[Fix] LNB 접힘 경계 1920 → 1280 — 정본이 1280 에만 건 조건을 640px 넓게 적용하고 있었다</span></li>
-      <li><span class="date">2026-09-07</span><span class="msg">[Feature] 포스터 인페인팅(AI포스터#3) 배선 — 브러시 마스크→BE 폴리곤 좌표 변환</span></li>
-      <li><span class="date">2026-09-07</span><span class="msg">[Fix] BE v6.0.11 실측 반영 — 구간마킹#5 jobId 구현 확인 · 공통#12 경로 확정 · 검수 점유 수명주기</span></li>
-      <li><span class="date">2026-09-04</span><span class="msg">[Feature] HLS(fMP4) 세그먼트 파서 + 실측 조각 픽스처 — 필름스트립 고속 추출의 근거 계층</span></li>
-      <li><span class="date">2026-09-04</span><span class="msg">[Feature] 골라보기 필름스트립 배선 — FE 추출(BE API 없음) · 영상 먼저 · 캐시/선행 · 뷰포트 우선 · 줌인 세밀</span></li>
-      <li><span class="date">2026-09-03</span><span class="msg">[Feature] 자막 API 전량 live 실배선 — AI자막#1·#3·#4 + alfaeditor 5종 + WS 프록시</span></li>
-      <li><span class="date">2026-09-01</span><span class="msg">[UI] Empty State(로드실패/데이터없음) GUI 정본 정합 — 아이콘·간격·위치·문구·버튼 5종 이탈 수정</span></li>
-      <li><span class="date">2026-08-20</span><span class="msg">[Feature] 자막 전체화면 — 인라인 서식(b/i/u·취소선·색·글꼴)을 VTT 큐 태그로 이관</span></li>
+      <li><span class="date">2026-09-18</span><span class="msg">[Feature] 사용자 권한 배선 — role 취득·라우트/LNB 가드·설정 액션 가드 (/403 신설)</span></li>
+      <li><span class="date">2026-09-18</span><span class="msg">[Fix] 상태 뱃지 — 7칩 축약 → 10상태 원본 표시(조회축/표시축 분리, REQ-STATUS-005)</span></li>
+      <li><span class="date">2026-09-18</span><span class="msg">[Fix] 목록 행 미지 상태코드 'P' 폴백 폐기 → null · 셀 '-' 표시</span></li>
+      <li><span class="date">2026-09-18</span><span class="msg">[Fix] 선조사 누락 2건 — 포스터 [연동] 잠금 · 같은 행 재클릭 닫기(전 리스트 기본값 승격)</span></li>
+      <li><span class="date">2026-09-18</span><span class="msg">[Fix] figma behavior 추출기 — 설명 행 유실(13메뉴/77행/285문장) 재추출</span></li>
+      <li><span class="date">2026-09-18</span><span class="msg">[Fix] 구간마킹 저장 계층 정본 정합 — 카드 [저장]=draft 확정 / 헤더 [저장]=유일한 PUT</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">[Fix] 얼굴인식 대표 복원 축 — #3 mainImageYn → #4 cropImageList 키(저장 후 재진입 시 대표 풀림 해소)</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">[Fix] 포스터 editList 전체교체 계약 반영(P0 데이터유실 회귀) + 편집본 대표지정 근거 정정</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">[Fix] 페이지네이션 — 1페이지만 있으면 영역 미노출(CM-005 미구현 조항)</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">[Fix] 하이라이트 플레이어 상태 결합 — 재생 주체 단일화·플레이어별 독립 재생헤드</span></li>
+      <li><span class="date">2026-09-15</span><span class="msg">[Feature] 필름스트립 progressive mp4 전용 고속 경로 — moov 인덱스 + 키프레임 Range + WebCodecs</span></li>
+      <li><span class="date">2026-09-15</span><span class="msg">[Perf] 필름스트립 첫 타일 11s → 2.5s — 고속 경로 파이프라인 디코드</span></li>
+      <li><span class="date">2026-09-14</span><span class="msg">[Feature] 자막 [저장]=E6+검수자 V · [연동]=공통#6 send-result 재배선 — 다른 12개 메뉴와 동일 계층</span></li>
+      <li><span class="date">2026-09-14</span><span class="msg">[Fix] 포스터·구간마킹 공통#3 jobId 타입 정정 — 표는 String이지만 실측은 Integer</span></li>
+      <li><span class="date">2026-09-11</span><span class="msg">[Feature] 자막 편집 진입 시 alfaeditor 작업 등록(API0001 POST /alti/content) — FE 직접 등록</span></li>
+      <li><span class="date">2026-09-11</span><span class="msg">[Fix] AI Pick 유령 경로 정리 + 규격 셰이프 교정 — 「200 받고 조용히 틀리는」 결함 3건 해소</span></li>
     </ul>
+    <p style="margin-top:14px; color:var(--muted); font-size:.86rem">이전 범위(9/1~9/10, 189커밋·413파일 — 실 BE 정합 완주 + 필름스트립 클라이언트 이전 착수)는 f01~f13 각 상세 페이지의 개요에서 계속 참조합니다.</p>
   </section>
 
   <section id="references">
@@ -486,7 +490,7 @@ npm run spec:api      # BE API 규격서(xlsx) → 구조화 JSON/MD 추출</cod
 <footer>
   <div class="wrap">
     이 문서는 저장소 소스 코드(브랜치 <code>develop</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
-    생성일 2026-07-10 · 최종 갱신 2026-09-10 · <a href="../index.html">전체 과제 목록으로</a>
+    생성일 2026-07-10 · 최종 갱신 2026-09-18 · <a href="../index.html">전체 과제 목록으로</a>
   </div>
 </footer>
 

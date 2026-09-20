@@ -22,12 +22,12 @@
       <span class="badge gray">Android TV · Kotlin</span>
     </div>
     <h1>부팅 · 페일세이프 복구</h1>
-    <p class="one-liner"><code>BootScreen</code>/<code>BootViewModel</code>은 일반 부팅 화면이 아니라, <strong>페일세이프(FailSafe) 에러 표시</strong>와 <strong>복구 다운로드 진행률 표시</strong> 두 모드를 하나의 화면으로 처리합니다.</p>
+    <p class="one-liner"><code>BootScreen</code>은 <code>com.altimedia.nav.app.AppScreenFragment</code>로 이관되어 <strong>타입이 있는 <code>Args(countOn, message)</code></strong>로 진입 인자를 받습니다. 다운로드 진행률 표시 모드는 이번 정리 구간에서 제거되어, 지금은 페일세이프 에러 표시와 일반 안내 문구 두 경로만 남았습니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tim-app-tv-android" target="_blank" rel="noopener"><code>tim-app-tv-android</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
       <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ui/boot/BootScreen.kt</code></div></div>
-      <div class="item"><div class="k">진입 인자</div><div class="v"><code>Bundle["CountOn"]</code> / <code>Bundle["Message"]</code></div></div>
+      <div class="item"><div class="k">진입 인자</div><div class="v"><code>BootScreen.Args(countOn: Boolean, message: String?)</code></div></div>
     </div>
   </div>
 </header>
@@ -48,11 +48,11 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p><code>BootScreen.onViewCreated()</code>는 진입 <code>Bundle</code>의 <code>CountOn</code> 플래그로 두 모드를 가릅니다. <code>true</code>면 페일세이프 레이어(<code>llFailSafeLayer</code>)를 보여주고 <code>BootViewModel.observeErrorCode()</code>로 에러 코드(<code>130-99-020</code>/<code>130-99-030</code>/기타)에 대응하는 안내 문구를 표시하며, <code>observeCount()</code>로 재시도·재부팅까지 남은 카운트를 갱신합니다. <code>CountOn</code>이 아니고 <code>Message</code>가 있으면 일반 레이어(<code>llNormalLayer</code>)로 전환해 <code>observeDownloadProgress()</code>로 복구 이미지 다운로드 진행률(%)을 표시합니다.</p>
-    <p><code>BootViewModel</code>은 세 스트림(<code>getFailSafeErrorCode</code>·<code>getFailSafeCount</code>·<code>getDownloadProgress</code>) 전부를 <code>StorageRepository</code>에서 RxJava3 <code>Observable</code>로 구독하고, <code>AndroidSchedulers.mainThread()</code>로 관찰해 UI 스레드에서 바로 갱신합니다. 화면 소멸 시 <code>dispose()</code>가 세 <code>Disposable</code>을 모두 해제합니다.</p>
+    <p><code>BootScreen</code>이 f01에서 다룬 nav 엔진 이관 대상에 포함되면서, 진입 방식이 느슨한 <code>Bundle.getBoolean("CountOn")</code>/<code>getString("Message")</code>에서 <code>DestinationArgs</code>를 구현하는 타입 있는 <code>Args(countOn, message)</code>로 바뀌었습니다. <code>onArgs(args)</code>에서 캐스팅에 실패하면 즉시 <code>error()</code>로 죽어 배선 오류를 조기에 드러냅니다. <code>args.countOn</code>이 <code>true</code>면 페일세이프 레이어(<code>llFailSafeLayer</code>)를 보여주고 <code>BootViewModel.observeErrorCode()</code>로 에러 코드(<code>130-99-020</code>/<code>130-99-030</code>/기타)에 대응하는 안내 문구를 표시하며, <code>observeCount()</code>로 재시도·재부팅까지 남은 카운트를 갱신합니다. 그렇지 않고 <code>args.message</code>가 비어 있지 않으면 일반 레이어(<code>llNormalLayer</code>)에 그 문구를 그대로 표시합니다.</p>
+    <p><code>BootViewModel</code>은 <code>StorageRepository</code>에서 <code>getFailSafeCount()</code>·<code>getFailSafeErrorCode()</code> 두 스트림만 RxJava3 <code>Observable</code>로 구독합니다. 이전에 있던 <strong>다운로드 진행률(<code>getDownloadProgress</code>) 스트림과 관련 <code>Disposable</code>은 이번 레거시 정리(OTA 테스트 플래그·팩토리 리셋 경로 제거)를 거치며 사라졌습니다</strong> — 복구 이미지 다운로드 진행률 UI는 더 이상 이 화면이 담당하지 않습니다. <code>BootViewModel</code> 자신은 아직 신형 nav 기반 ViewModel이 아니라 레거시 <code>ATVViewModel</code>을 그대로 상속하고 있어, 화면(View)만 먼저 이관되고 ViewModel은 뒤따라가는 과도기 상태입니다.</p>
     <div class="callout">
       <div class="ct">페일세이프란</div>
-      단말 소프트웨어가 손상되거나 부팅에 실패했을 때 진입하는 복구 모드로, 사용자에게 에러 코드와 재시도 횟수를 보여주거나(<code>CountOn</code>) 복구 이미지를 내려받는 진행률을 보여줍니다(<code>Message</code>). <code>ui/popup/FailSafeRecoveryPopup</code>과 같은 맥락의 복구 경로입니다.
+      단말 소프트웨어가 손상되거나 부팅에 실패했을 때 진입하는 복구 모드로, 사용자에게 에러 코드와 재시도 횟수를 보여줍니다(<code>countOn</code>). <code>ui/popup/FailSafeRecoveryPopup</code>과 같은 맥락의 복구 경로이며, 그 팝업 역시 같은 시기에 nav 엔진으로 이관됐습니다(→ f08 참고).
     </div>
   </section>
 
@@ -62,13 +62,14 @@
       <div class="mermaid">
 sequenceDiagram
     autonumber
-    participant SYS as 부팅 진입 (Bundle)
+    participant NAV as Navigator
     participant SCR as BootScreen
     participant VM as BootViewModel
     participant SR as StorageRepository
 
-    SYS->>SCR: onViewCreated(bundle)
-    alt bundle["CountOn"] == true
+    NAV->>SCR: activate(BootScreen.Spec, Args(countOn, message))
+    SCR->>SCR: onArgs(args) — Args 캐스팅, 실패 시 error()
+    alt args.countOn == true
         SCR->>SCR: llFailSafeLayer 표시
         SCR->>VM: observeErrorCode { code -> ... }
         VM->>SR: getFailSafeErrorCode()
@@ -78,18 +79,14 @@ sequenceDiagram
         VM->>SR: getFailSafeCount()
         SR-->>VM: 카운트 스트림
         VM-->>SCR: onUpdate(count) → tvFsCount 갱신
-    else bundle["Message"] 존재
-        SCR->>SCR: llNormalLayer 표시 + 메시지 출력
-        SCR->>VM: observeDownloadProgress { progress -> ... }
-        VM->>SR: getDownloadProgress()
-        SR-->>VM: 진행률 스트림
-        VM-->>SCR: onUpdate(progress) → tvProgress "N%"
+    else args.message 존재
+        SCR->>SCR: llNormalLayer 표시 + tvNormalMessage = args.message
     end
-    SYS->>SCR: onDestroy()
+    NAV->>SCR: onDestroy()
     SCR->>VM: dispose()
-    VM->>VM: 3개 Disposable 모두 해제
+    VM->>VM: 2개 Disposable 모두 해제
       </div>
-      <p class="cap"><strong>흐름.</strong> 진입 번들의 플래그로 페일세이프/다운로드 두 표시 모드가 갈리고, 두 모드 모두 <code>StorageRepository</code>의 Rx 스트림을 구독해 실시간으로 텍스트를 갱신합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 진입은 이제 <code>Navigator.activate</code>로 타입 있는 <code>Args</code>를 넘겨받아 두 표시 모드로 갈리고, 페일세이프 모드만 <code>StorageRepository</code>의 Rx 스트림을 구독해 실시간으로 텍스트를 갱신합니다.</p>
     </div>
   </section>
 
@@ -100,63 +97,80 @@ sequenceDiagram
 classDiagram
     class BootScreen {
         +viewModel BootViewModel
+        +onArgs(args) DestinationArgs
         +onViewCreated(view, savedInstanceState)
-        +onDestroy()
+    }
+    class Args {
+        +countOn Boolean
+        +message String
     }
     class BootViewModel {
-        -LayerManager layerManager
+        -AppNavigator layerManager
         -StorageRepository storageRepository
         -Disposable failSafeCountDisposable
         -Disposable failSafeErrorCodeDisposable
-        -Disposable downloadProgressDisposable
         +observeCount(onUpdate)
         +observeErrorCode(onUpdate)
-        +observeDownloadProgress(onUpdate)
         +dispose()
     }
     class StorageRepository {
         &lt;&lt;interface&gt;&gt;
         +getFailSafeCount() Observable~Int~
         +getFailSafeErrorCode() Observable~String~
-        +getDownloadProgress() Observable~Float~
     }
-    class ATVScreen {
+    class AppScreenFragment {
         &lt;&lt;abstract&gt;&gt;
     }
     class ATVViewModel {
         &lt;&lt;abstract&gt;&gt;
     }
 
-    ATVScreen &lt;|-- BootScreen
+    AppScreenFragment &lt;|-- BootScreen
     ATVViewModel &lt;|-- BootViewModel
-    BootScreen --> BootViewModel : viewModels()
-    BootViewModel --> StorageRepository : 3개 스트림 구독
+    BootScreen --&gt; Args : companion Args
+    BootScreen --&gt; BootViewModel : viewModels()
+    BootViewModel --&gt; StorageRepository : 2개 스트림 구독
       </div>
-      <p class="cap"><strong>관계.</strong> <code>BootScreen</code>/<code>BootViewModel</code>은 앱 공통 베이스(<code>ATVScreen</code>/<code>ATVViewModel</code>)를 상속하고, 실제 데이터는 <code>StorageRepository</code> 하나에서 세 종류의 스트림으로 가져옵니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>BootScreen</code>은 신형 <code>AppScreenFragment</code>(nav.app, f01 참고)를 상속해 타입 있는 <code>Args</code>로 진입하지만, <code>BootViewModel</code>은 아직 레거시 <code>ATVViewModel</code>을 상속한 채 <code>StorageRepository</code>에서 두 스트림(다운로드 진행률 제외)만 구독합니다.</p>
     </div>
   </section>
 
   <section id="code">
     <h2>핵심 코드</h2>
     <div class="snippet">
-      <div class="sc"><code>ui/boot/BootScreen.kt</code> — CountOn 플래그로 두 모드 분기</div>
-<pre><code>val countOn = bundle.getBoolean("CountOn")
-if (countOn == true) {
-    binding.llFailSafeLayer.isVisible = true
-    viewModel.observeErrorCode { code -&gt;
-        binding.tvFsMessage.text = when (code) {
-            "130-99-020" -&gt; getString(R.string.FAIL_SAFE_ERROR_020)
-            "130-99-030" -&gt; getString(R.string.FAIL_SAFE_ERROR_030)
-            else -&gt; getString(R.string.FAIL_SAFE_ERROR_010)
+      <div class="sc"><code>ui/boot/BootScreen.kt</code> — 타입 있는 Args로 두 모드 분기</div>
+<pre><code>class Args(
+    val countOn: Boolean = false,
+    val message: String? = null,
+) : DestinationArgs
+
+private lateinit var args: Args
+
+override suspend fun onArgs(args: DestinationArgs) {
+    this.args = args as? Args ?: error("BootScreen 은 Args 가 필요하다")
+}
+
+override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    super.onViewCreated(view, savedInstanceState)
+    if (args.countOn) {
+        binding.llFailSafeLayer.isVisible = true
+        binding.llNormalLayer.isVisible = false
+        viewModel.observeErrorCode { code -&gt;
+            binding.tvFsMessage.text = when (code) {
+                "130-99-020" -&gt; requireContext().resources.getString(R.string.FAIL_SAFE_ERROR_020)
+                "130-99-030" -&gt; requireContext().resources.getString(R.string.FAIL_SAFE_ERROR_030)
+                else -&gt; requireContext().resources.getString(R.string.FAIL_SAFE_ERROR_010)
+            }
         }
-    }
-    viewModel.observeCount { count -&gt; binding.tvFsCount.text = count.toString() }
-} else {
-    val message = bundle.getString("Message")
-    if (!message.isNullOrBlank()) {
-        binding.llNormalLayer.isVisible = true
-        viewModel.observeDownloadProgress { progress -&gt;
-            binding.tvProgress.text = progress.toInt().toString() + "%"
+        viewModel.observeCount { count -&gt; binding.tvFsCount.text = count.toString() }
+    } else {
+        binding.llFailSafeLayer.isVisible = false
+        val message = args.message
+        if (!message.isNullOrBlank()) {
+            binding.llNormalLayer.isVisible = true
+            binding.tvNormalMessage.text = message
+        } else {
+            binding.llNormalLayer.isVisible = false
         }
     }
 }</code></pre>
@@ -166,9 +180,9 @@ if (countOn == true) {
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/boot/BootScreen.kt" target="_blank" rel="noopener">ui/boot/BootScreen.kt</a><span class="src">페일세이프/다운로드 두 모드 화면</span></li>
-      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/boot/BootViewModel.kt" target="_blank" rel="noopener">ui/boot/BootViewModel.kt</a><span class="src">StorageRepository 3종 스트림 구독</span></li>
-      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/popup/FailSafeRecoveryPopup.kt" target="_blank" rel="noopener">ui/popup/FailSafeRecoveryPopup.kt</a><span class="src">같은 맥락의 페일세이프 복구 팝업 (f08 참고)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/boot/BootScreen.kt" target="_blank" rel="noopener">ui/boot/BootScreen.kt</a><span class="src">타입 있는 Args로 두 모드(페일세이프/일반 안내)를 처리하는 화면</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/boot/BootViewModel.kt" target="_blank" rel="noopener">ui/boot/BootViewModel.kt</a><span class="src">StorageRepository 2종 스트림 구독 — 다운로드 진행률 스트림 제거됨</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/popup/FailSafeRecoveryPopup.kt" target="_blank" rel="noopener">ui/popup/FailSafeRecoveryPopup.kt</a><span class="src">같은 맥락의 페일세이프 복구 팝업, nav 엔진으로 함께 이관 (f08 참고)</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

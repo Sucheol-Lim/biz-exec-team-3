@@ -60,6 +60,7 @@
       <div class="ct">설계 포인트</div>
       RSA 암호화는 외부 키 노출 없이 비밀번호 평문이 네트워크에 흐르지 않도록 클라이언트에서 수행합니다. <code>rsa.ts</code>는 BigInt 기반 <code>modPowInt</code>(Square-and-Multiply)로 모듈러 지수승을 구현해 별도 의존성 없이 동작합니다.
     </div>
+    <p class="src">2026-09-01~09-16 커밋 범위에서 <code>src/api/common.ts</code>에 <code>getMenus</code> 타임아웃 옵션·<code>checkMenuExtService</code>가 추가되었으나, 이는 <a href="f11.html">권한 기반 사이트 전환 제어</a>의 메뉴 서비스 가입 확인 전용 함수이며 로그인·RSA 암호화·마스킹 로직에는 영향이 없습니다.</p>
   </section>
 
   <section id="seq">

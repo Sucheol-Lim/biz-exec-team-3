@@ -57,6 +57,7 @@
     <p>메뉴 조립 함수는 캐시 유무로 두 갈래가 되었습니다. 실제 조립은 순수 함수 <code>buildMenuList(siteCode, serviceType)</code>가 맡고, <code>getMenuList</code>는 그 결과를 <code>cachedMenuList</code>에 담아 돌려줍니다. 덕분에 현재 화면의 캐시를 건드리지 않고도 임의의 사이트·서비스 유형에 대한 메뉴를 다시 계산할 수 있습니다. 여기에 하위 메뉴 id 집합을 만드는 <code>getAvailableMenuIds(menuList)</code>와 목록에서 경로를 찾는 <code>getMenuPathFromList(menuList, menuId)</code>가 더해져, 권한 판정 결과를 메뉴 id 단위로 재사용합니다.</p>
     <p>이 구조는 통합 검색(<code>SmartSearch</code>)의 결과 이동 제어에 쓰입니다. 검색 결과를 클릭하면 <code>isSmartSearchResultAvailable</code>(<code>components/search/smartSearchFilter.ts</code>)이 결과 유형별 대상 메뉴 id를 먼저 구합니다. 디바이스는 Air Map이면 <code>stationStatus</code>, 그 외에는 <code>devices</code>, 서비스대상은 <code>serviceTargets</code>, 구역은 <code>zones</code>, 메뉴 결과는 <code>menuType</code>이 대상입니다. 이 id가 현재 권한 메뉴 집합에 없으면 이동 자체를 막습니다. 메뉴 유형이 아닌 결과는 <code>unitServiceCode</code>가 세션 사이트의 <code>realcode</code>와 같을 때만 통과시켜 다른 단위서비스의 데이터로 넘어가지 않게 하고, 지도(<code>map</code>) 결과는 판정 대상에서 제외합니다.</p>
     <p>가드 적용 범위의 예외도 있습니다. SMS 수신동의 페이지(<code>/:site/sms-consent</code>)는 로그인과 무관하게 접근해야 하는 공개 페이지라, <code>SiteGuard</code>·<code>ProtectedRoute</code> 트리 밖의 독립 형제 라우트로 배치되어 전환 판정을 타지 않습니다. 반대로 가드를 통과한 뒤에는 Home·Overview 라우트가 <code>AutoRefreshRoute</code>(scope <code>home</code>/<code>overview</code>)로 한 겹 더 감싸집니다. 이 컴포넌트는 <code>useParams()</code>의 <code>site</code>를 <code>key</code>에 넣어, 사이트가 바뀌면 자동 갱신 바운더리가 통째로 재마운트되고 새 타이머가 현재 시각부터 다시 시작하도록 합니다.</p>
+    <p>2026-09-15에는 사이트 전환과 별개로, 같은 사이트 안에서도 메뉴 단위 서비스 가입 여부를 확인하는 계층이 추가되었습니다. Air Map의 전문가 보고서(<code>expertAnalysis</code>)·공기질 알림 SMS 설정(<code>smsAlarm</code>) 두 메뉴는 <code>isMenuServicePermissionTarget(site.code, menuType)</code>이 대상인지 먼저 가리고, 대상이면 <code>checkMenuServicePermission</code>이 <code>commonApi.getMenus(serviceType)</code> 응답의 <code>menuTemplate</code>으로 실제 <code>menuId</code>를 찾은 뒤(KT DEV 응답의 <code>menuType</code>은 메뉴 종류라 식별에 쓸 수 없어, 계층형 코드인 <code>menuId</code> 대신 <code>menuTemplate</code>로 매칭합니다) <code>commonApi.checkMenuExtService({ serviceTargetId, menuId })</code>로 가입 여부(boolean)를 확인합니다. 이동 경로는 두 갈래입니다. 사이드바 메뉴(<code>MenuList</code>)·통합 검색(<code>SmartSearch</code>)·즐겨찾기(<code>FavoritList</code>)처럼 클릭으로 진입하는 경로는 <code>requestMenuServiceEntry</code>가 이동 전에 확인해, 권한이 있을 때만 실제 <code>navigate</code>를 실행하고 없으면 안내 팝업만 띄운 채 현재 화면에 머무릅니다. 주소를 직접 입력하거나 새로고침·뒤로가기로 들어오는 클릭 없는 진입은 라우트에 씌운 <code>MenuServicePermissionGuard</code>가 같은 확인을 한 번 더 수행하고, 확인 전까지는 화면을 렌더하지 않다가 거부되면 Home으로 <code>replace</code> 이동합니다. 검색 팝업·즐겨찾기 목록은 클릭 즉시 닫혀 컴포넌트가 사라지므로, 확인 결과 처리와 안내 팝업 상태는 컴포넌트가 아니라 모듈 전역 상태로 관리하고 <code>MainLayout</code>에 한 번만 마운트되는 <code>MenuServicePermissionHost</code>가 그 상태를 구독해 팝업을 그리고 상주하는 <code>navigate</code>로 실제 이동을 수행합니다. 클릭 경로에서 확인을 통과한 이동은 <code>grantEntryPass</code>로 10초짜리 1회용 통과 표시를 남겨, 곧바로 이어지는 라우트 가드의 재확인을 <code>consumeEntryPass</code>가 건너뛰게 합니다. 두 API 모두 5초 타임아웃을 두고, 응답 형식이 기대(boolean)와 다르거나 대상 메뉴를 찾지 못하는 등 API 오류가 아닌 판정 실패는 <code>openError({ status: '999' })</code>로 공통 오류 팝업을 직접 띄웁니다(HTTP 오류·타임아웃은 인터셉터가 이미 띄웁니다).</p>
     <p><code>SiteGuard</code>의 훅 호출 순서 결함도 함께 정리되었습니다. 이전에는 <code>site</code>가 <code>ALLOWED_SITE_PATHS</code>에 없으면 <code>useLocation</code>·이후 로직에 도달하기 전에 <code>return &lt;Error /&gt;</code>로 먼저 빠졌는데, 렌더마다 이 분기 결과가 뒤집힐 수 있어 호출되는 훅의 개수가 렌더 간에 달라지는 React 규칙 위반이었습니다. 지금은 <code>useLocation</code>을 조기 반환보다 앞으로 올리고, 판정 로직은 <code>isKnownSite</code>(경로 유효성)와 <code>isValidAccess</code>(<code>target</code>이 있을 때만 <code>checkPermission</code> 호출)로 나눠 <code>target</code>이 없는 상태에서 <code>checkPermission</code>이 <code>prevSite.code</code> 접근으로 크래시하지 않게 가드합니다. 세션 정리 <code>useEffect</code>도 "허용된 site 경로일 때만" 정리하도록 <code>isKnownSite</code> 조건을 추가해, <code>Error</code> 화면으로 빠지는 경로에서는 기존처럼 세션을 건드리지 않습니다. <code>ProtectedRoute</code> 역시 세션 <code>site</code>가 없을 때 <code>site?.path</code>를 그대로 문자열에 넣어 <code>/undefined/login</code>으로 이동시키던 결함을 고쳐, 세션이 없으면 URL 첫 세그먼트를 대신 씁니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
@@ -79,6 +80,7 @@ sequenceDiagram
     participant AR as AutoRefreshRoute
     participant Menu as getMenuList
     participant Search as SmartSearch
+    participant Perm as useMenuServicePermission
 
     U-&gt;&gt;Guard: /:site 경로로 전환 (airbiz / factorydx / airmon / ami ...)
     Guard-&gt;&gt;Guard: ALLOWED_SITE_PATHS.includes(site)?
@@ -98,6 +100,17 @@ sequenceDiagram
         Menu--&gt;&gt;U: 권한별로 걸러진 메뉴 렌더
     end
     Note over U,Guard: 예외 · /:site/sms-consent 공개 라우트는 SiteGuard 트리 밖(가드 미적용)
+    opt 메뉴 단위 서비스 권한 확인 (Air Map expertAnalysis · smsAlarm)
+        U-&gt;&gt;Perm: 사이드바/검색/즐겨찾기 클릭 (requestMenuServiceEntry)
+        Perm-&gt;&gt;Perm: getMenus(serviceType) → menuTemplate 로 menuId 조회
+        Perm-&gt;&gt;Perm: checkMenuExtService(serviceTargetId, menuId)
+        alt allowed
+            Perm-&gt;&gt;Perm: grantEntryPass() 후 navigate
+        else denied
+            Perm--&gt;&gt;U: MenuServicePermissionHost 안내 팝업(현재 화면 유지)
+        end
+        Note over Perm: 주소 직접 입력·새로고침 진입은 MenuServicePermissionGuard 가 동일 확인(consumeEntryPass 로 중복 확인 생략)
+    end
     opt 통합 검색 결과 이동
         Search-&gt;&gt;Menu: buildMenuList(site.code, user.serviceType)
         Menu--&gt;&gt;Search: 현재 권한 기준 메뉴 목록
@@ -156,6 +169,21 @@ classDiagram
         +getSmartSearchTargetMenuId(item, isAirMap) string
         +isSmartSearchResultAvailable(item, context) bool
     }
+    class useMenuServicePermission {
+        +isMenuServicePermissionTarget(siteCode, menuType) bool
+        +checkMenuServicePermission(menuType, serviceTargetId) allowed·denied·failed
+        +requestMenuServiceEntry(menuType, serviceTargetId, onAllowed)
+        +grantEntryPass(menuType, serviceTargetId)
+        +consumeEntryPass(menuType, serviceTargetId) bool
+        +registerMenuServicePermissionHost(handlers)
+    }
+    class MenuServicePermissionHost {
+        +렌더 안내 Alarm(MainLayout 1회)
+    }
+    class MenuServicePermissionGuard {
+        +menuType
+        +렌더 전 확인(주소 직접 진입·새로고침·뒤로가기)
+    }
 
     SiteGuard --&gt; checkPermission : 전환 판정
     checkPermission --&gt; hasRole : 권한 레벨
@@ -168,6 +196,10 @@ classDiagram
     SmartSearch --&gt; getMenuList : buildMenuList 로 권한 메뉴 재계산
     SmartSearch ..&gt; smartSearchFilter : 결과 접근 판정
     smartSearchFilter ..&gt; getMenuList : availableMenuIds 대조
+    SmartSearch ..&gt; useMenuServicePermission : requestMenuServiceEntry(대상 메뉴 이동 전 확인)
+    ProtectedRoute --&gt; MenuServicePermissionGuard : expert-analysis · sms-alert-settings 라우트
+    MenuServicePermissionGuard ..&gt; useMenuServicePermission : checkMenuServicePermission
+    MainLayout ..&gt; MenuServicePermissionHost : 안내 팝업 1회 마운트
       </div>
       <p class="cap"><strong>관계.</strong> <code>SiteGuard</code>가 <code>checkPermission</code>·<code>hasRole</code>로 전환을 판정하고, 부적합 시 WebSocket을 끊으며, 적합하면 <code>ProtectedRoute</code> 보호 진입으로 넘깁니다. 그 안에서 Home·Overview는 <code>AutoRefreshRoute</code>가 사이트 단위로 감싸고, 메뉴는 <code>getMenuList</code>가 권한으로 다시 걸러냅니다. <code>SmartSearch</code>는 순수 조립 함수 <code>buildMenuList</code>로 같은 권한 메뉴를 다시 만들어 검색 결과 이동 가능 여부를 판정합니다.</p>
     </div>
@@ -301,6 +333,71 @@ export const isSmartSearchResultAvailable = (item, { realcode, isAirMap, availab
 };</code></pre>
     </div>
     <div class="snippet">
+      <div class="sc"><code>src/hooks/useMenuServicePermission.ts</code> — 메뉴 단위 서비스 권한 확인(대상 2개 · menuTemplate → menuId → 가입 여부)</div>
+<pre><code>export const MENU_SERVICE_PERMISSION_TARGETS = ['expertAnalysis', 'smsAlarm'] as const;
+
+export const isMenuServicePermissionTarget = (siteCode, menuType) =&gt;
+  siteCode === SITE_CODES.AIRMAP &amp;&amp; MENU_SERVICE_PERMISSION_TARGETS.includes(menuType);
+
+// KT DEV 응답의 menuType은 메뉴 종류(MENU/PAGE)라 식별에 못 쓴다 — menuTemplate으로 menuId를 찾는다
+const getMenuIdMap = (realcode, serviceType) =&gt;
+  commonApi.getMenus(serviceType, { timeout: 5000 }).then((data) =&gt; {
+    const map = {};
+    for (const row of data?.rows ?? []) if (row?.menuTemplate &amp;&amp; row?.menuId) map[row.menuTemplate] = row.menuId;
+    return map;
+  });
+
+export const checkMenuServicePermission = async (menuType, serviceTargetId) =&gt; {
+  const menuId = (await getMenuIdMap(site.realcode, user?.serviceType))[BFF_MENU_TEMPLATE_BY_TARGET[menuType]];
+  if (!menuId) { reportLocalFailure(); return 'failed'; }
+  const result = await commonApi.checkMenuExtService({ serviceTargetId, menuId }, { timeout: 5000 });
+  if (typeof result !== 'boolean') { reportLocalFailure(); return 'failed'; }
+  return result ? 'allowed' : 'denied';
+};
+
+// 클릭 경로 — 확인 후 이동. 확인 중 다른 클릭이 오면 마지막 요청만 반영한다
+export const requestMenuServiceEntry = async ({ menuType, serviceTargetId, onAllowed }) =&gt; {
+  const requestId = ++latestClickRequestId;
+  const result = await checkMenuServicePermission(menuType, serviceTargetId);
+  if (requestId !== latestClickRequestId) return;
+  if (result === 'allowed' &amp;&amp; serviceTargetId) { grantEntryPass(menuType, serviceTargetId); onAllowed(); }
+  else if (result === 'denied') showNoServicePermissionAlarm();
+};</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/components/MenuServicePermissionHost.tsx</code> — 라우트 가드(클릭 없는 진입) + 상주 안내 팝업</div>
+<pre><code>// MainLayout에 한 번만 렌더. 검색 팝업·즐겨찾기 목록이 닫혀도 팝업·이동이 유지되도록
+// 항상 마운트된 위치의 navigate·오류 팝업을 등록한다.
+export const MenuServicePermissionHost = () =&gt; {
+  const navigate = useNavigate();
+  const alarm = useNoServicePermissionAlarm();
+  useEffect(() =&gt; {
+    registerMenuServicePermissionHost({ navigate, openError });
+    return () =&gt; registerMenuServicePermissionHost(null);
+  }, [navigate, openError]);
+  return alarm.open
+    ? &lt;Alarm open desc={NO_SERVICE_PERMISSION_MESSAGE} okContent="확인" onOk={confirmNoServicePermissionAlarm} /&gt;
+    : null;
+};
+
+// 주소 직접 입력·새로고침·뒤로가기 진입 가드 — 확인 전에는 화면을 렌더하지 않는다
+export const MenuServicePermissionGuard = ({ menuType, children }) =&gt; {
+  const isTarget = isMenuServicePermissionTarget(site?.code, menuType);
+  const [allowed, setAllowed] = useState(false);
+  useEffect(() =&gt; {
+    if (!isTarget || !serviceTargetId) return;
+    if (consumeEntryPass(menuType, serviceTargetId)) { setAllowed(true); return; }   // 클릭 경로 재확인 생략
+    checkMenuServicePermission(menuType, serviceTargetId).then((result) =&gt; {
+      if (result === 'allowed') setAllowed(true);
+      else if (result === 'denied') showNoServicePermissionAlarm(() =&gt; navigate(`/${site?.path}/home`, { replace: true }));
+      else navigate(`/${site?.path}/home`, { replace: true });   // failed: 오류 팝업은 이미 표시됨
+    });
+  }, [isTarget, menuType, serviceTargetId, navigate]);
+  if (!isTarget) return &lt;&gt;{children}&lt;/&gt;;
+  return allowed ? &lt;&gt;{children}&lt;/&gt; : null;
+};</code></pre>
+    </div>
+    <div class="snippet">
       <div class="sc"><code>src/routes/route.tsx</code> · <code>src/modules/autoRefresh/AutoRefreshRoute.tsx</code> — 가드 밖 공개 라우트 + 통과 후 자동 갱신 바운더리</div>
 <pre><code>// SMS 수신 동의 페이지: SiteGuard/ProtectedRoute를 타지 않는 독립 공개 라우트
 {
@@ -335,8 +432,14 @@ const AutoRefreshRoute = ({ scope, children }: AutoRefreshRouteProps) =&gt; {
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/menu/menuItems.tsx" target="_blank" rel="noopener">src/layout/menu/menuItems.tsx</a><span class="src">buildMenuList(순수 조립)/getMenuList(캐시) 분리 · getAvailableMenuIds · getMenuPathFromList · 서비스 고객 권한의 DX 메뉴 노출 제한 · AMI 현황/배전선로 작업현황 재노출</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modules/autoRefresh/AutoRefreshRoute.tsx" target="_blank" rel="noopener">src/modules/autoRefresh/AutoRefreshRoute.tsx</a><span class="src">가드 통과 후 Home·Overview를 사이트 단위 key로 감싸는 자동 갱신 바운더리</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/search/smartSearchFilter.ts" target="_blank" rel="noopener">src/components/search/smartSearchFilter.ts</a><span class="src">검색 결과 접근 판정 — 유형별 대상 메뉴 id 산출 · availableMenuIds·realcode 대조</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/popup/SmartSearch.tsx" target="_blank" rel="noopener">src/layout/popup/SmartSearch.tsx</a><span class="src">buildMenuList·getAvailableMenuIds로 권한 메뉴 집합을 만들고 접근 불가 결과의 이동을 차단</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/popup/SmartSearch.tsx" target="_blank" rel="noopener">src/layout/popup/SmartSearch.tsx</a><span class="src">buildMenuList·getAvailableMenuIds로 권한 메뉴 집합을 만들고 접근 불가 결과의 이동을 차단 · 대상 메뉴 결과는 requestMenuServiceEntry 로 이동 전 서비스 가입 확인</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/ProtectedRoute.tsx" target="_blank" rel="noopener">src/routes/ProtectedRoute.tsx</a><span class="src">세션 site.code 유무로 보호 화면 진입 판정 · site 없을 때 URL 첫 세그먼트로 로그인 경로 보정(undefined 방지)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/hooks/useMenuServicePermission.ts" target="_blank" rel="noopener">src/hooks/useMenuServicePermission.ts</a><span class="src">2026-09-15 신설 — Air Map expertAnalysis·smsAlarm 메뉴 서비스 가입 확인 · menuTemplate→menuId 매핑 캐시 · requestMenuServiceEntry/grantEntryPass/consumeEntryPass</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/MenuServicePermissionHost.tsx" target="_blank" rel="noopener">src/components/MenuServicePermissionHost.tsx</a><span class="src">MainLayout 상주 안내 팝업(MenuServicePermissionHost) · 클릭 없는 진입 라우트 가드(MenuServicePermissionGuard)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/menu/MenuList.tsx" target="_blank" rel="noopener">src/layout/menu/MenuList.tsx</a><span class="src">사이드바 메뉴 클릭 시 requestMenuServiceEntry 로 이동 전 확인(대상 메뉴만)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/popup/FavoritList.tsx" target="_blank" rel="noopener">src/layout/popup/FavoritList.tsx</a><span class="src">즐겨찾기 목록 클릭 시 requestMenuServiceEntry — 팝업이 먼저 닫히므로 host의 navigate로 이동</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/layout/MainLayout.tsx" target="_blank" rel="noopener">src/layout/MainLayout.tsx</a><span class="src">MenuServicePermissionHost 1회 마운트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/common.ts" target="_blank" rel="noopener">src/api/common.ts</a><span class="src">getMenus(serviceType, options) · checkMenuExtService(serviceTargetId, menuId) — 2026-09-15 신설</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

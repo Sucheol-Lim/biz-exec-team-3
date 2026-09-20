@@ -205,8 +205,8 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/ott-tvapp" target="_blank" rel="noopener"><code>ott-tvapp</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3726868749" target="_blank" rel="noopener">마르시스 (Confluence)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>android14/marusys</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-08-03 · 219a5fa6 [fixed] 3.14.56</div></div>
-      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>com.kctvjeju.tvapp</code> / 3.14.56</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-09-17 · e254931f [fixed] UI수정.</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>com.kctvjeju.tvapp</code> / 3.14.58</div></div>
     </div>
   </div>
 </header>
@@ -273,7 +273,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
 ├── gradlew / gradlew.bat     # Gradle Wrapper (8.10.2)
 └── app/
     ├── build.gradle          # 앱 모듈 빌드 (flavor/buildType/의존성 정의)
-    ├── version.properties    # MAJOR=3 / MINOR=14 / POINT=56
+    ├── version.properties    # MAJOR=3 / MINOR=14 / POINT=58
     ├── signkey/              # 플랫폼 서명 키 (default_platform.jks)
     ├── libs/                 # 임베드 AAR/JAR (ott 플레이어, mgmt, nativewrapper, ietp)
     └── src/main/
@@ -363,6 +363,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
     <h3>부팅 · 기동 시퀀스</h3>
     <ol class="steps">
       <li><span class="st">단말 부팅 → 런처 기동</span><span class="sd">단말 부팅 후 <code>HOME</code>/<code>LEANBACK_LAUNCHER</code> 인텐트로 <code>PlaybackActivity</code>가 홈 런처로 기동되고, <code>OttApplication</code>이 라이프사이클 리스너를 등록합니다.</span></li>
+      <li><span class="st">부팅 네트워크(외부 연결) 체크</span><span class="sd"><code>onCreate()</code>가 <code>ctrl/BootNetworkChecker</code>를 실행해 내부 대상 IP로 ping을 반복 시도합니다. 첫 실패가 확인되면 <code>comp/NetworkWaitingPopup</code>을 띄우고, 성공 또는 최대 2분 타임아웃 시 나머지 초기화(<code>initPlayerAndStartPlayback()</code>)로 진행합니다.</span></li>
       <li><span class="st">권한 · 네트워크 확인</span><span class="sd">위치·블루투스·미디어 등 런타임 권한을 체크하고, 네트워크 미연결 시 <code>BootingNetworkErrorDialog</code>로 안내합니다.</span></li>
       <li><span class="st">서비스 정보(SI) 수신</span><span class="sd"><code>OOBService</code>가 멀티캐스트 OOB 터널로 version.json·channelInfo·appInfo·barking·avticker 등을 수신해 채널 맵과 단말 설정을 구성합니다.</span></li>
       <li><span class="st">iframe(웹 UI) 다운로드 · 로딩</span><span class="sd"><code>DownloadWorker</code>가 <code>INBAND_BASE</code>의 <code>iframe.zip</code>을 내려받고, WebView 컨테이너가 다운로드된 웹 UI를 로딩합니다.</span></li>
@@ -413,9 +414,9 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
     <h3>환경 설정 · 산출물</h3>
     <ul>
       <li>서버 주소(SDP/UIM/PUSH/RESOLVER/HLS/NMS/INBAND 등)는 <code>app/build.gradle</code>의 <code>buildConfigField</code>로 정의되어 <code>BuildConfig</code>에 주입됩니다.</li>
-      <li>버전은 <code>app/version.properties</code>의 <code>MAJOR.MINOR.POINT</code>(현재 3.14.56)로 산정됩니다.</li>
+      <li>버전은 <code>app/version.properties</code>의 <code>MAJOR.MINOR.POINT</code>(현재 3.14.58)로 산정됩니다.</li>
       <li>3rd Party 앱 허용 목록은 <code>app/src/main/assets/app_packages.properties</code>에 normal/hotel/ott 모드별로 정의됩니다.</li>
-      <li>산출물 APK 기본 파일명은 <code>tvapp-MARUSYS-b0&lt;BUILD_NUMBER&gt;-&lt;version&gt;</code> 형태입니다(<code>BUILD_NUMBER</code> 미설정 시 기본 46, versionCode 기본 1001).</li>
+      <li>산출물 APK 기본 파일명은 <code>tvapp-MARUSYS-b0&lt;BUILD_NUMBER&gt;-&lt;version&gt;</code> 형태입니다(<code>BUILD_NUMBER</code> 미설정 시 기본 48, versionCode 기본 1001).</li>
     </ul>
     <div class="callout warn">
       <div class="ct">참고</div>
@@ -425,8 +426,13 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>최근 작업은 Android 14 / 마르시스 단말 정합 이후의 안정화 단계에 있습니다. 2026-08-03 커밋에서 <code>app/version.properties</code>의 <code>POINT</code>가 55에서 56으로, <code>app/build.gradle</code>의 <code>buildnumber</code> 기본값이 45에서 46으로 올라가 릴리스 버전이 <strong>3.14.56</strong>으로 갱신되었습니다. 기능 로직 변경 없이 버전 정보만 반영한 릴리스 커밋입니다. 직전 구간에서는 호텔 체크인/체크아웃 시 단말 초기화 과정에 HDMI CEC를 끄는 처리(<code>SDP</code>·<code>Push</code>)가 추가되었고, 키즈 모드 판별 로직(<code>ProfileUtils</code>)이 API 33+ profile 확인·reflection·사용자 제한(restrictions) 검사 등 다단계로 보강되었습니다. 그 밖에 플레이어 라이브러리(AAR) 로그 활성화 갱신, livePlayer 재생성 등 재생 안정성 보강, Google 계정 추가/삭제 시나리오, 호텔 welcome 화면 처리 등이 주를 이룹니다.</p>
+    <p>최근 작업은 부팅 안정성 보강에 집중되어 있습니다. 공유기까지의 연결은 정상이지만 공유기-외부(인터넷) 연결이 지연되는 현상에 대응하기 위해 <code>ctrl/BootNetworkChecker</code>가 새로 도입되었습니다(2026-09-16 <code>부팅 전 네트워크 체크.</code>). <code>PlaybackActivity.onCreate()</code>는 기존에 즉시 수행하던 플레이어 초기화·재생 시작 로직을 <code>initPlayerAndStartPlayback()</code>으로 분리하고, 그 전에 내부 대상 IP(192.168.32.16/17)로 ping 체크를 최대 2분간 수행합니다. 첫 실패가 확인되면 <code>comp/NetworkWaitingPopup</code>(다시 시작/종료/설정 버튼)을 노출하며, <code>dispatchKeyEvent()</code>가 팝업 표시 중에는 키 입력을 팝업으로 위임합니다. 이어진 커밋(2026-09-17 <code>네트워크 연결 대기 팝업 UI 개선 및 패키지 구조 변경</code>)에서 팝업 관련 클래스가 <code>comp</code>/<code>ctrl</code> 패키지로 재배치되고, <code>ctrl/Inband</code>에 <code>getIframe(Context, String)</code> 오버로드가 추가되어 팝업이 부팅 iframe 캡처 이미지를 배경으로 표시할 수 있게 되었습니다. 버전은 <strong>3.14.58</strong>(빌드 번호 48)로 갱신되었고, 이후 팝업 레이아웃 UI 수정 커밋이 이어졌습니다.</p>
     <ul class="commits">
+      <li><span class="date">2026-09-17</span><span class="msg">[fixed] UI수정.</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">[fixed] 3.14.58</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">[fixed] 네트워크 연결 대기 팝업 UI 개선 및 패키지 구조 변경</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">[fixed] 3.14.57</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">[fixed] 부팅 전 네트워크 체크.</span></li>
       <li><span class="date">2026-08-03</span><span class="msg">[fixed] 3.14.56</span></li>
       <li><span class="date">2026-07-10</span><span class="msg">[fixed] Check in / out 시 Device HTML CEC off 하도록 수정.</span></li>
       <li><span class="date">2026-07-10</span><span class="msg">[fixed] kids 모드 수정.</span></li>
@@ -462,8 +468,8 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
 
 <footer>
   <div class="wrap">
-    이 문서는 저장소 소스 코드(브랜치 <code>android14/marusys</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
-    생성일 2026-06-05 · <a href="../index.html">전체 과제 목록으로</a>
+    이 문서는 저장소 소스 코드(브랜치 <code>android14/marusys</code>, 분석 기준 커밋 <code>e254931f</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · 갱신일 2026-09-20 · <a href="../index.html">전체 과제 목록으로</a>
   </div>
 </footer>
 

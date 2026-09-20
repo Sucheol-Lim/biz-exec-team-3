@@ -22,12 +22,12 @@
       <span class="badge gray">Android TV · Kotlin</span>
     </div>
     <h1>설정 · 사용자 환경</h1>
-    <p class="one-liner">CAS 정보(<code>CasInfoView</code>), 시청등급 제어(<code>ParentalControlView</code>), 녹화/예약 내역(<code>MyRecordsView</code>/<code>MyRemindersView</code>), 대여·구매 이력(<code>RentalPurchaseHistoryView</code>) 등 30개 이상의 설정 View/ViewModel이 공통 베이스(<code>SettingBaseView</code>/<code>SettingBaseViewModel</code>) 위에서 동작합니다.</p>
+    <p class="one-liner">CAS 정보(<code>CasInfoView</code>), 시청등급 제어(<code>ParentalControlView</code>), 녹화/예약 내역(<code>MyRecordsView</code>/<code>MyRemindersView</code>), 대여·구매 이력(<code>RentalPurchaseHistoryView</code>) 등 <code>ui/setting</code> 패키지 45개 파일이 공통 베이스(<code>SettingBaseView</code>/<code>SettingBaseViewModel</code>) 위에서 동작합니다. 공장 초기화(<code>FactoryResetView</code>)·재부팅 메뉴는 이번 레거시 정리 구간에서 삭제됐습니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tim-app-tv-android" target="_blank" rel="noopener"><code>tim-app-tv-android</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
       <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>ui/setting/base/SettingBaseViewModel.kt</code></div></div>
-      <div class="item"><div class="k">View/ViewModel 규모</div><div class="v">setting 패키지 합계 약 1,158줄 (대표 5개 파일 기준)</div></div>
+      <div class="item"><div class="k">View/ViewModel 규모</div><div class="v">ui/setting 패키지 45개 파일 (공장 초기화/재부팅 메뉴 삭제 후)</div></div>
     </div>
   </div>
 </header>
@@ -48,7 +48,7 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p><code>ui/setting</code>은 메뉴 목록(<code>SettingScreen</code>/<code>SettingViewModel</code>, <code>adapter/SettingMenuAdapter</code>)에서 각 항목으로 진입하는 개별 View/ViewModel 쌍을 다수 보유합니다 — CAS 정보(<code>CasInfoView</code>/<code>CasInfoModel</code>), 시청등급(<code>ParentalControlView</code>/<code>ParentalControlViewModel</code>), 즐겨찾기·잠금 채널(<code>FavoriteLockChannelView</code>), 녹화/예약(<code>MyRecordsView</code>/<code>MyRemindersView</code>), 대여·구매 이력(<code>RentalPurchaseHistoryView</code>), Wifi 신호(<code>WifiPowerLevelView</code>), 공장 초기화(<code>FactoryResetView</code>) 등입니다. 각 ViewModel은 <code>SettingBaseViewModel</code>을 상속해 공통 로딩·에러 처리를 물려받습니다.</p>
+    <p><code>ui/setting</code>은 메뉴 목록(<code>SettingScreen</code>/<code>SettingViewModel</code>, <code>adapter/SettingMenuAdapter</code>)에서 각 항목으로 진입하는 개별 View/ViewModel 쌍을 다수 보유합니다 — CAS 정보(<code>CasInfoView</code>/<code>CasInfoModel</code>), 시청등급(<code>ParentalControlView</code>/<code>ParentalControlViewModel</code>), 즐겨찾기·잠금 채널(<code>FavoriteLockChannelView</code>), 녹화/예약(<code>MyRecordsView</code>/<code>MyRemindersView</code>), 대여·구매 이력(<code>RentalPurchaseHistoryView</code>), Wifi 신호(<code>WifiPowerLevelView</code>) 등입니다. 각 ViewModel은 <code>SettingBaseViewModel</code>을 상속해 공통 로딩·에러 처리를 물려받습니다. <code>FactoryResetView</code>·재부팅 메뉴는 "공장 초기화/재부팅 설정 항목 삭제"·"공장 초기화 화면의 죽은 OTA 테스트 플래그 경로 삭제" 커밋으로 완전히 제거되어, 더 이상 <code>SettingMenuAdapter</code> 목록에 남아 있지 않습니다.</p>
     <p>예를 들어 <code>ParentalControlViewModel</code>은 <code>ModifyProfileUseCase</code>로 프로필의 <code>limitLevel</code>(시청등급 제한)을 변경하고, 성공 시 4개 등급 목록(<code>Rating</code>)에서 선택된 항목만 <code>isSelected</code>를 갱신해 <code>LiveData</code>로 다시 내보냅니다. 데이터는 안드로이드 <code>LiveData</code>(설정 도메인)와 RxJava3(재생·라이브 도메인)가 화면 성격에 따라 혼용됩니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트 — 목록 갱신은 불변 리스트 재구성</div>
@@ -109,7 +109,6 @@ classDiagram
     class MyRemindersView
     class RentalPurchaseHistoryView
     class WifiPowerLevelView
-    class FactoryResetView
     class SettingScreen {
         +viewModel SettingViewModel
     }
@@ -121,11 +120,10 @@ classDiagram
     SettingBaseView &lt;|-- MyRemindersView
     SettingBaseView &lt;|-- RentalPurchaseHistoryView
     SettingBaseView &lt;|-- WifiPowerLevelView
-    SettingBaseView &lt;|-- FactoryResetView
     SettingScreen --> SettingMenuAdapter : 메뉴 목록
     SettingMenuAdapter ..> SettingBaseView : 항목 선택 시 진입
       </div>
-      <p class="cap"><strong>관계.</strong> <code>SettingScreen</code>의 메뉴 어댑터에서 30여 개 개별 설정 화면으로 진입하며, 각 화면은 <code>SettingBaseView</code>/<code>SettingBaseViewModel</code> 공통 베이스를 상속합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>SettingScreen</code>의 메뉴 어댑터에서 개별 설정 화면으로 진입하며, 각 화면은 <code>SettingBaseView</code>/<code>SettingBaseViewModel</code> 공통 베이스를 상속합니다. 공장 초기화(<code>FactoryResetView</code>)는 삭제되어 더 이상 이 트리에 없습니다.</p>
     </div>
   </section>
 

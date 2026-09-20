@@ -22,12 +22,12 @@
       <span class="badge gray">Android TV · Kotlin</span>
     </div>
     <h1>팝업 · 오버레이</h1>
-    <p class="one-liner">OTT 로그인/가입/QR결제, 번들·쿠폰 프로모션, 페일세이프 복구, 전역 에러, OTA 업데이트 등 40여 개 팝업이 <code>ATVPopup</code>/<code>BaseAnimationPopup</code> 공통 베이스 위에서 리모컨 키(D-pad) 포커스 이동으로 동작합니다.</p>
+    <p class="one-liner">레거시 <code>ATVPopup</code>/<code>BaseAnimationPopup</code> 클래스 계층은 삭제됐습니다. 팝업은 이제 f01의 nav 엔진 위에서 <code>AppFragment</code>를 상속하는 평범한 <code>Destination</code>이며, <code>DestinationSpec</code>의 <code>plane</code>(<code>Popup</code>/<code>System</code>)과 <code>keyMonopoly</code>로 계층·키 독점을 선언합니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/tim-app-tv-android" target="_blank" rel="noopener"><code>tim-app-tv-android</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
-      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>app/screen/ATVPopup.kt</code></div></div>
-      <div class="item"><div class="k">예시</div><div class="v"><code>ui/popup/FailSafeRecoveryPopup.kt</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>nav/app/AppFragment.kt</code> (구 <code>ATVPopup</code> 대체)</div></div>
+      <div class="item"><div class="k">예시</div><div class="v"><code>ui/popup/FailSafeRecoveryPopup.kt</code> (26개 팝업 중 하나)</div></div>
     </div>
   </div>
 </header>
@@ -48,11 +48,11 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>모든 팝업은 <code>ATVScreen</code>을 상속하는 <code>ATVPopup&lt;VB&gt;</code>를 기반으로 합니다. 애니메이션(슬라이드/페이드)이 필요한 팝업은 <code>BaseAnimationPopup</code>을 한 겹 더 거치고, 단순 확인창(<code>FailSafeRecoveryPopup</code> 등)은 <code>ATVPopup</code>을 직접 상속합니다. 리모컨 좌/우 키로 버튼 포커스를 이동하고 OK 키로 확정하는 패턴이 반복되며, 팝업은 닫힐 때 <code>layerManager.deactivateLayer(this)</code>로 자기 자신을 레이어에서 제거합니다.</p>
-    <p>도메인별로 <code>ott/</code>(로그인·가입·QR결제·PIN), <code>bundle/</code>·<code>coupon/</code>·<code>purchase/</code>(프로모션·결제), <code>FailSafeRecoveryPopup</code>·<code>GlobalErrorPopup</code>·<code>ProvisionErrorPopup</code>(장애·에러), <code>OtaUpdatePopup</code>(OTA)로 40여 개 팝업이 분류됩니다. 콜백은 대부분 <code>ConsumeCallback&lt;Int&gt;</code>(버튼 인덱스를 소비하는 콜백)로 호출부에 전달되어, 팝업 자신은 "무엇을 눌렀는지"만 알리고 후속 처리는 호출부가 맡습니다.</p>
+    <p>"BlurPopup과 BaseAnimationPopup을 삭제한다"는 커밋을 기점으로, 팝업 전용 클래스 계층(<code>ATVPopup</code>·<code>BaseAnimationPopup</code>)이 사라지고 화면과 같은 <code>AppFragment&lt;VB&gt;</code> 베이스를 씁니다. 각 팝업은 <code>companion object</code>에 <code>DestinationSpec</code>을 선언해 <code>plane</code>(대개 <code>AppPlanes.Popup</code>, 반드시 응답해야 하는 <code>FailSafeRecoveryPopup</code>은 <code>AppPlanes.System</code>)과 <code>keyMonopoly</code>(키 독점 여부)를 명시합니다. 콜백도 <code>ConsumeCallback&lt;Int&gt;</code> 같은 전용 인터페이스 대신 <code>Args</code> 데이터 클래스가 들고 있는 평범한 코틀린 람다(<code>onButtonClick: ((Int) -&gt; Unit)?</code>)로 바뀌었습니다 — Activity 스코프 안에서 직접 넘기므로 <code>Bundle</code>에 담을 <code>Parcelable</code>일 필요가 없기 때문입니다.</p>
+    <p>도메인별로 <code>bundle/</code>·<code>coupon/</code>·<code>purchase/</code>·<code>applist/</code>·<code>play/</code>(프로모션·구매·재생 관련), <code>FailSafeRecoveryPopup</code>·<code>GlobalErrorPopup</code>·<code>ProvisionErrorPopup</code>(장애·에러), <code>CampaignPopup</code>·<code>CommonPopup</code>·<code>MesNotificationPopup</code>·<code>MesWebViewPopup</code>·<code>PasswordPopup</code>·<code>LoadingPopup</code>·<code>ToastPopup</code> 등으로 <code>ui/popup</code> 아래 26개 팝업이 분류됩니다. 과거 <code>ott/</code> 하위의 로그인·가입·QR결제 팝업들과 <code>OtaUpdatePopup</code>은 이번 구간에서 사라졌고, 로그인 플로우는 새 홈 UI(f01)의 <code>ui/home/subview/profile/popup</code>(<code>ProfileLoginPopup</code>·<code>ProfileAvatarSelectPopup</code> 등)으로 대체됐습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트 — keyMonopoly로 키 독점</div>
-      <code>FailSafeRecoveryPopup</code>은 <code>init { keyMonopoly = true }</code>로 키 입력을 독점합니다(f01의 <code>DestinationSpec.keyMonopoly</code>와 같은 개념). 페일세이프처럼 사용자가 반드시 응답해야 하는 팝업에서, 아래 화면이 리모컨 키를 가로채지 못하게 합니다.
+      <code>FailSafeRecoveryPopup.Spec</code>은 <code>keyMonopoly = true</code>로 키 입력을 독점합니다(f01의 <code>DestinationSpec.keyMonopoly</code>와 동일한 필드). 페일세이프처럼 사용자가 반드시 응답해야 하는 팝업에서, 아래 화면이 리모컨 키를 가로채지 못하게 합니다. 소스 주석에는 "구 <code>keyMonopoly = true</code>"라고 남아 있어, 레거시 필드가 이름 그대로 새 엔진에 옮겨왔음을 보여줍니다.
     </div>
   </section>
 
@@ -63,28 +63,28 @@
 sequenceDiagram
     autonumber
     participant CALLER as 호출부(예: BootScreen)
-    participant LM as LayerManager
+    participant NAV as Navigator
     participant POP as FailSafeRecoveryPopup
-    participant CB as ConsumeCallback&lt;Int&gt;
+    participant CB as onButtonClick 람다
 
-    CALLER->>LM: 팝업 표시 요청 (arguments에 콜백 포함)
-    LM->>POP: onViewCreated(bundle)
-    POP->>POP: onButtonClick = bundle.getParcelableCompat(KEY_BUTTON_CALLBACK)
-    POP->>POP: btnOk.requestFocus()
+    CALLER->>NAV: activate(FailSafeRecoveryPopup.Spec, Args(onButtonClick))
+    NAV->>POP: onArgs(args) → onButtonClick = args.onButtonClick
+    POP->>POP: binding.btnOk.requestFocus()
     loop 리모컨 입력
-        POP->>POP: onKeyDown(keyCode)
+        POP->>POP: onKey(stroke: KeyStroke)
         alt LEFT/RIGHT
             POP->>POP: btnOk ↔ btnCancel 포커스 전환
         else OK
-            POP->>LM: deactivateLayer(this)
+            POP->>POP: closeSelf()
             POP->>CB: onButtonClick.invoke(0 또는 1)
         else EXIT/PREV
-            POP->>LM: deactivateLayer(this)
+            POP->>POP: closeSelf()
         end
     end
+    POP->>POP: onActiveChanged(active) — 재활성 시 lastFocusView 복원
     CB-->>CALLER: 선택 결과(버튼 인덱스) 통보
       </div>
-      <p class="cap"><strong>흐름.</strong> 팝업은 버튼 포커스 이동과 OK 확정만 자체 처리하고, 실제 "무엇을 할지"는 콜백을 통해 호출부로 위임합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 팝업은 <code>Navigator.activate</code>로 <code>Destination</code>이 되어 뜨고, 버튼 포커스 이동과 OK 확정만 자체 처리하며, 실제 "무엇을 할지"는 <code>Args</code>에 담긴 람다를 통해 호출부로 위임합니다. 닫기는 <code>layerManager.deactivateLayer(this)</code> 대신 <code>closeSelf()</code>(nav.app.AppFragment) 한 줄입니다.</p>
     </div>
   </section>
 
@@ -93,71 +93,76 @@ sequenceDiagram
     <div class="diagram">
       <div class="mermaid">
 classDiagram
-    class ATVScreen {
+    class AppFragment {
         &lt;&lt;abstract&gt;&gt;
+        #binding VB
+        #closeSelf()
     }
-    class ATVPopup {
-        &lt;&lt;abstract&gt;&gt;
-        +onKeyDown(keyCode, event) Boolean
-    }
-    class BaseAnimationPopup {
-        &lt;&lt;abstract&gt;&gt;
-        #slide Boolean
-        #fade Boolean
-        +isShowing Boolean
-        #show()
+    class DestinationSpec {
+        +plane Plane
+        +keyMonopoly Boolean
     }
     class FailSafeRecoveryPopup {
-        -ConsumeCallback~Int~ onButtonClick
-        +onKeyDown(keyCode, event) Boolean
+        -onButtonClick (Int)-&gt;Unit
+        +onKey(stroke) Boolean
+        +onActiveChanged(active, from)
+    }
+    class Args {
+        +onButtonClick (Int)-&gt;Unit
     }
     class GlobalErrorPopup
-    class OttLoginPopup
-    class LayerManager {
-        +deactivateLayer(popup)
-    }
-    class ConsumeCallback~T~ {
-        &lt;&lt;interface&gt;&gt;
-        +invoke(value T)
-    }
+    class ProfileLoginPopup
+    class CampaignPopup
 
-    ATVScreen &lt;|-- ATVPopup
-    ATVPopup &lt;|-- BaseAnimationPopup
-    ATVPopup &lt;|-- FailSafeRecoveryPopup
-    BaseAnimationPopup &lt;|-- GlobalErrorPopup
-    BaseAnimationPopup &lt;|-- OttLoginPopup
-    FailSafeRecoveryPopup --> LayerManager : deactivateLayer
-    FailSafeRecoveryPopup --> ConsumeCallback : 결과 통보
+    AppFragment &lt;|-- FailSafeRecoveryPopup
+    AppFragment &lt;|-- GlobalErrorPopup
+    AppFragment &lt;|-- ProfileLoginPopup
+    AppFragment &lt;|-- CampaignPopup
+    FailSafeRecoveryPopup --&gt; Args : DestinationArgs
+    FailSafeRecoveryPopup --&gt; DestinationSpec : companion Spec
       </div>
-      <p class="cap"><strong>관계.</strong> 애니메이션이 필요 없는 단순 확인 팝업은 <code>ATVPopup</code>을 직접 상속하고, 슬라이드/페이드가 필요한 팝업은 <code>BaseAnimationPopup</code>을 거칩니다.</p>
+      <p class="cap"><strong>관계.</strong> 삭제된 <code>ATVPopup</code>/<code>BaseAnimationPopup</code> 대신, 모든 팝업이 화면과 동일한 <code>AppFragment</code>를 상속하고 <code>DestinationSpec</code>으로 자신의 평면·키 독점 여부를 선언하는 평면적 구조가 됐습니다. 로그인 계열 팝업은 <code>ott/</code>가 아니라 <code>ui/home/subview/profile/popup</code>으로 옮겨졌습니다.</p>
     </div>
   </section>
 
   <section id="code">
     <h2>핵심 코드</h2>
     <div class="snippet">
-      <div class="sc"><code>ui/popup/FailSafeRecoveryPopup.kt</code> — 좌우 포커스 전환 + OK 확정 콜백</div>
-<pre><code>init { keyMonopoly = true }
+      <div class="sc"><code>ui/popup/FailSafeRecoveryPopup.kt</code> — AppFragment 기반, onKey + closeSelf</div>
+<pre><code>class FailSafeRecoveryPopup : AppFragment&lt;PopupFailSafeRecoveryBinding&gt;() {
 
-override fun onKeyDown(keyCode: Int, event: AltiKeyEvent): Boolean {
-    lastFocusView = requireActivity().currentFocus
-    when (keyCode) {
-        ATVKeyCode.KEY_RIGHT, ATVKeyCode.KEY_LEFT -&gt; when (lastFocusView) {
-            binding.btnOk -&gt; binding.btnCancel.requestFocus()
-            binding.btnCancel -&gt; binding.btnOk.requestFocus()
-        }
-        ATVKeyCode.KEY_EXIT, ATVKeyCode.KEY_PREV -&gt; layerManager.deactivateLayer(this)
-        ATVKeyCode.KEY_OK -&gt; {
-            if (binding.btnOk.hasFocus()) {
-                layerManager.deactivateLayer(this)
-                onButtonClick?.invoke(0)
-            } else if (binding.btnCancel.hasFocus()) {
-                layerManager.deactivateLayer(this)
-                onButtonClick?.invoke(1)
+    class Args(val onButtonClick: ((Int) -&gt; Unit)? = null) : DestinationArgs
+
+    private lateinit var args: Args
+    override suspend fun onArgs(args: DestinationArgs) {
+        this.args = args as? Args ?: error("FailSafeRecoveryPopup 은 Args 가 필요하다")
+    }
+
+    override fun onKey(stroke: KeyStroke): Boolean {
+        if (stroke.action != KeyAction.DOWN) return false
+        when (stroke.code) {
+            ATVKeyCode.KEY_RIGHT, ATVKeyCode.KEY_LEFT -&gt; when (lastFocusView) {
+                binding.btnOk -&gt; binding.btnCancel.requestFocus()
+                binding.btnCancel -&gt; binding.btnOk.requestFocus()
+            }
+            ATVKeyCode.KEY_EXIT, ATVKeyCode.KEY_PREV -&gt; closeSelf()
+            ATVKeyCode.KEY_OK -&gt; {
+                if (binding.btnOk.hasFocus()) { closeSelf(); onButtonClick?.invoke(0) }
+                else if (binding.btnCancel.hasFocus()) { closeSelf(); onButtonClick?.invoke(1) }
+                else closeSelf()
             }
         }
+        return true
     }
-    return true
+
+    companion object {
+        val Spec = DestinationSpec(
+            id = DestinationId("FailSafeRecoveryPopup"),
+            plane = AppPlanes.System,
+            factory = { FailSafeRecoveryPopup() },
+            keyMonopoly = true,   // 구 keyMonopoly = true
+        )
+    }
 }</code></pre>
     </div>
   </section>
@@ -165,11 +170,11 @@ override fun onKeyDown(keyCode: Int, event: AltiKeyEvent): Boolean {
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/app/screen/ATVPopup.kt" target="_blank" rel="noopener">app/screen/ATVPopup.kt</a><span class="src">팝업 공통 베이스</span></li>
-      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/popup/core/BaseAnimationPopup.kt" target="_blank" rel="noopener">ui/popup/core/BaseAnimationPopup.kt</a><span class="src">슬라이드/페이드 애니메이션 베이스</span></li>
-      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/popup/FailSafeRecoveryPopup.kt" target="_blank" rel="noopener">ui/popup/FailSafeRecoveryPopup.kt</a><span class="src">키 독점 확인 팝업 (77줄)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/popup/ott/OttLoginPopup.kt" target="_blank" rel="noopener">ui/popup/ott/OttLoginPopup.kt</a><span class="src">OTT 로그인 팝업 (163줄)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/popup/GlobalErrorPopup.kt" target="_blank" rel="noopener">ui/popup/GlobalErrorPopup.kt</a><span class="src">전역 에러 팝업 (136줄)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/nav/app/AppFragment.kt" target="_blank" rel="noopener">nav/app/AppFragment.kt</a><span class="src">모든 화면·팝업의 공통 베이스 — 구 <code>ATVScreen</code>/<code>ATVPopup</code> 대체</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/popup/FailSafeRecoveryPopup.kt" target="_blank" rel="noopener">ui/popup/FailSafeRecoveryPopup.kt</a><span class="src">키 독점 확인 팝업 (105줄, nav 엔진 기반으로 재작성)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/popup/GlobalErrorPopup.kt" target="_blank" rel="noopener">ui/popup/GlobalErrorPopup.kt</a><span class="src">전역 에러 팝업 (183줄)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/home/subview/profile/popup/ProfileLoginPopup.kt" target="_blank" rel="noopener">ui/home/subview/profile/popup/ProfileLoginPopup.kt</a><span class="src">구 <code>ott/</code> 로그인 팝업을 대체한 프로필 로그인 팝업 (신규)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/tim-app-tv-android/src/main/app/src/main/java/com/altimedia/ui/popup/CampaignPopup.kt" target="_blank" rel="noopener">ui/popup/CampaignPopup.kt</a><span class="src">nav 엔진으로 이관된 캠페인 팝업</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

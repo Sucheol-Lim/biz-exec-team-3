@@ -26,7 +26,7 @@
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/ott-tvapp" target="_blank" rel="noopener"><code>ott-tvapp</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>android14/marusys</code></div></div>
-      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>PlaybackActivity</code> · <code>ott/OttApplication</code></div></div>
+      <div class="item"><div class="k">핵심 클래스</div><div class="v"><code>PlaybackActivity</code> · <code>ctrl/BootNetworkChecker</code></div></div>
       <div class="item"><div class="k">진입 인텐트</div><div class="v"><code>HOME</code> · <code>LEANBACK_LAUNCHER</code></div></div>
     </div>
   </div>
@@ -49,10 +49,11 @@
   <section id="desc">
     <h2>기능 개요</h2>
     <p>이 앱은 별도 런처를 두지 않고 메인 재생 화면인 <code>PlaybackActivity</code> 자체가 단말의 홈 화면을 겸합니다. <code>AndroidManifest.xml</code>에서 이 액티비티는 <code>android:launchMode="singleInstance"</code>로 선언되어 시스템 전체에 인스턴스가 하나만 존재하며, 인텐트 필터에 <code>category.HOME</code>·<code>category.LEANBACK_LAUNCHER</code>·<code>category.LAUNCHER</code>를 모두 등록해 부팅 직후와 리모컨 홈키 입력 시 이 액티비티가 전면에 올라옵니다.</p>
-    <p>이미 떠 있는 단일 인스턴스에 새 인텐트가 도착하면 <code>onCreate()</code>가 아니라 <code>onNewIntent()</code>가 호출됩니다. 이 콜백은 CAS 팝업·부팅 다이얼로그 표시 여부, VOD 재생 중 여부, <code>MgmtManager</code> 연결 상태 등을 점검해 새 인텐트를 무시하거나 처리하도록 분기합니다. 데이터가 없는 순수 기동(부팅)일 때는 <code>onCreate()</code>에서 네트워크 대기 메시지를 예약하고, TV 프로그램 URI 같은 데이터가 있으면 플레이어를 만들어 곧바로 해당 채널로 진입합니다.</p>
+    <p>이미 떠 있는 단일 인스턴스에 새 인텐트가 도착하면 <code>onCreate()</code>가 아니라 <code>onNewIntent()</code>가 호출됩니다. 이 콜백은 CAS 팝업·부팅 다이얼로그 표시 여부, VOD 재생 중 여부, <code>MgmtManager</code> 연결 상태 등을 점검해 새 인텐트를 무시하거나 처리하도록 분기합니다.</p>
+    <p>최초 부팅(프로세스 기동) 시의 <code>onCreate()</code>는 더 이상 곧바로 플레이어 초기화·네트워크 대기 예약을 하지 않습니다. <code>setContentView()</code> 직후 <code>ctrl/BootNetworkChecker</code>를 생성해 <code>start(listener)</code>로 백그라운드 점검을 맡기고, 기존에 <code>onCreate()</code>가 하던 나머지 초기화(핸들러 생성, <code>NetworkStateManager</code> 초기화, 데이터 유무에 따른 즉시 재생/네트워크 대기 메시지 예약 등)는 새로 분리된 <code>initPlayerAndStartPlayback()</code>으로 옮겨져 체크가 끝난 뒤(성공 또는 타임아웃) 호출됩니다. 이는 단말-공유기 간 연결은 정상이지만 공유기-외부(인터넷) 연결이 지연되는 현상에 대응하기 위한 것으로, 내부 대상 IP(<code>192.168.32.16</code>/<code>192.168.32.17</code>)로 ping을 반복 시도해 응답이 오거나 최대 2분이 지나면 다음 단계로 넘어갑니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
-      <code>excludeFromRecents</code>·<code>clearTaskOnLaunch</code>·<code>stateNotNeeded</code> 속성을 함께 지정해 셋톱박스 런처답게 최근 앱 목록에 남지 않고 항상 깨끗한 단일 태스크로 복귀하도록 했습니다. 진입점인 <code>OttApplication</code>은 <code>onCreate()</code>에서 <code>ApplicationLifecycleListener</code>를 등록해 액티비티 생명주기를 추적합니다.
+      <code>excludeFromRecents</code>·<code>clearTaskOnLaunch</code>·<code>stateNotNeeded</code> 속성을 함께 지정해 셋톱박스 런처답게 최근 앱 목록에 남지 않고 항상 깨끗한 단일 태스크로 복귀하도록 했습니다. 진입점인 <code>OttApplication</code>은 <code>onCreate()</code>에서 <code>ApplicationLifecycleListener</code>를 등록해 액티비티 생명주기를 추적합니다. 부팅 네트워크 체크가 첫 실패를 확인한 시점에만 <code>comp/NetworkWaitingPopup</code>을 띄우며(성공 시에는 노출되지 않음), 팝업이 떠 있는 동안 <code>PlaybackActivity.dispatchKeyEvent()</code>는 키 이벤트를 팝업으로 위임합니다.
     </div>
   </section>
 
@@ -65,6 +66,8 @@ sequenceDiagram
     participant SYS as Android System
     participant APP as OttApplication
     participant ACT as PlaybackActivity (singleInstance)
+    participant BNC as ctrl/BootNetworkChecker
+    participant NWP as comp/NetworkWaitingPopup
     participant NET as NetworkStateManager
     participant PL as ctrl/Player
 
@@ -73,6 +76,18 @@ sequenceDiagram
     SYS-&gt;&gt;ACT: HOME / LEANBACK_LAUNCHER 인텐트
     alt 인스턴스 없음 (부팅)
         ACT-&gt;&gt;ACT: onCreate(savedInstanceState)
+        ACT-&gt;&gt;BNC: new BootNetworkChecker(this).start(listener)
+        loop 최대 2분, 192.168.32.16/17 순환 ping
+            BNC-&gt;&gt;BNC: pingHost(ip, count=5, timeout=1s)
+            opt 첫 실패 확인 시 1회
+                BNC-&gt;&gt;NWP: show()
+            end
+        end
+        BNC--&gt;&gt;ACT: listener.onComplete(success) (성공 또는 2분 타임아웃)
+        opt 팝업이 떠 있었던 경우
+            BNC-&gt;&gt;NWP: dismiss()
+        end
+        ACT-&gt;&gt;ACT: initPlayerAndStartPlayback()
         ACT-&gt;&gt;NET: init(this, mNetworkStateHandler)
         alt intent.getData() == null
             ACT-&gt;&gt;ACT: sendEmptyMessageDelayed(MSG_BOOTING_NETWORK_WAITING)
@@ -86,7 +101,7 @@ sequenceDiagram
         ACT-&gt;&gt;ACT: 무시 또는 handleIntent(intent)
     end
       </div>
-      <p class="cap"><strong>흐름.</strong> 단일 인스턴스라 부팅 시에는 <code>onCreate()</code>, 이미 떠 있을 때 들어오는 홈키/인텐트는 <code>onNewIntent()</code>로 분기됩니다. 부팅 경로는 네트워크 대기 후 기본 채널 재생으로 이어집니다.</p>
+      <p class="cap"><strong>흐름.</strong> 단일 인스턴스라 부팅 시에는 <code>onCreate()</code>, 이미 떠 있을 때 들어오는 홈키/인텐트는 <code>onNewIntent()</code>로 분기됩니다. 부팅 경로는 이제 <code>BootNetworkChecker</code>의 외부 연결 확인(성공 또는 2분 타임아웃)을 먼저 거친 뒤 <code>initPlayerAndStartPlayback()</code>에서 네트워크 대기 후 기본 채널 재생으로 이어집니다.</p>
     </div>
   </section>
 
@@ -108,6 +123,8 @@ classDiagram
         +onRestart()
         +onKeyDown(int keyCode, KeyEvent event)
         +onKeyUp(int keyCode, KeyEvent event)
+        +dispatchKeyEvent(KeyEvent event) boolean
+        -initPlayerAndStartPlayback()
         -handleIntent(Intent intent)
         -homeMenu(Object param)
     }
@@ -115,6 +132,23 @@ classDiagram
         &lt;&lt;interface&gt;&gt;
         +onInitialized()
         +onDeinitialized()
+    }
+    class BootNetworkChecker {
+        -Activity activity
+        -NetworkWaitingPopup popup
+        +start(OnCheckCompleteListener listener)
+        +getPopup() NetworkWaitingPopup
+        +cancel()
+    }
+    class OnCheckCompleteListener {
+        &lt;&lt;interface&gt;&gt;
+        +onComplete(boolean success)
+    }
+    class NetworkWaitingPopup {
+        +show()
+        +isShowing() boolean
+        +dispatchKeyEvent(KeyEvent event) boolean
+        +dismiss()
     }
     class NetworkStateManager {
         +init(context, handler)
@@ -125,10 +159,14 @@ classDiagram
 
     OttApplication --&gt; ApplicationLifecycleListener : registerActivityLifecycleCallbacks
     PlaybackActivity ..|&gt; DeviceAPIStateCallback : implements
+    PlaybackActivity --&gt; BootNetworkChecker : onCreate에서 생성 후 start
+    BootNetworkChecker ..&gt; OnCheckCompleteListener : onComplete 콜백
+    BootNetworkChecker o-- NetworkWaitingPopup : 소유
+    PlaybackActivity --&gt; NetworkWaitingPopup : dispatchKeyEvent 위임
     PlaybackActivity --&gt; NetworkStateManager : init
     PlaybackActivity --&gt; Player : init
       </div>
-      <p class="cap"><strong>관계.</strong> <code>OttApplication</code>이 생명주기 리스너를 등록하고, 단일 인스턴스 <code>PlaybackActivity</code>가 <code>DeviceAPI.DeviceAPIStateCallback</code>을 구현하며 네트워크·플레이어를 초기화합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>OttApplication</code>이 생명주기 리스너를 등록하고, 단일 인스턴스 <code>PlaybackActivity</code>가 <code>DeviceAPI.DeviceAPIStateCallback</code>을 구현하며 <code>BootNetworkChecker</code>를 생성·시작합니다. <code>BootNetworkChecker</code>는 <code>NetworkWaitingPopup</code>을 소유하고, 팝업이 떠 있는 동안에는 <code>PlaybackActivity</code>가 키 이벤트를 팝업으로 위임합니다.</p>
     </div>
   </section>
 
@@ -153,10 +191,21 @@ classDiagram
 &lt;/activity&gt;</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>PlaybackActivity.java</code> — onCreate에서 데이터 유무로 부팅/진입 분기</div>
+      <div class="sc"><code>PlaybackActivity.java</code> — onCreate는 부팅 네트워크 체크만 시작하고, 나머지 초기화는 콜백에서 진행</div>
 <pre><code>protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_playback);
+
+    // 부팅 네트워크(외부 연결) 체크 시작
+    bootNetworkChecker = new BootNetworkChecker(this);
+    bootNetworkChecker.start(success -&gt; {
+        // success 여부와 상관없이(성공 또는 2분 타임아웃) 여기서 다음 단계 진행
+        initPlayerAndStartPlayback();
+    });
+}
+
+private void initPlayerAndStartPlayback() {
+    // 기존에 onCreate에서 하던 플레이어 초기화 / 재생 시작 로직
     handler = new MyHandler(this);
     NetworkStateManager.getInstance().init(this, mNetworkStateHandler);
 
@@ -171,13 +220,23 @@ classDiagram
     }
 }</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>PlaybackActivity.java</code> — dispatchKeyEvent에서 네트워크 대기 팝업으로 키 이벤트 위임</div>
+<pre><code>NetworkWaitingPopup popup = bootNetworkChecker != null ? bootNetworkChecker.getPopup() : null;
+if (popup != null &amp;&amp; popup.isShowing()) {
+    return popup.dispatchKeyEvent(event);   // 팝업이 떠 있는 동안 좌우/확인 키를 팝업이 소비
+}
+return super.dispatchKeyEvent(event);</code></pre>
+    </div>
   </section>
 
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/AndroidManifest.xml" target="_blank" rel="noopener">app/src/main/AndroidManifest.xml</a><span class="src">singleInstance · HOME/LEANBACK_LAUNCHER 인텐트 필터 선언</span></li>
-      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/PlaybackActivity.java" target="_blank" rel="noopener">PlaybackActivity.java</a><span class="src">홈/런처 메인 액티비티 · onCreate/onNewIntent/onRestart 진입 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/PlaybackActivity.java" target="_blank" rel="noopener">PlaybackActivity.java</a><span class="src">홈/런처 메인 액티비티 · onCreate에서 BootNetworkChecker 시작, initPlayerAndStartPlayback/onNewIntent/dispatchKeyEvent 처리</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ctrl/BootNetworkChecker.java" target="_blank" rel="noopener">ctrl/BootNetworkChecker.java</a><span class="src">부팅 시 외부 네트워크 ping 체크 (최대 2분, 실패 시 팝업 노출)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/comp/NetworkWaitingPopup.java" target="_blank" rel="noopener">comp/NetworkWaitingPopup.java</a><span class="src">네트워크 대기 팝업 · 다시 시작/종료/설정 버튼, 방향키 포커스 이동 직접 처리</span></li>
       <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/OttApplication.java" target="_blank" rel="noopener">ott/OttApplication.java</a><span class="src">Application 진입점 · ApplicationLifecycleListener 등록</span></li>
       <li><a href="https://bitbucket.org/altimedia/ott-tvapp/src/android14/marusys/app/src/main/java/com/kctvjeju/tvapp/ott/ApplicationLifecycleListener.java" target="_blank" rel="noopener">ott/ApplicationLifecycleListener.java</a><span class="src">액티비티 생명주기 콜백 리스너</span></li>
     </ul>

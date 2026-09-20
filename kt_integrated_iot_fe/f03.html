@@ -62,6 +62,7 @@
       <div class="ct">설계 포인트</div>
       비편집 상태에서는 빈 격자 영역의 클릭이 아래 지도로 전달되도록 부모 <code>Stack</code>의 <code>pointerEvents</code>를 <code>none</code>으로 두고, 각 카드 <code>Box</code>만 <code>auto</code>로 두어 지도와 위젯이 한 화면에 공존합니다. 자동 갱신 쪽에서는 <code>pausedRef</code>·<code>hiddenRef</code> 같은 상태를 모두 <code>ref</code>로 관리해, pause/resume이 일어날 때마다 바운더리가 재렌더되어 하위 위젯 트리 전체가 다시 그려지는 일을 피합니다.
     </div>
+    <p class="src">2026-09-01~09-16 커밋 범위에서 <code>src/api/common.ts</code>에 <code>getMenus</code> 타임아웃 옵션·<code>checkMenuExtService</code>가 추가되었으나, 이는 <a href="f11.html">권한 기반 사이트 전환 제어</a>의 메뉴 서비스 가입 확인 전용 함수이며 이 화면의 위젯 조회·저장(<code>widgetList</code>/<code>registWidget</code> 등)에는 영향이 없습니다.</p>
   </section>
 
   <section id="seq">

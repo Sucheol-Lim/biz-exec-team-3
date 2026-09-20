@@ -59,6 +59,7 @@
       <div class="ct">설계 포인트</div>
       구역(Area) API는 <code>download</code> 플래그로 같은 엔드포인트를 <code>/areas.csv</code> + <code>responseType: 'blob'</code>으로 재사용해 목록 조회와 CSV 다운로드를 한 함수로 처리합니다. 한편 자동 갱신(<code>AutoRefreshRoute</code>)은 <code>home</code>·<code>overview</code> 라우트에만 적용되므로, 이 관리 화면들은 주기적 백그라운드 갱신 대상이 아니라 사용자의 조회·저장 동작으로만 갱신됩니다.
     </div>
+    <p class="src">2026-09-01~09-16 커밋 범위에서 <code>src/api/common.ts</code>·<code>src/types/api.d.ts</code>·<code>src/routes/route.tsx</code>에 변경이 있었으나, 각각 메뉴 서비스 가입 확인(<a href="f11.html">권한 기반 사이트 전환 제어</a>)과 전문가 보고서 식별자 개편(<a href="f06.html">이력 조회</a>)에 해당하며 디바이스·서비스대상·구역 CRUD 라우트·API에는 영향이 없습니다.</p>
   </section>
 
   <section id="seq">

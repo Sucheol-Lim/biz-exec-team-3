@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- kt-bom-qrator-web · 3-프로파일 빌드/배포 파이프라인 기능 상세 — Gulp dist/package/release + FTP -->
+<!-- kt-bom-qrator-web · 3-프로파일 빌드/배포 파이프라인 기능 상세 — Gulp dist/package + git tag (FTP 제거, 2026-09-18) -->
 <html lang="ko">
 <head>
 <meta charset="utf-8">
@@ -22,12 +22,12 @@
       <span class="badge gray">Node.js · Gulp 빌드</span>
     </div>
     <h1>3-프로파일 빌드/배포 파이프라인</h1>
-    <p class="one-liner">Gulp 기반으로 L(운영)/S(BMT)/D(개발) 3종 프로파일을 빌드해 단말 위젯 패키지 <code>.wgt</code>(zip)로 만들고, 빌드 환경값(<code>build-env.js</code>)을 주입한 뒤 FTP로 업로드하는 파이프라인입니다.</p>
+    <p class="one-liner">Gulp 기반으로 L(운영)/S(BMT)/D(개발) 3종 프로파일(및 로컬 확인용 M/mock)을 빌드해 단말 위젯 패키지 <code>.wgt</code>(zip)로 만들고, 빌드 환경값(<code>build-env.js</code>)을 주입하는 파이프라인입니다. FTP 업로드 코드는 2026-09-18에 전량 제거되었고, 상용(L) 패키지는 <code>gulp tag:live</code>로 git 태그만 생성·push합니다.</p>
     <div class="meta-grid">
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web" target="_blank" rel="noopener"><code>kt-bom-qrator-web</code></a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
       <div class="item"><div class="k">핵심 파일</div><div class="v"><code>gulpfile.js</code>, <code>config/config-*.json</code></div></div>
-      <div class="item"><div class="k">산출물</div><div class="v"><code>.wgt</code> (W3C Widget zip)</div></div>
+      <div class="item"><div class="k">산출물</div><div class="v"><code>.wgt</code> (W3C Widget zip), 업로드는 수행 안 함</div></div>
     </div>
   </div>
 </header>
@@ -48,12 +48,16 @@
 
   <section id="desc">
     <h2>기능 개요</h2>
-    <p>빌드는 <code>gulpfile.js</code>에 등록된 콜론 표기 task(<code>dist:*</code>, <code>package:*</code>, <code>release:*</code>)를 기준으로 합니다. 세 프로파일은 운영(L)·BMT(S)·개발(D)이며, 각각 <code>config/config-live.json</code>·<code>config-bmt.json</code>·<code>config-develop.json</code>에 <code>e7works</code>·<code>sharp_ui</code>·<code>live_agent</code>·<code>cache</code>·<code>image</code>·<code>tvpay_module</code> 엔드포인트를 둡니다.</p>
-    <p><code>dist</code> 파이프라인(<code>distPipeline</code>)은 <code>setTarget → cleanFiles → uglifyJs → copyCommonFiles → copyResFiles → createBuildEnv → verifyDistBuildEnv</code> 순서입니다. 핵심은 <code>createBuildEnv</code>로, 프로파일 JSON과 버전/날짜/차수(우선순위 CLI &gt; ENV &gt; config.js &gt; 오늘 날짜)·git 커밋 해시를 모아 <code>dist/common/js/core/build-env.js</code>에 <code>window.BUILD_ENV</code> 객체로 주입합니다. <code>verifyDistBuildEnv</code>는 <code>serverTo</code>가 L/S/D인지, 엔드포인트 URL 형식·버전 접미사가 올바른지 검증합니다.</p>
-    <p><code>package</code> 파이프라인은 dist 후 <code>makeReleaseRule → createWgt → recordArtifact</code>로 산출물 파일명(<code>KT-BRK-QRATOR-WEB-V&lt;버전&gt;_...wgt</code> 규칙)과 경로를 정하고, <code>gulp-zip</code>으로 dist 전체를 <code>.wgt</code>로 압축합니다. <code>release</code>는 패키지 후 FTP 업로드까지 수행합니다. <code>release:all</code>은 <code>resetArtifacts → package:live → package:bmt → package:develop → deployAll</code> 순으로 3개 <code>.wgt</code>를 모아 한 번에 같은 원격 디렉터리에 올립니다.</p>
+    <p>빌드는 <code>gulpfile.js</code>에 등록된 콜론 표기 task(<code>dist:*</code>, <code>package:*</code>, <code>tag:live</code>)를 기준으로 합니다. 정식 프로파일은 운영(L)·BMT(S)·개발(D)이며, 각각 <code>config/config-live.json</code>·<code>config-bmt.json</code>·<code>config-develop.json</code>에 <code>e7works</code>·<code>sharp_ui</code>·<code>live_agent</code>·<code>cache</code>·<code>image</code>·<code>tvpay_module</code> 엔드포인트를 둡니다. 여기에 로컬 mock 서버(<code>localhost:9000</code>)를 바라보는 <code>M</code>(<code>config-mock.json</code>) 프로파일이 <code>dist:mock</code>으로만 추가되어 있으며, <code>package:*</code>/<code>tag:live</code> 대상에는 들어가지 않습니다.</p>
+    <p><code>dist</code> 파이프라인(<code>distPipeline</code>)은 <code>setTarget → cleanFiles → uglifyJs → copyCommonFiles → copyResFiles → injectSim → createBuildEnv → verifyDistBuildEnv</code> 순서입니다. <code>injectSim</code>은 <code>--sim</code> CLI 플래그가 없으면 아무 것도 하지 않고 건너뜁니다. 핵심은 <code>createBuildEnv</code>로, 프로파일 JSON과 버전/날짜/차수(우선순위 CLI &gt; ENV &gt; config.js &gt; 오늘 날짜)·git 커밋 해시를 모아 <code>dist/common/js/core/build-env.js</code>에 <code>window.BUILD_ENV</code> 객체로 주입합니다. <code>verifyDistBuildEnv</code>는 <code>serverTo</code>가 <code>L/S/D/M</code>인지, 엔드포인트 URL 형식·버전 접미사가 올바른지 검증합니다.</p>
+    <p><code>package</code> 파이프라인은 dist 후 <code>makeReleaseRule → createWgt → recordArtifact</code>로 산출물 파일명(<code>KT-BRK-QRATOR-WEB-V&lt;버전&gt;_...wgt</code> 규칙)과 경로를 정하고, <code>gulp-zip</code>으로 dist 전체를 <code>.wgt</code>로 압축합니다. 업로드 단계는 더 이상 없습니다. 상용 패키지에 한해 <code>tag:live</code>(=<code>package:live</code> + <code>gitTagRelease</code>)가 <code>V&lt;버전&gt;_&lt;날짜&gt;</code> git 태그를 만들어 push합니다(<code>SKIP_GIT=1</code>로 태그만 생략 가능, L 이외 <code>serverTo</code>는 태그 생성을 건너뜁니다). 만들어진 <code>.wgt</code>를 저장소 밖으로 내보내는 것은 더 이상 gulp/CI가 아니라 릴리즈 문서 첨부로 사람이 확인 후 수행합니다.</p>
     <div class="callout warn">
-      <div class="ct">task 이름 표기 주의</div>
-      과거 <code>README</code>의 <code>gulp default</code>·<code>gulp package_live</code>·<code>gulp release_all</code> 표기는 현재 <code>gulpfile.js</code>의 콜론 표기 task(<code>dist:*</code>/<code>package:*</code>/<code>release:*</code>)와 다릅니다. 실행 시 <code>gulp dist:live</code>처럼 콜론(:)을 사용해야 합니다.
+      <div class="ct">FTP 제거 (2026-09-18)</div>
+      FTP 서버가 폐지되어 <code>gulp-ftp</code>·<code>deployFtp</code>·<code>deployAll</code>·<code>release:*</code> task와 <code>.env</code>의 <code>FTP_HOST/USER/PASS/REMOTE_PATH</code>를 전량 제거했습니다. 함께 죽어 있던 <code>RELEASES.md</code> 자동 생성 함수(<code>appendReleaseLog</code>·<code>updateReleaseNotes</code>)와 <code>createWgtUnderWorking</code>도 함께 정리했습니다. <code>RELEASES.md</code>는 이제 인계 대장으로, 정식·검토본만 사람이 기록합니다.
+    </div>
+    <div class="callout">
+      <div class="ct">PC 랩 자산(<code>--sim</code>)</div>
+      <code>public/test/sim</code>(앱 내 시뮬레이터)와 <code>public/test/platform</code>(OIPF 스텁·상대 앱 회신)은 기본 빌드에 포함되지 않습니다. <code>gulp dist:live --sim</code>처럼 <code>--sim</code>을 붙여야 <code>dist/common/js/{sim,platform}/</code>로 복사되고 <code>dist/index.html</code>에 스크립트 태그 3줄이 주입됩니다. 인계 빌드에는 쓰지 않습니다.
     </div>
   </section>
 
@@ -66,22 +70,22 @@ sequenceDiagram
     participant DEV as 개발자 (gulp CLI)
     participant DIST as distPipeline
     participant ENV as createBuildEnv
-    participant CFG as config-*.json
+    participant CFG as config-live.json
     participant PKG as packagePipeline (createWgt)
-    participant FTP as deployAll / FTP
+    participant GIT as gitTagRelease
 
-    DEV-&gt;&gt;DIST: gulp release:all (또는 release:live)
-    DIST-&gt;&gt;DIST: setTarget → clean → uglify → copy
+    DEV-&gt;&gt;DIST: gulp tag:live --ver .. --date .. --testTo ..
+    DIST-&gt;&gt;DIST: setTarget(L) → clean → uglify → copy
+    DIST-&gt;&gt;DIST: injectSim() (--sim 없으면 skip)
     DIST-&gt;&gt;ENV: createBuildEnv()
     ENV-&gt;&gt;CFG: 프로파일 엔드포인트 읽기
     ENV-&gt;&gt;ENV: 버전/날짜/커밋 결정 → build-env.js 출력
-    DIST-&gt;&gt;DIST: verifyDistBuildEnv() (serverTo/URL 검증)
-    DIST-&gt;&gt;PKG: makeReleaseRule → createWgt (zip)
-    PKG-&gt;&gt;PKG: recordArtifact (L/S/D 누적)
-    PKG-&gt;&gt;FTP: deployAll() — 3개 .wgt 일괄 업로드
-    FTP--&gt;&gt;DEV: remotePath 업로드 완료
+    DIST-&gt;&gt;DIST: verifyDistBuildEnv() (serverTo L/S/D/M 검증)
+    DIST-&gt;&gt;PKG: makeReleaseRule → createWgt (zip) → recordArtifact
+    PKG-&gt;&gt;GIT: gitTagRelease() — serverTo===L 일 때만
+    GIT--&gt;&gt;DEV: git tag V버전_날짜 생성 + push (SKIP_GIT=1로 생략)
       </div>
-      <p class="cap"><strong>흐름.</strong> <code>release:all</code>은 프로파일별 dist 빌드 → <code>build-env.js</code> 주입·검증 → <code>.wgt</code> 패키징 → 아티팩트 누적 → FTP 일괄 업로드로 이어집니다. CLI 인자(<code>--ver/--brkV/--date/--testTo</code>)가 <code>.env</code>보다 우선합니다.</p>
+      <p class="cap"><strong>흐름.</strong> <code>tag:live</code>는 dist 빌드 → <code>build-env.js</code> 주입·검증 → <code>.wgt</code> 패키징 → git 태그 생성·push로 끝납니다. FTP 업로드 단계는 2026-09-18에 제거되어, 실제 <code>.wgt</code> 전달은 이 파이프라인 밖(릴리즈 문서 첨부)에서 이뤄집니다. CLI 인자(<code>--ver/--brkV/--date/--testTo</code>)가 <code>.env</code>보다 우선합니다.</p>
     </div>
   </section>
 
@@ -96,6 +100,7 @@ classDiagram
         +uglifyJs()
         +copyCommonFiles()
         +copyResFiles()
+        +injectSim(cb)
         +createBuildEnv(cb)
         +verifyDistBuildEnv(cb)
     }
@@ -104,12 +109,8 @@ classDiagram
         +createWgt()
         +recordArtifact(done)
     }
-    class releasePipeline {
-        +deployFtp()
-    }
-    class releaseAll {
-        +resetArtifacts(done)
-        +deployAll()
+    class tagLive {
+        +gitTagRelease(cb)
     }
     class profileConfig {
         +e7works
@@ -119,35 +120,40 @@ classDiagram
         +image
         +tvpay_module
     }
+    class mockProfile {
+        +serverTo M
+        +endpoint localhost 9000
+    }
 
     packagePipeline --|&gt; distPipeline : 선행 series
-    releasePipeline --|&gt; packagePipeline : 선행 series
-    releaseAll --&gt; packagePipeline : L/S/D 반복
+    tagLive --|&gt; packagePipeline : 선행 series(live 전용)
     distPipeline --&gt; profileConfig : createBuildEnv 주입
+    mockProfile --|&gt; profileConfig : dist mock 전용, package tag 대상 아님
       </div>
-      <p class="cap"><strong>관계.</strong> <code>dist → package → release</code>가 <code>gulp.series</code>로 단계적으로 합성되고, <code>release:all</code>은 3개 프로파일 package를 모아 <code>deployAll</code>로 일괄 업로드합니다. <code>createBuildEnv</code>가 프로파일 config를 런타임 값으로 주입합니다.</p>
+      <p class="cap"><strong>관계.</strong> <code>dist → package → tag:live</code>가 <code>gulp.series</code>로 단계적으로 합성되며, <code>tag:live</code>는 <code>package:live</code> 뒤에 <code>gitTagRelease</code>만 이어 붙입니다(구 <code>releasePipeline</code>·<code>deployFtp</code>·<code>release:all</code>은 삭제). <code>createBuildEnv</code>가 프로파일 config를 런타임 값으로 주입하며, mock 프로파일은 <code>dist:mock</code> 전용으로 package/tag 계열과 분리되어 있습니다.</p>
     </div>
   </section>
 
   <section id="code">
     <h2>핵심 코드</h2>
     <div class="snippet">
-      <div class="sc"><code>gulpfile.js</code> — dist/package/release 파이프라인 합성과 task 등록</div>
+      <div class="sc"><code>gulpfile.js</code> — dist/package 파이프라인 합성과 tag:live/dist:mock task 등록</div>
 <pre><code>function distPipeline(targetKey) {
     return gulp.series(setTarget(targetKey), cleanFiles, uglifyJs,
-        copyCommonFiles, copyResFiles, createBuildEnv, verifyDistBuildEnv);
+        copyCommonFiles, copyResFiles, injectSim, createBuildEnv, verifyDistBuildEnv);
 }
 function packagePipeline(targetKey) {
     return gulp.series(distPipeline(targetKey), makeReleaseRule, createWgt, recordArtifact);
 }
-gulp.task('dist:live',    distPipeline('live'));
+gulp.task('dist:mock',    distPipeline('mock'));     // localhost:9000, package/tag 대상 아님
 gulp.task('package:live', packagePipeline('live'));
-gulp.task('release:all',
-    gulp.series(resetArtifacts, 'package:live', 'package:bmt', 'package:develop', deployAll));</code></pre>
+
+// tag:live — 상용 패키지를 만든 뒤 V&lt;ver&gt;_&lt;날짜&gt; 태그를 만들어 push (SKIP_GIT=1 로 생략)
+gulp.task('tag:live', gulp.series('package:live', gitTagRelease));</code></pre>
     </div>
     <div class="snippet">
-      <div class="sc"><code>gulpfile.js</code> — createBuildEnv: 프로파일 엔드포인트/버전 주입</div>
-<pre><code>const profile = _getJsonFilename(serverTo);                 // L/S/D → config 파일
+      <div class="sc"><code>gulpfile.js</code> — createBuildEnv: 프로파일 엔드포인트/버전 주입 (mock 프로파일 포함)</div>
+<pre><code>const profile = _getJsonFilename(serverTo);                 // L/S/D/M → config 파일
 const cfgJson = JSON.parse(fs.readFileSync(path.join('config', `${profile}.json`), 'utf-8'));
 
 const payload = {
@@ -161,17 +167,41 @@ const payload = {
     generatedAt: new Date().toISOString(),
 };
 const outFile = path.join(dist, 'common/js/core', 'build-env.js');
-const body = `(function (g) { g.BUILD_ENV = ${JSON.stringify(payload, null, 2)}; })(window);\n`;</code></pre>
+const body = `(function (g) { g.BUILD_ENV = ${JSON.stringify(payload, null, 2)}; })(window);\n`;
+
+// verifyDistBuildEnv 에서: serverTo 는 L/S/D/M 만 허용(구버전은 L/S/D)
+if (!/^[LSDM]$/.test(obj.serverTo || '')) return cb(new Error('serverTo 값이 올바르지 않습니다.'));</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>gulpfile.js</code> — gitTagRelease: 상용(L) 패키지에만 태그 생성 (2026-09-18 push 오타 수정)</div>
+<pre><code>function gitTagRelease(cb) {
+    if (process.env.SKIP_GIT) return cb();                  // 옵셔널: 태그 생략
+
+    if (description.serverTo !== ConstKey.LIVE_L) {
+        log('[gitTagRelease] ignored serverTo:' + description.serverTo);
+        return cb();                                         // L 이 아니면 태그 생성 없이 종료
+    }
+
+    const {qratorV, uploadDate} = description.meta || {};
+    const tag = `V${qratorV}_${uploadDate}`;
+    // 이미 존재하면 skip (git rev-parse -q --verify refs/tags/&lt;tag&gt;)
+
+    cp.execSync(`git tag -a "${tag}" -m ${JSON.stringify(body)}`, {stdio: 'inherit'});
+    cp.execSync(`git push origin ${tag}`, {stdio: 'inherit'});   // 이전: `git push origin -f ${tag}"` (오타·강제push)
+    cb();
+}</code></pre>
     </div>
   </section>
 
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/gulpfile.js" target="_blank" rel="noopener">gulpfile.js</a><span class="src">dist/package/release 파이프라인·createWgt(zip)·createBuildEnv·deployAll(FTP)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/gulpfile.js" target="_blank" rel="noopener">gulpfile.js</a><span class="src">dist/package 파이프라인·createWgt(zip)·createBuildEnv·injectSim·gitTagRelease(git tag+push). FTP·release:* 코드는 2026-09-18 삭제</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/config/config-live.json" target="_blank" rel="noopener">config/config-live.json</a><span class="src">운영(L) 프로파일 엔드포인트(e7works/sharp_ui/live_agent/cache/image/tvpay_module)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/config/config-mock.json" target="_blank" rel="noopener">config/config-mock.json</a><span class="src">신규 · 로컬 mock 서버(localhost:9000) 대상 M 프로파일, <code>dist:mock</code> 전용</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/public/src/common/js/core/bootstrap-env.js" target="_blank" rel="noopener">common/js/core/bootstrap-env.js</a><span class="src">주입된 <code>BUILD_ENV</code>를 런타임 <code>commonProperty</code>로 적용</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/.env.example" target="_blank" rel="noopener">.env.example</a><span class="src">FTP/릴리스 메타 환경변수 템플릿</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/.env.example" target="_blank" rel="noopener">.env.example</a><span class="src">릴리스 메타 환경변수 템플릿. <code>FTP_HOST/USER/PASS/REMOTE_PATH</code>는 2026-09-18 삭제, <code>RELEASE_PATH/WORKING_PATH/RELEASE_*</code>만 남음</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt-bom-qrator-web/src/master/docs/development.md" target="_blank" rel="noopener">docs/development.md</a><span class="src">빌드 파이프라인 표·FTP 정리 이력(2026-09-17)·로컬 확인(npm run tt/test:int) 안내</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

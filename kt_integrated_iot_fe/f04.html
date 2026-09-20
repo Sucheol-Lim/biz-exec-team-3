@@ -57,6 +57,7 @@
       <div class="ct">설계 포인트</div>
       구독은 사용자 식별을 위해 헤더 <code>USER_ID</code>를 함께 보냅니다. <code>disconnect()</code>는 STOMP 클라이언트를 비활성화하고 재시도 카운트를 초기화하며, 권한 부적합 전환·로그아웃 시 호출됩니다.
     </div>
+    <p class="src">2026-09-01~09-16 커밋 범위에서 <code>src/api/common.ts</code>에 <code>getMenus</code> 타임아웃 옵션·<code>checkMenuExtService</code>가 추가되었으나, 이는 <a href="f11.html">권한 기반 사이트 전환 제어</a>의 메뉴 서비스 가입 확인 전용 함수이며 WebSocket 구독·GZIP 해제 로직에는 영향이 없습니다.</p>
   </section>
 
   <section id="seq">

@@ -63,6 +63,7 @@
       <div class="ct">주의 — 대표이미지 저장 손실 방어(2026-09-09 머지 전 리뷰 BLOCKER)</div>
       hover [대표로 지정]은 크롭을 거치지 않아 <code>profileImagePath</code>가 아직 없을 수 있는데, 얼굴인식#8은 <code>editList</code> <strong>전체 스냅샷</strong>이라 그 상태로 저장하면 "경로 없는 대표"가 배열에서 통째로 빠져 <strong>BE에 이미 저장돼 있던 그 인물의 대표이미지가 삭제</strong>됩니다(성공 토스트까지 뜨는데도). <code>toFaceRepImageSave(result, baseline)</code>가 현재 대표에 경로가 없으면 <code>baseline</code>의 같은 인물 대표(경로 있음)로 대신 실어 손실을 0으로 막고, 대체된 항목은 <code>skipped</code>로 보고해 페이지가 경고 토스트를 띄웁니다. 재지정으로 인물을 떠난 얼굴은 이 대체 대상이 아닙니다(그 인물 대표를 유지해 줄 근거가 없음).
     </div>
+    <p>2026-09-14~17 범위에서 대표 축·표시 축·연동 판정이 정정되었습니다. <strong>대표 복원 축</strong>이 어댑터의 <code>#3 mainImageYn</code>에서 <code>#4 cropImageList</code>(<code>personId</code>·<code>thumbIdx</code>) 키로 바뀌었습니다 — 실 BE는 #8 저장을 #4에만 반영하고 #3의 AI 최초 선정값은 그대로 두는 것이 왕복 실측(직후·+5초 재조회 모두 #4만 갱신)으로 확인돼, 종전 #3 기준 복원은 저장한 카드가 재진입 시 대표 해제로 보이고 그대로 재저장하면 BE 대표가 실제로 삭제되는 결함이 있었습니다. <strong>표시 축</strong>은 콘텐츠ID·시리즈ID가 내부 <code>contentId</code>/<code>seriesId</code>에서 다른 12개 메뉴와 같은 <code>externalContentId</code>/<code>externalSeriesId</code>로 통일됐고, mock 검색 축도 함께 맞췄습니다. <strong>[연동] 활성 조건</strong>은 <code>useCan</code> 계열과 별개로, 서버 상태(공통#3)가 <strong>S·V·E일 때만</strong> 활성으로 신설되어(리스트 일괄연동과 동일 허용집합) 연동완료 작업에 진입해도 눌리던 결함을 없앴고, 저장 성공 뒤 상세 캐시를 재조회해 <code>L→V</code> 전이를 반영합니다. 목록 툴바의 [재처리요청]/[일괄연동]이 영구 비활성이던 결함도 어댑터가 <code>jobId</code>를 문자열화(<code>idText</code>)하지 않아 선택 키 대조가 항상 어긋났던 것으로 밝혀져 자막과 함께 해소됐습니다. 그 밖에 상태 배지는 10종 표시축(<code>toBadgeState</code>)을 그대로 보여주고, 코드표 밖 상태는 <code>null</code>(셀 '-')로 표시됩니다.</p>
   </section>
 
   <section id="seq">

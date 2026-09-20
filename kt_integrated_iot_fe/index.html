@@ -205,7 +205,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe" target="_blank" rel="noopener"><code>kt_integrated_iot_fe</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3945988107" target="_blank" rel="noopener">KT IoT 통합 관제 (3945988107)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>main</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-09-03 · 8a7b7c1e Merge branch 'fix/20260903-airmon-detail-breadcrumb-path' into main</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-09-16 · 2da0c4b9 Merge branch 'fix/20260916-common-map-marker-rebuild-skip' into main</div></div>
       <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>kt_iot</code> / 0.0.1 (.env.prd VITE_VERSION)</div></div>
     </div>
   </div>
@@ -333,6 +333,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
           <tr><td>도메인 API 모듈</td><td><code>airmap.ts</code>·<code>ami.ts</code>·<code>safemate.ts</code>/<code>apiSafemate.ts</code>·<code>intFireDetector.ts</code>·<code>smartBell.ts</code>·<code>fireFacility.ts</code>·<code>rooftopDoor.ts</code>·<code>gwacheon.ts</code>·<code>smartGreen.ts</code>·<code>aiEnvDx.ts</code>·<code>device.ts</code>·<code>serviceTarget.ts</code>·<code>area.ts</code>·<code>board.ts</code>·<code>aiAgent.ts</code>·<code>widgetSetting.ts</code> 등 사이트·기능별로 분리.</td></tr>
           <tr><td><code>src/contexts/WebSocketProvider.tsx</code></td><td>STOMP over WebSocket(brokerURL=<code>VITE_WEBSOCKET_SERVER</code>). 구독 큐 ID 수신·구독, GZIP 판별 후 pako 해제·JSON 파싱, threadId/isActiveAgent로 에이전트 응답·관제 이벤트 라우팅, 재연결·최대 5회 재시도.</td></tr>
           <tr><td>Context 모음</td><td>ConfigContext, HeaderProvider, HomeMapStateContext, DrawControlContext, MapControlContext, MarkerDialogContext, EventOccurrenceMarkersContext, AlarmProvider, ErrorDialogContext.</td></tr>
+          <tr><td><code>src/hooks/useMenuServicePermission.ts</code> · <code>src/components/MenuServicePermissionHost.tsx</code></td><td>2026-09-15 신설. Air Map의 전문가 보고서·공기질 알림 SMS 설정 두 메뉴에 한해 <code>commonApi.getMenus</code>(menuTemplate→menuId)·<code>checkMenuExtService</code>로 서비스 가입 여부를 확인한다. 클릭 이동(사이드바·검색·즐겨찾기)은 이동 전에, 직접 진입(주소 입력·새로고침)은 라우트 가드가 확인하며, 안내 팝업은 <code>MainLayout</code>에 상주하는 호스트 컴포넌트가 그린다.</td></tr>
         </tbody>
       </table>
     </div>
@@ -441,28 +442,29 @@ npm run release</code></pre>
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>2026-08-31 ~ 2026-09-03(28 커밋, 병합 제외 20 커밋)은 운영 중 발견된 크래시·오표시 결함을 걷어내는 안정화 작업이 중심입니다. 로그아웃 경로가 특히 손이 많이 갔는데, <code>Header</code>의 로그아웃 처리 순서를 세션 정리 → WebSocket 해제로 뒤집어 소켓 해제 실패가 세션 정리를 막지 못하게 했고, <code>route.tsx</code>는 로그인 화면을 지연 로딩에서 제외해 로그아웃 직후 이전 화면에 멈추는 문제를 없앴습니다. <code>SiteGuard</code>는 조기 <code>return</code> 뒤에 훅을 부르던 구조를 고쳐 렌더마다 훅 호출 수가 달라지는 문제를 없앴고, <code>Sidebar</code>·<code>Home</code>·<code>ProtectedRoute</code>는 로그아웃 직후 비어 있는 세션 <code>site</code>를 옵셔널로 읽도록 방어 코드를 추가했습니다. 렌더 크래시에 대한 최후 방어선으로 <code>ErrorBoundary</code>가 신설되어 <code>MainLayout</code>의 콘텐츠 영역(셸은 유지)과 <code>main.tsx</code>의 전체 라우트 트리를 2단으로 감쌉니다. 즐겨찾기는 <code>PageLayout</code>·<code>useFavorite</code>가 메뉴 미확정 상태에서 문자열 <code>'undefined'</code>를 그대로 서버에 저장하던 경로를 차단했고, 쿠키 유틸(<code>getCookie</code>)은 메타문자 이스케이프 누락으로 사용자 스코프 쿠키명이 정규식 오류·오탐을 일으키던 결함을 고쳤습니다. 이 쿠키 유틸리티 위에 '오늘 그만보기'·공지 팝업 숨김을 로그인 사용자 단위로 스코프하는 <code>userScopedCookieName</code>이 새로 생겼습니다. 지도 쪽은 에어맵에 소음 측정기 전용 마커·등급 판정이 추가되어(장치유형이 DEV_DIV_CD 기준으로 보정되고, 마커 상세·홈 위젯 '소음 전체 Worst 5'가 신설), 카드형 위젯 그리드는 기본 배치 상수를 호출부가 직접 변형해 영구 오염되던 결함(초기화 무력화)을 복사본 반환으로 막았습니다. 과천관제센터는 미수신 상세에 위경도 표시가 추가되고 상세 화면 상단 경로 표기가 "서비스 현황"으로 정정되었습니다.</p>
+    <p>2026-09-01 ~ 2026-09-16(25 커밋, 병합 제외 17 커밋)은 메뉴 단위 서비스 가입 확인 신설과 지도 마커 파이프라인 안정화가 중심입니다. 전문가 보고서(<code>ExpertAnalysis</code>)는 조회·등록·삭제가 모두 서비스대상 단위 전용 API(<code>boardApi.reportList</code>/<code>registReport</code>/<code>deleteReport</code>)로 옮겨가면서 응답 식별자가 <code>boardSequence</code>에서 <code>reportSequence</code>로 바뀌었고, 등록·삭제 버튼은 <code>hasRole(1)</code> 이상에서만 노출되며 등록 팝업은 공용 <code>CustomFile</code>의 10MB 용량 제한과 함께 전용 다이얼로그로, 삭제·알림 팝업은 저장소 공통 <code>Alarm</code>으로 교체되었습니다. 2026-09-15에는 Air Map의 전문가 보고서·공기질 알림 SMS 설정 두 메뉴에 <code>useMenuServicePermission</code> 기반 서비스 가입 확인이 추가되어, 사이드바·검색·즐겨찾기의 클릭 이동은 이동 전에, 주소 직접 입력·새로고침 진입은 라우트 가드(<code>MenuServicePermissionGuard</code>)가 확인하고 안내 팝업은 <code>MainLayout</code>에 상주하는 <code>MenuServicePermissionHost</code>가 그립니다. 지도 쪽은 2026-09-16 커밋들에서 미수신 장치를 지도에서 회색으로 구분하는 기능(Air Map·AI산업안전DX, 과천 제외)이 추가되고, 마커 소스에 넣는 점 순서를 장치 id로 고정해 클러스터 묶음이 조회마다 흔들리던 문제를 없앴으며, 마커 종류 구성이 그대로면 소스·레이어 재구축을 생략해 사이트 전환·자동 갱신 시 마커가 깜빡이던 현상을 줄였습니다. 동작하지 않던 커버리지 토글 버튼도 이때 제거되었습니다. 그 사이(2026-09-04·09-09) 마커 상세 팝업의 조회 시간창을 고정해 탭 전환마다 재조회되던 문제와, 지도 스타일 전환·idle 대기·항공 지도 <code>addImage</code> 경고를 각각 정리했고, 게시판(공지·문의·자료실) 목록은 조회조건을 현재 history 엔트리에 함께 기록해 상세 복귀·새로고침 후에도 조건이 유지되도록 정리되었습니다.</p>
+    <p class="src">이전 기간(2026-08-31 ~ 2026-09-03, 28 커밋, 병합 제외 20 커밋)은 운영 중 발견된 크래시·오표시 결함을 걷어내는 안정화 작업이 중심입니다. 로그아웃 경로가 특히 손이 많이 갔는데, <code>Header</code>의 로그아웃 처리 순서를 세션 정리 → WebSocket 해제로 뒤집어 소켓 해제 실패가 세션 정리를 막지 못하게 했고, <code>route.tsx</code>는 로그인 화면을 지연 로딩에서 제외해 로그아웃 직후 이전 화면에 멈추는 문제를 없앴습니다. <code>SiteGuard</code>는 조기 <code>return</code> 뒤에 훅을 부르던 구조를 고쳐 렌더마다 훅 호출 수가 달라지는 문제를 없앴고, <code>Sidebar</code>·<code>Home</code>·<code>ProtectedRoute</code>는 로그아웃 직후 비어 있는 세션 <code>site</code>를 옵셔널로 읽도록 방어 코드를 추가했습니다. 렌더 크래시에 대한 최후 방어선으로 <code>ErrorBoundary</code>가 신설되어 <code>MainLayout</code>의 콘텐츠 영역(셸은 유지)과 <code>main.tsx</code>의 전체 라우트 트리를 2단으로 감쌉니다. 즐겨찾기는 <code>PageLayout</code>·<code>useFavorite</code>가 메뉴 미확정 상태에서 문자열 <code>'undefined'</code>를 그대로 서버에 저장하던 경로를 차단했고, 쿠키 유틸(<code>getCookie</code>)은 메타문자 이스케이프 누락으로 사용자 스코프 쿠키명이 정규식 오류·오탐을 일으키던 결함을 고쳤습니다. 이 쿠키 유틸리티 위에 '오늘 그만보기'·공지 팝업 숨김을 로그인 사용자 단위로 스코프하는 <code>userScopedCookieName</code>이 새로 생겼습니다. 지도 쪽은 에어맵에 소음 측정기 전용 마커·등급 판정이 추가되어(장치유형이 DEV_DIV_CD 기준으로 보정되고, 마커 상세·홈 위젯 '소음 전체 Worst 5'가 신설), 카드형 위젯 그리드는 기본 배치 상수를 호출부가 직접 변형해 영구 오염되던 결함(초기화 무력화)을 복사본 반환으로 막았습니다. 과천관제센터는 미수신 상세에 위경도 표시가 추가되고 상세 화면 상단 경로 표기가 "서비스 현황"으로 정정되었습니다.</p>
     <p class="src">이전 기간(2026-08-07 ~ 2026-08-28, 135 커밋, 병합 제외 96 커밋)은 게시판·홈 위젯·에어맵 분석 다운로드를 운영 피드백에 맞춰 다듬는 작업이 중심이었습니다. 가장 손이 많이 간 영역은 게시판(공지사항·자료실·문의)으로, 세 화면 모두 <code>queryKeys.ts</code>를 두어 쿼리 키를 <code>unitServiceCode</code> 단위로 정리하고 CRUD 직후 상세 재요청을 막도록 캐시 정합성을 손봤으며, 목록 복귀 동선은 <code>src/pages/boardNavigation.ts</code>가 라우트 state에 쌓인 깊이를 읽어 뒤로가기 횟수를 계산하도록 바뀌었습니다. 여기에 공지사항 팝업 노출(<code>popupYn</code>)이 새로 붙어, 홈 진입 시 <code>/bff/monitor/boards/notice/popup</code>으로 받은 팝업 공지를 <code>src/modal/notice/NoticePopup.tsx</code>가 최대 3개(<code>MAX_POPUP_NOTICE_COUNT</code>)까지 계단식으로 겹쳐 띄우고 "오늘 하루 보지 않기"를 쿠키로 기억합니다. 팝업 GUI는 목업 개정에 따라 여러 차례 재조정되었습니다. 홈 위젯 쪽에서는 에어맵의 "장애(미수신) 현황" 위젯이 제거되고, 이미 저장된 사용자 레이아웃을 정리하기 위해 <code>src/utils/widgetLayoutConfig.ts</code>와 <code>WIDGET_LAYOUT_VERSION</code> 기반 마이그레이션이 도입되었습니다. 위젯 On/Off 표시 상태도 <code>hiddenWidgetSites</code>로 사이트별 영속화되었고, 저장값이 빈 배열이면 "위젯 0개"로 인정하도록 기본값 판정 규칙이 정리되었습니다. 에어맵 분석은 종합 분석·측정소별 분석의 "전체 분석 다운로드"가 <code>area/analytics.xlsx</code>·<code>device/analytics.xlsx</code> 엔드포인트를 쓰는 xlsx로 전환되었고, 전 측정소 다운로드에 조회 조건·정렬(<code>orderType</code>)·<code>serviceTargetId</code>가 반영되면서 최대 조회 기간이 31일로 제한되었습니다. 측정 항목도 실외 공기질 탭에 온도·습도가 추가되고 유동인구·신호등·VOCs·CO가 빠지는 식으로 조정되었으며, 조회 기준단위에 10분·1분이 추가되었습니다. 알림 SMS 설정에는 소음 항목과 카드 되돌리기 버튼이 들어갔고, 임계치와 문구를 짝으로 검증하도록 저장 규칙이 정리되었으며 수신자 삭제 API는 값이 있는 알람 템플릿 시퀀스만 전달하도록 바뀌었습니다. 한전 AMI는 종합현황 화면이 KPI 카드 제거·필터/상세 필드 매핑 재정비로 크게 개편되었고, 한전본부 목록은 하드코딩 대신 <code>useKepcoHqOptions</code>가 <code>KEPCO_HQ</code> 공통코드를 조회하도록 정리되었습니다. 그 밖에 스마트 검색 결과를 접근 가능한 메뉴 기준으로 걸러내는 <code>smartSearchFilter.ts</code> 추가, 산업안전DX 디바이스 등록 화면의 지도 SDK 로딩·반복 갱신 오류 수정, 과천 관제센터 마커 팝업 전용 단건 조회(<code>gwacheonApi.deviceDetail</code>) 도입, 취약점 리포트에 따른 의존성 상향(dompurify 3.4.13 등)이 이뤄졌고, 유휴 자동 갱신 주기는 5분에서 1분으로 단축되었습니다.</p>
     <ul class="commits">
-      <li><span class="date">2026-09-03</span><span class="msg">[Fix] 과천관제센터 상세 화면 상단 경로 서비스 현황으로 정정</span></li>
-      <li><span class="date">2026-09-03</span><span class="msg">[Feature] 과천관제센터 미수신 현황 상세·마커 상세에 위/경도 표시</span></li>
-      <li><span class="date">2026-09-03</span><span class="msg">[Fix] 에어맵 종합 현황 KPI 카드에 조회 대상(targetDeviceType) 반영 — 하단 목록과 집계 기준 일치</span></li>
-      <li><span class="date">2026-09-03</span><span class="msg">[Fix] 카드형 위젯 편집 공통 결함 수정 — 기본 배치 상수 변형 차단, 카드/지도 추가목록 분리, DX 전체 카드 배치 신설</span></li>
-      <li><span class="date">2026-09-03</span><span class="msg">[Fix] 소음 등급 판정에 소수점 이하 한 자리 반영 — 범례 구간 사이 값이 한 단계 낮게 판정되던 문제 해소</span></li>
-      <li><span class="date">2026-09-03</span><span class="msg">[Fix] AIRMAP 소음 전체 Worst 5 dB 소수점 1자리 고정 표기 및 소음 범례 등급 색상 적용</span></li>
-      <li><span class="date">2026-09-03</span><span class="msg">[Feature] AIRMAP 소음 전체 Worst 5 위젯 추가 — 지도형/카드형 기본·추가 목록 등재, properties 기준 쿼리 캐시 분리</span></li>
-      <li><span class="date">2026-09-01</span><span class="msg">[Fix] 소음 측정기 상세 공기질 진입 시 측정항목을 소음으로 조회</span></li>
-      <li><span class="date">2026-09-01</span><span class="msg">[Feature] AIRMAP 소음 측정기 마커 유형 분리 및 소음 등급/기본 탭 적용</span></li>
-      <li><span class="date">2026-09-01</span><span class="msg">[Fix] 과천관제센터 미수신현황 최근 측정일시 createdDate → updateOn 반영</span></li>
-      <li><span class="date">2026-09-01</span><span class="msg">[Fix] getCookie 쿠키명 정규식 메타문자 이스케이프 — 사용자 스코프 쿠키명 안전화</span></li>
-      <li><span class="date">2026-09-01</span><span class="msg">[Fix] 렌더 크래시 시 화면 전체 백지 방지 — ErrorBoundary 2단(콘텐츠/전역) 도입</span></li>
-      <li><span class="date">2026-09-01</span><span class="msg">[Fix] '오늘 그만보기' 쿠키 미동작 수정 및 로그인 사용자 단위 스코프 적용</span></li>
-      <li><span class="date">2026-08-31</span><span class="msg">[Fix] 로그아웃 직후 Sidebar 렌더의 세션 null 접근으로 콘솔 오류가 남던 문제 수정</span></li>
-      <li><span class="date">2026-08-31</span><span class="msg">[Fix] SiteGuard 권한 판정 가드를 dev 구현에 맞춰 정렬</span></li>
-      <li><span class="date">2026-08-31</span><span class="msg">[Fix] 로그아웃 후 로그인 화면이 렌더되지 않고 이전 화면에 멈추는 문제 수정</span></li>
-      <li><span class="date">2026-08-31</span><span class="msg">[Fix] 즐겨찾기 등록 payload에 문자열 undefined가 저장되는 문제 수정</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">[Fix] 지도 마커 소스 입력 순서를 장치 id로 고정 — 마커 API 응답 순서가 바뀔 때마다 클러스터 묶음이 다시 섞여 마커가 움직여 보이던 문제 수정</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">[Fix] 지도 마커 종류 구성이 같으면 소스·레이어 재구축 생략 — 카드형 복귀·서비스대상 변경·자동 갱신 시 마커 깜빡임 해소, 로딩 파이프라인 세대 구분 추가</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">[Feature] 전문가 보고서 등록 파일 용량 10MB 제한 적용 — CustomFile limitSize 전달로 하단 카운터·초과 알림 활성화</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">[Feature] 에어맵·산업안전DX 홈 지도 미수신 마커 회색 표시 — devices/location status(수신 0/미수신 1) 기준, 과천 제외</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">[Fix] 전문가 보고서 삭제를 전용 API·reportSequence로 전환 — 식별자 규격 변경으로 400 실패하던 문제 해소</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">[Fix] 에어맵 지도 툴바 커버리지 버튼 노출 제거 — 미동작 기능 비노출, 레이어는 상시 숨김 유지</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">[Fix] 게시판 목록 복귀·새로고침 시 조회조건 유지 — 목록이 적용된 조건을 자기 history 엔트리에 기록, 자료실 검색어 초기화 가드 추가</span></li>
+      <li><span class="date">2026-09-15</span><span class="msg">[Fix] 에어맵 메뉴 서비스 권한 확인 — 메뉴 목록 응답의 menuTemplate 기준으로 menuId 찾기(KT DEV menuType은 PAGE/MENU라 미발견)</span></li>
+      <li><span class="date">2026-09-15</span><span class="msg">[Feature] 에어맵 전문가 보고서·공기질 알림 SMS 설정 메뉴 진입 시 서비스 권한 확인 — 클릭 경로는 이동 전 확인, 직접 진입은 페이지 가드</span></li>
+      <li><span class="date">2026-09-09</span><span class="msg">[Fix] 항공 지도에서 SDK 내부 styledata 리스너 예외로 addImage마다 경고가 찍히던 문제 우회</span></li>
+      <li><span class="date">2026-09-09</span><span class="msg">[Fix] 스타일 전환 시 실제 교체 완료를 기다려 일반지도에서 마커가 사라지던 문제 수정</span></li>
+      <li><span class="date">2026-09-09</span><span class="msg">[Fix] 지도 마커 초기화 중 idle 이벤트 누락으로 다음 단계가 멈추는 문제 수정</span></li>
+      <li><span class="date">2026-09-04</span><span class="msg">[Fix] 마커 상세 팝업 선택 측정항목을 측정소별 현황 상세 공기질 조회에 반영</span></li>
+      <li><span class="date">2026-09-04</span><span class="msg">[Fix] 에어맵 마커 상세 팝업 불필요 재조회 제거 — 조회 시간창 고정 및 전 장비 공통 조회항목 적용</span></li>
+      <li><span class="date">2026-09-02</span><span class="msg">[Fix] 전문가 보고서 안내·다운로드 팝업의 확인 버튼을 okContent로 전달 — 회색(soft) 대신 primary 적용</span></li>
+      <li><span class="date">2026-09-02</span><span class="msg">[Fix] 전문가 보고서 팝업 4종을 공통 Alarm·테마 기본값으로 정렬 — 흰 팝업에서 버튼이 묻히던 문제 해소</span></li>
+      <li><span class="date">2026-09-01</span><span class="msg">[Feature] 전문가 보고서를 선택 서비스대상 단위로 전환하고 등록 팝업·권한 제어를 추가한다</span></li>
     </ul>
-    <p class="src">이전 범위(bd10971d..8a7b7c1e 이전, 2026-08-07 ~ 2026-08-28)의 커밋 목록은 저장소 <code>git log</code> 참고.</p>
+    <p class="src">이전 범위(8a7b7c1e 이전, 2026-08-07 ~ 2026-09-03)의 커밋 목록은 저장소 <code>git log</code> 참고.</p>
   </section>
 
   <section id="references">

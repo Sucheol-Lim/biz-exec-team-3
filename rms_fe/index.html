@@ -205,8 +205,8 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
       <div class="item"><div class="k">저장소</div><div class="v"><a href="https://bitbucket.org/altimedia/rms_fe" target="_blank" rel="noopener"><code>rms_fe</code></a></div></div>
       <div class="item"><div class="k">Confluence</div><div class="v"><a href="https://altimedia.atlassian.net/wiki/spaces/ORGAPPDEV/pages/3771728412" target="_blank" rel="noopener">Confluence — RMS FE (3771728412)</a></div></div>
       <div class="item"><div class="k">분석 기준 브랜치</div><div class="v"><code>master</code></div></div>
-      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-09-10 · 868b6160 Survay 리스트 테이블 컬럼 width 수정</div></div>
-      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>mantis-react-ts</code> / package.json 1.2.0, 운영 빌드 2.2.26 (XLSmart 2.3.9)</div></div>
+      <div class="item"><div class="k">최근 커밋</div><div class="v">2026-09-17 · 0406bc7a 1depth 위젯 api 응답 오는 동안 로딩 나오게 수정</div></div>
+      <div class="item"><div class="k">애플리케이션 ID / 버전</div><div class="v"><code>mantis-react-ts</code> / package.json 1.2.0, 운영 빌드 2.2.26 (XLSmart 2.3.12)</div></div>
     </div>
   </div>
 </header>
@@ -307,6 +307,7 @@ nav.toc a.up:hover{color:#fff; filter:brightness(1.1); border-color:var(--accent
           <tr><td>상태 관리</td><td><code>src/store/reducers</code></td><td>Redux Toolkit 슬라이스(auth, menu, notification, snackbar). 미사용 슬라이스 deviceInfo·enrolledDevice는 제거되었고, 서버 데이터 캐싱은 react-query가 담당합니다.</td></tr>
           <tr><td>인증·권한</td><td><code>src/contexts</code>, <code>utils/route-guard</code></td><td>JWTContext가 JWT 로그인/세션, PermissionContext+PermissionGuard가 역할(Role) 기반 화면 접근을 통제. 세션 타임아웃은 <code>REACT_APP_RMS_SESSION_TIMEOUT</code>(기본 30). XLSmart 타깃은 Microsoft 계정 SSO를 지원해 로그인 화면이 <code>?code=</code> 파라미터를 <code>POST /api/v1/auth/sso/exchange</code>로 교환합니다. 로그인 직후 JWTContext는 <code>menuPermissions.excludedMenuCodes</code>에 해당하는 메뉴를 걸러 내비게이션을 구성합니다.</td></tr>
           <tr><td>사이트 분기</td><td><code>src/utils/env.ts</code></td><td><code>modulePermissions</code>(terminal, installFw, advancedMesage, launcherReset, chatbot, enbaleWifi, anomalyDetect, ssoLogin), <code>widgetPermissions</code>(deviceLocationMap, deviceBrandModel, networkInterface, disableEditMode, illegalDevices, KPIWidgetCount, widgetCols), <code>menuPermissions</code>(excludedMenuCodes — IBC는 WORKFLOW 제외), <code>adminPermissions</code>(KT 전용 pendingApprovalTab·LDAP 항목 등), <code>stpPolicyPeriodMin</code>, <code>ID_FIELD</code>, 화면 전반의 대표 식별자 <code>DEV_MAIN_KEY</code>, <code>useIsoTimestamp</code>(XLSmart·IBC), <code>quickOperationInprogress</code>(OBE), <code>hasSerialNumber</code>(XLSmart) 등을 타깃별로 분기. 분기 판정이 <code>hooks/useTarget.ts</code> 훅에서 <code>utils/env.ts</code>의 순수 함수 <code>isTarget(only, except)</code>로 옮겨졌고, <code>components/TargetGuard.tsx</code>가 이를 사용해 자식 엘리먼트를 타깃 조건부로 렌더링합니다.</td></tr>
+          <tr><td>페이지 폭 확장</td><td><code>src/contexts/LayoutContainerContext.tsx</code></td><td><code>MainLayout</code>이 제공하는 컨텍스트로, 화면이 <code>useLayoutContainer().setWideContainer(true)</code>를 호출하면 그 화면의 본문 컨테이너만 기본 폭(<code>min(100%, 1326px)</code>) 대신 <code>100%</code>로 넓혀 컬럼이 많은 표를 그릴 수 있게 합니다.</td></tr>
           <tr><td>개인정보 마스킹</td><td><code>src/contexts/MaskingContext.tsx</code></td><td>MaskingProvider가 MainLayout 최상단을 감싸 마스킹 상태를 공급. <code>roleLevel === 'Level3'</code>인 계정만 권한을 가지며 <code>/api/v1/masking/status</code>로 현재 상태를 읽고 <code>/api/v1/masking/{on|off}</code>로 전환합니다(전환 시 사유 전달 후 페이지 리로드). 헤더 Profile 팝오버의 스위치로 조작합니다.</td></tr>
           <tr><td>접속·마스킹 이력</td><td><code>src/pages/administrator/administer/historyList.tsx</code></td><td>Administrator 화면에 History 탭을 추가해 <code>/api/v1/login-histories</code>·<code>/api/v1/masking-histories</code>를 조회합니다. 검색·정렬(<code>createDt</code> 내림차순 기본)과 Excel 다운로드를 지원합니다.</td></tr>
           <tr><td>정책 UI 섹션</td><td><code>src/pages/master/policy/components</code></td><td>STB/App 정책 등록·수정 4개 화면에 중복돼 있던 UI를 <code>StbRebootSection</code>·<code>StbConditionSection</code>·<code>StbPeriodSection</code>·<code>StbAutoLaunchSection</code>·<code>PolicyActionSection</code>으로 분리해 공유합니다.</td></tr>
@@ -433,29 +434,31 @@ yarn test                     # react-scripts test (CRA Jest)</code></pre>
 
   <section id="history">
     <h2>최근 개발 이력</h2>
-    <p>2026-09-01부터 2026-09-10까지 101커밋이 반영되었습니다. 이전 범위(~57ed0be3)가 XLSmart 상용 전환의 큰 뼈대(SSO·DEV_MAIN_KEY·커맨드 코드 통일)를 세운 작업이었다면, 이번 범위는 그 위에서 나온 XLSmart 운영 이슈(R2000070-*) 픽스와 다듬기가 대부분입니다. 가장 눈에 띄는 변경은 대시보드 지도 위젯이 <strong>래스터 타일에서 벡터 타일로</strong> 바뀐 것입니다. <code>components/CustomizedMap.tsx</code>가 <code>react-leaflet</code>의 <code>TileLayer</code>(CARTO PNG 래스터)를 걷어내고 <code>@maplibre/maplibre-gl-leaflet</code>으로 CARTO Voyager 벡터 스타일(<code>basemaps.cartocdn.com/gl/voyager-gl-style</code>)을 그리며, CRA(webpack)가 <code>maplibre-gl</code>의 워커 스크립트를 번들링하지 못하는 문제를 <code>public/maplibre-gl-worker.mjs</code>를 직접 배치하고 <code>setWorkerUrl()</code>로 우회했습니다(<code>nginx.conf</code>에 <code>.mjs</code> MIME 매핑 추가). 대시보드 차트 쪽에서는 위젯별 날짜 포맷(<code>widgetInfo.dateFormat</code>)이 <code>BarChart</code> 툴팁·X축에 반영되고 마지막 막대 종료 시각의 예외 처리가 보강되었으며, <code>LineChart</code>의 활성 단말 비율(exceedPct)이 prop 전달값 대신 시리즈 데이터의 <code>activeDevice</code>로 직접 계산되도록 고쳐지고, <code>PieChart</code> 툴팁이 Top Installed/Deleted Apps 항목에 맞는 라벨을 보여주도록 분기되었습니다. <code>utils/chartParsing.ts</code>는 Total Devices(1depth) 위젯의 합계 계산에서 <code>total</code> 필드를 직접 쓰도록 고치고 삭제 단말 수를 반영해, 표시 정책이 실제 수치와 어긋나던 문제를 바로잡았습니다. 위젯 상세(2depth) 조회 기본 기간은 "오늘 포함 8일"에서 "어제까지 7일"로 조정되었습니다.</p>
-    <p>단말 화면 쪽 버그 픽스도 다수입니다. 디바이스 상세 모달(<code>detailWrapper.tsx</code>)은 <code>rmsAppEnable</code>이 꺼진(Disabled) 단말에서도 연결 상태가 표시되던 문제, 그리고 RMS 앱을 끈 뒤 새로고침을 누르면 다시 Controllable로 보이던 문제를 고쳤고, 재연결 명령 후 다른 사용자가 이미 연결 중인 것으로 판정되면 <code>getLastConnection</code>으로 실제 connectionId를 다시 읽어와 상세 모달을 열 때 "resource not found"가 뜨던 현상을 없앴습니다. 단말 목록·잠금 단말·VoC 세션 모달(<code>devices.tsx</code>·<code>lockDevices.tsx</code>·<code>InitiatedVOCSessionModal.tsx</code>)이 공통으로 쓰던 "내가 연결한 단말인가" 판정은 <code>modifiedBy</code>(계정명) 비교에서 <code>sessionStorage.user.id</code>와 응답의 <code>agentId</code> 비교로 바뀌었고, 디바이스 상세의 Command Transaction 검색 필터(<code>transactionTab.tsx</code>)는 실제 서버가 쓰는 명령 코드(예: <code>TURN_ON/OFF_RMS_APP</code>·<code>DELETE_BLUETOOTH</code>·<code>TERMINAL_COMMAND</code>·<code>PACKET_CAPTURE</code>·<code>FIRM_OTA_UPDATE_STOP/PAUSE/RESUME</code>)로 다시 맞춰졌습니다(폐지된 <code>SCREEN_OFF</code>·<code>WIPE</code>·<code>FCM_RESET</code> 등은 제거). 그 외 Firmware Install 목록의 설치 시각 컬럼이 dayjs 포맷 오타(<code>HH:MM</code> → 분 대신 월이 출력)로 잘못 표시되던 문제, FW 설치 목록이 최신순으로 정렬되지 않던 문제가 고쳐졌습니다.</p>
-    <p>전역적으로는 남아 있던 <code>components/Search/Dropdown.tsx</code>(구 <code>CustomDropDown</code>) 사용처가 <code>CustomSelect</code>로 마저 교체되었고(운영 이력·App 정책·FW 설치·Command Transaction 등), 공용 <code>Search</code> 컴포넌트(<code>Search.tsx</code>)가 큰 폭으로 정리되었습니다. 권한 모델에서는 <code>PermissionContext</code>의 <code>isDelete</code> 권한이 완전히 제거되고 화면들의 삭제 버튼 노출 조건이 모두 <code>isEdit</code>으로 대체되었습니다. Master 정책의 액션 체크박스에는 <code>utils/env.ts</code>의 새 <code>policyActionPermissions</code>(TTG 타깃은 <code>restartApp</code>·<code>closeBackgroundApps</code> 제외)가 적용되었고, 관리자 운영 이력(Operation History) 화면에는 History Type(MENU/DEVICE_COMMAND/GROUP_COMMAND/CREATE/MODIFY/REMOVE/ROLE_CHANGE/PASSWORD_CHANGE) 검색 필터가 추가되고 ID·History 두 컬럼의 순서가 바로잡혔습니다. Survey 목록은 대상 그룹 컬럼이 "그룹명 + N"으로 요약되도록 바뀌고 여러 컬럼 폭이 재조정되었습니다. 그 밖에 Device Detail 모달의 Command Transaction 내부 검색 필터·Devices/Device Group 검색 옵션의 MAC 표기·Administration Role Setting의 커맨드 권한 반영·Survey Schedule 필수값 표시 등 XLSmart(R2000070-*) 이관 이슈가 다수 반영되었습니다.</p>
+    <p>2026-09-11부터 2026-09-17까지 20커밋이 반영되었습니다. 가장 큰 변경은 모니터링 대시보드의 위젯 로딩 방식입니다. <code>dashboardRms.tsx</code>의 <code>getWidget()</code>이 더는 <code>Promise.allSettled</code>로 모든 위젯 API를 한 번에 기다리지 않고, 레이아웃과 위젯 메타 정보(<code>data: null</code>)만 즉시 반환해 그리드부터 그린 뒤 새 <code>loadWidgetDataProgressively()</code>가 위젯별 API를 독립적으로 호출해 응답이 오는 대로 해당 위젯만 채웁니다. <code>DashboardItem</code>은 <code>data</code>가 아직 없는 위젯 자리에 이중 <code>CircularProgress</code> 로딩 스피너(KPI 카드는 28px, 그 외 위젯은 56px)를 그려, 응답이 느린 위젯 하나 때문에 전체 대시보드가 늦게 뜨던 문제를 없앴습니다. 같은 범위에서 <code>PieChart</code>는 데이터가 0건일 때 회색 단색 도넛과 "No Data" 문구로 대체되도록 <code>isEmpty</code> 분기가 추가되어, 표본이 없는 위젯이 빈 화면이나 에러로 보이던 현상을 정리했습니다.</p>
+    <p>세션 만료 처리도 다시 손봤습니다. <code>JWTContext</code>의 세션 타임아웃 콜백이 <code>navigate()</code> client-side 이동 대신 <code>window.location.href</code> 전체 새로고침으로 바뀌어, 세션이 끊긴 뒤에도 화면에 남아 있던 API 요청·폴링이 계속 401을 내면서 런타임 에러 팝업을 띄우던 문제를 근본적으로 막았습니다. <code>dashboardAxios</code>의 응답 인터셉터에도 에러 핸들러가 새로 붙어 401 응답이면 세션을 지우고 로그인 만료 화면으로 보내며, 이동이 실제로 끝나기 전까지 호출부의 <code>await</code>/<code>catch</code>가 실행되지 않도록 <code>new Promise(() =&gt; {})</code>로 영원히 대기시켜 이중 처리(예: 팝업 재노출)를 막습니다. 공용 <code>request</code> 헬퍼(<code>_api/AxiosRequest.tsx</code>)의 catch 블록도 <code>error.response.status</code>를 옵셔널 체이닝(<code>error.response?.status</code>)으로 바꿔, 네트워크 오류처럼 <code>error.response</code> 자체가 없는 경우 핸들러 안에서 다시 예외가 나 엉뚱한 에러 팝업이 뜨던 버그를 고쳤습니다.</p>
+    <p>UI 쪽에서는 두 가지 정리가 있었습니다. 새 <code>LayoutContainerContext</code>(<code>contexts/LayoutContainerContext.tsx</code>)가 <code>MainLayout</code>에 추가되어, 화면이 <code>useLayoutContainer().setWideContainer(true)</code>를 호출하면 그 화면만 본문 컨테이너 폭을 기본 <code>min(100%, 1326px)</code>에서 <code>100%</code>로 넓힐 수 있게 되었습니다(아직 적용한 화면은 없고 훅만 준비된 상태). 좌측 GNB 메뉴 아이콘은 대시보드·앱·관리자·VoC 4종은 상태별(<code>normal</code>/<code>hover</code>/<code>selected</code>) 3개 SVG 파일을 각각 갖던 방식에서 파일 1개로 축소되어, <code>NavIcon.tsx</code>가 상태에 따라 <code>STATE_COLORS</code>(<code>#505050</code>/<code>#262626</code>/<code>#8B5CFF</code>) 텍스트 컬러만 바꿔 입히는 방식으로 바뀌었고, 메뉴 클릭 시 남기는 사용 이력도 <code>title</code>을 대문자·하이픈으로 가공해 보내던 것에서 <code>menuId</code> 값 하나만 <code>/api/v2/operation-histories</code>(구 v1)로 보내도록 정리되었습니다.</p>
+    <p>그 밖에 버그 픽스가 여럿 반영되었습니다. 파일 다운로드 로직이 배치 리포트(<code>batchReportDetail</code>/<code>tabs/Etc</code>/<code>tabs/Log</code>)·단말 Excel 실패 목록(<code>deviceImportDialog</code>)·패킷 캡처(<code>PacketModal</code>) 다섯 곳에 중복돼 있던 <code>fetch</code>+토스트 구현을 걷어내고 <code>utils/common.tsx</code>의 공용 <code>downloadExcel()</code>로 통일했으며, 이 함수 자체도 401 응답이면 세션을 지우고 로그인 만료로 보내도록 보강되었습니다(사용하지 않던 <code>downloadErrorCsv</code>·<code>donwloadCsv</code>는 정리). App install·Firmware Install 상세의 "임의의 설치건에서 Last installed time이 잘못 나오는" 문제는 두 목록(<code>appmanagement.columns.ts</code>·<code>ota.columns.ts</code>)이 <code>dayjs(value, 'YYYYMMDDHHmmss')</code>로 고정 포맷을 가정하던 것을 범용 파서 <code>convertReceiveDate()</code>로 바꿔 해결했고, OTA 쪽은 재시도 횟수(retryCount) 컬럼이 실수로 상태 텍스트를 그대로 보여주던 것도 함께 바로잡았습니다. Survey Setting의 즉시 전송 검증은 시작 일시 파싱 실패(<code>start.isValid()</code>) 케이스를 추가로 걸러내고, 즉시 전송 체크박스를 토글할 때도 실제 토글된 값으로 재검증하도록(종전에는 토글 시 항상 <code>false</code>로 검증) 고쳐졌습니다. TTG 대상 <code>SET_DEVICE_SETTINGS</code> 명령의 바디 키 오타도 수정되었습니다. XLSmart는 이 범위에서 2.3.10→2.3.12로 세 차례 배포되었고, TTG·XL·XL_prod 각 <code>.env.*</code>에 <code>REACT_APP_CARTO_MAP_KEY</code>가 사이트별로 개별 발급·정리되었습니다.</p>
     <ul class="commits">
-      <li><span class="date">2026-09-10</span><span class="msg">Survay 리스트 테이블 컬럼 width 수정 (868b6160)</span></li>
-      <li><span class="date">2026-09-10</span><span class="msg">풤웨어 인스톨 리스트 컬럼 width 수정 (73f1fd9e)</span></li>
-      <li><span class="date">2026-09-09</span><span class="msg">XL 2.3.9 배포 (08d5db97)</span></li>
-      <li><span class="date">2026-09-09</span><span class="msg">디바이스 상세 모달 띄울때 resource not found 뜨는 현상 수정 (e7808b7e)</span></li>
-      <li><span class="date">2026-09-09</span><span class="msg">[XLSmart][R2000070-168] Device Detail modal &gt; Command Transaction 내부 검색 필터 유무 이슈 (bcb1e164)</span></li>
-      <li><span class="date">2026-09-08</span><span class="msg">[XLSmart][R2000070-277] Firmware &gt; Firmware Install &gt; FW송출건 정렬·Install time 표시 오류 수정 (a7cda3da)</span></li>
-      <li><span class="date">2026-09-08</span><span class="msg">Admin &gt; Operation History 에 History Type 으로 필터링 되도록 수정 (7fc77821)</span></li>
-      <li><span class="date">2026-09-08</span><span class="msg">user 비교 시에 agentId 로 변경 (a55752dc)</span></li>
-      <li><span class="date">2026-09-05</span><span class="msg">[XLSmart][R2000070-276] Administration &gt; Operation history 에서 ID와 History 열이 서로 뒤바뀜 (b4abc71d)</span></li>
-      <li><span class="date">2026-09-05</span><span class="msg">[XLSmart][R2000070-272] Device detail modal 열 때 Resource not found 뜸 (e746364d)</span></li>
-      <li><span class="date">2026-09-04</span><span class="msg">디바이스 상세 모달에서 disable 커멘드 날린 이후에 refresh 버튼 누르면 contrallerable 되는 현상 수정 (851004c9)</span></li>
-      <li><span class="date">2026-09-03</span><span class="msg">[공통] isDelete 권한은 isEdit 권한으로 대체함 (bd36764b)</span></li>
-      <li><span class="date">2026-09-03</span><span class="msg">[TTG][NEXTARMS-562] actions 목록 policyActionPermissions 기반 필터링 적용 (c8c32c15)</span></li>
-      <li><span class="date">2026-09-02</span><span class="msg">지도 벡터타일로 변경 (fad16d59)</span></li>
-      <li><span class="date">2026-09-02</span><span class="msg">[XLSmart][R2000070-238] dashboard 1depth line chart tooltip active device rate 계산 로직 개선 (68119579)</span></li>
-      <li><span class="date">2026-09-01</span><span class="msg">[XLSmart][R2000070-201] CustomSelect 공통 컴포넌트 개선 및 CustomDropDown 전면 대체 (becc6cbf)</span></li>
-      <li><span class="date">2026-09-01</span><span class="msg">[XLSmart][R2000070-232] chartParsing total 필드 직접 사용으로 계산 로직 수정 (d588c9e9)</span></li>
-      <li><span class="date">2026-09-01</span><span class="msg">AI Quick operation 에서 폴링을 계속 하도록 수정 (4408511a)</span></li>
-      <li><span class="date">2026-09-01</span><span class="msg">[XLSmart][R2000070-221] date range 기본값 수정 - 시작: 7일전, 종료: 1일전 (7e7da70b)</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">1depth 위젯 api 응답 오는 동안 로딩 나오게 수정 (0406bc7a)</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">xl 배포 (d76d6225)</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">xl 2.3.12 배포 (364048e9)</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">operation history api 수정 (098d29c6)</span></li>
+      <li><span class="date">2026-09-17</span><span class="msg">세션만료시에 runtime error 보여지는 이슈 수정 (919a4707)</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">대쉬보드 파이차트 데이터 없을 경우에는 빈 도넛 그리게 수정 (32016170)</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">[XLSmart][R2000070-303] App install &gt; 임의의 설치건 상세의 Last installed time 시각이 잘못 나오고 있음 (805cf283)</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">[TTG] 개발서버 Carto Map Key 삭제 (63c71e5f)</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">[TTG] Carto Map Key 등록 (7193abbe)</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">Carto Map Key 등록 (77c03225)</span></li>
+      <li><span class="date">2026-09-16</span><span class="msg">api 오류시에 에러팝업 뜨는 현상 수정 (bd09d16b)</span></li>
+      <li><span class="date">2026-09-15</span><span class="msg">xl 2.3.11 배포 (118cf4c5)</span></li>
+      <li><span class="date">2026-09-15</span><span class="msg">[XLSmart][R2000070-241] Overview &gt; Reports &gt; Failure &gt; download 시 excel 내 세부항목 수정 필요 (ae031faa)</span></li>
+      <li><span class="date">2026-09-15</span><span class="msg">[TTG][NEXTARMS-957] SET_DEVICE_SETTINGS command body values key 수정 (82f77f4d)</span></li>
+      <li><span class="date">2026-09-15</span><span class="msg">[XLSmart][R2000070-295] Dashboard &gt; Device reboot count 상세 (cd7bd0e1)</span></li>
+      <li><span class="date">2026-09-15</span><span class="msg">[XLSmart][R2000070-282] Administration &gt; Survey Setting &gt; 즉시 전송 설정 선택시 시작시간 관련 가이드문구 제거 필요 (91a91be7)</span></li>
+      <li><span class="date">2026-09-11</span><span class="msg">메뉴 아이콘 수정 (c3473180)</span></li>
+      <li><span class="date">2026-09-11</span><span class="msg">xl 2.3.10 배포 (7787f4f8)</span></li>
+      <li><span class="date">2026-09-11</span><span class="msg">page layout width 선택적 가변적이게 기능 추가 (928305c2)</span></li>
+      <li><span class="date">2026-09-11</span><span class="msg">[XLSmart][R2000070-282] Administration &gt; Survey Setting &gt; 즉시 전송 설정 선택시 시작시간 관련 가이드문구 제거 필요 (ad2210c5)</span></li>
     </ul>
   </section>
 
@@ -477,8 +480,8 @@ yarn test                     # react-scripts test (CRA Jest)</code></pre>
 
 <footer>
   <div class="wrap">
-    이 문서는 저장소 소스 코드(브랜치 <code>master</code>, 기준 커밋 <code>868b6160</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
-    생성일 2026-06-05 · 갱신일 2026-09-10 · <a href="../index.html">전체 과제 목록으로</a>
+    이 문서는 저장소 소스 코드(브랜치 <code>master</code>, 기준 커밋 <code>0406bc7a</code>)와 사내 Confluence(ORGAPPDEV)를 근거로 작성되었습니다.
+    생성일 2026-06-05 · 갱신일 2026-09-20 · <a href="../index.html">전체 과제 목록으로</a>
   </div>
 </footer>
 

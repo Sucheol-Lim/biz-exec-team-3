@@ -57,6 +57,10 @@
     <p>지도 위 위젯 On/Off 버튼도 <code>MarkerSearch</code>가 갖고 있는데, 이 값이 사이트 단위로 영속화되었습니다. <code>HeaderProvider</code>는 사용자 지역 관리 패널이 열려 있는 동안의 임시 강제 숨김(<code>setHideWidgets</code> → <code>forceHideWidgets</code>)과 사용자가 저장한 On/Off 선호값(<code>setUserHideWidgets</code> → <code>userHideWidgets</code>)을 별도 상태로 두고 <code>hideWidgets</code>를 둘의 OR로 계산하므로, 패널을 닫아도 사용자 선호값이 그대로 남습니다. 토글 시에는 <code>ConfigContext.onChangeHideWidgets(siteCode, next)</code>가 <code>hiddenWidgetSites</code>에 기록하고, <code>Home</code>은 마운트 시 <code>hiddenWidgetSites[site.code]</code>를 한 번 읽어 복원합니다. 사이트 전환은 <code>AutoRefreshRoute</code>의 key 변경으로 <code>Home</code>을 재마운트시키므로 mount 1회 로드로 충분합니다. 이와 함께 <code>Home</code>은 홈 진입 시 팝업 노출 대상 공지를 띄우는 <code>NoticePopup</code>을 함께 렌더링합니다.</p>
     <p>Air Map 마커 유형에 <strong>소음 측정기</strong>가 새로 분리되었습니다. BFF 응답의 <code>deviceTypeName</code>·<code>AIRMAP_DEV_TYPE</code>은 소음 측정기도 실외(<code>실외</code>/<code>OUTDOOR</code>)로 내려주기 때문에, 실제 장치 유형은 <code>extendedData.DEV_DIV_CD</code>(<code>0002</code> 실외 / <code>0004</code> 악취 / <code>0006</code> 소음)로 한 번 더 보정해야 합니다. 이 보정을 <code>getAirmapDeviceKind(deviceTypeName, extendedData)</code> 한 곳으로 모아, 지도 마커 분류(<code>getMarkerFlagType</code>)·마커 상세 팝업(<code>DetailDialogAirmap</code>)·검색 결과 등급 계산(<code>MarkerSearch</code>)이 항상 같은 기준으로 소음 측정기를 가려냅니다. 신설된 <code>flagNoise</code> 플래그(전용 아이콘 <code>flag-airmap-noise.svg</code>)가 지도 위에 별도 마커로 표시되고, 소음 값은 PM10 대신 <code>db</code> 프로퍼티로 <code>getNoiseGrade</code>(0~35.9 좋음 / 36.0~50.9 보통 / 51.0~60.9 나쁨 / 61.0~ 매우나쁨 — 소수점 한 자리까지 흡수하도록 경계값을 정수 미만 비교로 정정)를 거쳐 등급이 매겨집니다.</p>
     <p>마커 상세 팝업(<code>DetailDialogAirmap</code>)의 측정항목 탭 선택 상태는 예전엔 <code>deviceId</code>와 무관한 단일 <code>selectedMeasurement</code> state였습니다. 팝업이 열린 채로 다른 마커를 클릭하면 컴포넌트가 재사용되어 이전 장치에서 고른 탭이 새 장치에도 남는 결함이 있었는데, 지금은 <code>{ deviceId, key }</code> 쌍으로 선택을 들고 있다가 <code>deviceId</code>가 바뀌면 유형별 기본 탭(<code>DEFAULT_MEASUREMENT_BY_TYPE</code> — 소음은 <code>noise</code>)으로 되돌립니다. '상세 더보기'로 측정소 상세(<code>pages/station/airmapAir/DetailAirQuality</code>) 화면으로 이동할 때도 보정된 <code>deviceTypeName</code>을 <code>navigate</code> state로 함께 넘겨, 상세 화면이 유형별 기본 측정항목(소음은 <code>noise</code>/조회 프로퍼티 <code>db</code>)으로 자동 조회되도록 다리를 놓습니다. 사용자가 상세 화면에서 직접 다른 기준으로 재조회하면 조회 항목은 다시 전체로 돌아갑니다.</p>
+    <p>2026-09-04에는 이 팝업의 조회 시간창 문제가 함께 정리되었습니다. 시간별 데이터의 조회 구간(<code>startDateTime</code>/<code>endDateTime</code>)을 렌더 본문에서 <code>dayjs()</code>로 매번 계산하면 초 단위 문자열이 리렌더마다 바뀌어 <code>queryKey</code>가 달라지고, 탭 전환·'그래프 표시 기준' 변경처럼 데이터와 무관한 조작에도 재조회가 일어나 차트가 계속 로딩으로 깜빡였습니다. 지금은 <code>useMemo</code>로 팝업이 열리거나 대상 장치가 바뀐 시점(<code>deviceId</code>·<code>detailDialog.isOpen</code>)에만 시간창을 새로 계산해 고정합니다. 조회 항목도 유형별로 나누지 않고 <code>ALL_QUERY_PROPERTIES</code>(전 유형 측정항목 + <code>windSpeed</code>) 하나로 통일했습니다. 팝업은 유형과 무관하게 항상 같은 화면이라 탭 전환은 이미 받아둔 응답에서 표시 대상만 바꾸면 되고, 이에 따라 <code>deviceTypeName</code>도 <code>queryKey</code>에서 빠졌습니다. '상세 더보기'로 측정소 상세 화면에 넘어갈 때는 팝업에서 보고 있던 탭 키(<code>measurementKey</code>)를 함께 전달해, 측정소 상세(<code>DetailAirQuality</code>)가 <code>MEASUREMENT_ITEM_BY_DIALOG_KEY</code>로 같은 항목을 이어서 조회하도록 다리를 놓습니다(대응 항목이 없는 실내·악취 전용 탭은 기존 유형별 기본값 규칙으로 폴백).</p>
+    <p>지도 마커 파이프라인 자체의 안정성 결함도 2026-09~09-16 사이 여럿 정리되었습니다. <code>buildMarkerPoints()</code>가 소스에 넣는 점 순서를 장치 id 오름차순으로 고정해, 마커 API 응답 순서가 조회마다 달라져도(특히 1분 자동 갱신 때) 클러스터링(supercluster)이 항상 같은 묶음을 만들도록 했습니다. 순서가 들쭉날쭉하면 탐욕 알고리즘 특성상 클러스터 구성이 매번 달라져 마커가 저절로 움직이는 것처럼 보였습니다. <code>MapControlContext</code>는 <code>flagData</code> 참조가 바뀌어도 종류 구성(id 집합, <code>getFlagIdSignature</code>)이 같으면 소스·레이어를 재구축하지 않도록 바뀌었습니다. 마커 항목(items) 변화는 <code>MapToolbar</code>의 <code>updateMarkerSourceData</code>가 이미 소스 데이터로 반영하므로, 종류 구성이 그대로인데 재구축까지 하면 카드형→지도형 복귀, 서비스대상 변경, 자동 갱신마다 마커가 사라졌다 다시 뜨고 꺼둔 종류가 되살아나는 부작용이 있었습니다. 재구축이 실제로 필요할 때는 <code>loadGenerationRef</code>로 로딩 파이프라인 세대를 구분해, 이전 세대의 늦은 <code>waitForIdle</code> 완료가 새 세대의 단계(레이어 추가 등)를 건너뛰게 만들지 않습니다.</p>
+    <p>지도 스타일 전환도 더 안정적으로 바뀌었습니다. <code>changeMapStyleAsync</code>는 예전엔 <code>setStyle()</code> 직후의 <code>idle</code> 이벤트만 기다렸는데, SDK의 <code>setStyle</code>은 스타일 JSON을 비동기로 받아온 뒤에야 실제 교체가 일어나 옛 스타일의 <code>idle</code>에 먼저 풀리면 마커 리소스가 옛 스타일에 붙었다가 교체 시점에 함께 사라졌습니다. 지금은 대상 스타일의 기본 소스(<code>STYLE_BASE_SOURCE_ID</code>)가 생기고 <code>isStyleLoaded()</code>가 참이 되는 시점까지 기다리며, 5초 타임아웃으로 감지 실패 시에도 파이프라인이 멈추지 않게 합니다. <code>waitForIdle</code>도 <code>idle</code> 이벤트 누락으로 다음 단계가 영영 진행되지 않는 문제를 막기 위해 <code>requestAnimationFrame</code> 콜백을 함께 예약해, 둘 중 먼저 도착한 시점에 대기를 끝냅니다. 항공(위성) 지도에서는 SDK 래퍼가 <code>fill-extrusion</code> 레이어가 없을 때 내부 <code>styledata</code> 리스너에서 예외를 던져 <code>addImage</code>마다 경고가 찍히고 뒤이은 자체 <code>styledata</code> 핸들러까지 건너뛰던 버그가 있었는데, <code>patchKtMapExtrusionBug()</code>가 지도 생성 직후 문제의 <code>setExtrusionList</code>를 안전한 구현으로 덮어써 우회합니다.</p>
+    <p>2026-09-16에는 미수신 장치를 지도에서 회색으로 구분하는 기능이 Air Map·AI산업안전DX 홈 지도에 추가되었습니다. 마커 조회(<code>devices/location</code>) 응답의 <code>status</code>(0 수신/1 미수신, 문자열도 허용)를 <code>isUnreceivedMarker()</code>가 판정해, <code>getMarkerLevelId</code>가 측정 등급보다 먼저 <code>'unreceived'</code> 등급을 매깁니다. <code>AirmapFlagLevel</code>·<code>AidxFlagLevel</code> 등급 배열 맨 앞(심각도 최하)에 <code>unreceived</code>(회색 <code>#7D7D7D</code>) 항목이 추가되어, 클러스터 대표 등급을 <code>max(levelIndex)</code>로 뽑는 로직상 미수신이 다른 등급을 가리지 않습니다. 이 판정은 과천 관제센터(<code>SITE_CODES.GWACHEON</code>)에는 적용되지 않으며(<a href="f13.html">과천 관제센터 특화 화면</a> 참고), 등급 배열 자체는 과천과 공유되지만 미수신 분기에서 명시적으로 제외됩니다. 같은 시기에 Air Map 지도 툴바의 커버리지 토글 버튼도 제거되었습니다(AirMap 이슈 No.38 — 기능이 동작하지 않아 미노출 처리). 다만 <code>addCoverageLayers</code>가 레이어를 <code>visibility:'visible'</code>로 생성하는 호출까지 없애면 커버리지 원이 상시 노출되므로, <code>updateCoverageVisibility</code> 호출의 활성 여부를 <code>false</code>로 고정해 레이어 자체는 항상 숨김 상태로 유지합니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       한전 AMI(<code>SITE_CODES.AMI</code>)는 지도 표출 대상이 아니어서 지도 DOM과 마커 검색을 렌더링하지 않고 카드형 화면으로만 동작합니다. 한편 등급 심각도 인덱스는 <code>getSiteFlagLevel()</code> 배열 순서를 그대로 쓰므로, 클러스터 대표 등급을 <code>max</code>로 뽑으려면 배열이 반드시 심각도 오름차순이어야 합니다.
@@ -83,9 +87,14 @@ sequenceDiagram
     SDK--&gt;&gt;Home: on('styledata') → addTintLayer / filterPoiLayers
     Home-&gt;&gt;Search: serviceTargetId 전달
     Search--&gt;&gt;Home: setMarkerList(markers)
-    Home-&gt;&gt;MU: loadSources / loadLayers (flagData, site, mapStyle)
-    MU-&gt;&gt;Src: buildMarkerPoints + clusterProperties(min/maxFlag, min/maxLevel)
-    MU-&gt;&gt;SDK: addLayer point / uniform / mixed (표현식 필터)
+    Home-&gt;&gt;MU: 종류 구성(flagId 집합) 변경 여부 확인
+    alt 종류 구성 동일
+        MU--&gt;&gt;SDK: 재구축 생략 (setData 로만 반영)
+    else 종류 구성 변경
+        Home-&gt;&gt;MU: loadSources / loadLayers (flagData, site, mapStyle)
+        MU-&gt;&gt;Src: buildMarkerPoints(장치 id 순 정렬) + clusterProperties(min/maxFlag, min/maxLevel)
+        MU-&gt;&gt;SDK: addLayer point / uniform / mixed (표현식 필터)
+    end
     opt 마커 타입 on/off
         Bar-&gt;&gt;MU: updateMarkerSourceData(visibleKeys)
         MU-&gt;&gt;Src: setData(재계산된 point 배열)
@@ -101,8 +110,9 @@ sequenceDiagram
         MU-&gt;&gt;MC: openMarkerDialog(properties, coordinates)
         MC-&gt;&gt;Dlg: 마커 요약/상세 다이얼로그 표시
     end
+    Note over MU: getMarkerLevelId 가 devices/location 응답의 status(0/1)로 미수신을 등급보다 먼저 판정 (과천 제외)
       </div>
-      <p class="cap"><strong>흐름.</strong> 지도 초기화 후 마커가 통합 소스 하나에 적재되고, 레이어 3종이 클러스터 집계값으로 개별·동종·이종을 나눠 그립니다. 타입 토글은 레이어 가시성이 아니라 소스 데이터 재적재로 반영되며, 클러스터 hover 시 <code>getClusterLeaves</code>로 구성 마커를 툴팁에 나열합니다.</p>
+      <p class="cap"><strong>흐름.</strong> 지도 초기화 후 마커가 통합 소스 하나에 적재되고, 레이어 3종이 클러스터 집계값으로 개별·동종·이종을 나눠 그립니다. 타입 토글은 레이어 가시성이 아니라 소스 데이터 재적재로 반영되며, 클러스터 hover 시 <code>getClusterLeaves</code>로 구성 마커를 툴팁에 나열합니다. 마커 종류 구성이 그대로면 소스·레이어 재구축을 생략해 사이트 전환·자동 갱신 시 깜빡임을 줄이고, 소스에 넣는 점 순서는 장치 id로 고정해 클러스터 묶음이 조회마다 흔들리지 않게 합니다.</p>
     </div>
   </section>
 
@@ -137,6 +147,11 @@ classDiagram
         +getFlagIndex(flagId, flagData)
         +getTooltipIcon(flagId, levelId)
         +getAirmapDeviceKind(deviceTypeName, extendedData)
+        +isUnreceivedMarker(marker) bool
+        +getMarkerLevelId(marker, site)
+        +changeMapStyleAsync(mapRef, flagData, style, timeoutMs)
+        +waitForIdle(mapRef)
+        +patchKtMapExtrusionBug(map)
     }
     class MarkerSource {
         +cluster
@@ -366,23 +381,73 @@ const AirmapFlagLevel: FlagDataLevel[] = [
 ];
 // FlagDataAirmap: 실외·악취·국가 측정망만 유지 (실내/기상 관측망/기상 장치는 주석 처리로 비노출)</code></pre>
     </div>
+    <div class="snippet">
+      <div class="sc"><code>src/utils/MapUtils.ts</code> — 미수신 마커 회색 판정(과천 제외) · 소스 입력 순서 고정 · 종류 구성 동일 시 재구축 생략</div>
+<pre><code>// devices/location 응답의 status: 0(수신)/1(미수신, 문자열도 허용). 그 외 값은 판정하지 않는다.
+const isUnreceivedMarker = (marker: { status?: unknown } | null | undefined): boolean =&gt; {
+  const status = marker?.status;
+  if (status === null || status === undefined || status === '') return false;
+  return Number(status) === 1;
+};
+
+export const getMarkerLevelId = (marker: any, site: any): string =&gt; {
+  switch (site?.code) {
+    case SITE_CODES.AIRMAP:
+    case SITE_CODES.DX:
+    case SITE_CODES.GWACHEON:
+      // 미수신은 측정 등급보다 먼저 판정한다. 과천은 이번 적용 대상이 아니라 제외한다.
+      if (site.code !== SITE_CODES.GWACHEON &amp;&amp; isUnreceivedMarker(marker)) return 'unreceived';
+      if (marker.grade === 1) return 'good';
+      // ...
+  }
+};
+
+// buildMarkerPoints: 소스에 넣는 점 순서를 장치 id로 고정해 클러스터링(탐욕 알고리즘) 결과를 안정화한다
+entries.sort((a, b) =&gt; String(a.item.id).localeCompare(String(b.item.id)));
+
+// MapControlContext: flagData 참조가 바뀌어도 "종류 구성"(id 집합)이 같으면 재구축하지 않는다
+const getFlagIdSignature = (flagData) =&gt;
+  Object.keys(flagData).map((key) =&gt; flagData[key].id).join('|');
+if (getFlagIdSignature(oldFlagData) === getFlagIdSignature(flagData)) return; // items 변화는 setData가 처리</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/components/markerDialog/airmap/DetailDialogAirmap.tsx</code> — 조회 시간창 고정 · 전 유형 공통 조회 · 선택 탭 전달</div>
+<pre><code>// 렌더마다 dayjs()를 계산하면 초 단위 차이로 queryKey가 매번 바뀌어 탭 전환에도 재조회가 일어났다.
+// 팝업 오픈·대상 장치 기준으로만 새로 계산해 고정한다.
+const { startDateTime, endDateTime } = useMemo(() =&gt; {
+  const base = dayjs();
+  return {
+    startDateTime: base.subtract(24, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+    endDateTime: base.format('YYYY-MM-DD HH:mm:ss'),
+  };
+}, [deviceId, detailDialog.isOpen]);
+
+// 조회 항목은 장비 유형과 무관하게 고정한다 — 탭 전환은 이미 받은 응답에서 표시만 바꾼다
+const ALL_QUERY_PROPERTIES = Array.from(
+  new Set([...Object.values(MEASUREMENT_CONFIG).flatMap((c) =&gt; c.keys), 'windSpeed']),
+).join(',');
+
+// '상세 더보기' 이동 시 팝업에서 보던 탭 키를 그대로 전달 (상세 화면이 자기 조회 항목으로 매핑)
+navigate(path, { state: { ...prevState, deviceTypeName, measurementKey: activeMeasurement } });</code></pre>
+    </div>
   </section>
 
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/Home.tsx" target="_blank" rel="noopener">src/pages/home/Home.tsx</a><span class="src">ktGms.Map 초기화 · 마커 카메라 이동 · 오버레이 구성 · 위젯 On/Off 저장값(hiddenWidgetSites) 복원 · NoticePopup 렌더</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/Home.tsx" target="_blank" rel="noopener">src/pages/home/Home.tsx</a><span class="src">ktGms.Map 초기화(생성 직후 patchKtMapExtrusionBug 적용) · 마커 카메라 이동 · 오버레이 구성 · 위젯 On/Off 저장값(hiddenWidgetSites) 복원 · NoticePopup 렌더</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/home/MarkerSearch.tsx" target="_blank" rel="noopener">src/pages/home/MarkerSearch.tsx</a><span class="src">마커 검색(foreground/background 공유 fetchMarkerList) · Air Map 지역 선택 시 fitBounds 자동 이동 · 과천 전체 조회 · 위젯 On/Off 토글 시 onChangeHideWidgets 저장</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/contexts/HeaderProvider.tsx" target="_blank" rel="noopener">src/contexts/HeaderProvider.tsx</a><span class="src">forceHideWidgets(임시 강제 숨김)와 userHideWidgets(저장 선호값) 분리 · hideWidgets 는 둘의 OR</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/contexts/DrawControlContext.tsx" target="_blank" rel="noopener">src/contexts/DrawControlContext.tsx</a><span class="src">ktGms.control.DrawControl 보관 · startDraw / drawShape</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/map/toolbar/MapToolbar.tsx" target="_blank" rel="noopener">src/components/map/toolbar/MapToolbar.tsx</a><span class="src">지도/도면 전환 · 커버리지 토글 · 전 사이트 기본 펼침 · updateMarkerSourceData 기반 타입 on/off</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/map/toolbar/MapToolbar.tsx" target="_blank" rel="noopener">src/components/map/toolbar/MapToolbar.tsx</a><span class="src">지도/도면 전환 · 전 사이트 기본 펼침 · updateMarkerSourceData 기반 타입 on/off · 2026-09-16 커버리지 토글 버튼 제거(레이어는 상시 숨김 유지, AirMap 이슈 No.38)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/map/controller/MapControllers.tsx" target="_blank" rel="noopener">src/components/map/controller/MapControllers.tsx</a><span class="src">줌 슬라이더 · 조작 시 현재 줌 레벨 툴팁(valueLabelDisplay)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/contexts/MapControlContext.tsx" target="_blank" rel="noopener">src/contexts/MapControlContext.tsx</a><span class="src">소스/이미지/레이어 적재 순서 제어 · 클러스터 클릭 시 통합 sourceId 사용</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/markerDialog/MarkerDialogList.tsx" target="_blank" rel="noopener">src/components/markerDialog/MarkerDialogList.tsx</a><span class="src">마커 요약/상세 다이얼로그 렌더</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/markerDialog/airmap/DetailDialogAirmap.tsx" target="_blank" rel="noopener">src/components/markerDialog/airmap/DetailDialogAirmap.tsx</a><span class="src">Air Map 마커 상세 차트 · makeGradeBarColor 로 막대 값별 등급색 · lineColors 지정 · deviceId 단위 탭 선택 상태 · getAirmapDeviceKind 로 소음 유형 보정</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/station/airmapAir/DetailAirQuality.tsx" target="_blank" rel="noopener">src/pages/station/airmapAir/DetailAirQuality.tsx</a><span class="src">마커 '상세 더보기' 진입 시 전달받은 deviceTypeName 으로 기본 측정항목·조회 프로퍼티(소음은 noise/db) 자동 선택</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/station/airmapAir/DetailAirQuality.tsx" target="_blank" rel="noopener">src/pages/station/airmapAir/DetailAirQuality.tsx</a><span class="src">마커 '상세 더보기' 진입 시 전달받은 deviceTypeName 으로 기본 측정항목·조회 프로퍼티(소음은 noise/db) 자동 선택 · MEASUREMENT_ITEM_BY_DIALOG_KEY 로 팝업 선택 탭(measurementKey)을 우선 매핑</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/airQuality.ts" target="_blank" rel="noopener">src/utils/airQuality.ts</a><span class="src">getNoiseGrade — 소음 등급 경계값을 정수 미만 비교로 정정(소수점 한 자리 흡수)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/MapUtils.ts" target="_blank" rel="noopener">src/utils/MapUtils.ts</a><span class="src">통합 마커 소스·레이어 3종·클러스터 집계(min/maxFlag·min/maxLevel) · 이종 클러스터 이미지/툴팁 아이콘 · 플래그 정의(flagNoise 포함) · getAirmapDeviceKind(DEV_DIV_CD 보정) · GRADE_CONFIG 등급 색상 · addTintLayer / filterPoiLayers</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/MapUtils.ts" target="_blank" rel="noopener">src/utils/MapUtils.ts</a><span class="src">통합 마커 소스·레이어 3종·클러스터 집계(min/maxFlag·min/maxLevel) · 이종 클러스터 이미지/툴팁 아이콘 · 플래그 정의(flagNoise·unreceived 포함) · getAirmapDeviceKind(DEV_DIV_CD 보정) · isUnreceivedMarker/getMarkerLevelId(미수신 회색, 과천 제외) · buildMarkerPoints 장치id 정렬 · changeMapStyleAsync/waitForIdle(스타일 전환·idle 대기 안정화) · patchKtMapExtrusionBug · GRADE_CONFIG 등급 색상 · addTintLayer / filterPoiLayers</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/contexts/MapControlContext.tsx" target="_blank" rel="noopener">src/contexts/MapControlContext.tsx</a><span class="src">getFlagIdSignature 로 종류 구성 동일 시 소스·레이어 재구축 생략 · loadGenerationRef 로 로딩 파이프라인 세대 구분</span></li>
     </ul>
     <div class="sibling-nav">
       <a href="index.html#features">← 주요 기능 목록</a>

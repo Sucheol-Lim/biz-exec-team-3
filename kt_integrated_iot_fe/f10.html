@@ -52,6 +52,7 @@
     <p><code>boardApi</code>의 함수 시그니처는 <code>(params, unitServiceCode?, config?: AxiosRequestConfig)</code> 형태로 통일되었습니다. 인터셉터가 헤더를 주입하더라도 사이트 전환 직후처럼 세션이 아직 갱신되지 않은 시점을 대비해 호출부가 <code>unitServiceCode</code>를 직접 실어 보낼 수 있고, <code>config</code>로 React Query의 <code>signal</code>과 <code>skipError</code>를 함께 넘겨 화면 이탈 시 요청을 취소하고 삭제된 글 조회 같은 실패에 오류 팝업을 띄우지 않습니다. 목록·공지 목록의 <code>startDate</code>/<code>endDate</code>는 선택 파라미터로 바뀌어, 조회기간을 비우면 전체 기간을 조회합니다. 공지사항 목록·문의 목록의 기본 조회기간도 최근 1주가 아니라 빈 값(<code>[null, null]</code>)이며, 두 값이 모두 있을 때만 날짜 파라미터를 만들어 보냅니다.</p>
     <p>캐시 키는 도메인별 <code>queryKeys</code> 모듈(<code>noticeKeys</code>·<code>resourceKeys</code>·<code>contactUsKeys</code>)로 모았습니다. 모든 키가 <code>['boards', 도메인, unitServiceCode, ...]</code>로 시작해 사이트가 다르면 캐시가 절대 섞이지 않고, <code>list</code>·<code>detail</code>·<code>edit</code>·<code>navigation</code>·<code>popup</code>을 계층으로 나눠 CRUD 직후 무엇을 비울지 정확히 지정할 수 있습니다. 등록·수정·삭제 성공 시 목록·이전/다음 탐색 캐시는 <code>removeQueries</code>로 아예 제거하고(<code>invalidateQueries</code>는 오래됨 표시만 하고 데이터를 남겨 수정 폼이 저장 전 값으로 초기화되는 문제가 있었습니다), 상세·편집 캐시는 <code>refetchType: 'none'</code>으로 무효화만 해 방금 지운 글을 곧바로 다시 조회하지 않습니다. 삭제는 요청 전에 <code>cancelQueries</code>로 진행 중인 상세 조회를 먼저 끊습니다. 수정 폼은 <code>isDetailFetching</code>이 끝난 응답으로만 초기화해, 캐시에 남아 있던 값으로 먼저 채워진 뒤 최신 응답이 무시되는 일을 막습니다.</p>
     <p>상세·편집에서 목록으로 돌아가는 경로는 <code>pages/boardNavigation.ts</code>가 담당합니다. 목록에서 상세로 들어갈 때 <code>withBoardListHistory(searchParams)</code>로 라우트 state에 히스토리 깊이를 심고, 상세에서 편집으로 한 단계 더 들어가면 <code>advanceBoardListHistory(state)</code>가 깊이를 늘립니다. 복귀 시 <code>returnToBoardList()</code>가 그 깊이만큼 <code>navigate(-depth)</code>로 되돌아가 브라우저 뒤로가기 이력이 어긋나지 않게 하고, 깊이 정보가 없으면 목록 경로로 <code>replace</code> 이동합니다. 목록 화면은 노출 개수·정렬을 바꾸면 <code>page</code>를 1로 되돌리고, 마지막 행을 지워 복원된 페이지가 전체 페이지 수를 넘으면 마지막 유효 페이지로 자동 이동합니다.</p>
+    <p>2026-09-16에는 목록 자체의 조회조건이 복귀·새로고침 후 사라지는 결함이 정리되었습니다. <code>returnToBoardList</code>는 <code>navigate(-depth)</code>로 원래 목록 history 엔트리로 되돌아가는데, 검색·페이지 상태는 그동안 React state에만 있어 그 엔트리 자체에는 조건이 실리지 않았습니다. 그래서 상세를 봤다가 뒤로 돌아오거나 목록에서 새로고침하면 조건이 초기화됐습니다. 새 훅 <code>useBoardListHistoryState(listState)</code>는 공지사항·문의(<code>NoticeList</code>·<code>ContactUsList</code>)와 자료실(<code>ResourceList</code>)에서 적용된 조회조건이 바뀔 때마다 현재 목록 history 엔트리의 <code>state</code>를 그 조건으로 <code>replace</code> navigate합니다. <code>-depth</code> 복귀 방식(동일 목록 엔트리 중복·지난 상세 재진입 방지)은 그대로 유지하면서, 돌아갈 엔트리에 조건을 남겨 두는 방식입니다. 이미 같은 조건이 기록된 엔트리(복귀·새로고침 직후)에는 다시 <code>replace</code>하지 않도록 직렬화 비교로 가드합니다. 자료실 목록은 여기에 더해 검색 유형(<code>filter</code>) 변경 시 검색어를 비우는 <code>useEffect</code>가 마운트 시에도 1회 실행되는 바람에, 복원된 검색어가 입력창에서만 지워지고 실제 조회조건(<code>searchParams.keyword</code>)과 어긋나는 문제가 있었습니다. <code>isFirstFilterRender</code> ref로 최초 렌더를 건너뛰어, 공지사항·문의와 같이 사용자가 실제로 검색 유형을 바꿀 때만 검색어를 비우도록 정정했습니다.</p>
     <p>첨부 파일은 <code>boardApi.uploadFile()</code>/<code>fileList()</code>/<code>downloadFile()</code>/<code>deleteFile()</code>로 관리합니다. 업로드 UI는 공통 컴포넌트 <code>CustomFile</code>이 담당하는데, <code>accept</code>에 지정된 확장자 목록과 실제 파일 확장자를 대조해 허용되지 않으면 입력을 비우고 선택을 취소합니다. 용량은 <code>limitSize</code>를 초과하면 경고 모달(<code>Alarm</code>)을 띄웁니다.</p>
     <p>자료실 편집(<code>ResourceEdit</code>)은 SMART GREEN 병해충 도감 성격의 확장 필드(영문명·기주식물·증상·병해충 발생 현황·방제 방법 등)를 다루며, 저장은 <code>smartGreenApi.postResource()</code>/<code>putResource()</code>(<code>/bff/monitor/boards/resources</code>)로 처리합니다. 대표 사진은 base64 인라인 전송이 아니라 파일 업로드로 먼저 파일 ID를 받은 뒤 <code>thumbnailImage</code>로 전달하는 방식이며, 수정 진입 시 확장 필드는 상세 응답의 <code>extendData</code>(snake_case 컬럼 <code>english_name</code>·<code>host_plant</code> 등)와 매칭해 채웁니다. 서버 응답 필드명이 <code>extendedData</code>가 아니라 <code>extendData</code>인 것이 확인되어 상세·편집 양쪽 참조가 정정되었습니다.</p>
     <p>편집 화면은 기존 첨부를 보존하도록 보완되었습니다. 수정 진입 시 상세 응답의 <code>fileId</code>와 <code>extendData.thumbnail_image</code>를 <code>existingFileId</code>/<code>existingThumbnailId</code>로 잡아 두고, 새로 업로드하지 않으면 저장 payload에 그 값을 그대로 실어 보냅니다. 파일명은 <code>boardApi.fileList(fileId)</code>로 <code>originalName</code>을 조회해 <code>CustomFile</code>의 <code>displayName</code>으로 표시하고, 사용자가 첨부를 제거하면 기존 ID·파일명도 함께 해제합니다. 상세 화면(<code>ResourceDetail</code>)의 대표 사진도 URL 필드(<code>logoImageUrl</code>) 대신 <code>extendData.thumbnail_image</code> 파일 ID를 기준으로 <code>fileList</code> → <code>downloadFile</code>로 blob을 받아 <code>URL.createObjectURL</code>로 표시하며, 값이 바뀌거나 언마운트될 때 이전 object URL을 <code>revokeObjectURL</code>로 회수합니다. 목록(<code>ResourceList</code>)은 정렬·행 수 변경 시 이전 검색 상태가 잔류하지 않도록 <code>page</code>·<code>rowCount</code>·<code>order</code>·<code>filter</code>·<code>keyword</code>를 담은 새 객체로 검색 파라미터를 통째 교체합니다.</p>
@@ -147,6 +148,7 @@ classDiagram
         +advanceBoardListHistory(state)
         +returnToBoardList(options)
         +getBoardListHistoryDepth(state)
+        +useBoardListHistoryState(listState)
     }
     class NoticePopup {
         -dismissed
@@ -344,6 +346,33 @@ export const returnToBoardList = ({ navigate, routeState, listPath, listState })
 };</code></pre>
     </div>
     <div class="snippet">
+      <div class="sc"><code>src/pages/boardNavigation.ts</code> — 목록 엔트리에 적용 조건 기록(복귀·새로고침 복원)</div>
+<pre><code>// returnToBoardList의 navigate(-depth)가 되돌아갈 목록 엔트리에는 조건이 없었다.
+// 조건이 바뀔 때마다 현재 엔트리를 그 조건으로 replace해, 되돌아왔을 때 복원되게 한다.
+export const useBoardListHistoryState = (listState: RouteState) =&gt; {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const serializedListState = JSON.stringify(listState);
+
+  useEffect(() =&gt; {
+    // 이미 같은 조건이 기록된 엔트리(복귀·새로고침 직후)에는 다시 replace하지 않는다
+    if (JSON.stringify(asRouteState(location.state) ?? null) === serializedListState) return;
+    navigate(
+      { pathname: location.pathname, search: location.search, hash: location.hash },
+      { replace: true, state: JSON.parse(serializedListState) },
+    );
+  }, [serializedListState, location.state, location.pathname, location.search, location.hash, navigate]);
+};
+
+// ResourceList.tsx — 검색 유형 변경 시 검색어 초기화는 최초 렌더에서는 건너뛴다
+// (마운트 시에도 실행되어 복원된 검색어가 입력창에서만 지워지고 조회조건과 어긋났다)
+const isFirstFilterRender = useRef(true);
+useEffect(() =&gt; {
+  if (isFirstFilterRender.current) { isFirstFilterRender.current = false; return; }
+  setKeyword('');
+}, [filter]);</code></pre>
+    </div>
+    <div class="snippet">
       <div class="sc"><code>src/modal/notice/NoticePopup.tsx</code> — 팝업 공지 최대 3개 계단식 노출</div>
 <pre><code>const STACK_OFFSET = 40; // px, 카드 간 계단식 겹침 간격
 
@@ -436,12 +465,13 @@ const payload = {
     <h2>관련 소스</h2>
     <ul class="refs">
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/board.ts" target="_blank" rel="noopener">src/api/board.ts</a><span class="src">공지/자료실/문의 게시판 · 첨부 업로드·다운로드 API · unitServiceCode/AxiosRequestConfig 인자 · noticePopupList</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/boardNavigation.ts" target="_blank" rel="noopener">src/pages/boardNavigation.ts</a><span class="src">목록 복귀 히스토리 깊이 기록·복원 (withBoardListHistory·returnToBoardList)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/boardNavigation.ts" target="_blank" rel="noopener">src/pages/boardNavigation.ts</a><span class="src">목록 복귀 히스토리 깊이 기록·복원 (withBoardListHistory·returnToBoardList) · useBoardListHistoryState 로 적용 조건을 목록 엔트리에 기록해 복귀·새로고침 시 복원</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/notice/queryKeys.ts" target="_blank" rel="noopener">src/pages/notice/queryKeys.ts</a><span class="src">공지 캐시 키 (list·detail·edit·navigation·popup)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/queryKeys.ts" target="_blank" rel="noopener">src/pages/resource/queryKeys.ts</a><span class="src">자료실 캐시 키</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/contactUs/queryKeys.ts" target="_blank" rel="noopener">src/pages/contactUs/queryKeys.ts</a><span class="src">문의 캐시 키</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/modal/notice/NoticePopup.tsx" target="_blank" rel="noopener">src/modal/notice/NoticePopup.tsx</a><span class="src">Home 진입 시 팝업 공지 최대 3개 계단식 노출 · 오늘 하루 보지 않기 쿠키(userScopedCookieName 로 사용자 단위 스코프)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/util.ts" target="_blank" rel="noopener">src/utils/util.ts</a><span class="src">userScopedCookieName(로그인 사용자 단위 쿠키명) · getCookie(메타문자 이스케이프로 안전화)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/notice/NoticeList.tsx" target="_blank" rel="noopener">src/pages/notice/NoticeList.tsx</a><span class="src">공지 목록 · useBoardListHistoryState 로 조회조건 복원</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/notice/NoticeEdit.tsx" target="_blank" rel="noopener">src/pages/notice/NoticeEdit.tsx</a><span class="src">공지 등록·수정 · popupYn 체크박스 · 팝업 노출 개수 제한</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/notice/NoticeDetail.tsx" target="_blank" rel="noopener">src/pages/notice/NoticeDetail.tsx</a><span class="src">공지 상세 · 삭제 시 캐시 정리와 목록 복귀</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/notice/constants.ts" target="_blank" rel="noopener">src/pages/notice/constants.ts</a><span class="src">MAX_POPUP_NOTICE_COUNT (동시 노출 최대 3개)</span></li>
@@ -449,9 +479,9 @@ const payload = {
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/search/CustomFile.tsx" target="_blank" rel="noopener">src/components/search/CustomFile.tsx</a><span class="src">첨부 확장자·용량 검증 공통 컴포넌트</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/ResourceEdit.tsx" target="_blank" rel="noopener">src/pages/resource/ResourceEdit.tsx</a><span class="src">자료실 편집 · extendData 매칭 · 기존 첨부 유지 · displayName 표시</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/ResourceDetail.tsx" target="_blank" rel="noopener">src/pages/resource/ResourceDetail.tsx</a><span class="src">자료실 상세 · 대표사진 blob 로드와 object URL 회수</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/ResourceList.tsx" target="_blank" rel="noopener">src/pages/resource/ResourceList.tsx</a><span class="src">자료실 목록 · 검색 파라미터 통째 교체(잔류 상태 제거)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/resource/ResourceList.tsx" target="_blank" rel="noopener">src/pages/resource/ResourceList.tsx</a><span class="src">자료실 목록 · 검색 파라미터 통째 교체(잔류 상태 제거) · useBoardListHistoryState 적용 · isFirstFilterRender 로 최초 렌더 키워드 초기화 방지</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/contactUs/ContactUsList.tsx" target="_blank" rel="noopener">src/pages/contactUs/ContactUsList.tsx</a><span class="src">문의 목록 · hasRole 기반 등록 버튼 노출 제어 · useBoardListHistoryState 로 조회조건 복원</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/smartGreen.ts" target="_blank" rel="noopener">src/api/smartGreen.ts</a><span class="src">자료실 등록/수정 postResource·putResource (thumbnailImage·fileId)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/contactUs/ContactUsList.tsx" target="_blank" rel="noopener">src/pages/contactUs/ContactUsList.tsx</a><span class="src">문의 목록 · hasRole 기반 등록 버튼 노출 제어</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/contactUs/Reply.tsx" target="_blank" rel="noopener">src/pages/contactUs/Reply.tsx</a><span class="src">문의 답변 등록</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/routes/route.tsx" target="_blank" rel="noopener">src/routes/route.tsx</a><span class="src">notice / resource / contact-us 라우트</span></li>
     </ul>

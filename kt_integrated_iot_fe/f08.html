@@ -61,6 +61,7 @@
       <div class="ct">설계 포인트</div>
       대상자 등록·수정은 다이얼로그(<code>SmsTargetRegisterDialog</code>/<code>SmsTargetModifyDialog</code>)로 분리해, 목록 화면은 조회·검색에 집중하고 입력 검증은 다이얼로그에서 처리합니다. 알림 설정 쪽에서는 "설정이 없는 측정소"와 "설정을 불러오는 중"을 서로 다른 상태로 구분하는 것이 핵심입니다. 전자는 초기값 리셋, 후자는 폼 미변경으로 처리해야 이전 측정소 값이 잔류하지 않습니다.
     </div>
+    <p class="src">2026-09-01 커밋으로 <code>src/api/airmap.ts</code>의 <code>getExpertReports</code>가 제거되고 <code>src/types/api.d.ts</code>에 전문가 보고서 타입이 재정의되었으나, 이는 <a href="f06.html">이력 조회</a> 문서의 전문가 보고서 개편에 해당하며 SMS 발송·공기질 알림 설정 로직과는 무관합니다. 2026-09-15 신설된 서비스 권한 확인(<a href="f11.html">권한 기반 사이트 전환 제어</a>)은 <code>/:site/sms-alert-settings</code> 라우트 진입 자체를 한 번 더 가드하지만, 화면 내부 설정 조회·저장 흐름은 그대로입니다.</p>
   </section>
 
   <section id="seq">

@@ -54,6 +54,7 @@
       <div class="ct">설계 포인트 — 중복 튜닝 방지</div>
       미니가이드/이전채널 이동 모두 <code>channelAdapter.getCurrentTuningChannelId()</code>로 이미 그 채널을 재생 중인지 먼저 확인합니다. 같으면 <code>channelAdapter.tune()</code>을 호출하지 않고 OSD 표시(<code>setOsdShowEvent</code>)와 UI 상태 전환(<code>LiveTvUiState.MiniGuide</code>)만 수행해, 불필요한 재튜닝으로 인한 화면 끊김을 피합니다.
     </div>
+    <p>최근 커밋 구간(내비게이션 엔진 이관·v8.26 SI 확장·홈 UI 교체 등)은 <code>ui/livetv</code> 패키지 자체를 건드리지 않았습니다 — <code>LiveTvViewModel.kt</code>는 여전히 1,427줄로 동일하고, 아래 코드 스니펫도 최신 소스와 줄 단위로 일치함을 재확인했습니다. 다만 이 화면이 의존하는 <code>ChannelAdapter</code>/<code>ChannelPlayerAdapter</code>의 상위 재생 계층은 f03·f04에서 <code>PlayHub</code> 도입 등으로 재구성됐습니다.</p>
   </section>
 
   <section id="seq">

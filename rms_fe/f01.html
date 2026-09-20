@@ -49,13 +49,14 @@
   <section id="desc">
     <h2>기능 개요</h2>
     <p>모니터링 대시보드는 운영자가 RMS에 로그인하면 처음 마주하는 화면으로, 현장에 배포된 단말의 온라인 수·모델별 분포·임계치 초과 추이 등을 위젯 단위로 보여줍니다. 화면 본체인 <code>dashboardRms.tsx</code>는 <code>react-grid-layout</code>의 <code>Responsive</code>를 <code>WidthProvider</code>로 감싼 <code>ResponsiveGridLayout</code>을 렌더링하며, 각 칸이 하나의 <code>DashboardItem</code> 위젯이 됩니다. 레이아웃 컬럼 수는 <code>widgetPermissions.widgetCols</code>로 분기되어 XLSmart 타깃은 20, 그 외는 16 컬럼을 사용합니다. XLSmart에서 KPI 위젯을 5개(<code>KPIWidgetCount</code>) 나란히 표시하기 위한 확장으로, IBC 타깃은 이 확장 대상에서 제외되어 기본 16컬럼·KPI 4개를 사용합니다.</p>
-    <p>위젯 데이터는 서버 상태로 관리됩니다. 마운트 시 <code>initialize()</code>가 <code>getLayout()</code>·<code>getWidget()</code>·<code>getOnlineDevice()</code>를 <code>Promise.all</code>로 병렬 실행합니다. <code>getWidget()</code>은 내부에서 <code>loadWidget()</code>으로 위젯 목록(<code>/api/v1/dashboard-config/widgets</code>)을 가져온 뒤, 위젯별로 <code>getWidgetDetailInfos(t)</code>에 정의된 개별 API를 <code>Promise.allSettled</code>로 병렬 호출해 성공한 응답만 <code>parsing()</code>으로 차트 데이터로 변환합니다. 이어서 모듈 레벨 헬퍼 <code>buildLayouts()</code>가 서버 레이아웃(<code>/api/v1/dashboard-config/layouts</code>)과 위젯을 결합해 그리드를 구성합니다. 운영자가 편집 모드에서 위젯을 드래그하면 <code>onLayoutChange</code>가 상태를 갱신하며 sessionStorage에 임시 저장하고(재진입 시 복원 확인 모달), 저장 시 <code>saveLayout()</code>·<code>saveWidget()</code>이 변경된 레이아웃과 위젯 구성을 서버에 POST 합니다.</p>
+    <p>위젯 데이터는 서버 상태로 관리되며, 레이아웃/메타 조회와 실제 데이터 조회가 두 단계로 분리되어 있습니다. 마운트 시 <code>initialize()</code>가 <code>getLayout()</code>·<code>getWidget()</code>·<code>getOnlineDevice()</code>를 <code>Promise.all</code>로 병렬 실행하는데, <code>getWidget()</code>은 <code>loadWidget()</code>으로 위젯 목록(<code>/api/v1/dashboard-config/widgets</code>)만 받아 각 위젯의 <code>data</code>를 <code>null</code>로 채운 채 즉시 반환합니다. 이어서 모듈 레벨 헬퍼 <code>buildLayouts()</code>가 서버 레이아웃(<code>/api/v1/dashboard-config/layouts</code>)과 위젯 메타를 결합해 그리드부터 그리고, 새로 추가된 <code>loadWidgetDataProgressively()</code>가 위젯별로 <code>getWidgetDetailInfos(t)</code>에 정의된 API를 각각 독립적으로 호출해 응답이 도착하는 대로 해당 위젯의 <code>data</code>만 <code>setWidgets</code>로 채워 넣습니다. 예전에는 <code>Promise.allSettled</code>로 모든 위젯 API를 한 번에 기다렸다가 한꺼번에 그렸지만, 지금은 위젯이 각자 로딩되므로 응답이 느린 위젯 하나 때문에 나머지 위젯까지 늦게 뜨는 일이 없습니다. <code>data</code>가 아직 <code>null</code>인 위젯 자리는 <code>DashboardItem</code>이 이중 <code>CircularProgress</code>(바깥쪽 고정 원 + 안쪽 회전 원) 로딩 스피너로 채우며, 크기는 맨 위 KPI 카드류(<code>typoVariation</code>)는 28px, 그 외 위젯은 56px입니다. 운영자가 편집 모드에서 위젯을 드래그하면 <code>onLayoutChange</code>가 상태를 갱신하며 sessionStorage에 임시 저장하고(재진입 시 복원 확인 모달), 저장 시 <code>saveLayout()</code>·<code>saveWidget()</code>이 변경된 레이아웃과 위젯 구성을 서버에 POST 합니다.</p>
     <p>XLSmart 타깃 대응으로 위젯이 확장되었습니다. KPI 위젯 <strong>Illegal Devices</strong>(<code>/api/v3/dashboard/illegal-device</code>)가 <code>widgetPermissions.illegalDevices</code> 조건(XLSmart 전용)으로 초기 위젯 목록(<code>types/dashboard/init.ts</code>)에 추가되고, 차트 위젯 <strong>Top Installed Apps</strong>(<code>install-app</code>)·<strong>Top Deleted Apps</strong>(<code>delete-app</code>)·<strong>HDMI Connection Status</strong>(<code>hdmi-connection</code>)가 <code>widgetDetailInfos</code>(<code>types/dashboard/data.ts</code>)에 정의되었습니다. 각 위젯에는 <code>topInstall</code>·<code>topDelete</code>·<code>hdmi</code> 전용 아이콘도 부여되었습니다. 지도 위젯(<code>DashboardItem/map/Map.tsx</code>)에는 단말 상태(All/Active/Crash App/Warning/Illegal)를 고르는 <code>CustomSelect</code> 셀렉트가 지도 우상단 <code>position: absolute</code> 오버레이(top 48px·폰트 13px·높이 32px, 총계 문구 아래로 위치 조정)로 표시되며, 선택한 상태는 <code>onMapChange</code>를 거쳐 <code>getDeviceStatusParam()</code>(<code>components/CustomizedMap.tsx</code>)으로 변환되어 지도 데이터 조회 파라미터에 실제 반영됩니다. 지도 마커에는 <code>hoverEnabled</code> prop이 추가되어, 마커 선택이 불가능한(<code>isSelectable</code>이 아닌) 대시보드 위젯에서도 마우스를 올리면 해당 마커가 강조됩니다(선택 스타일은 그대로 제외). 베이스맵 타일 URL도 <code>REACT_APP_CARTO_MAP_KEY</code>를 쿼리로 붙인 CARTO 유료 키 방식으로 바뀌었습니다(<code>components/CustomizedMap.tsx</code>). 위젯 상세 모달(<code>dashboardDetailModal.tsx</code>)도 <code>isShowDeviceStatus</code> 플래그로 같은 상태 필터를 노출하며, Illegal Devices 위젯의 테마 컬러는 <code>#93ACFF</code>로 조정되고 위젯 툴팁 문구(<code>tooltipLabel</code>)가 추가되었습니다(<code>types/dashboard/data.ts</code>).</p>
     <p>위젯 상세(2depth) 화면도 강화되었습니다. <code>widgetDetailInfos</code>의 각 위젯에 기본 정렬 옵션 <code>defaultSortTarget</code>·<code>defaultSortType</code>이 추가되어 상세 테이블이 위젯 성격에 맞는 컬럼(threshold 계열은 <code>cpuUsage</code>/<code>memoryUsage</code>/<code>networkUsage</code>, 단말 목록 계열은 대표 식별자 <code>DEV_MAIN_KEY.id</code>)으로 정렬된 채 열립니다. 종전의 <code>IS_KT ? 'deviceSiteId' : 'deviceId'</code> 3항식과 검색 옵션의 <code>deviceId</code>/<code>deviceSiteId</code> 이중 정의는 모두 <code>utils/env.ts</code>의 <code>DEV_MAIN_KEY</code> 한 곳으로 모였고, 상세 검색 목록(<code>createSortedSearchList</code>)도 <code>DEV_MAIN_KEY.name</code>·<code>DEV_MAIN_KEY.id</code> 한 항목만 노출합니다. Top Installed / Top Deleted Apps 위젯의 검색 API 경로도 <code>info/installed-app/{unit}</code>·<code>info/deleted-app/{unit}</code>으로 정정되었습니다. App Crash·CPU/Memory/Network Threshold 위젯에는 <code>isAiCause: modulePermissions.anomalyDetect</code> 플래그가 붙어 IBC 타깃에서 이상 감지(AI 원인 분석) 기능과 연동됩니다. 또한 별도 팝업으로 뜨는 위젯 상세(<code>components/DashboardItemDetail</code>)에서 Device Details를 클릭하면 <code>window.opener.openDeviceDetailModal(deviceId)</code>로 부모 대시보드에 등록된 콜백이 호출되고, <code>dashboardRms</code>가 <code>DevicesApiManager.getList()</code>로 단말을 조회한 뒤 단말 관리 화면(<code>devices.tsx</code>)의 행 클릭과 동일한 연결 상태 분기를 수행합니다.</p>
     <p>단말 연결 대기 처리는 <strong>모달을 띄우기 전에서 띄운 뒤로</strong> 옮겨졌습니다. 예전에는 DISCONNECTED+ONLINE 단말에 <code>DEVICE_CONNECTION</code> 명령을 보낸 뒤 <code>dashboardRms</code>가 <code>BackdropLoading</code>을 띄운 채 <code>DEVICE_CONNECTION_TIME_LEFT</code>(30초) 동안 세션 상태를 폴링했지만, 지금은 명령을 보내자마자 <code>isCommandSent: true</code>를 실은 모달 정보를 <code>useTask().openDeviceDetailModal()</code>에 넘겨 <code>device_info</code> 모달을 먼저 엽니다. 실제 재연결 확인은 모달 본체인 <code>pages/device/detailWrapper.tsx</code>가 맡아 1초 간격·최대 20회로 <code>getDetail</code>을 폴링하다가 STANDBY가 되면 <code>createDeviceConnection</code>으로 연결을 만들고 <code>updateCurrDeviceDetailModalConnectionId(connectionId)</code>로 이미 열려 있는 모달의 <code>connectionId</code>를 갱신합니다. 이 개편으로 <code>TaskContext</code>의 API 이름도 디바이스 상세 전용임이 드러나게 <code>openModal</code>→<code>openDeviceDetailModal</code>, <code>currModal</code>→<code>currDeviceDetailModal</code>로 정리되었고, <code>ModalProps</code>에서는 호출부가 계산하던 <code>isMine</code>이 빠지고 <code>isCommandSent</code>가 추가되었습니다. 조작 권한(Controllable/View Only)은 상세 모달이 <code>getDeviceInfo</code> 응답의 <code>lastConnectUserId</code>와 로그인 사용자 <code>userInfo.id</code>를 비교한 <code>isConnectedByMe</code>로 직접 판단합니다.</p>
     <p>위젯 상세(2depth) 팝업의 이슈 이력 모달(<code>IssueHistoryModal</code>)은 목업 배열을 걷어내고 <code>dashboardAxios</code>로 <code>/api/v1/quick-operation-issues/device-history</code>를 조회해 실제 이슈 타임라인을 그립니다. 응답의 <code>days</code>·<code>totalCount</code>로 "최근 N일 M건" 배지를 표시하고, 그 아래에 <code>cpuCount</code>·<code>memoryCount</code>·<code>networkCount</code>·<code>appCount</code> 중 0이 아닌 항목만 CPU·Memory·Network·App 건수 배지로 나열합니다. 각 이슈는 <code>RESOLVED</code>·<code>AUTO_RECOVERED</code>·<code>UNRESOLVED</code> 상태별 아이콘과 색으로 구분되며 <code>actionsTaken</code>·<code>recoveredInMinutes</code>·<code>scope</code>를 조합해 설명 문구를 만들고, 탐지 시각은 <code>YYYY-MM-DD</code>(굵게)와 <code>HH:mm:ss</code> 두 줄 값으로 분리되어 표시됩니다. 타임라인 영역은 <code>maxHeight 560</code>의 자체 스크롤 박스로 감싸져 이력이 길어져도 모달 높이가 늘어나지 않습니다. 응답의 <code>quickOperationAvailable</code>이 참일 때만 Quick Operation 이동 버튼이 노출되는데, 넘기는 값이 단말이 아니라 이슈로 바뀌어 <code>callbackFc('Q', deviceInfo.quickOperationIssueId)</code>가 부모 창을 <code>/monitoring/quickOperation?issueId=…&amp;size=20</code>으로 보냅니다. 이 <code>issueId</code> 쿼리는 이상 감지 화면에서 해당 이슈를 직접 펼치는 딥링크 조건으로 쓰입니다. 상세 테이블의 AI Cause 버튼도 <code>row.quickOperationIssueId</code>가 <code>null</code>이면 렌더링되지 않습니다. 차트 쪽에서는 <code>BarChart</code>의 x축 tick 클릭이 막대 클릭과 같은 <code>handleClickX()</code> 경로로 합쳐져 날짜 레이블을 눌러도 <code>onClickDate</code>가 호출되고, Y축 스케일이 자릿수 기반 올림에서 <code>Math.max(50, Math.ceil(max / 50) * 50)</code>으로 바뀌어 최소 50 단위로 정돈됩니다. 눈금 라벨은 <code>buildChartTickValues</code>(6개)로, 배경 그리드는 새 헬퍼 <code>buildChartGridValues</code>(11개)로 나뉘어 그려지고, Y축 폭은 최댓값이 아니라 실제 눈금 라벨 중 가장 긴 문자열 길이로 계산됩니다. 툴팁 분기에도 위젯이 추가되어 <code>topInstalledApps</code>·<code>topDeletedApps</code>가 <code>topAppUsed</code>와 같은 비율 표시·Other Apps 후순위 정렬을 따르고, <code>hdmiConnectionStatus</code>는 <code>networkInterface</code>처럼 <code>share</code> 비율을 함께 보여줍니다.</p>
     <p>편집 모드 자체도 손봤습니다. 위젯을 연달아 추가할 때 <code>setWidgets</code>·<code>setLayouts</code>의 비동기 반영 때문에 직전 추가분이 누락되던 문제를 <code>widgetsRef</code>·<code>layoutsRef</code>로 항상 최신값을 읽도록 바꿔 해결했고, 새 위젯을 놓을 자리는 <code>layouts.lg</code>의 마지막 원소가 아니라 <code>y</code>·<code>x</code> 내림차순으로 정렬한 실제 최하단 위젯을 기준으로 계산합니다. 그리드 컬럼 수 상태도 초기값 <code>0</code> 대신 <code>COLS.lg</code>로 시작해 첫 렌더에서 폭이 어긋나지 않습니다. 임시 저장 복원 확인 모달은 버튼 역할이 뒤바뀌어, 기본(OK) 버튼이 임시 저장분을 버리고 다시 불러오는 <code>onTempClose</code>(Go back), 보조 버튼이 이어서 편집하는 <code>onTempSave</code>(Continue editing)가 되었습니다.</p>
     <p>가장 최근 범위(~868b6160)에서는 지도 위젯의 기반 기술이 바뀌었습니다. <code>components/CustomizedMap.tsx</code>가 <code>react-leaflet</code>의 래스터 <code>TileLayer</code>(CARTO PNG)를 걷어내고 <code>@maplibre/maplibre-gl-leaflet</code>로 CARTO Voyager <strong>벡터</strong> 스타일(<code>basemaps.cartocdn.com/gl/voyager-gl-style/style.json</code>)을 그리는 <code>VectorBasemapLayer</code>로 교체되었습니다. CRA(webpack)가 <code>maplibre-gl</code>이 <code>import.meta.url</code>로 계산하는 워커 스크립트 경로를 번들링하지 못해 벡터 타일이 뜨지 않는 문제는 <code>public/maplibre-gl-worker.mjs</code>를 직접 배치하고 <code>setWorkerUrl()</code>로 그 경로를 지정해 우회했으며(<code>infra/helm/nginx/nginx.conf</code>에 <code>.mjs</code> MIME 매핑 추가), 지도 경계(<code>bounds</code>)에도 경도 40도의 여유 패딩이 더해졌습니다. 차트 쪽에서는 <code>BarChart</code>가 위젯별 지정 날짜 포맷(<code>widgetInfo.dateFormat</code>)을 X축·툴팁에 그대로 쓰도록 바뀌고 마지막 막대의 종료 시각 계산이 <code>to</code> 값 유효성·역전 여부·:59 보정을 따지도록 보강되었습니다. <code>LineChart</code>의 활성 단말 대비 비율("N% of active device")은 상위에서 내려주던 <code>exceedPct</code> prop 대신 시리즈 데이터의 <code>activeDevice</code> 값으로 화면이 직접 계산하도록 고쳐졌고, <code>PieChart</code> 툴팁은 <code>topInstalledApps</code>/<code>topDeletedApps</code> 항목에서 Devices 대신 각각 Installed/Deleted 라벨을 보여줍니다. <code>utils/chartParsing.ts</code>의 <code>parseDetailLineChartCustom</code>은 합계를 <code>device + app</code>/<code>transferred + created</code>로 재계산하던 방식 대신 응답의 <code>total</code> 필드를 우선 쓰고 Total Devices(<code>totalDevices</code>) 위젯에서는 삭제 단말 수(<code>deleted</code>)를 빼도록 고쳐져, 1depth 대시보드의 표시 정책 오류가 해소되었습니다. 위젯 상세(2depth) 기본 조회 기간(<code>DateRange.tsx</code>)도 "오늘 포함 8일"에서 "어제까지 7일"로 조정되었습니다.</p>
+    <p>가장 최근 범위(~0406bc7a)의 핵심은 앞서 설명한 위젯별 순차 로딩(<code>loadWidgetDataProgressively</code> + 로딩 스피너) 도입이고, 그 외에 <code>PieChart</code>가 데이터 0건일 때를 위한 <code>isEmpty</code> 분기를 갖게 되었습니다. <code>data.length === 0</code>이면 도넛 색을 <code>#D9D9D9</code> 단색으로, 범례 영역은 항목 목록 대신 <code>t('common.no_data')</code>(레전드가 없는 좁은 폭에서는 <code>t('cm:no_data')</code>) 문구로 채우고 <code>isInteractive</code>를 꺼 hover 강조도 비활성화합니다. 대시보드 API 호출도 더 안전해졌습니다. <code>dashboardAxios</code>의 응답 인터셉터에 실패 핸들러가 새로 붙어 401 응답이면 세션을 지우고 로그인 만료 화면(<code>/login/expire</code>)으로 이동시키되, 이동이 실제로 끝나기 전까지 호출부의 <code>await</code>/<code>catch</code>가 이어서 실행되지 않도록 <code>new Promise(() =&gt; {})</code>로 영구 대기시켜 화면이 어중간한 상태로 남지 않게 합니다. 세션 타임아웃 자체도 <code>JWTContext</code>가 <code>navigate()</code> 대신 <code>window.location.href</code> 전체 새로고침으로 처리하도록 바뀌어, 대시보드가 떠 있는 동안 세션이 끊겨도 진행 중이던 위젯 폴링·요청이 새로고침으로 확실히 정리됩니다.</p>
     <div class="callout">
       <div class="ct">사이트별 위젯 분기</div>
       <code>utils/env.ts</code>의 <code>widgetPermissions</code>에 따라 단말 위치 지도(<code>deviceLocationMap</code>)·브랜드 모델·네트워크 인터페이스 위젯은 OBE/TTG/XLSmart/IBC 타깃에서 숨겨지고, KT 타깃은 <code>disableEditMode</code>로 편집 자체가 비활성화됩니다. XLSmart에서는 <code>illegalDevices</code> 위젯이 켜지고 <code>KPIWidgetCount</code> 5·<code>widgetCols</code> 20이 적용됩니다. IBC는 위젯 확장 대상에서 빠지는 대신 <code>modulePermissions</code>에서 <code>anomalyDetect</code>·<code>chatbot</code>·<code>terminal</code>이 켜지는 별도 프로파일로 정리되었습니다. 여기에 단말 대표 식별자 <code>DEV_MAIN_KEY</code>가 더해져 KT는 <code>deviceSiteId</code>(SAID), XLSmart는 <code>serial</code>(S/N), 그 외는 <code>deviceId</code>를 대표 키로 쓰며, <code>modulePermissions</code>에도 <code>installFw</code>(TTG 제외)·<code>ssoLogin</code>(XLSmart)이 추가되고 <code>terminal</code>에 XLSmart가 포함되었습니다. 즉 같은 코드가 사이트에 따라 다른 위젯 구성과 다른 대표 식별자를 노출합니다.
@@ -80,17 +81,19 @@ sequenceDiagram
 
     OP-&gt;&gt;DRM: 대시보드 진입 (mount)
     DRM-&gt;&gt;DA: getLayout() GET /dashboard-config/layouts
-    DRM-&gt;&gt;DA: getWidget() GET /dashboard-config/widgets
+    DRM-&gt;&gt;DA: getWidget() GET /dashboard-config/widgets (data: null 로 즉시 반환)
     DRM-&gt;&gt;DA: getOnlineDevice()
     DA-&gt;&gt;BE: Promise.all 병렬 요청
-    BE--&gt;&gt;DA: layouts / widgets / onlineDevice
+    BE--&gt;&gt;DA: layouts / widgets(메타만) / onlineDevice
     DA--&gt;&gt;DRM: 응답 데이터
     DRM-&gt;&gt;DRM: buildLayouts(widgets, layouts)
     DRM-&gt;&gt;GRID: setLayouts(rebuildLayoutsData)
-    loop 위젯마다
+    DRM-&gt;&gt;ITEM: data null 위젯은 CircularProgress 로딩 표시
+    loop 위젯마다 독립 호출 (loadWidgetDataProgressively, 동시 진행)
         DRM-&gt;&gt;DA: get(widgetAPI, widgetAPIParams)
-        DA--&gt;&gt;DRM: 위젯 데이터
-        DRM-&gt;&gt;ITEM: parsing() 후 차트 렌더
+        DA--&gt;&gt;DRM: 위젯 데이터 (도착하는 대로)
+        DRM-&gt;&gt;DRM: setWidgets(해당 위젯만 data 갱신)
+        DRM-&gt;&gt;ITEM: parsing() 후 차트 렌더 (로딩 스피너 대체)
     end
     OP-&gt;&gt;GRID: 위젯 드래그 / 리사이즈
     GRID-&gt;&gt;DRM: onLayoutChange(currentLayout, allLayouts)
@@ -115,7 +118,7 @@ sequenceDiagram
     DW-&gt;&gt;BE: createDeviceConnection(id)
     DW-&gt;&gt;TC: updateCurrDeviceDetailModalConnectionId(connectionId)
       </div>
-      <p class="cap"><strong>흐름.</strong> 마운트 시 레이아웃·위젯·온라인 수를 병렬 조회해 그리드를 재구성하고, 위젯별 개별 API로 차트를 채웁니다. 드래그/리사이즈는 <code>onLayoutChange</code>로 반영되고 저장 시 <code>saveLayout()</code>이 서버에 POST 합니다. 위젯 상세 팝업의 Device Details는 <code>window.opener</code> 콜백으로 부모 대시보드에 위임되며, 재연결 명령 직후 곧바로 <code>device_info</code> 모달을 열고 대기·폴링은 모달 본체(<code>detailWrapper</code>)가 이어받습니다.</p>
+      <p class="cap"><strong>흐름.</strong> 마운트 시 레이아웃·위젯 메타(data는 아직 null)·온라인 수를 병렬 조회해 그리드부터 그리고, 위젯별 개별 API를 각자 독립 호출해 응답이 오는 대로 해당 위젯만 채워 넣습니다(도착 전에는 로딩 스피너). 드래그/리사이즈는 <code>onLayoutChange</code>로 반영되고 저장 시 <code>saveLayout()</code>이 서버에 POST 합니다. 위젯 상세 팝업의 Device Details는 <code>window.opener</code> 콜백으로 부모 대시보드에 위임되며, 재연결 명령 직후 곧바로 <code>device_info</code> 모달을 열고 대기·폴링은 모달 본체(<code>detailWrapper</code>)가 이어받습니다.</p>
     </div>
   </section>
 
@@ -129,7 +132,8 @@ classDiagram
         -widgetsRef
         -layoutsRef
         +getLayout() Promise
-        +getWidget() Promise
+        +getWidget() Promise~WidgetTypeList~
+        +loadWidgetDataProgressively(widgets)
         +getOnlineDevice() Promise
         +buildLayouts(widgets, layouts) Layouts
         +onLayoutChange(current, all)
@@ -214,14 +218,46 @@ classDiagram
   <section id="code">
     <h2>핵심 코드</h2>
     <div class="snippet">
-      <div class="sc"><code>pages/monitoring/dashboardRms.tsx</code> — 레이아웃·위젯·온라인 수 병렬 조회 후 그리드 재구성</div>
+      <div class="sc"><code>pages/monitoring/dashboardRms.tsx</code> — 레이아웃·위젯 메타·온라인 수 병렬 조회 후 그리드부터 재구성, 데이터는 뒤이어 개별 로딩</div>
 <pre><code>const [layoutsData, widgetsData, onlineDevice] = await Promise.all([
   getLayout(),
-  getWidget(),
+  getWidget(),          // 위젯 메타만 즉시 반환 (data: null)
   getOnlineDevice()
 ]);
 const rebuildLayoutsData = buildLayouts(widgetsData, layoutsData);
-setLayouts(rebuildLayoutsData);</code></pre>
+setLayouts(rebuildLayoutsData);
+setWidgets(widgetsData);
+setOnlineDeviceCount(onlineDevice);
+loadWidgetDataProgressively(widgetsData);   // 그리드가 뜬 뒤 위젯별 데이터를 채움</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>pages/monitoring/dashboardRms.tsx</code> · <code>components/DashboardItem/index.tsx</code> — 위젯별 독립 로딩과 로딩 스피너</div>
+<pre><code>// dashboardRms.tsx — 위젯마다 개별 API 호출, 도착하는 대로 해당 위젯만 갱신
+const loadWidgetDataProgressively = useCallback((widgetList: WidgetType[]) =&gt; {
+  widgetList.forEach((widget) =&gt; {
+    const widgetDetail = widgetDetailInfos[widget.key];
+    if (!widgetDetail) return;
+    dashboardAxios.get(widgetDetail.widgetAPI, { params: widgetDetail.widgetAPIParams })
+      .then(({ data }) =&gt; {
+        const widgetData = parsing(widget, data?.data ? data?.data : data, widgetDetail);
+        const loadedData = !data?.data ? (!data?.chart ? null : widgetData) : widgetData;
+        setWidgets((prev) =&gt; prev.map((w) =&gt; (w.id === widget.id ? { ...w, data: loadedData } : w)));
+      })
+      .catch(() =&gt; {});
+  });
+}, [widgetDetailInfos]);
+
+// DashboardItem/index.tsx — data 가 아직 null 인 위젯은 이중 CircularProgress 로 로딩 표시
+if (dashboardItem.data == null) {
+  const loadingSize = dashboardItem.type === 'typoVariation' ? 28 : 56;   // KPI 카드는 작게
+  return (
+    &lt;Stack alignItems="center" justifyContent="center" sx={{ width: '100%', height: '100%' }}&gt;
+      &lt;CircularProgress variant="determinate" value={100} size={loadingSize} sx={{ color: '#EFE9FF' }} /&gt;
+      &lt;CircularProgress variant="indeterminate" disableShrink size={loadingSize}
+        sx={{ color: '#8655FF', position: 'absolute', left: 0 }} /&gt;
+    &lt;/Stack&gt;
+  );
+}</code></pre>
     </div>
     <div class="snippet">
       <div class="sc"><code>pages/monitoring/dashboardRms.tsx</code> — 편집 후 레이아웃 저장 (드래그/리사이즈 메타 제거 후 POST)</div>
@@ -356,8 +392,10 @@ export const buildChartGridValues = (maxValue: number) =&gt; Array.from({ length
   <section id="sources">
     <h2>관련 소스</h2>
     <ul class="refs">
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/dashboardRms.tsx" target="_blank" rel="noopener">pages/monitoring/dashboardRms.tsx</a><span class="src">대시보드 본체 — 그리드 구성·레이아웃/위젯 조회·저장·onLayoutChange</span></li>
-      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Dashboard.tsx" target="_blank" rel="noopener">_api/Dashboard.tsx</a><span class="src">dashboardAxios 인스턴스 — baseURL·토큰/Time-Zone 인터셉터·widgets 응답 필터</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/dashboardRms.tsx" target="_blank" rel="noopener">pages/monitoring/dashboardRms.tsx</a><span class="src">대시보드 본체 — 그리드 구성·레이아웃/위젯 메타 조회·저장·onLayoutChange·loadWidgetDataProgressively(위젯별 독립 데이터 로딩)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/_api/Dashboard.tsx" target="_blank" rel="noopener">_api/Dashboard.tsx</a><span class="src">dashboardAxios 인스턴스 — baseURL·토큰/Time-Zone 인터셉터·widgets 응답 필터·401 오류 시 세션 클리어 후 로그인 만료 이동(영구 대기 Promise)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/contexts/JWTContext.tsx" target="_blank" rel="noopener">contexts/JWTContext.tsx</a><span class="src">세션 타임아웃 — navigate() 대신 전체 새로고침(window.location.href)으로 진행 중 요청·폴링을 확실히 종료</span></li>
+      <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/components/DashboardItem/chart/PieChart.tsx" target="_blank" rel="noopener">components/DashboardItem/chart/PieChart.tsx</a><span class="src">데이터 0건일 때 회색 단색 도넛 + No Data 문구(isEmpty), isInteractive 비활성화</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/pages/monitoring/dashboardDetailModal.tsx" target="_blank" rel="noopener">pages/monitoring/dashboardDetailModal.tsx</a><span class="src">위젯 상세 모달 — 개별 위젯 데이터 상세 표시</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/utils/env.ts" target="_blank" rel="noopener">utils/env.ts</a><span class="src">widgetPermissions / modulePermissions / DEV_MAIN_KEY — 사이트별 위젯 노출·편집 모드·widgetCols·illegalDevices 및 대표 식별자(KT deviceSiteId · XLSmart serial · 그 외 deviceId) 분기</span></li>
       <li><a href="https://bitbucket.org/altimedia/rms_fe/src/master/src/types/dashboard/data.ts" target="_blank" rel="noopener">types/dashboard/data.ts</a><span class="src">widgetDetailInfos — 위젯별 API·차트 정의 + 기본 정렬(defaultSortTarget = DEV_MAIN_KEY.id)·AI 원인 분석(isAiCause)·illegalDevices tooltipLabel·installed-app/deleted-app 검색 경로</span></li>

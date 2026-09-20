@@ -56,6 +56,8 @@
     <p>다운로드 형식은 화면 헤더의 "전체(전체분석) 분석 다운로드"만 xlsx로 분리되었습니다. Air Map 측정소별 현황은 <code>airmapDeviceCollectionsLogsXlsx</code>(<code>.../devices/collections/logs.xlsx</code>), 종합 분석 측정위치별은 <code>airmapApi.getAreaAnalyticsXlsx</code>(<code>.../device/area/analytics.xlsx</code>), 측정소별 분석은 <code>airmapApi.getDeviceAnalyticsXlsx</code>(<code>.../device/analytics.xlsx</code>)를 호출하며, 각 화면 하단 표의 "CSV 다운로드"는 기존 <code>.csv</code> 엔드포인트를 그대로 씁니다. xlsx 계열은 형제 CSV 엔드포인트와 파라미터가 달라 <code>size</code>·<code>page</code>를 받지 않으므로, 요청 타입도 <code>DeviceCollectionsLogsXlsxRequest</code>처럼 별도로 정의해 슬롯별 <code>serviceTargetId</code>/<code>deviceId</code> 쌍(KT·국가망·선택)만 전달합니다. 전체분석 다운로드는 서버가 측정소 최소 1개를 요구하므로, 아무 측정소도 고르지 않았으면 요청 전에 안내 팝업을 띄웁니다.</p>
     <p>전 측정소 다운로드(<code>airmapDeviceCollectionsLogsDownload</code>)에는 swagger 갱신에 맞춰 <code>serviceTargetId</code> 파라미터가 추가되었고, 조회 기간은 <code>MAX_ALL_STATIONS_DOWNLOAD_DAYS</code>(31일)로 제한됩니다. 기간이 31일을 넘으면 "31일치만 다운로드 가능합니다" 확인 팝업을 띄우고, 확인 시 <code>startDate</code>를 <code>endDate</code> 기준 <code>MAX - 1</code>일 전으로 보정해 시작일·종료일 포함 정확히 31일이 되도록 잡습니다. 버튼은 탭과 무관한 페이지 헤더에 있어 현재 보고 있는 탭(상세 공기질 / 공기질 비교)의 조회 조건을 <code>useRef</code>로 최신값을 읽어 채택합니다.</p>
     <p>목록형 이력·조회 화면은 노출 개수를 바꾸면 첫 페이지로 되돌리도록 통일되었습니다. 서버 페이징이라 페이지를 옮긴 상태에서 10 → 20으로 늘리면 남아 있던 <code>page</code>로 존재하지 않는 구간을 요청해 조회가 에러로 끝나기 때문입니다. SafeMate 이력(<code>HistoryFire</code>·<code>HistoryRoof</code>), 전문가 분석 보고서 목록, 국가관측망 현황이 모두 같은 방식(<code>handleRowCountChange</code> 또는 <code>setPage(1)</code>)으로 처리합니다. 국가관측망 현황의 기준단위 선택지에는 기존 일·시간·5분에 더해 <code>MIN10</code>·<code>MIN1</code>이 추가되었습니다.</p>
+    <p>2026-09-01~09-16 사이 전문가 분석 보고서(<code>ExpertAnalysis</code>)는 API·화면이 함께 서비스대상 단위로 재편되었습니다. 목록 조회는 <code>airmapApi.getExpertReports</code>(swagger에 없던 <code>/bff/monitor/boards.csv</code> 기반)를 걷어내고 <code>boardApi.reportList</code>(<code>GET /bff/monitor/boards/report</code>)로 옮겨, 헤더에서 선택한 <code>serviceTargetId</code>가 필수 파라미터가 되었습니다. 헤더 서비스대상이 없으면 조회 자체가 <code>enabled: false</code>로 비활성화되고, 대상이 바뀌면 첫 페이지로 되돌립니다. 등록도 <code>boardApi.add</code> 대신 <code>registReport</code>(<code>POST .../boards/report</code>)로 옮겨 같은 <code>serviceTargetId</code>를 함께 보내며, 검색 카테고리 값도 swagger enum과 맞춰 소문자(<code>all</code>/<code>reportName</code>/<code>registrant</code>)에서 대문자(<code>ALL</code>/<code>TITLE</code>/<code>CREATORID</code>)로 바뀌었습니다(소문자로 보내면 검색조건이 적용되지 않습니다). 응답 식별자도 <code>BoardVO.boardSequence</code>가 아니라 전용 <code>reportSequence</code>(<code>ExpertReportRow</code>)로 교체되어, 삭제(<code>boardApi.deleteReport</code>, <code>DELETE .../boards/report/{reportSequence}</code>)도 이 값을 씁니다. <code>reportSequence</code>가 없는 행은 삭제 요청 자체를 보내지 않고 실패로 집계하며, 일부만 실패해도 성공한 건은 이미 지워졌으므로 <code>onSuccess</code>/<code>onError</code> 양쪽에서 목록 캐시(<code>expertReports</code> 전체 prefix)를 <code>invalidateQueries</code>로 갱신한 뒤 "n건 삭제/스킵" 메시지를 구분해 보여줍니다. 목록 헤더에도 표를 좁혀 온 서비스대상명을 표시하기 위해, 페이지 타이틀이 <code>headerServiceTarget.serviceTargetName</code>이 있으면 "<em>대상명</em> 전문가 보고서"로 바뀝니다.</p>
+    <p>등록·삭제 버튼은 <code>hasRole(1)</code>(관제요원 이상)일 때만 노출되어 서비스 고객 계정에서는 다운로드만 가능합니다. 등록 팝업은 파일 선택창을 직접 여는 방식(<code>&lt;input type="file" hidden&gt;</code>)에서 전용 다이얼로그(<code>ReportRegisterPopup</code>)로 바뀌어, 공용 <code>CustomFile</code>에 <code>MAX_FILE_SIZE</code>(10MB, <code>config.ts</code>) 기반 <code>limitSize</code>를 넘겨 하단 용량 카운터와 초과 알림을 함께 노출합니다. 삭제 확인·알림 팝업(<code>DeleteConfirmPopup</code>·<code>AlertPopup</code>)은 직접 그리던 <code>Dialog</code>를 걷어내고 저장소 공통 팝업(<code>@/modal/Alarm</code>)으로 교체되어 버튼 variant·모서리·폭이 다른 화면과 통일되었으며, 알림의 확인 버튼은 <code>okContent</code>로 전달해 회색(soft)이 아닌 primary 색으로 렌더됩니다. 다운로드는 첨부 크기에 따라 시간이 걸릴 수 있어 클릭과 동시에 <code>DownloadNoticePopup</code>(안내 문구)을 띄우고 완료·실패 시 호출부가 닫는 방식으로 바뀌었습니다.</p>
     <div class="callout">
       <div class="ct">설계 포인트</div>
       파일명 한글이 깨지지 않도록 <code>filename*=UTF-8''</code>(RFC 5987) 형태를 우선 매칭합니다. <code>ApiClient</code> 응답 인터셉터는 최근 두 가지가 바뀌었습니다. TanStack Query가 화면 이탈·Query 교체 시 <code>AbortSignal</code>로 취소한 요청은 <code>axios.isCancel</code>로 걸러 오류 팝업을 띄우지 않고 취소 상태를 그대로 전달하며, <code>skipError</code> 요청의 조기 <code>reject</code>는 제거되어 <code>skipError</code>라도 401 인증 오류 처리(세션 정리 후 로그인 이동)는 반드시 통과합니다. 조회 기간 초과(<code>BPG-4006</code>/<code>BPG-4007</code>/<code>BPG-4008</code>) 같은 <code>BPG-*</code> 업무 검증 에러는 서버 <code>message</code>를 그대로 에러 다이얼로그에 노출합니다.
@@ -106,11 +108,20 @@ sequenceDiagram
         API--&gt;&gt;DL: Blob 응답 → xlsx 저장
     end
     opt 첨부 파일 다운로드 (전문가 분석 보고서)
+        Page-&gt;&gt;Page: DownloadNoticePopup 표시(안내)
         Page-&gt;&gt;API: boardApi.fileList(fileId)
         API--&gt;&gt;Page: fileItemSequence, originalName
         Page-&gt;&gt;API: boardApi.downloadFile(fileItemSequence)
         API--&gt;&gt;DL: Blob 응답
         DL-&gt;&gt;Browser: originalName 으로 저장
+        Page-&gt;&gt;Page: 완료/실패 시 DownloadNoticePopup 닫기
+    end
+    opt 전문가 보고서 등록/삭제 (hasRole(1) 이상만 버튼 노출)
+        Page-&gt;&gt;API: boardApi.reportList(serviceTargetId, searchType 대문자)
+        API--&gt;&gt;Page: rows(reportSequence, serviceTargetId)
+        Page-&gt;&gt;API: boardApi.registReport(serviceTargetId, fileId) — ReportRegisterPopup(CustomFile limitSize 10MB)
+        Page-&gt;&gt;API: boardApi.deleteReport(reportSequence) — 식별자 없는 행은 요청 생략
+        API--&gt;&gt;Page: 결과 → expertReports 캐시 invalidateQueries → n건 삭제/스킵 안내
     end
       </div>
       <p class="cap"><strong>흐름.</strong> 사이트별 이력 화면이 90일 기간 제한 안에서 이력을 조회·표시하고, CSV는 조회 조건 전체를 다시 요청해 Content-Disposition으로 저장합니다. 전 측정소 다운로드는 31일을 넘으면 기간을 보정해 받고, 전체분석 다운로드는 xlsx 전용 엔드포인트를 씁니다. 첨부 파일은 목록 CSV가 아니라 <code>fileList</code> → <code>downloadFile</code> 경로로 원본 파일을 받습니다.</p>
@@ -163,6 +174,22 @@ classDiagram
     class boardApi {
         +fileList(fileId)
         +downloadFile(fileItemSequence)
+        +reportList(params, unitServiceCode) List~ExpertReportRow~
+        +registReport(params, unitServiceCode)
+        +deleteReport(reportSequence, unitServiceCode)
+    }
+    class ExpertAnalysisComponent {
+        -serviceTargetId
+        -canManage hasRole(1)
+        +handleDelete()
+        +handleRegister()
+        +invalidateReports()
+    }
+    class ExpertAnalysisPopups {
+        +ReportRegisterPopup(limitSize)
+        +DownloadNoticePopup
+        +DeleteConfirmPopup
+        +AlertPopup
     }
     class ApiClient {
         +interceptors.request
@@ -176,6 +203,8 @@ classDiagram
     SiteHistory ..&gt; deviceApi : 측정 이력·CSV
     SiteHistory ..&gt; aiEnvDxApi : 설비 이력·CSV
     SiteHistory ..&gt; boardApi : 보고서 첨부 다운로드
+    ExpertAnalysisComponent ..&gt; boardApi : reportList/registReport/deleteReport(서비스대상 단위)
+    ExpertAnalysisComponent --&gt; ExpertAnalysisPopups : 등록·다운로드·삭제 확인 안내
     SiteHistory ..&gt; ApiClient : Blob 다운로드
     StationAirmapAir ..&gt; deviceApi : 전 측정소·전체분석 다운로드
     StationAirmapAir ..&gt; ApiClient : xlsx Blob 저장
@@ -346,6 +375,74 @@ const downloadMutation = useMutation({
 });</code></pre>
     </div>
     <div class="snippet">
+      <div class="sc"><code>src/api/board.ts</code> · <code>src/types/api.d.ts</code> — 전문가 보고서 전용 API로 이관(서비스대상 필수 · reportSequence 식별자)</div>
+<pre><code>// GET /bff/monitor/boards/report — serviceTargetId 가 필수다
+reportList: (params: ExpertReportRequest, unitServiceCode?: string, config?: AxiosRequestConfig) =&gt;
+  apiClient.get('/bff/monitor/boards/report', { ...config,
+    headers: { ...config?.headers, ...(unitServiceCode &amp;&amp; { unitServiceCode }) },
+    params: { ...params, searchText: params.searchText?.trim() || undefined },
+  }).then((res) =&gt; res.data),
+
+// DELETE /bff/monitor/boards/report/{reportSequence}
+// 2026-09-16: 응답 식별자가 boardSequence -&gt; reportSequence 로 바뀌어, 기존처럼 범용
+// boardApi.delete(row.boardSequence)를 부르면 값이 없어 /bff/monitor/boards/null 이 400 이었다.
+deleteReport: (reportSequence: number, unitServiceCode?: string, config?: AxiosRequestConfig) =&gt;
+  apiClient.delete(`/bff/monitor/boards/report/${reportSequence}`, { ...config,
+    headers: { ...config?.headers, ...(unitServiceCode &amp;&amp; { unitServiceCode }) },
+  }).then((res) =&gt; res.data),
+
+export interface ExpertReportRow extends Omit&lt;BoardVO, 'boardSequence'&gt; {
+  reportSequence: number;
+  serviceTargetId: string;
+  serviceTargetName: string;
+}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/expertAnalysis/airmap/ExpertAnalysis.tsx</code> — 삭제: 식별자 없는 행 스킵 + 부분 실패 안내</div>
+<pre><code>const deleteMutation = useMutation({
+  mutationFn: async (rows: ExpertReportRow[]) =&gt; {
+    const deletable = rows.filter((row) =&gt; row.reportSequence != null);
+    const skipped = rows.length - deletable.length;
+    const results = await Promise.allSettled(
+      deletable.map((row) =&gt; boardApi.deleteReport(row.reportSequence)),
+    );
+    const failed = results.filter((r) =&gt; r.status === 'rejected').length + skipped;
+    return { total: rows.length, failed, skipped };
+  },
+  onSuccess: async ({ total, failed, skipped }) =&gt; {
+    await invalidateReports();   // expertReports 캐시 전체 invalidate (조회조건이 다른 캐시도 갱신)
+    if (failed === 0) return showAlert('삭제되었습니다.');
+    if (skipped === total) return showAlert('보고서 정보를 확인할 수 없어 삭제할 수 없습니다. 목록을 새로 고친 뒤 다시 시도해주세요.');
+    if (failed === total) return showAlert('삭제에 실패했습니다.');
+    showAlert(`${total - failed}건을 삭제했습니다. ${failed}건은 삭제하지 못했습니다.`);
+  },
+});
+
+// 등록·삭제는 서비스 고객에게 노출하지 않는다. 다운로드는 권한 제한이 없다.
+buttons={canManage ? [{ title: '삭제', func: handleDelete, variant: 'line' },
+                      { title: '등록', func: handleRegister, variant: 'solid' }] : undefined}</code></pre>
+    </div>
+    <div class="snippet">
+      <div class="sc"><code>src/pages/expertAnalysis/airmap/ExpertAnalysisPopups.tsx</code> — 등록 팝업(10MB 제한) · 공통 Alarm 재사용</div>
+<pre><code>// 삭제 확인 — 직접 그리던 Dialog 대신 저장소 공통 팝업을 그대로 쓴다(버튼 규격 통일)
+export const DeleteConfirmPopup = ({ open, onClose, onConfirm }: ConfirmPopupProps) =&gt; (
+  &lt;Alarm open={open} desc="정말 삭제하시겠습니까?" onOk={() =&gt; { onConfirm(); onClose(); }}
+    okContent="예, 삭제합니다" onClose={onClose} closeContent="아니오" buttonWidth="184px" /&gt;
+);
+
+export const ReportRegisterPopup = ({ open, onClose, onSubmit, submitting }: RegisterPopupProps) =&gt; {
+  const [file, setFile] = useState&lt;File | null&gt;(null);
+  useEffect(() =&gt; { if (!open) setFile(null); }, [open]);   // 다시 열면 이전 선택 초기화
+  return (
+    &lt;Dialog open={open} onClose={submitting ? undefined : onClose} ...&gt;
+      {/* MAX_FILE_SIZE(10, config.ts)는 MB 단위라 바이트로 환산해 CustomFile에 전달 */}
+      &lt;CustomFile value={file} setValue={setFile} limitSize={MAX_FILE_SIZE * 1024 * 1024} /&gt;
+      &lt;Button onClick={() =&gt; file &amp;&amp; !submitting &amp;&amp; onSubmit(file)} disabled={!file || submitting}&gt;등록&lt;/Button&gt;
+    &lt;/Dialog&gt;
+  );
+};</code></pre>
+    </div>
+    <div class="snippet">
       <div class="sc"><code>src/utils/dateRange.ts</code> — 조회기간 제한 공용 상수</div>
 <pre><code>/** 기간 조회 달력에서 선택 가능한 최대 기간(일) */
 export const DATE_RANGE_LIMIT_DAYS = 90;
@@ -368,12 +465,17 @@ export const dateRangeLimitNotice = (days: number = DATE_RANGE_LIMIT_DAYS) =&gt;
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/logEvent.ts" target="_blank" rel="noopener">src/api/logEvent.ts</a><span class="src">이벤트 발생/레벨/기상 로그 조회 (ApiRequestOptions 지원)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/utils/dateRange.ts" target="_blank" rel="noopener">src/utils/dateRange.ts</a><span class="src">조회기간 90일 제한 상수·안내 문구</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/nationalNetwork/airmapAir/NationalNetworkStatus.tsx" target="_blank" rel="noopener">src/pages/nationalNetwork/airmapAir/NationalNetworkStatus.tsx</a><span class="src">국가관측망 현황 조회 · CSV 다운로드(buildLogsParams·downloadDisabled)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/expertAnalysis/airmap/ExpertAnalysis.tsx" target="_blank" rel="noopener">src/pages/expertAnalysis/airmap/ExpertAnalysis.tsx</a><span class="src">전문가 분석 보고서 목록 · 첨부 파일 순차 다운로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/expertAnalysis/airmap/ExpertAnalysis.tsx" target="_blank" rel="noopener">src/pages/expertAnalysis/airmap/ExpertAnalysis.tsx</a><span class="src">전문가 분석 보고서 목록(서비스대상 단위) · reportList/registReport/deleteReport 전환 · hasRole(1) 등록·삭제 게이팅 · 첨부 파일 순차 다운로드</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/expertAnalysis/airmap/ExpertAnalysisPopups.tsx" target="_blank" rel="noopener">src/pages/expertAnalysis/airmap/ExpertAnalysisPopups.tsx</a><span class="src">ReportRegisterPopup(CustomFile limitSize 10MB) · DownloadNoticePopup · 삭제/알림 팝업을 공통 Alarm 으로 교체</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/expertAnalysis/index.tsx" target="_blank" rel="noopener">src/pages/expertAnalysis/index.tsx</a><span class="src">헤더 서비스대상명을 포함한 페이지 타이틀("{대상명} 전문가 보고서")</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/board.ts" target="_blank" rel="noopener">src/api/board.ts</a><span class="src">reportList / registReport / deleteReport(reportSequence) — 전문가 보고서 전용 엔드포인트</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/types/api.d.ts" target="_blank" rel="noopener">src/types/api.d.ts</a><span class="src">ExpertReportRow(reportSequence·serviceTargetId) · ExpertReportRegRequest · ExpertReportSearchType(대문자 enum)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/config.ts" target="_blank" rel="noopener">src/config.ts</a><span class="src">MAX_FILE_SIZE(10, MB 단위) — 전문가 보고서 첨부 용량 제한</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/overview/aidx/EquipmentHistory.tsx" target="_blank" rel="noopener">src/pages/overview/aidx/EquipmentHistory.tsx</a><span class="src">AI산업안전DX 설비 이력 · facilityHistoryList CSV</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/overview/smartgreen/growthDevice/DeviceHistory.tsx" target="_blank" rel="noopener">src/pages/overview/smartgreen/growthDevice/DeviceHistory.tsx</a><span class="src">스마트그린 디바이스 이력 · 기간 단위(INSTALLED)·다운로드 파라미터 정합</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/pages/station/airmapAir/index.tsx" target="_blank" rel="noopener">src/pages/station/airmapAir/index.tsx</a><span class="src">전 측정소 다운로드 31일 제한·기간 보정 · 전체분석 xlsx 다운로드</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/device.ts" target="_blank" rel="noopener">src/api/device.ts</a><span class="src">AirMap 측정 이력 CSV/xlsx 다운로드 엔드포인트 (serviceTargetId 추가·swagger 규격 정합)</span></li>
-      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/airmap.ts" target="_blank" rel="noopener">src/api/airmap.ts</a><span class="src">종합 분석·측정소별 분석 전체 분석 다운로드(analytics.xlsx)</span></li>
+      <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/api/airmap.ts" target="_blank" rel="noopener">src/api/airmap.ts</a><span class="src">종합 분석·측정소별 분석 전체 분석 다운로드(analytics.xlsx) · 2026-09-01 getExpertReports 제거(swagger에 없던 boards.csv 경로 — boardApi.reportList 로 이관)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/types/api.d.ts" target="_blank" rel="noopener">src/types/api.d.ts</a><span class="src">DeviceCollectionsLogsXlsxRequest (슬롯별 serviceTargetId·deviceId, size/page 미지원)</span></li>
       <li><a href="https://bitbucket.org/altimedia/kt_integrated_iot_fe/src/main/src/components/DownloadButton.tsx" target="_blank" rel="noopener">src/components/DownloadButton.tsx</a><span class="src">첨부 다운로드 공통 버튼 · button/link 두 가지 표시 형태 · unitServiceCode 헤더 명시 전달</span></li>
     </ul>
